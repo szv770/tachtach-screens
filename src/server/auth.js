@@ -95,9 +95,19 @@ export async function validateSession(token) {
     return false;
   }
 
-  // Valid — roll expiry forward
-  auth.session.expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
-  await writeJSON(AUTH_FILE, auth);
+  // Valid — roll expiry forward, but rewrite the file at most once per hour.
+  // Rolling on EVERY request rewrote auth.json per API call, which (a) wears
+  // the Pi's SD card and (b) raced concurrent requests on Windows dev boxes:
+  // a readAuth() landing inside the tmp-file rename window saw ENOENT, got the
+  // default { session: null }, and the request 401'd — the intermittent
+  // "Unauthorized" toasts on admin page load. With a 30-day rolling window,
+  // refreshing at most hourly is behaviorally identical for the user.
+  const ROLL_INTERVAL_MS = 60 * 60 * 1000;
+  const remainingMs = new Date(auth.session.expiresAt).getTime() - now.getTime();
+  if (SESSION_DURATION_MS - remainingMs > ROLL_INTERVAL_MS) {
+    auth.session.expiresAt = new Date(now.getTime() + SESSION_DURATION_MS).toISOString();
+    await writeJSON(AUTH_FILE, auth);
+  }
   return true;
 }
 

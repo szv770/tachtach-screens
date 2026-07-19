@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { colors, buttonSecondary, adminFonts, inputStyle } from '../styles/admin-tokens.js';
+import useIsMobile from '../hooks/useIsMobile.js';
 
 export default function ScreenControls({ onCommand, onRefresh }) {
+  const isMobile = useIsMobile();
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(null); // track which command is in-flight
   const [previewDate, setPreviewDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -21,12 +23,16 @@ export default function ScreenControls({ onCommand, onRefresh }) {
     window.open(`/screen?previewDate=${encodeURIComponent(previewDate)}`, '_blank');
   };
 
-  const btnStyle = { ...buttonSecondary, padding: '6px 12px', fontSize: '13px' };
+  // On mobile the buttons grow to fill the row with 44px-tall targets;
+  // desktop keeps the compact side-panel sizing.
+  const btnStyle = isMobile
+    ? { ...buttonSecondary, padding: '8px 12px', fontSize: '14px', minHeight: '44px', flex: '1 1 30%' }
+    : { ...buttonSecondary, padding: '6px 12px', fontSize: '13px' };
 
   return (
     <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${colors.muted}` }}>
       {/* Screen control buttons */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '8px' : '6px', marginBottom: '12px' }}>
         <button style={{ ...btnStyle, opacity: busy === 'pause' ? 0.5 : 1 }} onClick={() => handleCommand('pause')} disabled={busy !== null}>Pause</button>
         <button style={{ ...btnStyle, opacity: busy === 'resume' ? 0.5 : 1 }} onClick={() => handleCommand('resume')} disabled={busy !== null}>Resume</button>
         <button style={{ ...btnStyle, opacity: busy === 'advance' ? 0.5 : 1 }} onClick={() => handleCommand('advance')} disabled={busy !== null}>Next</button>
@@ -58,10 +64,11 @@ export default function ScreenControls({ onCommand, onRefresh }) {
           onChange={e => setPreviewDate(e.target.value)}
           style={{
             ...inputStyle,
-            padding: '4px 8px',
+            padding: isMobile ? '8px 10px' : '4px 8px',
             fontSize: '13px',
             width: 'auto',
             minWidth: '140px',
+            minHeight: isMobile ? '44px' : undefined,
           }}
         />
         <button

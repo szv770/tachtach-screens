@@ -5,11 +5,13 @@ const darkColors = {
   text: '#EFE3C0',
   dim: 'rgba(239,227,192,.82)',
   muted: 'rgba(239,227,192,.50)',
+  border: 'rgba(239,227,192,.16)',
   gold: '#D4A84B',
   goldBg: 'rgba(212,168,75,.16)',
   goldBd: 'rgba(212,168,75,.52)',
   surface: 'rgba(255,240,195,.08)',
   surfaceHover: 'rgba(255,240,195,.14)',
+  panel: '#161310',
   copper: '#C89040',
   danger: '#E04040',
   dangerBg: 'rgba(224,64,64,.15)',
@@ -22,11 +24,13 @@ const lightColors = {
   text: '#1C1A17',
   dim: 'rgba(28,26,23,.55)',
   muted: 'rgba(28,26,23,.22)',
+  border: 'rgba(28,26,23,.12)',
   gold: '#9B7520',
   goldBg: 'rgba(155,117,32,.10)',
   goldBd: 'rgba(155,117,32,.35)',
   surface: 'rgba(0,0,0,.04)',
   surfaceHover: 'rgba(0,0,0,.07)',
+  panel: '#EFECE6',
   copper: '#7A5A1A',
   danger: '#C4342D',
   dangerBg: 'rgba(196,52,45,.08)',
@@ -55,6 +59,12 @@ export function getAdminThemeName() {
 
 export const colors = getAdminTheme() === 'light' ? lightColors : darkColors;
 
+// Expose the theme on <html> so admin.css can theme via CSS variables and
+// pseudo-class states (hover/focus) that inline styles can't express.
+if (typeof document !== 'undefined') {
+  document.documentElement.dataset.adminTheme = getAdminTheme();
+}
+
 export const adminFonts = {
   hebrewPrimary: "'Frank Ruhl Libre', Georgia, serif",
   hebrewDisplay: "'Noto Serif Hebrew', serif",
@@ -64,8 +74,8 @@ export const adminFonts = {
 
 export const inputStyle = {
   background: colors.surface,
-  border: `1px solid ${colors.muted}`,
-  borderRadius: '4px',
+  border: `1px solid ${colors.border}`,
+  borderRadius: '6px',
   color: colors.text,
   padding: '8px 12px',
   fontFamily: adminFonts.hebrewPrimary,
@@ -77,37 +87,36 @@ export const inputStyle = {
 
 export const buttonPrimary = {
   background: colors.gold,
-  color: colors.bg,
-  border: 'none',
-  borderRadius: '4px',
+  color: getAdminTheme() === 'light' ? '#FFFDF6' : colors.bg,
+  border: '1px solid transparent',
+  borderRadius: '6px',
   padding: '8px 20px',
   fontFamily: adminFonts.hebrewPrimary,
   fontSize: '14px',
   fontWeight: 500,
   cursor: 'pointer',
-  transition: 'opacity .15s',
+  letterSpacing: '0.02em',
+  boxShadow: '0 1px 3px rgba(0,0,0,.25)',
 };
 
 export const buttonSecondary = {
   background: 'transparent',
   color: colors.text,
-  border: `1px solid ${colors.muted}`,
-  borderRadius: '4px',
+  border: `1px solid ${colors.border}`,
+  borderRadius: '6px',
   padding: '8px 16px',
   fontFamily: adminFonts.hebrewPrimary,
   fontSize: '14px',
   cursor: 'pointer',
-  transition: 'opacity .15s',
 };
 
 export const buttonDanger = {
   background: colors.dangerBg,
   color: colors.danger,
   border: `1px solid ${colors.danger}`,
-  borderRadius: '4px',
+  borderRadius: '6px',
   padding: '8px 16px',
   fontFamily: adminFonts.hebrewPrimary,
   fontSize: '14px',
   cursor: 'pointer',
-  transition: 'opacity .15s',
 };

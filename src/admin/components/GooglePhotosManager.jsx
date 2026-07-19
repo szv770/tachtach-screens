@@ -592,16 +592,26 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
         false,
       )}
 
-      {/* Edit modal for existing Google Photos slide */}
+      {/* Edit modal for existing Google Photos slide \u2014 near-full-screen sheet on mobile */}
       {editingSlideId && editForm && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 1000,
           background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex',
+          alignItems: isMobile ? 'flex-end' : 'center',
+          justifyContent: 'center',
         }}
           onClick={(e) => { if (e.target === e.currentTarget) cancelEdit(); }}
         >
-          <div style={{
+          <div style={isMobile ? {
+            background: colors.bg,
+            borderRadius: '14px 14px 0 0',
+            borderTop: `1px solid ${colors.goldBd}`,
+            padding: '20px 16px calc(24px + env(safe-area-inset-bottom))',
+            width: '100%',
+            maxHeight: '94dvh', overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+          } : {
             background: colors.bg, borderRadius: '8px',
             padding: '24px', maxWidth: '600px', width: '90%',
             maxHeight: '80vh', overflowY: 'auto',
@@ -613,8 +623,9 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
               <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '18px', color: colors.gold, margin: 0 }}>
                 Edit Google Photos Slide
               </h3>
-              <button onClick={cancelEdit} style={{
+              <button onClick={cancelEdit} aria-label="Close" style={{
                 background: 'none', border: 'none', color: colors.dim, fontSize: '20px', cursor: 'pointer',
+                minWidth: isMobile ? '44px' : undefined, minHeight: isMobile ? '44px' : undefined,
               }}>{'\u00D7'}</button>
             </div>
 
@@ -643,9 +654,14 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
               true,
             )}
 
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button onClick={cancelEdit} style={buttonSecondary}>Cancel</button>
-              <button onClick={saveEdit} style={buttonPrimary}>Save Changes</button>
+            <div style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column-reverse' : 'row',
+              gap: isMobile ? '10px' : '8px',
+              justifyContent: 'flex-end',
+            }}>
+              <button onClick={cancelEdit} style={{ ...buttonSecondary, minHeight: isMobile ? '44px' : undefined }}>Cancel</button>
+              <button onClick={saveEdit} style={{ ...buttonPrimary, minHeight: isMobile ? '44px' : undefined }}>Save Changes</button>
             </div>
           </div>
         </div>
