@@ -539,7 +539,7 @@ function loginPage() {
       hideError();
 
       const code = totpSetupCode.value.trim();
-      if (!/^\d{6}$/.test(code)) {
+      if (!/^\\d{6}$/.test(code)) {
         showError('Enter the 6-digit code from your authenticator app.');
         return;
       }
@@ -573,7 +573,7 @@ function loginPage() {
       hideError();
 
       const code = totpCode.value.trim();
-      if (!/^\d{6}$/.test(code)) {
+      if (!/^\\d{6}$/.test(code)) {
         showError('Enter the 6-digit code from your authenticator app.');
         return;
       }
