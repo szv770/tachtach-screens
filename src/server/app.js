@@ -122,7 +122,7 @@ export function createApp() {
   // ── 3. Setup check (reject requests if setup.js hasn't been run) ───
   app.use(setupCheck);
 
-  // ── 4. Rate limiter on POST /login ────────────────────────────────
+  // ── 4. Rate limiter on POST /login and the TOTP verification steps ──
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5,                    // 5 requests per window per IP
@@ -131,6 +131,8 @@ export function createApp() {
     message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   });
   app.post('/login', loginLimiter);
+  app.post('/login/totp', loginLimiter);
+  app.post('/login/totp-setup', loginLimiter);
 
   // ── 5. Auth routes (GET/POST /login, POST /logout) — before requireAuth ─
   app.use(authRouter);

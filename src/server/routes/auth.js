@@ -338,6 +338,45 @@ function loginPage() {
     .error-message.visible {
       display: block;
     }
+
+    .totp-hint {
+      font-family: 'EB Garamond', Georgia, serif;
+      font-size: 0.9rem;
+      color: rgba(239, 227, 192, 0.7);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
+    }
+
+    .qr-wrap {
+      background: #EFE3C0;
+      padding: 1rem;
+      border-radius: 8px;
+      display: inline-block;
+      margin-bottom: 1.25rem;
+    }
+
+    .qr-wrap img {
+      display: block;
+      width: 180px;
+      height: 180px;
+    }
+
+    .totp-secret {
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: rgba(239, 227, 192, 0.55);
+      word-break: break-all;
+      margin-bottom: 1.25rem;
+      direction: ltr;
+    }
+
+    .totp-input {
+      letter-spacing: 0.3em;
+      text-align: center;
+      font-size: 1.3rem;
+    }
+
+    .hidden { display: none !important; }
   </style>
 </head>
 <body>
@@ -345,7 +384,8 @@ function loginPage() {
     <h1 class="title-hebrew">תחתך</h1>
     <p class="title-english">Admin Access</p>
 
-    <form id="loginForm" autocomplete="off">
+    <!-- Step 1: password -->
+    <form id="passwordForm" autocomplete="off">
       <div class="form-group">
         <input
           type="password"
@@ -356,15 +396,67 @@ function loginPage() {
           required
         >
       </div>
-      <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
-      <div class="error-message" id="errorMsg"></div>
+      <button type="submit" class="login-btn" id="passwordBtn">Sign In</button>
     </form>
+
+    <!-- Step 2a: first-time TOTP enrollment -->
+    <form id="totpSetupForm" class="hidden" autocomplete="off">
+      <p class="totp-hint">Scan this QR code with Google Authenticator, Authy, or any TOTP app, then enter the 6-digit code it shows to finish setup.</p>
+      <div class="qr-wrap"><img id="qrImage" alt="TOTP QR code"></div>
+      <p class="totp-secret">Can't scan? Enter manually: <span id="totpSecretText"></span></p>
+      <div class="form-group">
+        <input
+          type="text"
+          id="totpSetupCode"
+          class="password-input totp-input"
+          placeholder="000000"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="6"
+          autocomplete="one-time-code"
+          required
+        >
+      </div>
+      <button type="submit" class="login-btn" id="totpSetupBtn">Enable 2FA &amp; Sign In</button>
+    </form>
+
+    <!-- Step 2b: normal TOTP verification -->
+    <form id="totpForm" class="hidden" autocomplete="off">
+      <p class="totp-hint">Enter the 6-digit code from your authenticator app.</p>
+      <div class="form-group">
+        <input
+          type="text"
+          id="totpCode"
+          class="password-input totp-input"
+          placeholder="000000"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          maxlength="6"
+          autocomplete="one-time-code"
+          required
+        >
+      </div>
+      <button type="submit" class="login-btn" id="totpBtn">Verify</button>
+    </form>
+
+    <div class="error-message" id="errorMsg"></div>
   </div>
 
   <script>
-    const form = document.getElementById('loginForm');
+    const passwordForm = document.getElementById('passwordForm');
     const passwordInput = document.getElementById('password');
-    const loginBtn = document.getElementById('loginBtn');
+    const passwordBtn = document.getElementById('passwordBtn');
+
+    const totpSetupForm = document.getElementById('totpSetupForm');
+    const totpSetupCode = document.getElementById('totpSetupCode');
+    const totpSetupBtn = document.getElementById('totpSetupBtn');
+    const qrImage = document.getElementById('qrImage');
+    const totpSecretText = document.getElementById('totpSecretText');
+
+    const totpForm = document.getElementById('totpForm');
+    const totpCode = document.getElementById('totpCode');
+    const totpBtn = document.getElementById('totpBtn');
+
     const errorMsg = document.getElementById('errorMsg');
 
     function getCookie(name) {
@@ -381,7 +473,20 @@ function loginPage() {
       errorMsg.classList.remove('visible');
     }
 
-    form.addEventListener('submit', async (e) => {
+    function jsonHeaders() {
+      const csrfToken = getCookie('_csrf');
+      const headers = { 'Content-Type': 'application/json' };
+      if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+      return headers;
+    }
+
+    function showStep(step) {
+      passwordForm.classList.toggle('hidden', step !== 'password');
+      totpSetupForm.classList.toggle('hidden', step !== 'totp-setup');
+      totpForm.classList.toggle('hidden', step !== 'totp');
+    }
+
+    passwordForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       hideError();
 
@@ -391,32 +496,107 @@ function loginPage() {
         return;
       }
 
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Signing in\u2026';
+      passwordBtn.disabled = true;
+      passwordBtn.textContent = 'Signing in\u2026';
 
       try {
-        const csrfToken = getCookie('_csrf');
-        const headers = { 'Content-Type': 'application/json' };
-        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
-
         const res = await fetch('/login', {
           method: 'POST',
-          headers,
+          headers: jsonHeaders(),
           body: JSON.stringify({ password }),
         });
 
         const data = await res.json();
 
-        if (res.ok && data.success) {
-          window.location.href = '/admin';
-        } else {
+        if (!res.ok) {
           showError(data.error || 'Login failed.');
+          return;
+        }
+
+        if (data.status === 'totp_setup_required') {
+          qrImage.src = data.qrDataUrl;
+          totpSecretText.textContent = data.secret;
+          showStep('totp-setup');
+          totpSetupCode.focus();
+        } else if (data.status === 'totp_required') {
+          showStep('totp');
+          totpCode.focus();
+        } else {
+          showError('Unexpected response from server.');
         }
       } catch (err) {
         showError('Network error. Please try again.');
       } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Sign In';
+        passwordBtn.disabled = false;
+        passwordBtn.textContent = 'Sign In';
+      }
+    });
+
+    totpSetupForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const code = totpSetupCode.value.trim();
+      if (!/^\d{6}$/.test(code)) {
+        showError('Enter the 6-digit code from your authenticator app.');
+        return;
+      }
+
+      totpSetupBtn.disabled = true;
+      totpSetupBtn.textContent = 'Verifying\u2026';
+
+      try {
+        const res = await fetch('/login/totp-setup', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          window.location.href = '/admin';
+        } else {
+          showError(data.error || 'Invalid code.');
+        }
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        totpSetupBtn.disabled = false;
+        totpSetupBtn.textContent = 'Enable 2FA & Sign In';
+      }
+    });
+
+    totpForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const code = totpCode.value.trim();
+      if (!/^\d{6}$/.test(code)) {
+        showError('Enter the 6-digit code from your authenticator app.');
+        return;
+      }
+
+      totpBtn.disabled = true;
+      totpBtn.textContent = 'Verifying\u2026';
+
+      try {
+        const res = await fetch('/login/totp', {
+          method: 'POST',
+          headers: jsonHeaders(),
+          body: JSON.stringify({ code }),
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          window.location.href = '/admin';
+        } else {
+          showError(data.error || 'Invalid code.');
+        }
+      } catch (err) {
+        showError('Network error. Please try again.');
+      } finally {
+        totpBtn.disabled = false;
+        totpBtn.textContent = 'Verify';
       }
     });
 
