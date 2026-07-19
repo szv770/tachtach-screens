@@ -126,13 +126,26 @@ await writeJSON('settings.json', {
 });
 console.log('  ✓ data/settings.json');
 
-await writeJSON('slides.json', [
-  { id: 'zmanim', type: 'ZMANIM', enabled: true, duration: 15, order: 0, title: null },
-  { id: 'limudim', type: 'LIMUDIM', enabled: true, duration: 13, order: 1, title: null },
-  { id: 'hayom-yom', type: 'HAYOM_YOM', enabled: true, duration: 13, order: 2, title: null },
-  { id: 'pirkei-avos', type: 'PIRKEI_AVOS', enabled: true, duration: 13, order: 3, title: null },
-]);
-console.log('  ✓ data/slides.json');
+// Don't clobber an existing slides.json — it may already ship with the repo
+// (as a committed reference/default) or have been customized by the owner.
+// Only write fresh defaults if the file genuinely doesn't exist yet.
+const existingSlides = await readJSON('slides.json');
+if (existingSlides) {
+  console.log('  ✓ data/slides.json (already present, left unchanged)');
+} else {
+  await writeJSON('slides.json', [
+    { id: 'zmanim', type: 'ZMANIM', label: 'Halachic Times', enabled: true, duration: 15, order: 0 },
+    { id: 'limudim', type: 'LIMUDIM', label: 'Daily Study', enabled: true, duration: 15, order: 1 },
+    { id: 'hayom-yom', type: 'HAYOM_YOM', enabled: true, duration: 25, order: 2 },
+    { id: 'pirkei-avos', type: 'PIRKEI_AVOS', enabled: true, duration: 13, order: 3 },
+    { id: 'daily-quote', type: 'DAILY_QUOTE', label: 'Daily Vort', enabled: true, duration: 12, order: 4 },
+    { id: 'parsha-tidbits', type: 'PARSHA_TIDBITS', enabled: false, duration: 25, order: 5 },
+    { id: 'schedule', type: 'SCHEDULE', label: 'Seder', enabled: false, duration: 30, order: 6 },
+    { id: 'mivtzah-leaderboard', type: 'MIVTZAH_LEADERBOARD', label: 'Mivtzah Leaderboard', enabled: false, duration: 20, order: 99 },
+    { id: 'mivtzah-live-embed', type: 'MIVTZAH_LIVE_EMBED', label: 'Mivtzah Live Screen', embedUrl: '', enabled: false, duration: 20, order: 100 },
+  ]);
+  console.log('  ✓ data/slides.json');
+}
 
 await writeJSON('messages.json', []);
 console.log('  ✓ data/messages.json');
