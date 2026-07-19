@@ -27,7 +27,7 @@ Using **Raspberry Pi Imager** on your PC:
 ```bash
 ssh pi@tachtach.local          # or ssh pi@<ip> if mDNS doesn't resolve
 cd /home/pi
-git clone <your-git-remote-url> tachtach-screens
+git clone https://github.com/szv770/tachtach-screens.git tachtach-screens
 sudo bash /home/pi/tachtach-screens/deploy/pi-setup.sh
 ```
 

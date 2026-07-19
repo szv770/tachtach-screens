@@ -67,10 +67,10 @@ Accept the fingerprint prompt, then enter your password.
 
 ```bash
 cd /home/pi
-git clone YOUR_GIT_REMOTE_URL tachtach-screens
+git clone https://github.com/szv770/tachtach-screens.git tachtach-screens
 ```
 
-Replace `YOUR_GIT_REMOTE_URL` with your actual git remote (e.g. `git@github.com:youruser/tachtach-screens.git` or an HTTPS URL).
+This is a public repository, so no authentication is required to clone it.
 
 ### 2.2 — Run the setup script
 
