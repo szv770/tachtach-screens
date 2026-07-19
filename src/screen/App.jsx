@@ -13,6 +13,7 @@ import Banner from './components/messages/Banner.jsx';
 import Takeover from './components/messages/Takeover.jsx';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import HiddenAccess from './components/HiddenAccess.jsx';
+import ScreenScaler from './components/ScreenScaler.jsx';
 import AnimatedText from './components/AnimatedText.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 
@@ -547,7 +548,7 @@ function AppContent() {
   ) : null;
 
   return (
-    <>
+    <ScreenScaler portrait={isPortrait}>
       <Layout
         leftColumn={leftColumn}
         rightColumn={rightColumn}
@@ -622,6 +623,6 @@ function AppContent() {
           </span>
         </div>
       )}
-    </>
+    </ScreenScaler>
   );
 }
