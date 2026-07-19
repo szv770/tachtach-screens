@@ -17,7 +17,11 @@ ExecStart=/usr/bin/node __PROJECT_DIR__/server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
-Environment=HOST=127.0.0.1
+# HOST=0.0.0.0 is required for LAN admin access (http://<pi-ip>:3000/admin) and
+# for the Cloudflare Tunnel (which proxies to localhost:3000, itself fine, but
+# LAN access per the setup docs needs 0.0.0.0). Do NOT set this to 127.0.0.1 —
+# that silently breaks LAN/tunnel access while the server still "looks" up.
+Environment=HOST=0.0.0.0
 
 # Logging
 StandardOutput=journal

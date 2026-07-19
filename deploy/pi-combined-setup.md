@@ -251,7 +251,7 @@ You should see the line you just added. Cron is now managing it — no further a
    ssh pi@tachtach.local 'bash /home/pi/tachtach-screens/deploy/update.sh'
    ```
 
-   The script pulls the latest code, runs `npm ci --omit=dev`, rebuilds the frontend, and restarts both services. It logs each run to `/home/pi/tachtach-update.log`.
+   The script pulls the latest code, runs `npm ci` (installs devDependencies too, since the build step needs `vite`), rebuilds the frontend, and restarts both services. It logs each run to `/home/pi/tachtach-update.log`.
 
 ### What the update script does
 
@@ -259,7 +259,7 @@ The script (`deploy/update.sh`) runs these steps:
 
 ```
 git pull
-npm ci --omit=dev
+npm ci
 npm run build
 sudo systemctl restart tachtach-server
 sudo systemctl restart tachtach-kiosk
@@ -267,7 +267,7 @@ sudo systemctl restart tachtach-kiosk
 
 ### Important: data is preserved across updates
 
-The `data/` folder (slides, settings, messages, admin password) is gitignored and lives only on the Pi. It is never touched by `git pull` or the update script — all your content persists safely across every update.
+The admin credentials (`data/auth.json`), cache, and uploads are gitignored and live only on the Pi — `git pull` never touches them. Most of the rest of `data/` (slides, settings, messages, schedule, etc.) is tracked in the repo as your committed starting configuration; edits made from the admin panel on the Pi are *local, uncommitted* changes there. In practice `git pull` on the Pi only fast-forwards, so it won't overwrite those files unless a future commit happens to touch the same file — if that ever happens, `git pull` will refuse to overwrite local changes and the update script will stop with an error rather than silently discarding your content. If that happens, resolve it on the Pi (e.g. `git stash` before pulling, `git stash pop` after) rather than force-overwriting.
 
 ---
 

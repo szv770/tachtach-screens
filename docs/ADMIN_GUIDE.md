@@ -490,23 +490,29 @@ TachTach uses real-time SSE (Server-Sent Events) to push changes instantly. If c
 2. Files over 50 MB are rejected -- try a smaller file
 3. The image processing pipeline requires Sharp -- check server logs for processing errors
 
-### I forgot the admin password
+### I forgot the admin password (or lost my 2FA device)
 
-You will need SSH access to the Raspberry Pi:
+You will need SSH access to the Raspberry Pi. **Do not run `node setup.js` for
+this** — it wipes your slides/settings/messages along with the credentials.
+Instead use the dedicated, targeted reset script:
 
 ```bash
-cd /home/pi/tachtach-screens
-node setup.js
+cd ~/tachtach-screens
+npm run reset-admin
 ```
 
-This will let you set a new password (choose "y" to overwrite the existing setup).
+This opens a menu to reset the password only, TOTP/2FA only (if you lost your
+authenticator device), or both — touching nothing else in `data/`. See
+[`docs/FULL_SETUP_GUIDE.md`](FULL_SETUP_GUIDE.md#8-if-you-ever-forget-the-admin-password-or-lose-your-2fa-device)
+for full details. (Replace `~` with your actual home directory if it's not
+picked up automatically over SSH.)
 
 ### The kiosk screen shows "Run npm run build first"
 
 The frontend has not been built. Run:
 
 ```bash
-cd /home/pi/tachtach-screens
+cd ~/tachtach-screens
 npm run build
 sudo systemctl restart tachtach-server
 ```

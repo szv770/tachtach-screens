@@ -32,8 +32,13 @@ cd "$PROJECT_DIR"
 log "Pulling latest code..."
 git pull
 
-log "Installing production dependencies..."
-npm ci --omit=dev
+log "Installing dependencies..."
+# NOTE: must NOT use --omit=dev — "npm run build" runs `vite build`, and vite
+# is a devDependency. Omitting dev deps here means the very next line fails
+# with "'vite' is not recognized..." (reproduced during testing). devDeps are
+# only needed at build time, not at runtime, but there's no harm leaving them
+# installed on the Pi.
+npm ci
 
 log "Building frontend..."
 npm run build
