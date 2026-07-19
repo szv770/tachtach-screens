@@ -1,0 +1,72 @@
+[
+  {
+    "id": "zmanim",
+    "type": "ZMANIM",
+    "label": "Halachic Times",
+    "duration": 15,
+    "enabled": true,
+    "order": 0
+  },
+  {
+    "id": "hayom-yom",
+    "type": "HAYOM_YOM",
+    "duration": 25,
+    "enabled": true,
+    "order": 2
+  },
+  {
+    "id": "limudim",
+    "type": "LIMUDIM",
+    "label": "Daily Study",
+    "duration": 15,
+    "enabled": true,
+    "order": 1
+  },
+  {
+    "id": "pirkei-avos",
+    "type": "PIRKEI_AVOS",
+    "duration": 13,
+    "enabled": true,
+    "order": 3
+  },
+  {
+    "id": "daily-quote",
+    "type": "DAILY_QUOTE",
+    "label": "Daily Vort",
+    "duration": 12,
+    "enabled": true,
+    "order": 4
+  },
+  {
+    "id": "parsha-tidbits",
+    "type": "PARSHA_TIDBITS",
+    "duration": 25,
+    "enabled": false,
+    "order": 5
+  },
+  {
+    "id": "schedule",
+    "type": "SCHEDULE",
+    "label": "Seder",
+    "duration": 30,
+    "enabled": true,
+    "order": 6
+  },
+  {
+    "id": "mivtzah-leaderboard",
+    "type": "MIVTZAH_LEADERBOARD",
+    "label": "Mivtzah Leaderboard",
+    "duration": 20,
+    "enabled": false,
+    "order": 99
+  },
+  {
+    "id": "mivtzah-live-embed",
+    "type": "MIVTZAH_LIVE_EMBED",
+    "label": "Mivtzah Live Screen",
+    "embedUrl": "",
+    "duration": 20,
+    "enabled": false,
+    "order": 100
+  }
+]

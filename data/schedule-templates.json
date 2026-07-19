@@ -1,0 +1,304 @@
+[
+  {
+    "id": "75b8bdc9-54f6-45e8-be46-e767be2d279a",
+    "name": "Regular weekday",
+    "entries": [
+      {
+        "name": "Shacharis",
+        "nameHe": "שחרית",
+        "time": "08:50",
+        "endTime": "",
+        "category": "davening",
+        "days": [
+          "Sun",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri",
+          "Mon"
+        ],
+        "enabled": true,
+        "alertBefore": 10,
+        "icon": "prayer"
+      },
+      {
+        "name": "Breakfast",
+        "nameHe": "ארוכת בוקר",
+        "time": "10:05",
+        "endTime": "",
+        "category": "meals",
+        "days": [
+          "Sun",
+          "Tue",
+          "Wed",
+          "Fri"
+        ],
+        "enabled": true,
+        "alertBefore": 1
+      },
+      {
+        "name": "Gemoro (Iyun)",
+        "nameHe": "גמרא לעיון",
+        "time": "10:40",
+        "endTime": "13:05",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 10
+      },
+      {
+        "name": "Lunch",
+        "nameHe": "ארוחת צהריים",
+        "time": "13:40",
+        "endTime": "14:05",
+        "category": "meals",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 5
+      },
+      {
+        "name": "Mincha",
+        "nameHe": "מנחה",
+        "time": "14:10",
+        "endTime": "02:30",
+        "category": "davening",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 15
+      },
+      {
+        "name": "Gemoro Girsa",
+        "nameHe": "גמרא לגרסא",
+        "time": "14:30",
+        "endTime": "16:00",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 1
+      },
+      {
+        "name": "Maariv",
+        "nameHe": "מעריב",
+        "time": "20:50",
+        "endTime": "",
+        "category": "davening",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 2
+      },
+      {
+        "name": "Chassidus | Shiur Beis - Gimmel",
+        "nameHe": "חסידות ערב | שיעור ב' - ג'",
+        "time": "20:00",
+        "endTime": "20:45",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 10
+      },
+      {
+        "name": "Brochos",
+        "nameHe": "ברכות",
+        "time": "07:45",
+        "endTime": "07:55",
+        "category": "davening",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "enabled": true,
+        "alertBefore": 15
+      },
+      {
+        "name": "Chassidus",
+        "nameHe": "חסידות לעיון",
+        "time": "08:05",
+        "endTime": "08:45",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "enabled": true,
+        "alertBefore": 5
+      },
+      {
+        "name": "Breakfast",
+        "nameHe": "ארוחת בוקר",
+        "time": "10:10",
+        "category": "meals",
+        "days": [
+          "Mon",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 2
+      },
+      {
+        "name": "Likutei Sichos",
+        "nameHe": "סדר לקוטי שיחות",
+        "time": "17:00",
+        "endTime": "17:45",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 10
+      },
+      {
+        "name": "Break",
+        "nameHe": "הפסק",
+        "time": "16:00",
+        "endTime": "17:00",
+        "category": "breaks-1777416137337",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 1
+      },
+      {
+        "name": "Halocho",
+        "nameHe": "הלכה",
+        "time": "17:50",
+        "endTime": "18:30",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 2
+      },
+      {
+        "name": "Chassidus | Shiur Alef",
+        "nameHe": "חסידות ערב | שיעור א'",
+        "time": "19:30",
+        "endTime": "20:30",
+        "category": "learning",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu"
+        ],
+        "enabled": true,
+        "alertBefore": 10
+      },
+      {
+        "name": "Vekking",
+        "nameHe": "וועקינג",
+        "time": "07:15",
+        "category": "breaks-1777416137337",
+        "days": [
+          "Sun",
+          "Mon",
+          "Tue",
+          "Wed",
+          "Thu",
+          "Fri"
+        ],
+        "enabled": true,
+        "alertBefore": 0,
+        "icon": "music"
+      }
+    ],
+    "categories": [
+      {
+        "id": "davening",
+        "name": "Davening",
+        "color": "#D4A84B",
+        "icon": "star"
+      },
+      {
+        "id": "learning",
+        "name": "Learning",
+        "color": "#2DD4BF",
+        "icon": "book"
+      },
+      {
+        "id": "meals",
+        "name": "Meals",
+        "color": "#F97316",
+        "icon": "meal"
+      },
+      {
+        "id": "events",
+        "name": "Events",
+        "color": "#A855F7",
+        "icon": "calendar"
+      },
+      {
+        "id": "trips-1777014946948",
+        "name": "Trips",
+        "color": "#ffff00",
+        "icon": "bus"
+      },
+      {
+        "id": "breaks-1777416137337",
+        "name": "Breaks",
+        "color": "#a0696a",
+        "icon": "sports"
+      }
+    ],
+    "createdAt": "2026-04-28T22:46:33.323Z",
+    "updatedAt": "2026-04-28T22:46:39.765Z"
+  }
+]

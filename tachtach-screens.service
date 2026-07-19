@@ -1,0 +1,14 @@
+[Unit]
+Description=TachTach-Screens Digital Signage Server
+After=network.target
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/tachtach-screens
+ExecStart=/usr/bin/node /home/pi/tachtach-screens/server.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

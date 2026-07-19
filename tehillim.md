@@ -1,0 +1,911 @@
+- generic [active] [ref=e1]:
+  - text:   
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: ב"ה
+      - generic [ref=e7]:
+        - generic:
+          - link "Login" [ref=e10] [cursor=pointer]:
+            - /url: /tools/login/default.asp?aid=8052&page=-%2fdailystudy%2ftehillim.asp%3ftdate%3d5%2f6%2f2026
+            - text: Login
+          - link "Ask the Rabbi" [ref=e12] [cursor=pointer]:
+            - /url: /asktherabbi/default_cdo/jewish/Ask-the-Rabbi.htm
+            - text: Ask the Rabbi
+          - generic [ref=e14] [cursor=pointer]: Find a Center
+          - generic [ref=e16] [cursor=pointer]: Tools
+          - link "Donate" [ref=e18] [cursor=pointer]:
+            - /url: /tools/donate/donate.asp?AID=161548&sc=t8052
+            - text: Donate
+          - generic [ref=e20] [cursor=pointer]: English
+      - generic [ref=e21]:
+        - link " " [ref=e22] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e23]: 
+          - generic [ref=e24]: 
+        - generic [ref=e26] [cursor=pointer]: 
+        - generic [ref=e27]:
+          - text: 
+          - link " This week's Torah reading is Behar-Bechukotai" [ref=e764] [cursor=pointer]:
+            - /url: /parshah/default_cdo/jewish/Torah-Portion.htm
+            - generic [ref=e765]: 
+            - generic [ref=e766]: This week's Torah reading is
+            - generic [ref=e767]: Behar-Bechukotai
+    - text: 
+    - generic [ref=e33]:
+      - link:
+        - /url: /
+      - table [ref=e34]:
+        - rowgroup [ref=e35]:
+          - row "Jewish Practice Learning & Values Community & Family Inspiration & Entertainment" [ref=e36]:
+            - cell "Jewish Practice" [ref=e37]:
+              - generic [ref=e40] [cursor=pointer]: Jewish Practice
+            - cell [ref=e41]:
+              - img [ref=e42]
+            - cell "Learning & Values" [ref=e43]:
+              - generic [ref=e46] [cursor=pointer]: Learning & Values
+            - cell [ref=e47]:
+              - img [ref=e48]
+            - cell "Community & Family" [ref=e49]:
+              - generic [ref=e52] [cursor=pointer]: Community & Family
+            - cell [ref=e53]:
+              - img [ref=e54]
+            - cell "Inspiration & Entertainment" [ref=e55]:
+              - generic [ref=e58] [cursor=pointer]: Inspiration & Entertainment
+      - table [ref=e59]:
+        - rowgroup [ref=e60]:
+          - row "" [ref=e61]:
+            - cell "" [ref=e62]:
+              - generic [ref=e64]:
+                - button "" [ref=e66] [cursor=pointer]
+                - textbox "Search" [ref=e68]
+  - generic [ref=e72]:
+    - generic [ref=e73]:
+      - banner [ref=e75]:
+        - generic [ref=e76]:
+          - text: 
+          - link "Daily Study" [ref=e77] [cursor=pointer]:
+            - /url: /dailystudy/default_cdo/jewish/Daily-Study.htm
+        - heading "Daily Tehillim - Psalms" [level=1] [ref=e78]
+        - heading "Chapters 90-96" [level=2] [ref=e80]
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - generic [ref=e84]:
+            - generic [ref=e85]: Wednesday, 19 Iyar 5786 / May 6, 2026
+            - generic [ref=e86]:
+              - link "Today" [ref=e88] [cursor=pointer]:
+                - /url: /dailystudy/tehillim.asp?
+              - link "" [ref=e90] [cursor=pointer]:
+                - /url: /dailystudy/tehillim.asp?tdate=5/5/2026
+                - generic [ref=e91]: 
+              - link "" [ref=e93] [cursor=pointer]:
+                - /url: /dailystudy/tehillim.asp?tdate=5/7/2026
+                - generic [ref=e94]: 
+              - button "" [ref=e96] [cursor=pointer]:
+                - generic [ref=e97]: 
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - generic [ref=e101]: Classes on Tehillim - Psalms
+              - list [ref=e102]:
+                - listitem [ref=e103]:
+                  - link "Dovid Hurwitz" [ref=e104] [cursor=pointer]:
+                    - /url: /article.asp?aid=4486821
+                  - text: (13:32)
+                  - generic [ref=e105]:
+                    - link "Listen" [ref=e106] [cursor=pointer]:
+                      - /url: /article.asp?aid=4486821
+                    - link "Download" [ref=e107] [cursor=pointer]:
+                      - /url: /multimedia/filedownload_cdo/aid/4486821
+            - generic [ref=e110]:
+              - generic [ref=e111]: "Show content in:"
+              - generic [ref=e112]:
+                - generic [ref=e113] [cursor=pointer]: English
+                - generic [ref=e114] [cursor=pointer]: Hebrew
+            - generic [ref=e116]:
+              - generic [ref=e117]: Chapter 90
+              - generic [ref=e118]: David found this prayer in its present form-receiving a tradition attributing it to Moses (The Midrash attributes the next eleven Psalms to Moses (Rashi)) and incorporated it into the Tehillim. It speaks of the brevity of human life, and inspires man to repent and avoid pride in this world.
+              - generic [ref=e119]:
+                - generic [ref=e121]:
+                  - generic [ref=e123]:
+                    - link "1" [ref=e124] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: A prayer by Moses, the man of God. My Lord, You have been a shelter for us in every generation.
+                  - generic [ref=e126]:
+                    - link "2" [ref=e127] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: Before the mountains came into being, before You created the earth and the world-for ever and ever You are Almighty God.
+                  - generic [ref=e129]:
+                    - link "3" [ref=e130] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: You diminish man until he is crushed, and You say, "Return, you children of man.”
+                  - generic [ref=e132]:
+                    - link "4" [ref=e133] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: Indeed, a thousand years are in Your eyes like yesterday that has passed, like a watch of the night.
+                  - generic [ref=e135]:
+                    - link "5" [ref=e136] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: The stream of their life is as but a slumber; in the morning they are like grass that sprouts anew.
+                  - generic [ref=e138]:
+                    - link "6" [ref=e139] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: In the morning it thrives and sprouts anew; in the evening it withers and dries.
+                  - generic [ref=e141]:
+                    - link "7" [ref=e142] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: For we are consumed by Your anger, and destroyed by Your wrath.
+                  - generic [ref=e144]:
+                    - link "8" [ref=e145] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: You have set our wrongdoings before You, our hidden sins before the light of Your countenance.
+                  - generic [ref=e147]:
+                    - link "9" [ref=e148] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: For all our days have vanished in Your wrath; we cause our years to pass like a fleeting sound.
+                  - generic [ref=e150]:
+                    - link "10" [ref=e151] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: The days of our lives number seventy years, and if in great vigor, eighty years; most of them are but travail and futility, passing quickly and flying away.
+                  - generic [ref=e153]:
+                    - link "11" [ref=e154] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: Who can know the intensity of Your anger? Your wrath is commensurate with one's fear of You.
+                  - generic [ref=e156]:
+                    - link "12" [ref=e157] [cursor=pointer]:
+                      - /url: "#v12"
+                    - text: Teach us, then, to reckon our days, that we may acquire a wise heart.
+                  - generic [ref=e159]:
+                    - link "13" [ref=e160] [cursor=pointer]:
+                      - /url: "#v13"
+                    - text: Relent, O Lord; how long [will Your anger last]? Have compassion upon Your servants.
+                  - generic [ref=e162]:
+                    - link "14" [ref=e163] [cursor=pointer]:
+                      - /url: "#v14"
+                    - text: Satiate us in the morning with Your kindness, then we shall sing and rejoice throughout our days.
+                  - generic [ref=e165]:
+                    - link "15" [ref=e166] [cursor=pointer]:
+                      - /url: "#v15"
+                    - text: Give us joy corresponding to the days You afflicted us, the years we have seen adversity.
+                  - generic [ref=e168]:
+                    - link "16" [ref=e169] [cursor=pointer]:
+                      - /url: "#v16"
+                    - text: Let Your work be revealed to Your servants, and Your splendor be upon their children.
+                  - generic [ref=e171]:
+                    - link "17" [ref=e172] [cursor=pointer]:
+                      - /url: "#v17"
+                    - text: May the pleasantness of the Lord our God be upon us; establish for us the work of our hands; establish the work of our hands.
+                - paragraph
+              - generic [ref=e173]: Chapter 91
+              - generic [ref=e174]: This psalm inspires the hearts of the people to seek shelter under the wings of the Divine Presence. It also speaks of the four seasons of the year, and their respective ministering powers, instructing those who safeguard their souls to avoid them.
+              - generic [ref=e175]:
+                - generic [ref=e177]:
+                  - generic [ref=e179]:
+                    - link "1" [ref=e180] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: "You who dwells in the shelter of the Most High, who abides in the shadow of the Omnipotent:"
+                  - generic [ref=e182]:
+                    - link "2" [ref=e183] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: I say of the Lord who is my refuge and my stronghold, my God in whom I trust,
+                  - generic [ref=e185]:
+                    - link "3" [ref=e186] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: that He will save you from the ensnaring trap, from the destructive pestilence.
+                  - generic [ref=e188]:
+                    - link "4" [ref=e189] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: He will cover you with His pinions and you will find refuge under His wings; His truth is a shield and an armor.
+                  - generic [ref=e191]:
+                    - link "5" [ref=e192] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: You will not fear the terror of the night, nor the arrow that flies by day;
+                  - generic [ref=e194]:
+                    - link "6" [ref=e195] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: the pestilence that prowls in the darkness, nor the destruction that ravages at noon.
+                  - generic [ref=e197]:
+                    - link "7" [ref=e198] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: A thousand may fall at your [left] side, and ten thousand at your right, but it shall not reach you.
+                  - generic [ref=e200]:
+                    - link "8" [ref=e201] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: You need only look with your eyes, and you will see the retribution of the wicked.
+                  - generic [ref=e203]:
+                    - link "9" [ref=e204] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: Because you [have said,] "The Lord is my shelter," and you have made the Most High your haven,
+                  - generic [ref=e206]:
+                    - link "10" [ref=e207] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: no evil will befall you, no plague will come near your tent.
+                  - generic [ref=e209]:
+                    - link "11" [ref=e210] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: For He will instruct His angels in your behalf, to guard you in all your ways.
+                  - generic [ref=e212]:
+                    - link "12" [ref=e213] [cursor=pointer]:
+                      - /url: "#v12"
+                    - text: They will carry you in their hands, lest you injure your foot upon a rock.
+                  - generic [ref=e215]:
+                    - link "13" [ref=e216] [cursor=pointer]:
+                      - /url: "#v13"
+                    - text: You will tread upon the lion and the viper; you will trample upon the young lion and the serpent.
+                  - generic [ref=e218]:
+                    - link "14" [ref=e219] [cursor=pointer]:
+                      - /url: "#v14"
+                    - text: Because he desires Me, I will deliver him; I will fortify him, for he knows My Name.
+                  - generic [ref=e221]:
+                    - link "15" [ref=e222] [cursor=pointer]:
+                      - /url: "#v15"
+                    - text: When he calls on Me, I will answer him; I am with him in distress. I will deliver him and honor him.
+                  - generic [ref=e224]:
+                    - link "16" [ref=e225] [cursor=pointer]:
+                      - /url: "#v16"
+                    - text: I will satiate him with long life, and show him My deliverance.
+                - paragraph
+              - generic [ref=e226]: Chapter 92
+              - generic [ref=e227]: Sung every Shabbat by the Levites in the Holy Temple, this psalm speaks of the World to Come, and comforts the hearts of those crushed by suffering.
+              - generic [ref=e228]:
+                - generic [ref=e230]:
+                  - generic [ref=e232]:
+                    - link "1" [ref=e233] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: A psalm, a song for the Shabbat day.
+                  - generic [ref=e235]:
+                    - link "2" [ref=e236] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: It is good to praise the Lord, and to sing to Your Name, O Most High;
+                  - generic [ref=e238]:
+                    - link "3" [ref=e239] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: to proclaim Your kindness in the morning, and Your faithfulness in the nights,
+                  - generic [ref=e241]:
+                    - link "4" [ref=e242] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: with a ten-stringed instrument and lyre, to the melody of a harp.
+                  - generic [ref=e244]:
+                    - link "5" [ref=e245] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: For You, Lord, have gladdened me with Your deeds; I sing for joy at the works of Your hand.
+                  - generic [ref=e247]:
+                    - link "6" [ref=e248] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: How great are Your works, O Lord; how very profound Your thoughts!
+                  - generic [ref=e250]:
+                    - link "7" [ref=e251] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: "A brutish man cannot know, a fool cannot comprehend this:"
+                  - generic [ref=e253]:
+                    - link "8" [ref=e254] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: When the wicked thrive like grass, and all evildoers flourish-it is in order that they may be destroyed forever.
+                  - generic [ref=e256]:
+                    - link "9" [ref=e257] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: But You, Lord, are exalted forever.
+                  - generic [ref=e259]:
+                    - link "10" [ref=e260] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: Indeed, Your enemies, O Lord, indeed Your enemies shall perish; all evildoers shall be scattered.
+                  - generic [ref=e262]:
+                    - link "11" [ref=e263] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: But You have increased my might like that of a wild ox; I am anointed with fresh oil.
+                  - generic [ref=e265]:
+                    - link "12" [ref=e266] [cursor=pointer]:
+                      - /url: "#v12"
+                    - text: My eyes have seen [the downfall of] my watchful enemies; my ears have heard [the doom of] the wicked who rise against me.
+                  - generic [ref=e268]:
+                    - link "13" [ref=e269] [cursor=pointer]:
+                      - /url: "#v13"
+                    - text: The righteous will flourish like a palm tree, grow tall like a cedar in Lebanon.
+                  - generic [ref=e271]:
+                    - link "14" [ref=e272] [cursor=pointer]:
+                      - /url: "#v14"
+                    - text: Planted in the House of the Lord, they shall blossom in the courtyards of our God.
+                  - generic [ref=e274]:
+                    - link "15" [ref=e275] [cursor=pointer]:
+                      - /url: "#v15"
+                    - text: They shall be fruitful even in old age; they shall be full of sap and freshness-
+                  - generic [ref=e277]:
+                    - link "16" [ref=e278] [cursor=pointer]:
+                      - /url: "#v16"
+                    - text: to declare that the Lord is just; He is my Strength, and there is no injustice in Him.
+                - paragraph
+              - generic [ref=e279]: Chapter 93
+              - generic [ref=e280]: This psalm speaks of the Messianic era, when God will don grandeur-allowing no room for man to boast before Him as did Nebuchadnezzar, Pharaoh, and Sennacherib.
+              - generic [ref=e281]:
+                - generic [ref=e283]:
+                  - generic [ref=e285]:
+                    - link "1" [ref=e286] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: The Lord is King; He has garbed Himself with grandeur; the Lord has robed Himself, He has girded Himself with strength; He has also established the world firmly that it shall not falter.
+                  - generic [ref=e288]:
+                    - link "2" [ref=e289] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: Your throne stands firm from of old; You have existed forever.
+                  - generic [ref=e291]:
+                    - link "3" [ref=e292] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: The rivers have raised, O Lord, the rivers have raised their voice; the rivers raise their raging waves.
+                  - generic [ref=e294]:
+                    - link "4" [ref=e295] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: More than the sound of many waters, than the mighty breakers of the sea, is the Lord mighty on High.
+                  - generic [ref=e297]:
+                    - link "5" [ref=e298] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: Your testimonies are most trustworthy; Your House will be resplendent in holiness, O Lord, forever.
+                - paragraph
+              - generic [ref=e299]: Chapter 94
+              - generic [ref=e300]: An awe-inspiring and wondrous prayer with which every individual can pray for the redemption. It is also an important moral teaching.
+              - generic [ref=e301]:
+                - generic [ref=e303]:
+                  - generic [ref=e305]:
+                    - link "1" [ref=e306] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: The Lord is a God of retribution; O God of retribution, reveal Yourself!
+                  - generic [ref=e308]:
+                    - link "2" [ref=e309] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: Judge of the earth, arise; render to the arrogant their recompense.
+                  - generic [ref=e311]:
+                    - link "3" [ref=e312] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: How long shall the wicked, O Lord, how long shall the wicked exult?
+                  - generic [ref=e314]:
+                    - link "4" [ref=e315] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: They continuously speak insolently; all the evildoers act arrogantly.
+                  - generic [ref=e317]:
+                    - link "5" [ref=e318] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: They crush Your people, O Lord, and oppress Your heritage.
+                  - generic [ref=e320]:
+                    - link "6" [ref=e321] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: They kill the widow and the stranger, and murder the orphans.
+                  - generic [ref=e323]:
+                    - link "7" [ref=e324] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: And they say, "The Lord does not see, the God of Jacob does not perceive.”
+                  - generic [ref=e326]:
+                    - link "8" [ref=e327] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: Understand, you senseless among the people; you fools, when will you become wise?
+                  - generic [ref=e329]:
+                    - link "9" [ref=e330] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: Shall He who implants the ear not hear? Shall He who forms the eye not see?
+                  - generic [ref=e332]:
+                    - link "10" [ref=e333] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: Shall He who chastises nations not punish? Shall He who imparts knowledge to man [not know]?
+                  - generic [ref=e335]:
+                    - link "11" [ref=e336] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: The Lord knows the thoughts of man, that they are naught.
+                  - generic [ref=e338]:
+                    - link "12" [ref=e339] [cursor=pointer]:
+                      - /url: "#v12"
+                    - text: Fortunate is the man whom You chastise, O Lord, and instruct him in Your Torah,
+                  - generic [ref=e341]:
+                    - link "13" [ref=e342] [cursor=pointer]:
+                      - /url: "#v13"
+                    - text: bestowing upon him tranquillity in times of adversity, until the pit is dug for the wicked.
+                  - generic [ref=e344]:
+                    - link "14" [ref=e345] [cursor=pointer]:
+                      - /url: "#v14"
+                    - text: For the Lord will not abandon His people, nor forsake His heritage.
+                  - generic [ref=e347]:
+                    - link "15" [ref=e348] [cursor=pointer]:
+                      - /url: "#v15"
+                    - text: For judgment shall again be consonant with justice, and all the upright in heart will pursue it.
+                  - generic [ref=e350]:
+                    - link "16" [ref=e351] [cursor=pointer]:
+                      - /url: "#v16"
+                    - text: Who would rise up for me against the wicked ones; who would stand up for me against the evildoers?
+                  - generic [ref=e353]:
+                    - link "17" [ref=e354] [cursor=pointer]:
+                      - /url: "#v17"
+                    - text: Had the Lord not been a help to me, my soul would have soon dwelt in the silence [of the grave].
+                  - generic [ref=e356]:
+                    - link "18" [ref=e357] [cursor=pointer]:
+                      - /url: "#v18"
+                    - text: When I thought that my foot was slipping, Your kindness, O Lord, supported me.
+                  - generic [ref=e359]:
+                    - link "19" [ref=e360] [cursor=pointer]:
+                      - /url: "#v19"
+                    - text: When my [worrisome] thoughts multiply within me, Your consolation delights my soul.
+                  - generic [ref=e362]:
+                    - link "20" [ref=e363] [cursor=pointer]:
+                      - /url: "#v20"
+                    - text: Can one in the seat of evil, one who makes iniquity into law, consort with You?
+                  - generic [ref=e365]:
+                    - link "21" [ref=e366] [cursor=pointer]:
+                      - /url: "#v21"
+                    - text: They band together against the life of the righteous, and condemn innocent blood.
+                  - generic [ref=e368]:
+                    - link "22" [ref=e369] [cursor=pointer]:
+                      - /url: "#v22"
+                    - text: The Lord has been my stronghold; my God, the strength of my refuge.
+                  - generic [ref=e371]:
+                    - link "23" [ref=e372] [cursor=pointer]:
+                      - /url: "#v23"
+                    - text: He will turn their violence against them and destroy them through their own wickedness; the Lord, our God, will destroy them.
+                - paragraph
+              - generic [ref=e373]: Chapter 95
+              - generic [ref=e374]: This psalm speaks of the future, when man will say to his fellow, "Come, let us sing and offer praise to God for the miracles He has performed for us!"
+              - generic [ref=e375]:
+                - generic [ref=e377]:
+                  - generic [ref=e379]:
+                    - link "1" [ref=e380] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: Come, let us sing to the Lord; let us raise our voices in jubilation to the Rock of our deliverance.
+                  - generic [ref=e382]:
+                    - link "2" [ref=e383] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: Let us approach Him with thanksgiving; let us raise our voices to Him in song.
+                  - generic [ref=e385]:
+                    - link "3" [ref=e386] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: For the Lord is a great God, and a great King over all supernal beings;
+                  - generic [ref=e388]:
+                    - link "4" [ref=e389] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: in His hands are the depths of the earth, and the heights of the mountains are His.
+                  - generic [ref=e391]:
+                    - link "5" [ref=e392] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: Indeed, the sea is His, for He made it; His hands formed the dry land.
+                  - generic [ref=e394]:
+                    - link "6" [ref=e395] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: Come, let us prostrate ourselves and bow down; let us bend the knee before the Lord, our Maker.
+                  - generic [ref=e397]:
+                    - link "7" [ref=e398] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: For He is our God, and we are the people that He tends, the flock under His [guiding] hand-even this very day, if you would but hearken to His voice!
+                  - generic [ref=e400]:
+                    - link "8" [ref=e401] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: Do not harden your heart as at Merivah, as on the day at Massah in the wilderness,
+                  - generic [ref=e403]:
+                    - link "9" [ref=e404] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: where your fathers tested Me; they tried Me, though they had seen My deeds.
+                  - generic [ref=e406]:
+                    - link "10" [ref=e407] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: For forty years I quarreled with that generation; and I said, "They are a people of erring hearts, they do not know My ways.”
+                  - generic [ref=e409]:
+                    - link "11" [ref=e410] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: So I vowed in My anger that they would not enter My resting place.
+                - paragraph
+              - generic [ref=e411]: Chapter 96
+              - generic [ref=e412]: "The time will yet come when man will say to his fellow: \"Come, let us sing to God!\""
+              - generic [ref=e413]:
+                - generic [ref=e415]:
+                  - generic [ref=e417]:
+                    - link "1" [ref=e418] [cursor=pointer]:
+                      - /url: "#v1"
+                    - text: Sing to the Lord a new song; sing to the Lord, all the earth.
+                  - generic [ref=e420]:
+                    - link "2" [ref=e421] [cursor=pointer]:
+                      - /url: "#v2"
+                    - text: Sing to the Lord, bless His Name; proclaim His deliverance from day to day.
+                  - generic [ref=e423]:
+                    - link "3" [ref=e424] [cursor=pointer]:
+                      - /url: "#v3"
+                    - text: Recount His glory among the nations, His wonders among all the peoples.
+                  - generic [ref=e426]:
+                    - link "4" [ref=e427] [cursor=pointer]:
+                      - /url: "#v4"
+                    - text: For the Lord is great and highly praised; He is awesome above all gods.
+                  - generic [ref=e429]:
+                    - link "5" [ref=e430] [cursor=pointer]:
+                      - /url: "#v5"
+                    - text: For all the gods of the nations are naught, but the Lord made the heavens.
+                  - generic [ref=e432]:
+                    - link "6" [ref=e433] [cursor=pointer]:
+                      - /url: "#v6"
+                    - text: Majesty and splendor are before Him, might and beauty in His Sanctuary.
+                  - generic [ref=e435]:
+                    - link "7" [ref=e436] [cursor=pointer]:
+                      - /url: "#v7"
+                    - text: Render to the Lord, O families of nations, render to the Lord honor and might.
+                  - generic [ref=e438]:
+                    - link "8" [ref=e439] [cursor=pointer]:
+                      - /url: "#v8"
+                    - text: Render to the Lord honor due to His Name; bring an offering and come to His courtyards.
+                  - generic [ref=e441]:
+                    - link "9" [ref=e442] [cursor=pointer]:
+                      - /url: "#v9"
+                    - text: Bow down to the Lord in resplendent holiness; tremble before Him, all the earth.
+                  - generic [ref=e444]:
+                    - link "10" [ref=e445] [cursor=pointer]:
+                      - /url: "#v10"
+                    - text: Proclaim among the nations, "The Lord reigns"; indeed, the world is firmly established that it shall not falter; He will judge the peoples with righteousness.
+                  - generic [ref=e447]:
+                    - link "11" [ref=e448] [cursor=pointer]:
+                      - /url: "#v11"
+                    - text: The heavens will rejoice, the earth will exult; the sea and its fullness will roar.
+                  - generic [ref=e450]:
+                    - link "12" [ref=e451] [cursor=pointer]:
+                      - /url: "#v12"
+                    - text: The fields and everything therein will jubilate; then all the trees of the forest will sing.
+                  - generic [ref=e453]:
+                    - link "13" [ref=e454] [cursor=pointer]:
+                      - /url: "#v13"
+                    - text: Before the Lord [they shall rejoice], for He has come, for He has come to judge the earth; He will judge the world with justice, and the nations with His truth.
+                - paragraph
+            - generic [ref=e456]:
+              - generic [ref=e457]: Wednesday, 19 Iyar 5786 / May 6, 2026
+              - generic [ref=e458]:
+                - link "Today" [ref=e460] [cursor=pointer]:
+                  - /url: /dailystudy/tehillim.asp?
+                - link "" [ref=e462] [cursor=pointer]:
+                  - /url: /dailystudy/tehillim.asp?tdate=5/5/2026
+                  - generic [ref=e463]: 
+                - link "" [ref=e465] [cursor=pointer]:
+                  - /url: /dailystudy/tehillim.asp?tdate=5/7/2026
+                  - generic [ref=e466]: 
+                - button "" [ref=e468] [cursor=pointer]:
+                  - generic [ref=e469]: 
+            - generic [ref=e473]:
+              - heading [level=3]
+              - generic [ref=e475]:
+                - emphasis [ref=e476]:
+                  - link "Tehillim Ohel Yoseph Yitzchok" [ref=e477] [cursor=pointer]:
+                    - /url: /article.asp?aid=111640
+                - text: ", published and copyright by Kehot Publication Society."
+              - generic [ref=e479]:
+                - text: © Copyright, all rights reserved. If you enjoyed this article, we encourage you to distribute it further, provided that you comply with Chabad.org's
+                - link "copyright policy" [ref=e480] [cursor=pointer]:
+                  - /url: /77062
+                - text: .
+        - generic [ref=e481]:
+          - generic [ref=e483]:
+            - link "Daily Study" [ref=e487] [cursor=pointer]:
+              - /url: /dailystudy/default.asp?tdate=5%2f6%2f2026
+            - generic [ref=e488]:
+              - link "Chumash with Rashi" [ref=e490] [cursor=pointer]:
+                - /url: /dailystudy/torahreading.asp?tdate=5%2f6%2f2026
+              - link "Tehillim - Psalms" [ref=e492] [cursor=pointer]:
+                - /url: /dailystudy/tehillim.asp?tdate=5%2f6%2f2026
+              - link "Tanya" [ref=e494] [cursor=pointer]:
+                - /url: /dailystudy/tanya.asp?tdate=5%2f6%2f2026
+              - link "3 Chapters Rambam" [ref=e496] [cursor=pointer]:
+                - /url: /dailystudy/rambam.asp?rambamChapters=3&tdate=5/6/2026
+              - link "1 Chapter Rambam" [ref=e498] [cursor=pointer]:
+                - /url: /dailystudy/rambam.asp?tdate=5%2f6%2f2026
+              - link "Daily Mitzvah" [ref=e500] [cursor=pointer]:
+                - /url: /dailystudy/seferHamitzvos.asp?tdate=5%2f6%2f2026
+              - link "Hayom Yom" [ref=e502] [cursor=pointer]:
+                - /url: /dailystudy/hayomyom.asp?tdate=5%2f6%2f2026
+              - generic [ref=e503]:
+                - generic [ref=e505]: Additional Study Options
+                - link "Daily Wisdom" [ref=e507] [cursor=pointer]:
+                  - /url: /dailystudy/dailywisdom.htm
+                  - generic [ref=e508]: Daily Wisdom
+                - link "Daily Talmud" [ref=e510] [cursor=pointer]:
+                  - /url: /dailystudy/talmud.htm
+                  - generic [ref=e511]: Daily Talmud
+                - link "Daily Study App" [ref=e513] [cursor=pointer]:
+                  - /url: /library/article_cdo/aid/2452166/jewish/Daily-Torah-Study-App.htm
+                  - generic [ref=e514]: Daily Study App
+          - generic [ref=e516]:
+            - generic [ref=e518]:
+              - generic [ref=e519]:
+                - textbox "Email Address" [ref=e520]
+                - button "Subscribe" [ref=e522] [cursor=pointer]
+              - generic [ref=e523]: Subscribe to Today in Judaism
+            - link "More subscription options »" [ref=e526] [cursor=pointer]:
+              - /url: /tools/subscribe/default.asp
+          - generic [ref=e528]:
+            - link "Daily Torah Study App" [ref=e530] [cursor=pointer]:
+              - /url: /2452166
+              - img "Daily Torah Study App" [ref=e531]
+            - link "Shavuot 2026" [ref=e533] [cursor=pointer]:
+              - /url: /111377
+              - img "Shavuot 2026" [ref=e534]
+            - link "Shabbat deLights" [ref=e536] [cursor=pointer]:
+              - /url: /3820216
+              - img "Shabbat deLights" [ref=e537]
+            - link "Omer Counter" [ref=e539] [cursor=pointer]:
+              - /url: /2907734
+              - img "Omer Counter" [ref=e540]
+          - generic [ref=e541]:
+            - generic [ref=e542]: Daily Quote
+            - generic [ref=e543]:
+              - generic [ref=e544]: A fundamental principle of Chabad philosophy is that the mind - which by its innate nature1 rules over the heart - should subordinate the heart to G-d's service by utilizing the intellectualization, comprehension and profound contemplation of the greatness of the Creator
+              - generic [ref=e545]: –Hayom Yom, Kislev 16
+              - link "More from the Magazine..." [ref=e548] [cursor=pointer]:
+                - /url: /magazine/
+          - generic [ref=e549]:
+            - generic [ref=e550]: The Parshah
+            - generic [ref=e551]:
+              - generic [ref=e552]:
+                - generic [ref=e553]: Parshah Behar-Bechukotai
+                - generic [ref=e554]:
+                  - text: "Text:"
+                  - link "Vayikra (Leviticus) 25:1-27:34" [ref=e555] [cursor=pointer]:
+                    - /url: /parshah/torahreading.asp?aid=15585&p=1
+                    - text: Vayikra (Leviticus) 25:1-27:34
+              - list [ref=e556]:
+                - listitem [ref=e557]:
+                  - link "The Parshah in a Nutshell" [ref=e558] [cursor=pointer]:
+                    - /url: /article.aspx?aid=2904
+                - listitem [ref=e559]:
+                  - link "Parshah In Depth" [ref=e560] [cursor=pointer]:
+                    - /url: /parshah/in-depth/default.aspx?aid=42958
+                - listitem [ref=e561]:
+                  - link "From the Chassidic Masters" [ref=e562] [cursor=pointer]:
+                    - /url: /article.aspx?aid=42959
+                - listitem [ref=e563]:
+                  - link "More Parshah Articles" [ref=e564] [cursor=pointer]:
+                    - /url: /article.aspx?aid=133015
+                - listitem [ref=e565]:
+                  - link "More on the Parshah..." [ref=e567] [cursor=pointer]:
+                    - /url: /parshah/default.aspx?aid=15585
+          - generic [ref=e568]:
+            - generic [ref=e569]: This page in other languages
+            - generic [ref=e570]:
+              - link "עברית" [ref=e571] [cursor=pointer]:
+                - /url: https://he.chabad.org/678973
+              - text: "|"
+              - link "Español" [ref=e572] [cursor=pointer]:
+                - /url: https://es.chabad.org/703481
+              - text: "|"
+              - link "Deutsch" [ref=e573] [cursor=pointer]:
+                - /url: https://de.chabad.org/708450
+              - text: "|"
+              - link "Français" [ref=e574] [cursor=pointer]:
+                - /url: https://fr.chabad.org/862664
+              - text: "|"
+              - link "Русский" [ref=e575] [cursor=pointer]:
+                - /url: https://ru.chabad.org/946015
+              - text: "|"
+              - link "Português" [ref=e576] [cursor=pointer]:
+                - /url: https://pt.chabad.org/1235866
+              - text: "|"
+              - link "Italiano" [ref=e577] [cursor=pointer]:
+                - /url: https://it.chabad.org/6750828
+    - complementary [ref=e578]:      
+  - generic [ref=e582]:
+    - generic [ref=e584]:
+      - button "" [ref=e586]:
+        - generic [ref=e587]: 
+      - generic [ref=e589]:
+        - generic [ref=e590]: TODAY'S FEATURES
+        - generic [ref=e591]:
+          - generic [ref=e592]:
+            - link "Does a Convert Sit Shiva for Non-Jewish Parents?" [ref=e593] [cursor=pointer]:
+              - /url: /7338705
+              - img "Does a Convert Sit Shiva for Non-Jewish Parents?" [ref=e594]
+            - link "Does a Convert Sit Shiva for Non-Jewish Parents?" [ref=e595] [cursor=pointer]:
+              - /url: /7338705
+          - generic [ref=e596]:
+            - link "He Taught Them Alef-Bet in Kindergarten. Fifty Years Later, They Still Called Him ‘Rebbi’" [ref=e597] [cursor=pointer]:
+              - /url: /7340633
+              - img "He Taught Them Alef-Bet in Kindergarten. Fifty Years Later, They Still Called Him ‘Rebbi’" [ref=e598]
+            - link "He Taught Them Alef-Bet in Kindergarten. Fifty Years Later, They Sti..." [ref=e599] [cursor=pointer]:
+              - /url: /7340633
+          - generic [ref=e600]:
+            - link "8 Places in Europe Given Biblical Names by Jews" [ref=e601] [cursor=pointer]:
+              - /url: /7338710
+              - img "8 Places in Europe Given Biblical Names by Jews" [ref=e602]
+            - link "8 Places in Europe Given Biblical Names by Jews" [ref=e603] [cursor=pointer]:
+              - /url: /7338710
+          - generic [ref=e604]:
+            - link "New Home for Jewish Travelers in Northern Vietnam" [ref=e605] [cursor=pointer]:
+              - /url: /7348983
+              - img "New Home for Jewish Travelers in Northern Vietnam" [ref=e606]
+            - link "New Home for Jewish Travelers in Northern Vietnam" [ref=e607] [cursor=pointer]:
+              - /url: /7348983
+          - generic [ref=e608]:
+            - 'link "King Charles to Bermuda Rabbi: My Grandmother Saved Jews" [ref=e609] [cursor=pointer]':
+              - /url: /7350263
+              - 'img "King Charles to Bermuda Rabbi: My Grandmother Saved Jews" [ref=e610]'
+            - 'link "King Charles to Bermuda Rabbi: My Grandmother Saved Jews" [ref=e611] [cursor=pointer]':
+              - /url: /7350263
+          - generic [ref=e612]:
+            - 'link "10 Questions: Take the Rabbi Shimon bar Yochai Quiz" [ref=e613] [cursor=pointer]':
+              - /url: /5938499
+              - 'img "10 Questions: Take the Rabbi Shimon bar Yochai Quiz" [ref=e614]'
+            - link "Take the Rabbi Shimon bar Yochai Quiz" [ref=e615] [cursor=pointer]:
+              - /url: /5938499
+          - generic [ref=e616]:
+            - link "Shut Out of Meron, Israelis Bring Lag BaOmer Home" [ref=e617] [cursor=pointer]:
+              - /url: /7350283
+              - img "Shut Out of Meron, Israelis Bring Lag BaOmer Home" [ref=e618]
+            - link "Shut Out of Meron, Israelis Bring Lag BaOmer Home" [ref=e619] [cursor=pointer]:
+              - /url: /7350283
+          - generic [ref=e620]:
+            - link "At the Edge of Time" [ref=e621] [cursor=pointer]:
+              - /url: /7338702
+              - img "At the Edge of Time" [ref=e622]
+            - link "At the Edge of Time" [ref=e623] [cursor=pointer]:
+              - /url: /7338702
+          - generic [ref=e624]:
+            - link "The Humble Mountain Paradox" [ref=e625] [cursor=pointer]:
+              - /url: /3332626
+              - img "The Humble Mountain Paradox" [ref=e626]
+            - link "The Humble Mountain Paradox" [ref=e627] [cursor=pointer]:
+              - /url: /3332626
+          - generic [ref=e628]:
+            - link "What Is Lag BaOmer?" [ref=e629] [cursor=pointer]:
+              - /url: /679300
+              - img "What Is Lag BaOmer?" [ref=e630]
+            - link "What Is Lag BaOmer?" [ref=e631] [cursor=pointer]:
+              - /url: /679300
+          - generic [ref=e632]:
+            - link "What You Need to Know About Blessings Before Eating" [ref=e633] [cursor=pointer]:
+              - /url: /7350101
+              - img "What You Need to Know About Blessings Before Eating" [ref=e634]
+            - link "What You Need to Know About Blessings Before Eating" [ref=e635] [cursor=pointer]:
+              - /url: /7350101
+      - button "" [ref=e637] [cursor=pointer]:
+        - generic [ref=e638]: 
+    - generic [ref=e639]:
+      - generic [ref=e641]:
+        - generic [ref=e642]:
+          - generic [ref=e643]: Departments
+          - link "Jewish Practice" [ref=e644] [cursor=pointer]:
+            - /url: /library/article_cdo/aid/1675888/jewish/Jewish-Practice.htm
+          - link "Learning & Values" [ref=e645] [cursor=pointer]:
+            - /url: /library/article_cdo/aid/1675887/jewish/Learning-Values.htm
+          - link "Inspiration & Entertainment" [ref=e646] [cursor=pointer]:
+            - /url: /library/article_cdo/aid/1675890/jewish/Inspiration-Entertainment.htm
+          - link "Community & Family" [ref=e647] [cursor=pointer]:
+            - /url: /society/default_cdo/aid/132514/jewish/Society-Living.htm
+          - link "Weekly Magazine" [ref=e648] [cursor=pointer]:
+            - /url: /magazine/default.htm
+        - generic [ref=e649]:
+          - generic [ref=e650]: Specialty Sites
+          - link "Chabad.org Video" [ref=e651] [cursor=pointer]:
+            - /url: /video/default.htm
+          - link "The Jewish Woman" [ref=e652] [cursor=pointer]:
+            - /url: /theJewishWoman/default_cdo/jewish/Women.htm
+          - link "Jewish News" [ref=e653] [cursor=pointer]:
+            - /url: /news/default_cdo/jewish/News.htm
+          - link "Moshiach 101" [ref=e654] [cursor=pointer]:
+            - /url: /library/moshiach/default.htm
+          - link "Jewish Kids Zone" [ref=e655] [cursor=pointer]:
+            - /url: /kids/default_cdo/jewish/Kids.htm
+          - link "Kabbalah Online" [ref=e656] [cursor=pointer]:
+            - /url: /kabbalah/default_cdo/jewish/Kabbalah-Online.htm
+          - link "Israel - The Holy Land" [ref=e657] [cursor=pointer]:
+            - /url: /special/israel/default_cdo/aid/588018/jewish/Israel.htm
+          - link "TheRebbe.org" [ref=e658] [cursor=pointer]:
+            - /url: /therebbe/default_cdo/jewish/The-Rebbe.htm
+        - generic [ref=e659]:
+          - generic [ref=e660]: Tools & Resources
+          - link "Ask the Rabbi" [ref=e661] [cursor=pointer]:
+            - /url: /asktherabbi/default_cdo/jewish/Ask-the-Rabbi.htm
+          - link "Jewish Calendar" [ref=e662] [cursor=pointer]:
+            - /url: /calendar/default_cdo/jewish/Jewish-Calendar.htm
+          - link "Daily Torah Study" [ref=e663] [cursor=pointer]:
+            - /url: /dailystudy/default_cdo/jewish/Daily-Study.htm
+          - link "Subscribe" [ref=e664] [cursor=pointer]:
+            - /url: /tools/subscribe/default_cdo/jewish/Subscribe.htm
+          - link "Search" [ref=e665] [cursor=pointer]:
+            - /url: /search/default_cdo/aid/67250/jewish/Knowledge-Base.htm
+          - link "Glossary" [ref=e666] [cursor=pointer]:
+            - /url: /search/glossary.htm
+          - link "RSS" [ref=e667] [cursor=pointer]:
+            - /url: /generic_cdo/aid/298447/jewish/RSS-and-Podcast-Directory.htm
+        - generic [ref=e668]:
+          - generic [ref=e669]: Quick Links
+          - link "Jewish Holidays" [ref=e670] [cursor=pointer]:
+            - /url: /holidays/default_cdo/jewish/Holidays.htm
+          - link "Jewish Wedding" [ref=e671] [cursor=pointer]:
+            - /url: /generic_cdo/aid/448424/jewish/Marriage.htm
+          - link "Shabbat" [ref=e672] [cursor=pointer]:
+            - /url: /generic_cdo/aid/253215/jewish/Shabbat.htm
+          - link "Kosher" [ref=e673] [cursor=pointer]:
+            - /url: /generic_cdo/aid/113424/jewish/Kosher.htm
+          - link "Parshah" [ref=e674] [cursor=pointer]:
+            - /url: /parshah/default_cdo/jewish/Parshah.htm
+          - link "Jewish Prayer" [ref=e675] [cursor=pointer]:
+            - /url: /library/article_cdo/aid/862308/jewish/Jewish-Prayer.htm
+          - link "Jewish Audio" [ref=e676] [cursor=pointer]:
+            - /url: /multimedia/default_cdo/aid/6230/jewish/Audio-Classes.htm
+        - generic [ref=e677]:
+          - generic [ref=e678]: Chabad Lubavitch
+          - link "About Chabad-Lubavitch" [ref=e679] [cursor=pointer]:
+            - /url: /library/article_cdo/aid/36226/jewish/Overview.htm
+          - link "The Rebbe" [ref=e680] [cursor=pointer]:
+            - /url: /therebbe/default_cdo/jewish/The-Rebbe.htm
+          - link "The Ohel" [ref=e681] [cursor=pointer]:
+            - /url: /315828
+          - link "Chabad-Lubavitch News" [ref=e682] [cursor=pointer]:
+            - /url: /news/default_cdo/jewish/News.htm
+          - link "Chabad Locator" [ref=e683] [cursor=pointer]:
+            - /url: /centers/default_cdo/jewish/Centers.htm
+      - generic [ref=e685]:
+        - generic [ref=e686]: Subscribe to get our weekly magazine!
+        - generic [ref=e691]:
+          - textbox "Email Address" [ref=e692]
+          - button "Subscribe" [ref=e694] [cursor=pointer]
+      - generic [ref=e696]:
+        - link "Jewish Holidays" [ref=e697] [cursor=pointer]:
+          - /url: /article.asp?aid=6216&trk=ft
+        - link "TheRebbe.org" [ref=e698] [cursor=pointer]:
+          - /url: /article.asp?aid=60286&trk=ft
+        - link "Jewish.tv" [ref=e699] [cursor=pointer]:
+          - /url: /article.asp?aid=591213&trk=ft
+        - link "ChabadU" [ref=e700] [cursor=pointer]:
+          - /url: /article.asp?aid=2530155&trk=ft
+        - link "Audio Classes" [ref=e701] [cursor=pointer]:
+          - /url: /article.asp?aid=6230&trk=ft
+        - link "News" [ref=e702] [cursor=pointer]:
+          - /url: /article.asp?aid=6199&trk=ft
+        - link "Cooking" [ref=e703] [cursor=pointer]:
+          - /url: /article.asp?aid=323440&trk=ft
+        - link "Torah Texts" [ref=e704] [cursor=pointer]:
+          - /url: /torah-texts?trk=ft
+        - link "The Jewish Woman" [ref=e705] [cursor=pointer]:
+          - /url: /article.asp?aid=313386&trk=ft
+        - link "Jewish Kids" [ref=e706] [cursor=pointer]:
+          - /url: /article.asp?aid=334370&trk=ft
+      - generic [ref=e708]:
+        - generic [ref=e709]:
+          - generic [ref=e711]:
+            - link "" [ref=e712] [cursor=pointer]:
+              - /url: /article.asp?aid=982351
+            - link "" [ref=e713] [cursor=pointer]:
+              - /url: /article.asp?aid=963008
+            - link "" [ref=e714] [cursor=pointer]:
+              - /url: /article.asp?aid=2306421
+            - link "" [ref=e715] [cursor=pointer]:
+              - /url: https://instagram.com/chabadorg
+          - generic [ref=e716]:
+            - generic [ref=e717]: 
+            - generic [ref=e718]:
+              - text: Chabad.org is a division of the
+              - link "Chabad" [ref=e719] [cursor=pointer]:
+                - /url: https://www.chabad.org/library/article_cdo/aid/36226/jewish/About-Chabad-Lubavitch.htm
+              - text: "-"
+              - link "Lubavitch" [ref=e720] [cursor=pointer]:
+                - /url: https://www.chabad.org/library/article_cdo/aid/36226/jewish/About-Chabad-Lubavitch.htm
+              - text: Media Center
+              - strong [ref=e721]: ·
+              - generic [ref=e722]:
+                - text: Under the auspices of the
+                - link "Lubavitch World Headquarters" [ref=e723] [cursor=pointer]:
+                  - /url: /article.asp?aid=101682
+              - text: In everlasting memory of our founder,
+              - link "Rabbi Yosef Y. Kazen" [ref=e724] [cursor=pointer]:
+                - /url: /article.asp?AID=782349
+              - generic [ref=e725]:
+                - text: ", pioneer of"
+                - link "Torah" [ref=e726] [cursor=pointer]:
+                  - /url: https://www.chabad.org
+                - text: ","
+                - link "Judaism" [ref=e727] [cursor=pointer]:
+                  - /url: https://www.chabad.org
+                - text: and
+                - link "Jewish" [ref=e728] [cursor=pointer]:
+                  - /url: https://www.chabad.org
+                - text: information on the web
+        - generic [ref=e729]:
+          - generic [ref=e730]:
+            - text: © 1993-2026
+            - link "Chabad" [ref=e731] [cursor=pointer]:
+              - /url: /article.asp?AID=36226
+            - text: "-"
+            - link "Lubavitch" [ref=e732] [cursor=pointer]:
+              - /url: /article.asp?AID=36226
+            - text: Media Center
+          - generic [ref=e733]:
+            - link "Donate" [ref=e734] [cursor=pointer]:
+              - /url: /tools/donate/donate.asp?AID=161548&sc=ft8052
+            - link "About Us" [ref=e735] [cursor=pointer]:
+              - /url: /article.asp?aid=32812
+            - link "Terms & Privacy" [ref=e736] [cursor=pointer]:
+              - /url: /130435
+            - link "Contact Us" [ref=e737] [cursor=pointer]:
+              - /url: javascript:BetaFeedback.Show();
+      - generic:       

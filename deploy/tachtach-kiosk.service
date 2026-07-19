@@ -1,0 +1,42 @@
+[Unit]
+Description=TachTach-Screens Chromium Kiosk
+After=tachtach-server.service graphical.target
+Wants=tachtach-server.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+
+# Wait for server to be ready, then launch kiosk
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/chromium-browser \
+    --kiosk \
+    --disable-restore-session-state \
+    --noerrdialogs \
+    --disable-infobars \
+    --disable-translate \
+    --no-first-run \
+    --start-fullscreen \
+    --check-for-update-interval=31536000 \
+    --overscroll-history-navigation=0 \
+    --disable-pinch \
+    --disable-features=TranslateUI \
+    --disable-dev-shm-usage \
+    --autoplay-policy=no-user-gesture-required \
+    http://127.0.0.1:3000/screen
+
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tachtach-kiosk
+
+[Install]
+WantedBy=graphical.target

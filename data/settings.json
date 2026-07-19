@@ -1,0 +1,102 @@
+{
+  "location": {
+    "zip": "33139",
+    "locationId": "33139",
+    "timezone": "America/New_York"
+  },
+  "theme": "midnight",
+  "customTheme": null,
+  "orientation": "landscape",
+  "scheduler": {
+    "trackA": true,
+    "trackBTime": "04:00"
+  },
+  "visibility": {
+    "clock": true,
+    "hebrewDate": true,
+    "parsha": true,
+    "omer": true,
+    "pinnedNotes": true
+  },
+  "dataSources": {
+    "zmanim": true,
+    "hayomYom": true,
+    "limudim": true,
+    "rambam1": true,
+    "rambam3": true,
+    "tanyaYomi": true
+  },
+  "zipCode": "33139",
+  "chabadLocationId": "33139",
+  "limudimLang": "both",
+  "fonts": {
+    "hebrew": "FbMazalMedium",
+    "hebrewBody": "FbMazalMedium",
+    "hebrewHeading": "FbMazalMedium",
+    "english": "EB Garamond",
+    "customFonts": [
+      {
+        "id": "335be0ec-dc21-409c-bbc8-e10972958e94",
+        "name": "LiaShaharit Regular 1",
+        "filename": "335be0ec-dc21-409c-bbc8-e10972958e94.ttf",
+        "format": "truetype"
+      },
+      {
+        "id": "1878d33d-34ff-495a-8a4a-7522a59e4b9a",
+        "name": "1ShefaClassic",
+        "filename": "1878d33d-34ff-495a-8a4a-7522a59e4b9a.ttf",
+        "format": "truetype"
+      },
+      {
+        "id": "6a5c0f34-1ccc-45f6-9775-0f65cd3526c4",
+        "name": "BAWSVenezia Regular",
+        "filename": "6a5c0f34-1ccc-45f6-9775-0f65cd3526c4.ttf",
+        "format": "truetype"
+      },
+      {
+        "id": "0307dc9e-66e5-4fe7-88fd-19af31186c21",
+        "name": "LiaHalel Regular",
+        "filename": "0307dc9e-66e5-4fe7-88fd-19af31186c21.ttf",
+        "format": "truetype"
+      },
+      {
+        "id": "639a27fb-e8a2-4ecd-9bd9-1ec66b07e521",
+        "name": "FbMazalMedium",
+        "filename": "639a27fb-e8a2-4ecd-9bd9-1ec66b07e521.ttf",
+        "format": "truetype"
+      }
+    ]
+  },
+  "scheduleDisplayMode": "two-column",
+  "scheduleScrollSpeed": "fast",
+  "credit": {
+    "enabled": true,
+    "text": "Powered By: KishenT.org",
+    "size": "medium",
+    "position": "under-clock",
+    "logo": {
+      "blend": "match-theme"
+    },
+    "slideId": "zmanim"
+  },
+  "clockSide": "right",
+  "themeAuto": {
+    "enabled": true,
+    "dayTheme": "sky",
+    "nightTheme": "midnight"
+  },
+  "banner": {
+    "size": "normal",
+    "speed": "normal",
+    "repeat": "wait"
+  },
+  "trackA": true,
+  "hebrewFontScale": 1.4,
+  "hayomYomLang": "english",
+  "hebrewHeadingScale": 1.55,
+  "limudimItems": {
+    "sefer": false,
+    "tanyaYomi": false
+  },
+  "zmanimVisible": []
+}
