@@ -23,9 +23,12 @@ export default function ScreenScaler({ portrait = false, children }) {
   }, [canvas.width, canvas.height]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden' }}>
+    <div style={{ position: 'fixed', inset: 0, overflow: 'hidden', direction: 'ltr' }}>
       <div
         style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: `${canvas.width}px`,
           height: `${canvas.height}px`,
           transform: `scale(${scale.x}, ${scale.y})`,
