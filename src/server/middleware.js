@@ -30,6 +30,27 @@ export function localhostOnly(req, res, next) {
 }
 
 /**
+ * Allow the request through if it's from localhost (the kiosk, which has no
+ * session/login of its own) OR if it carries a valid admin session cookie
+ * (the admin panel, which may be accessed remotely over LAN/tunnel). Anyone
+ * else gets the same 404-not-403 treatment as localhostOnly, to avoid leaking
+ * route existence to an unauthenticated remote caller.
+ */
+export async function localhostOrAuth(req, res, next) {
+  const localAddresses = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+  if (localAddresses.includes(req.ip)) {
+    return next();
+  }
+
+  const token = req.cookies?.tachtach_session;
+  if (token && (await validateSession(token))) {
+    return next();
+  }
+
+  return res.status(404).end();
+}
+
+/**
  * CSRF protection via double-submit cookie pattern, bound to the session via HMAC.
  * The CSRF token = random nonce + HMAC(nonce, sessionToken). This ensures the CSRF
  * token is only valid for the current session.

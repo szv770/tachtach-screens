@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { setupCheck, requireAuth, localhostOnly, csrfProtection } from './middleware.js';
+import { setupCheck, requireAuth, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
@@ -144,8 +144,8 @@ export function createApp() {
   // ── 6b. SSE stream route (before static serving) ────────────────────
   app.use('/stream', screenRouter);
 
-  // ── 6c. Localhost-only state endpoint (kiosk needs data without auth) ─
-  app.get('/api/state', localhostOnly, async (_req, res) => {
+  // ── 6c. State endpoint — kiosk (localhost, no login) or a logged-in admin ─
+  app.get('/api/state', localhostOrAuth, async (_req, res) => {
     try {
       const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds] = await Promise.all([
         readJSON('cache.json'),
