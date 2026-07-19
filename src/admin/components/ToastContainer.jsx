@@ -1,15 +1,28 @@
 import React from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
+import useIsMobile from '../hooks/useIsMobile.js';
 
 /**
- * Renders a stack of toast notifications in the bottom-right corner.
- * Each toast has a type ('error' or 'success') and a dismiss button.
+ * Renders a stack of toast notifications — bottom-right on desktop,
+ * full-width above the bottom safe area on mobile (the old right-anchored
+ * width:100% box overflowed the left screen edge on phones).
  */
 export default function ToastContainer({ toasts = [], onDismiss }) {
+  const isMobile = useIsMobile();
   if (toasts.length === 0) return null;
 
   return (
-    <div style={{
+    <div style={isMobile ? {
+      position: 'fixed',
+      bottom: 'calc(12px + env(safe-area-inset-bottom))',
+      left: '12px',
+      right: '12px',
+      zIndex: 9999,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      pointerEvents: 'none',
+    } : {
       position: 'fixed',
       bottom: '20px',
       right: '20px',
@@ -61,13 +74,16 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
           {/* Dismiss button */}
           <button
             onClick={() => onDismiss(toast.id)}
+            aria-label="Dismiss notification"
             style={{
               background: 'transparent',
               border: 'none',
               color: 'rgba(255,255,255,.7)',
               fontSize: '18px',
               cursor: 'pointer',
-              padding: '0',
+              // Padding + negative margin = bigger tap target, same visual size
+              padding: '10px',
+              margin: '-10px -10px -10px 0',
               lineHeight: '1',
               flexShrink: 0,
             }}
