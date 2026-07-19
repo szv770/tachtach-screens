@@ -613,6 +613,7 @@ export default function LimudimSlide({ cache, tokens, settings, portrait = false
   useEffect(() => {
     if (!outerRef.current || !innerRef.current) return;
     const measure = () => {
+      if (!outerRef.current || !innerRef.current) return;
       const avail = outerRef.current.getBoundingClientRect().height;
       const natural = innerRef.current.scrollHeight;
       if (avail > 0 && natural > 0) {
