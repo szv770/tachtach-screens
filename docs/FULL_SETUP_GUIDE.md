@@ -4,6 +4,12 @@ Everything needed to go from an unboxed Raspberry Pi to a fully working,
 remotely-manageable digital signage screen showing the live Mivtzah
 leaderboard. Do these in order.
 
+> **A note on usernames:** commands below use `pi` / `/home/pi` as an
+> illustrative example. Your Pi's username can be anything you chose in
+> Raspberry Pi Imager — substitute your own username throughout. The
+> `pi-setup.sh` and `update.sh` scripts auto-detect the real username, so no
+> manual editing of those scripts is needed either way.
+
 ---
 
 ## 1. Flash the SD card
@@ -11,8 +17,8 @@ leaderboard. Do these in order.
 Using **Raspberry Pi Imager** on your PC:
 - OS: **Raspberry Pi OS with Desktop (Bookworm, 64-bit)** — not Lite.
 - Click the gear icon (OS Customisation) before writing and set: hostname
-  `tachtach`, enable SSH, username `pi`, a strong password, your WiFi
-  SSID/password, country code, timezone, locale.
+  `tachtach`, enable SSH, a username of your choice (e.g. `pi`, `tach`), a
+  strong password, your WiFi SSID/password, country code, timezone, locale.
 - Write the card, insert into the Pi.
 
 ## 2. Physical setup

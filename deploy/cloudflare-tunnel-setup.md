@@ -1,5 +1,9 @@
 # Remote Access to TachTach Admin — Cloudflare Tunnel
 
+> **A note on usernames:** commands below use `pi` / `/home/pi` as an
+> illustrative example. Substitute your Pi's actual username (whatever you
+> chose in Raspberry Pi Imager) wherever `pi` appears.
+
 Run this AFTER completing the normal Pi setup (`pi-setup.sh`) and confirming
 `http://tachtach.local:3000/admin` works on your local WiFi. This exposes that
 same admin panel under a subdomain of `szvtech.org`, reachable from anywhere —

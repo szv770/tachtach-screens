@@ -6,10 +6,14 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=/home/pi/tachtach-screens
-ExecStart=/usr/bin/node /home/pi/tachtach-screens/server.js
+# NOTE: __PI_USER__ / __PI_HOME__ / __PROJECT_DIR__ are placeholder tokens.
+# This file is a template — pi-setup.sh substitutes the real username, home
+# directory, and project path before copying it into /etc/systemd/system/.
+# Do not install this file verbatim; run pi-setup.sh instead.
+User=__PI_USER__
+Group=__PI_USER__
+WorkingDirectory=__PROJECT_DIR__
+ExecStart=/usr/bin/node __PROJECT_DIR__/server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
@@ -24,7 +28,7 @@ SyslogIdentifier=tachtach-server
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/home/pi/tachtach-screens/data
+ReadWritePaths=__PROJECT_DIR__/data
 
 [Install]
 WantedBy=multi-user.target

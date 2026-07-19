@@ -3,15 +3,22 @@
 #  TachTach-Screens — Pi Update Script
 # ============================================================================
 #
-#  Run from your PC:  ssh pi@tachtach.local 'bash /home/pi/tachtach-screens/deploy/update.sh'
-#  Or from the Pi:    bash /home/pi/tachtach-screens/deploy/update.sh
+#  Run from your PC:  ssh <your-user>@tachtach.local 'bash ~/tachtach-screens/deploy/update.sh'
+#  Or from the Pi:    bash ~/tachtach-screens/deploy/update.sh
+#
+#  (Replace <your-user> with whatever username you chose in Raspberry Pi
+#  Imager — this script does not assume the username is "pi".)
 #
 # ============================================================================
 
 set -e
 
-PROJECT_DIR="/home/pi/tachtach-screens"
-LOG_FILE="/home/pi/tachtach-update.log"
+# Project directory: derived from where this script actually lives
+# (repo-root/deploy/update.sh), so it works regardless of the clone location
+# or username — no assumption about /home/pi needed.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_FILE="$HOME/tachtach-update.log"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 log() {

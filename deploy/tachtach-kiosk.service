@@ -7,10 +7,14 @@ StartLimitBurst=5
 
 [Service]
 Type=simple
-User=pi
-Group=pi
+# NOTE: __PI_USER__ / __PI_HOME__ are placeholder tokens. This file is a
+# template — pi-setup.sh substitutes the real username and home directory
+# before copying it into /etc/systemd/system/. Do not install this file
+# verbatim; run pi-setup.sh instead.
+User=__PI_USER__
+Group=__PI_USER__
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/pi/.Xauthority
+Environment=XAUTHORITY=__PI_HOME__/.Xauthority
 
 # Wait for server to be ready, then launch kiosk
 ExecStartPre=/bin/sleep 5

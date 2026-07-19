@@ -1,5 +1,12 @@
 # Pi Setup Guide — TachTach Screens + Mivtzah Ping
 
+> **A note on usernames:** this guide uses `pi` and `/home/pi` in every example
+> command for readability. Your actual username can be anything you chose in
+> the "Username" field during Raspberry Pi Imager setup — just substitute your
+> own username and home directory wherever `pi` / `/home/pi` appears below.
+> `pi-setup.sh` and `update.sh` auto-detect the real username, so they work
+> correctly regardless of what you chose.
+
 This guide covers a full Raspberry Pi setup from a freshly flashed SD card.
 The Pi will run two things simultaneously:
 
@@ -24,7 +31,7 @@ The Pi will run two things simultaneously:
    |---|---|
    | Hostname | `tachtach` |
    | Enable SSH | Yes — "Use password authentication" for simplicity, or add your public key for key-based access |
-   | Username | `pi` |
+   | Username | Anything you like (e.g. `pi`, `tach`) — the rest of this guide uses `pi` as an illustrative example only; the setup/update scripts detect your real username automatically |
    | Password | A strong password — write it down |
    | WiFi SSID | Your network name |
    | WiFi password | Your network password |
