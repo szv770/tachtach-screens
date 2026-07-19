@@ -76,6 +76,10 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
 
   useEffect(() => { setLocal(settings); }, [settings]);
 
+  // Unsaved-changes tracking — the Save button now tells you whether there
+  // is anything to save, instead of always looking the same.
+  const dirty = JSON.stringify(local) !== JSON.stringify(settings);
+
   const update = (key, value) => setLocal(prev => ({ ...prev, [key]: value }));
   const updateNested = (parent, key, value) =>
     setLocal(prev => ({ ...prev, [parent]: { ...(prev[parent] || {}), [key]: value } }));
@@ -163,9 +167,30 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
           <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold }}>
             Settings
           </h2>
-          <button style={{ ...buttonPrimary, minHeight: '44px', width: isMobile ? '100%' : undefined }} onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Settings'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexDirection: isMobile ? 'column' : 'row' }}>
+            {dirty && !saving && (
+              <span style={{
+                fontFamily: adminFonts.englishBody,
+                fontSize: '12px',
+                color: colors.copper,
+                fontStyle: 'italic',
+              }}>
+                Unsaved changes
+              </span>
+            )}
+            <button
+              style={{
+                ...buttonPrimary,
+                minHeight: '44px',
+                width: isMobile ? '100%' : undefined,
+                opacity: saving || !dirty ? 0.55 : 1,
+              }}
+              onClick={handleSave}
+              disabled={saving || !dirty}
+            >
+              {saving ? 'Saving...' : dirty ? 'Save Settings' : 'Saved'}
+            </button>
+          </div>
         </div>
       </div>
 

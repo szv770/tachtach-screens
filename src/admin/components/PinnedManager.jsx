@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary } from '../styles/admin-tokens.js';
+import { NumberField } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
 const DISPLAY_MODES = [
@@ -80,7 +81,7 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
   };
 
   const handleDuration = async (item, dur) => {
-    await onUpdate(item.id, { duration: Number(dur) || 10 });
+    await onUpdate(item.id, { duration: dur });
   };
 
   const handleFullscreen = async (item) => {
@@ -165,11 +166,13 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
           {displayMode === 'slide' && (
             <>
               <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginLeft: isMobile ? '0' : '12px' }}>Duration:</span>
-              <input
-                type="number"
+              <NumberField
                 value={duration}
-                onChange={(e) => setDuration(Number(e.target.value) || 0)}
-                style={{ ...inputStyle, width: '56px', textAlign: 'center', padding: '5px' }}
+                onCommit={setDuration}
+                min={1}
+                max={600}
+                title="Seconds on screen"
+                style={{ width: '56px', textAlign: 'center', padding: '5px' }}
               />
               <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted }}>s</span>
               <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', marginLeft: isMobile ? '0' : '8px', minHeight: '36px' }}>
@@ -314,11 +317,13 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
               {/* Duration control for slide mode — desktop inline */}
               {!isMobile && item.displayMode === 'slide' && (
                 <>
-                  <input
-                    type="number"
+                  <NumberField
                     value={item.duration || 10}
-                    onChange={(e) => handleDuration(item, e.target.value)}
-                    style={{ ...inputStyle, width: '48px', textAlign: 'center', padding: '3px', fontSize: '12px' }}
+                    onCommit={(v) => handleDuration(item, v)}
+                    min={1}
+                    max={600}
+                    title="Seconds on screen"
+                    style={{ width: '48px', textAlign: 'center', padding: '3px', fontSize: '12px' }}
                   />
                   <span style={{ fontFamily: adminFonts.englishBody, fontSize: '10px', color: colors.muted }}>s</span>
                   <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
@@ -344,8 +349,8 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
                   fontSize: '18px',
                   cursor: 'pointer',
                   padding: '0 4px',
-                  minWidth: '32px',
-                  minHeight: '32px',
+                  minWidth: isMobile ? '40px' : '32px',
+                  minHeight: isMobile ? '40px' : '32px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -373,11 +378,13 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
                 )}
                 {item.displayMode === 'slide' && (
                   <>
-                    <input
-                      type="number"
+                    <NumberField
                       value={item.duration || 10}
-                      onChange={(e) => handleDuration(item, e.target.value)}
-                      style={{ ...inputStyle, width: '56px', textAlign: 'center', padding: '5px', fontSize: '12px' }}
+                      onCommit={(v) => handleDuration(item, v)}
+                      min={1}
+                      max={600}
+                      title="Seconds on screen"
+                      style={{ width: '56px', textAlign: 'center', padding: '5px', fontSize: '12px' }}
                     />
                     <span style={{ fontFamily: adminFonts.englishBody, fontSize: '10px', color: colors.muted }}>s</span>
                     <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', minHeight: '36px' }}>

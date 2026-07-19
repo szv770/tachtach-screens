@@ -26,7 +26,7 @@ function parseErrorMessage(err) {
   return raw;
 }
 
-async function apiFetch(path, options = {}) {
+async function apiFetch(path, options = {}, _retried = false) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET') {
@@ -37,6 +37,15 @@ async function apiFetch(path, options = {}) {
     res = await fetch(path, { ...options, headers, credentials: 'same-origin' });
   } catch (networkErr) {
     throw new Error('Cannot reach the server. Check your connection.');
+  }
+  // The server refreshes the _csrf cookie on every response, including a 403
+  // CSRF failure — so a single retry with the fresh cookie always recovers
+  // (e.g. cookie was missing/stale after a long-idle tab). Retry once only.
+  if (res.status === 403 && method !== 'GET' && !_retried) {
+    const body = await res.clone().text();
+    if (body.includes('CSRF')) {
+      return apiFetch(path, options, true);
+    }
   }
   if (!res.ok) {
     const body = await res.text();
@@ -110,9 +119,9 @@ export default function useAdminState() {
     }
   }, [addToast]);
 
-  const fetchState = useCallback(async () => {
+  const fetchState = useCallback(async (opts = {}) => {
     try {
-      setLoading(true);
+      if (!opts.silent) setLoading(true);
       setError(null);
       const data = await apiFetch('/api/state');
       // Map nested schedule data to flat keys for component consumption
@@ -122,35 +131,53 @@ export default function useAdminState() {
         scheduleCategories: data.schedule?.categories || [],
       });
     } catch (err) {
-      setError(parseErrorMessage(err));
+      if (!opts.silent) setError(parseErrorMessage(err));
     } finally {
-      setLoading(false);
+      if (!opts.silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { fetchState(); }, [fetchState]);
 
+  // Sequence counters so only the LATEST in-flight save may write the server's
+  // response back into state. Without this, rapid successive saves (e.g. two
+  // quick toggles) could race: an older response landing last would silently
+  // revert the newer change on screen.
+  const seqRef = useRef({ slides: 0, settings: 0, scheduleEntries: 0 });
+
   // --- Settings ---
   const updateSettings = useCallback(async (settings) => {
-    return withErrorHandling('Save settings', async () => {
+    const seq = ++seqRef.current.settings;
+    setState(prev => ({ ...prev, settings })); // optimistic
+    const ok = await withErrorHandling('Save settings', async () => {
       const result = await apiFetch('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(settings),
       });
-      setState(prev => ({ ...prev, settings: result || settings }));
+      if (result && seq === seqRef.current.settings) {
+        setState(prev => ({ ...prev, settings: result }));
+      }
     }, 'Settings saved');
-  }, [withErrorHandling]);
+    if (!ok && seq === seqRef.current.settings) fetchState({ silent: true }); // resync after failure
+    return ok;
+  }, [withErrorHandling, fetchState]);
 
   // --- Slides ---
   const updateSlides = useCallback(async (slides) => {
-    return withErrorHandling('Update slides', async () => {
+    const seq = ++seqRef.current.slides;
+    setState(prev => ({ ...prev, slides })); // optimistic
+    const ok = await withErrorHandling('Update slides', async () => {
       const result = await apiFetch('/api/slides', {
         method: 'PUT',
         body: JSON.stringify(slides),
       });
-      setState(prev => ({ ...prev, slides: result || slides }));
+      if (result && seq === seqRef.current.slides) {
+        setState(prev => ({ ...prev, slides: result }));
+      }
     });
-  }, [withErrorHandling]);
+    if (!ok && seq === seqRef.current.slides) fetchState({ silent: true }); // resync after failure
+    return ok;
+  }, [withErrorHandling, fetchState]);
 
   const createSlide = useCallback(async (slide) => {
     let created;
@@ -246,14 +273,20 @@ export default function useAdminState() {
   }, [withErrorHandling]);
 
   const updateScheduleEntries = useCallback(async (entries) => {
-    return withErrorHandling('Update schedule', async () => {
+    const seq = ++seqRef.current.scheduleEntries;
+    setState(prev => ({ ...prev, scheduleEntries: entries })); // optimistic
+    const ok = await withErrorHandling('Update schedule', async () => {
       const result = await apiFetch('/api/schedule/entries', {
         method: 'PUT',
         body: JSON.stringify(entries),
       });
-      setState(prev => ({ ...prev, scheduleEntries: result || entries }));
+      if (result && seq === seqRef.current.scheduleEntries) {
+        setState(prev => ({ ...prev, scheduleEntries: result }));
+      }
     });
-  }, [withErrorHandling]);
+    if (!ok && seq === seqRef.current.scheduleEntries) fetchState({ silent: true }); // resync after failure
+    return ok;
+  }, [withErrorHandling, fetchState]);
 
   const createScheduleEntry = useCallback(async (entry) => {
     let created;

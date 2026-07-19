@@ -1,5 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
+import { NumberField, DraftTextInput, ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ZMANIM_DISPLAY } from '../../shared/constants.js';
 
@@ -35,23 +36,36 @@ const SLIDE_STYLES = [
   { value: 'urgent', label: 'Notice', desc: 'Amber attention' },
 ];
 
-function ToggleSwitch({ on, onChange }) {
+function ToggleSwitch({ on, onChange, label }) {
+  // A real <button> with role="switch" so it's reachable by keyboard (Tab +
+  // Space/Enter) and announced correctly by screen readers.
+  // The transparent border + background-clip enlarges the touch target to
+  // ~48x32px (comfortable for thumbs) without changing the visual size.
   return (
-    <div
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
+      title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
       onClick={onChange}
       style={{
-        width: 36, height: 20, borderRadius: '10px',
+        width: 48, height: 32, borderRadius: '16px',
+        border: '6px solid transparent', padding: 0,
+        margin: '-6px',
         background: on ? colors.gold : colors.muted,
+        backgroundClip: 'padding-box',
         position: 'relative', cursor: 'pointer',
         transition: 'background .2s', flexShrink: 0,
       }}
     >
-      <div style={{
-        width: 16, height: 16, borderRadius: '8px',
+      <span style={{
+        width: 16, height: 16, borderRadius: '8px', display: 'block',
         background: colors.bg, position: 'absolute',
         top: 2, left: on ? 18 : 2, transition: 'left .2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
       }} />
-    </div>
+    </button>
   );
 }
 
@@ -74,8 +88,20 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
   const [form, setForm] = useState({
     template: 'headline', titleEn: '', titleHe: '', bodyEn: '', bodyHe: '', attribution: '', duration: 12, style: '', subtitle: '',
   });
-  const dragItem = useRef(null);
-  const dragOver = useRef(null);
+  const [confirmDelete, setConfirmDelete] = useState(null); // slide object or null
+  // Drag state. Rows are only made draggable while the mouse is down on the
+  // grab handle — otherwise HTML5 drag hijacks text selection inside the
+  // label/duration inputs (you couldn't select text with the mouse at all).
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  // The create form renders below the (potentially long) slide list — scroll
+  // it into view when opened so clicking "+ New Slide" has a visible effect.
+  const createFormRef = useRef(null);
+  useEffect(() => {
+    if (showCreate) {
+      createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [showCreate]);
 
   const handleToggle = (index) => {
     const updated = slides.map((s, i) =>
@@ -86,7 +112,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
 
   const handleDuration = (index, dur) => {
     const updated = slides.map((s, i) =>
-      i === index ? { ...s, duration: Number(dur) || 0 } : s
+      i === index ? { ...s, duration: dur } : s
     );
     onUpdate(updated);
   };
@@ -119,15 +145,15 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
     onUpdate(reordered);
   };
 
-  const handleDragStart = (index) => { dragItem.current = index; };
-  const handleDragEnter = (index) => { dragOver.current = index; };
   const handleDragEnd = () => {
-    if (dragItem.current === null || dragOver.current === null) return;
+    const from = dragIdx;
+    const to = dragOverIdx;
+    setDragIdx(null);
+    setDragOverIdx(null);
+    if (from === null || to === null || from === to) return;
     const reordered = [...slides];
-    const [removed] = reordered.splice(dragItem.current, 1);
-    reordered.splice(dragOver.current, 0, removed);
-    dragItem.current = null;
-    dragOver.current = null;
+    const [removed] = reordered.splice(from, 1);
+    reordered.splice(to, 0, removed);
     onUpdate(reordered);
   };
 
@@ -178,26 +204,35 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
             Toggle slides on/off, reorder them, and set how long each one shows. Built-in slides (Zmanim, Limudim, etc.) pull live data automatically.
           </p>
         </div>
-        <button style={{ ...buttonPrimary, flexShrink: 0 }} onClick={() => setShowCreate(!showCreate)}>
-          + New Slide
+        <button
+          style={{ ...(showCreate ? buttonSecondary : buttonPrimary), flexShrink: 0 }}
+          onClick={() => setShowCreate(!showCreate)}
+        >
+          {showCreate ? 'Cancel' : '+ New Slide'}
         </button>
       </div>
 
       {/* Slide list */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
         {slides.map((slide, idx) => (
           <div
             key={slide.id || idx}
-            draggable={!isMobile}
-            onDragStart={!isMobile ? () => handleDragStart(idx) : undefined}
-            onDragEnter={!isMobile ? () => handleDragEnter(idx) : undefined}
+            className="tt-row"
+            // Only draggable while the grab handle is held down — see dragIdx note above.
+            draggable={!isMobile && dragIdx === idx}
+            onDragEnter={!isMobile && dragIdx !== null ? () => setDragOverIdx(idx) : undefined}
             onDragEnd={!isMobile ? handleDragEnd : undefined}
             onDragOver={!isMobile ? (e) => e.preventDefault() : undefined}
+            onMouseUp={!isMobile ? () => setDragIdx(null) : undefined}
             style={{
               padding: isMobile ? '10px 12px' : '10px 14px',
               background: colors.surface,
-              borderRadius: '4px',
-              cursor: isMobile ? 'default' : 'grab',
+              borderRadius: '6px',
+              opacity: dragIdx === idx ? 0.45 : 1,
+              boxShadow: dragIdx !== null && dragOverIdx === idx && dragIdx !== idx
+                ? `inset 0 ${dragIdx < idx ? '-2px' : '2px'} 0 0 ${colors.gold}`
+                : 'none',
+              transition: 'box-shadow .1s, opacity .15s',
             }}
           >
             {/* Row 1: toggle, label, reorder/delete */}
@@ -207,28 +242,34 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
               gap: isMobile ? '8px' : '12px',
             }}>
               {!isMobile && (
-                <span style={{ color: colors.muted, fontSize: '18px', cursor: 'grab', userSelect: 'none' }}>
+                <span
+                  title="Drag to reorder"
+                  onMouseDown={() => setDragIdx(idx)}
+                  style={{ color: colors.muted, fontSize: '18px', cursor: 'grab', userSelect: 'none', padding: '0 2px' }}
+                >
                   {'\u2261'}
                 </span>
               )}
               {isMobile && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
                   <button
                     onClick={() => handleMoveUp(idx)}
                     disabled={idx === 0}
+                    aria-label="Move slide up"
                     style={{
                       background: 'transparent', border: 'none', cursor: idx === 0 ? 'default' : 'pointer',
-                      color: idx === 0 ? colors.muted : colors.dim, fontSize: '14px', padding: '0', lineHeight: 1,
-                      opacity: idx === 0 ? 0.3 : 1, minWidth: '20px', minHeight: '20px',
+                      color: idx === 0 ? colors.muted : colors.dim, fontSize: '15px', padding: '0', lineHeight: 1,
+                      opacity: idx === 0 ? 0.3 : 1, minWidth: '36px', minHeight: '30px',
                     }}
                   >{'\u25B2'}</button>
                   <button
                     onClick={() => handleMoveDown(idx)}
                     disabled={idx === slides.length - 1}
+                    aria-label="Move slide down"
                     style={{
                       background: 'transparent', border: 'none', cursor: idx === slides.length - 1 ? 'default' : 'pointer',
-                      color: idx === slides.length - 1 ? colors.muted : colors.dim, fontSize: '14px', padding: '0', lineHeight: 1,
-                      opacity: idx === slides.length - 1 ? 0.3 : 1, minWidth: '20px', minHeight: '20px',
+                      color: idx === slides.length - 1 ? colors.muted : colors.dim, fontSize: '15px', padding: '0', lineHeight: 1,
+                      opacity: idx === slides.length - 1 ? 0.3 : 1, minWidth: '36px', minHeight: '30px',
                     }}
                   >{'\u25BC'}</button>
                 </div>
@@ -261,21 +302,21 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
               )}
               {!isMobile && (
                 <>
-                  <input
-                    type="text"
+                  <DraftTextInput
                     value={slide.label || ''}
-                    onChange={(e) => handleLabel(idx, e.target.value)}
+                    onCommit={(v) => handleLabel(idx, v)}
                     placeholder={BUILT_IN_LABELS[slide.type] || 'Label'}
                     title="Custom display label shown on screen (leave blank to use default)"
-                    style={{ ...inputStyle, width: '90px', padding: '4px 6px', fontSize: '12px' }}
+                    style={{ width: '100px', padding: '5px 8px', fontSize: '12px' }}
                   />
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <input
-                      type="number"
+                    <NumberField
                       value={slide.duration || 0}
-                      onChange={(e) => handleDuration(idx, e.target.value)}
+                      onCommit={(v) => handleDuration(idx, v)}
+                      min={1}
+                      max={600}
                       title="How many seconds this slide stays on screen"
-                      style={{ ...inputStyle, width: '52px', textAlign: 'center', padding: '4px' }}
+                      style={{ width: '52px', textAlign: 'center', padding: '5px 4px' }}
                     />
                     <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted }}>s</span>
                   </div>
@@ -319,8 +360,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     color: embedExpanded === idx ? colors.gold : colors.dim,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    padding: '3px 10px',
-                    minHeight: '28px',
+                    padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '38px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -338,8 +379,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     color: zmanimExpanded === idx ? colors.gold : colors.dim,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    padding: '3px 10px',
-                    minHeight: '28px',
+                    padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '38px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -357,8 +398,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     color: limudimExpanded === idx ? colors.gold : colors.dim,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    padding: '3px 10px',
-                    minHeight: '28px',
+                    padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '38px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -376,8 +417,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     color: colors.dim,
                     fontSize: '13px',
                     cursor: 'pointer',
-                    padding: '3px 10px',
-                    minHeight: '28px',
+                    padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '38px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -386,7 +427,9 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
               )}
               {!BUILT_IN_TYPES.includes(slide.type) && (
                 <button
-                  onClick={() => onDelete(slide.id)}
+                  onClick={() => setConfirmDelete(slide)}
+                  title="Delete this slide"
+                  aria-label={`Delete slide ${getLabel(slide)}`}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -394,8 +437,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '18px',
                     cursor: 'pointer',
                     padding: '0 4px',
-                    minWidth: '32px',
-                    minHeight: '32px',
+                    minWidth: isMobile ? '40px' : '32px',
+                    minHeight: isMobile ? '40px' : '32px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -573,20 +616,21 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                 paddingLeft: '28px',
                 flexWrap: 'wrap',
               }}>
-                <input
-                  type="text"
+                <DraftTextInput
                   value={slide.label || ''}
-                  onChange={(e) => handleLabel(idx, e.target.value)}
+                  onCommit={(v) => handleLabel(idx, v)}
                   placeholder={BUILT_IN_LABELS[slide.type] || 'Label'}
                   title="Custom label"
-                  style={{ ...inputStyle, flex: 1, minWidth: '80px', padding: '6px 8px', fontSize: '13px' }}
+                  style={{ flex: 1, minWidth: '80px', padding: '6px 8px', fontSize: '13px' }}
                 />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                  <input
-                    type="number"
+                  <NumberField
                     value={slide.duration || 0}
-                    onChange={(e) => handleDuration(idx, e.target.value)}
-                    style={{ ...inputStyle, width: '56px', textAlign: 'center', padding: '6px 4px', fontSize: '13px' }}
+                    onCommit={(v) => handleDuration(idx, v)}
+                    min={1}
+                    max={600}
+                    title="Seconds on screen"
+                    style={{ width: '56px', textAlign: 'center', padding: '6px 4px', fontSize: '13px' }}
                   />
                   <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted }}>s</span>
                 </div>
@@ -621,12 +665,13 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
 
       {/* Create form */}
       {showCreate && (
-        <div style={{
+        <div ref={createFormRef} className="tt-card" style={{
           marginTop: '24px',
           padding: '20px',
           background: colors.surface,
-          borderRadius: '4px',
-          border: `1px solid ${colors.muted}`,
+          borderRadius: '8px',
+          border: `1px solid ${colors.goldBd}`,
+          scrollMarginTop: '16px',
         }}>
           <h3 style={{
             fontFamily: adminFonts.englishBody,
@@ -775,11 +820,13 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
             <div>
               <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Duration (s)</label>
-              <input
-                type="number"
+              <NumberField
                 value={form.duration}
-                onChange={(e) => setForm(f => ({ ...f, duration: Number(e.target.value) || 0 }))}
-                style={{ ...inputStyle, marginTop: '4px', width: '80px' }}
+                onCommit={(v) => setForm(f => ({ ...f, duration: v }))}
+                min={1}
+                max={600}
+                title="How many seconds this slide stays on screen"
+                style={{ marginTop: '4px', width: '80px' }}
               />
             </div>
             <button
@@ -791,6 +838,17 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
             </button>
           </div>
         </div>
+      )}
+
+      {/* Delete confirmation */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete slide?"
+          message={`"${getLabel(confirmDelete)}" will be removed from the screen. This cannot be undone.`}
+          confirmLabel="Delete Slide"
+          onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   );

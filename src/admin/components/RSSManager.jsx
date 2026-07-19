@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
+import { ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
 const MAPPING_SLOTS = [
@@ -227,22 +228,39 @@ export default function RSSManager({ onSlideCreated }) {
     }
   };
 
+  // Per-feed action feedback — previously Sync/Delete gave no visual
+  // feedback at all and errors only went to the console.
+  const [syncingId, setSyncingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const [feedError, setFeedError] = useState(null); // { id, message }
+  const [confirmDelete, setConfirmDelete] = useState(null); // feed object
+
   const handleSync = async (id) => {
+    setSyncingId(id);
+    setFeedError(null);
     try {
       await apiFetch(`/api/rss/feeds/${id}/sync`, { method: 'POST' });
-      // Refresh feed list after a short delay
-      setTimeout(fetchFeeds, 2000);
+      // Give the server a moment to fetch before refreshing the list
+      await new Promise(r => setTimeout(r, 2000));
+      await fetchFeeds();
     } catch (err) {
-      console.error('Sync failed:', err);
+      setFeedError({ id, message: err.message || 'Sync failed' });
+    } finally {
+      setSyncingId(null);
     }
   };
 
   const handleDelete = async (id) => {
+    setDeletingId(id);
+    setFeedError(null);
     try {
       await apiFetch(`/api/rss/feeds/${id}`, { method: 'DELETE' });
       setFeeds(prev => prev.filter(f => f.id !== id));
     } catch (err) {
-      console.error('Delete failed:', err);
+      setFeedError({ id, message: err.message || 'Delete failed' });
+    } finally {
+      setDeletingId(null);
+      setConfirmDelete(null);
     }
   };
 
@@ -561,38 +579,65 @@ export default function RSSManager({ onSlideCreated }) {
                   {` | ${REFRESH_OPTIONS.find(o => o.value === feed.refreshInterval)?.label || feed.refreshInterval}`}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                <button
-                  onClick={() => handleSync(feed.id)}
-                  style={{
-                    ...buttonSecondary,
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    minHeight: '32px',
-                  }}
-                >
-                  Sync Now
-                </button>
-                <button
-                  onClick={() => handleDelete(feed.id)}
-                  style={{
-                    background: 'transparent',
-                    border: `1px solid ${colors.danger}`,
-                    borderRadius: '4px',
-                    color: colors.danger,
-                    padding: '6px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer',
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0, alignItems: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    onClick={() => handleSync(feed.id)}
+                    disabled={syncingId === feed.id}
+                    title="Fetch the latest items from this feed now"
+                    style={{
+                      ...buttonSecondary,
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      minHeight: '32px',
+                      opacity: syncingId === feed.id ? 0.6 : 1,
+                    }}
+                  >
+                    {syncingId === feed.id ? 'Syncing…' : 'Sync Now'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(feed)}
+                    disabled={deletingId === feed.id}
+                    style={{
+                      background: 'transparent',
+                      border: `1px solid ${colors.danger}`,
+                      borderRadius: '4px',
+                      color: colors.danger,
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                      fontFamily: adminFonts.englishBody,
+                      minHeight: '32px',
+                      opacity: deletingId === feed.id ? 0.6 : 1,
+                    }}
+                  >
+                    {deletingId === feed.id ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+                {feedError?.id === feed.id && (
+                  <span style={{
                     fontFamily: adminFonts.englishBody,
-                    minHeight: '32px',
-                  }}
-                >
-                  Delete
-                </button>
+                    fontSize: '11px',
+                    color: colors.danger,
+                  }}>
+                    {feedError.message}
+                  </span>
+                )}
               </div>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Confirm feed delete */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete RSS feed?"
+          message={`"${confirmDelete.name}" will stop updating. Any slide using this feed will no longer show content.`}
+          confirmLabel="Delete Feed"
+          onConfirm={() => handleDelete(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   );

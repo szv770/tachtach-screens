@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
+import { ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ICON_OPTIONS, ScheduleIcon } from '../../shared/ScheduleIcons.jsx';
 
@@ -40,23 +41,36 @@ const TEMPLATE_ENTRIES = [
   { name: 'Night Seder', nameHe: '', time: '20:00', endTime: '22:00', category: 'learning', days: [...WEEKDAYS], alertBefore: 0, alertDisplay: 'slide', enabled: true },
 ];
 
-function ToggleSwitch({ on, onChange }) {
+function ToggleSwitch({ on, onChange, label }) {
+  // A real <button> with role="switch" so it's reachable by keyboard (Tab +
+  // Space/Enter) and announced correctly by screen readers.
+  // The transparent border + background-clip enlarges the touch target to
+  // ~48x32px (comfortable for thumbs) without changing the visual size.
   return (
-    <div
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
+      title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
       onClick={onChange}
       style={{
-        width: 36, height: 20, borderRadius: '10px',
+        width: 48, height: 32, borderRadius: '16px',
+        border: '6px solid transparent', padding: 0,
+        margin: '-6px',
         background: on ? colors.gold : colors.muted,
+        backgroundClip: 'padding-box',
         position: 'relative', cursor: 'pointer',
         transition: 'background .2s', flexShrink: 0,
       }}
     >
-      <div style={{
-        width: 16, height: 16, borderRadius: '8px',
+      <span style={{
+        width: 16, height: 16, borderRadius: '8px', display: 'block',
         background: colors.bg, position: 'absolute',
         top: 2, left: on ? 18 : 2, transition: 'left .2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
       }} />
-    </div>
+    </button>
   );
 }
 
@@ -92,9 +106,29 @@ const emptyForm = () => ({
 
 function IconPicker({ value, onChange, label = 'Icon' }) {
   const [showPicker, setShowPicker] = useState(false);
+  const rootRef = useRef(null);
+  const isMobile = useIsMobile();
+
+  // Close on outside click/tap and Escape — previously the picker stayed open
+  // until you picked an icon or clicked the trigger again.
+  useEffect(() => {
+    if (!showPicker) return;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setShowPicker(false);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') setShowPicker(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showPicker]);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div ref={rootRef} style={{ position: 'relative' }}>
       <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>{label}</label>
       <button
         type="button"
@@ -120,7 +154,10 @@ function IconPicker({ value, onChange, label = 'Icon' }) {
         <div style={{
           position: 'absolute',
           top: '100%',
-          left: 0,
+          // On mobile, anchor to the right edge — the picker often sits at the
+          // right side of a row, and a left-anchored 260px panel would spill
+          // past the screen edge and force horizontal scrolling.
+          ...(isMobile ? { right: 0 } : { left: 0 }),
           zIndex: 100,
           background: colors.surface,
           border: `1px solid ${colors.muted}`,
@@ -132,6 +169,7 @@ function IconPicker({ value, onChange, label = 'Icon' }) {
           gap: '4px',
           boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
           minWidth: '260px',
+          maxWidth: isMobile ? 'calc(100vw - 48px)' : undefined,
         }}>
           {ICON_OPTIONS.map((opt) => (
             <button
@@ -246,8 +284,8 @@ function CategoryManager({ categories, onUpdate, isMobile }) {
                 fontSize: '18px',
                 cursor: 'pointer',
                 padding: '0 4px',
-                minWidth: '32px',
-                minHeight: '32px',
+                minWidth: isMobile ? '40px' : '32px',
+                minHeight: isMobile ? '40px' : '32px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -551,55 +589,8 @@ const DEFAULT_YESHIVA_TEMPLATE = {
   builtIn: true,
 };
 
-// ─── Confirm Dialog ──────────────────────────────────────────────
-
-function ConfirmDialog({ message, onConfirm, onCancel, isMobile }) {
-  return (
-    <div
-      onClick={onCancel}
-      style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 9999,
-        padding: isMobile ? '16px' : '0',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: colors.surface,
-          border: `1px solid ${colors.muted}`,
-          borderRadius: '6px',
-          padding: '24px',
-          maxWidth: '400px',
-          width: '100%',
-        }}
-      >
-        <p style={{
-          fontFamily: adminFonts.englishBody,
-          fontSize: '14px',
-          color: colors.text,
-          marginBottom: '20px',
-          lineHeight: '1.5',
-        }}>
-          {message}
-        </p>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-          <button style={{ ...buttonSecondary, minHeight: '38px' }} onClick={onCancel}>
-            Cancel
-          </button>
-          <button style={{ ...buttonDanger, minHeight: '38px' }} onClick={onConfirm}>
-            Continue
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Template Manager ────────────────────────────────────────────
+// (Confirm dialogs use the shared ConfirmDialog from ui.jsx)
 
 function TemplateManager({
   entries, categories, savedTemplates, onFetchTemplates,
@@ -610,6 +601,7 @@ function TemplateManager({
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [confirmLoad, setConfirmLoad] = useState(null);
   const [confirmUpdate, setConfirmUpdate] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -830,7 +822,7 @@ function TemplateManager({
                           fontSize: '12px',
                           minHeight: '32px',
                         }}
-                        onClick={() => onDeleteTemplate(tmpl.id)}
+                        onClick={() => setConfirmDelete(tmpl)}
                       >
                         Delete
                       </button>
@@ -895,20 +887,33 @@ function TemplateManager({
       {/* Confirm load dialog */}
       {confirmLoad && (
         <ConfirmDialog
-          message={`This will replace your current schedule with "${confirmLoad.name}" (${confirmLoad.entries.length} entries). Continue?`}
+          title="Load template?"
+          message={`This will replace your current schedule with "${confirmLoad.name}" (${confirmLoad.entries.length} entries).`}
+          confirmLabel="Load Template"
           onConfirm={() => handleLoad(confirmLoad)}
           onCancel={() => setConfirmLoad(null)}
-          isMobile={isMobile}
         />
       )}
 
       {/* Confirm update dialog */}
       {confirmUpdate && (
         <ConfirmDialog
-          message={`Update '${confirmUpdate.name}' with the current schedule? This will overwrite the saved template.`}
+          title="Overwrite template?"
+          message={`"${confirmUpdate.name}" will be overwritten with the current schedule.`}
+          confirmLabel="Overwrite"
           onConfirm={() => handleUpdateContent(confirmUpdate)}
           onCancel={() => setConfirmUpdate(null)}
-          isMobile={isMobile}
+        />
+      )}
+
+      {/* Confirm delete dialog */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete template?"
+          message={`"${confirmDelete.name}" (${confirmDelete.entries.length} entries) will be permanently deleted.`}
+          confirmLabel="Delete Template"
+          onConfirm={() => { onDeleteTemplate(confirmDelete.id); setConfirmDelete(null); }}
+          onCancel={() => setConfirmDelete(null)}
         />
       )}
     </div>
@@ -938,8 +943,6 @@ export default function ScheduleEditor({
   const [form, setForm] = useState(emptyForm);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const dragItem = useRef(null);
-  const dragOver = useRef(null);
 
   const categories = categoriesProp.length > 0 ? categoriesProp : DEFAULT_CATEGORIES;
 
@@ -1036,33 +1039,10 @@ export default function ScheduleEditor({
     }
   };
 
-  // Drag reorder
-  const handleDragStart = (index) => { dragItem.current = index; };
-  const handleDragEnter = (index) => { dragOver.current = index; };
-  const handleDragEnd = () => {
-    if (dragItem.current === null || dragOver.current === null) return;
-    const reordered = [...sortedEntries];
-    const [removed] = reordered.splice(dragItem.current, 1);
-    reordered.splice(dragOver.current, 0, removed);
-    dragItem.current = null;
-    dragOver.current = null;
-    onUpdateEntries(reordered);
-  };
-
-  // Mobile reorder
-  const handleMoveUp = (index) => {
-    if (index <= 0) return;
-    const reordered = [...sortedEntries];
-    [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
-    onUpdateEntries(reordered);
-  };
-
-  const handleMoveDown = (index) => {
-    if (index >= sortedEntries.length - 1) return;
-    const reordered = [...sortedEntries];
-    [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
-    onUpdateEntries(reordered);
-  };
+  // NOTE: the entry list is always displayed sorted by time (see
+  // sortedEntries above), so manual drag/arrow reordering could never
+  // visibly persist — it was removed as a misleading affordance. To change
+  // an entry's position, edit its time.
 
   const daysLabel = (days) => {
     if (!days || days.length === 0) return '';
@@ -1177,18 +1157,17 @@ export default function ScheduleEditor({
         {sortedEntries.map((entry, idx) => (
           <div
             key={entry.id || idx}
-            draggable={!isMobile}
-            onDragStart={!isMobile ? () => handleDragStart(idx) : undefined}
-            onDragEnter={!isMobile ? () => handleDragEnter(idx) : undefined}
-            onDragEnd={!isMobile ? handleDragEnd : undefined}
-            onDragOver={!isMobile ? (e) => e.preventDefault() : undefined}
+            className="tt-row"
+            // No drag/arrow reordering here \u2014 the list is always sorted by
+            // time (see the NOTE above sortedEntries), so change an entry's
+            // time to move it.
             style={{
               padding: isMobile ? '10px 12px' : '10px 14px',
               background: editingId === entry.id ? colors.goldBg : colors.surface,
-              borderRadius: '4px',
-              cursor: isMobile ? 'default' : 'grab',
+              borderRadius: '6px',
               opacity: entry.enabled === false ? 0.5 : 1,
               border: editingId === entry.id ? `1px solid ${colors.goldBd}` : '1px solid transparent',
+              transition: 'opacity .15s',
             }}
           >
             {/* Row 1 */}
@@ -1197,34 +1176,6 @@ export default function ScheduleEditor({
               alignItems: 'center',
               gap: isMobile ? '8px' : '12px',
             }}>
-              {!isMobile && (
-                <span style={{ color: colors.muted, fontSize: '18px', cursor: 'grab', userSelect: 'none' }}>
-                  {'\u2261'}
-                </span>
-              )}
-              {isMobile && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
-                  <button
-                    onClick={() => handleMoveUp(idx)}
-                    disabled={idx === 0}
-                    style={{
-                      background: 'transparent', border: 'none', cursor: idx === 0 ? 'default' : 'pointer',
-                      color: idx === 0 ? colors.muted : colors.dim, fontSize: '14px', padding: '0', lineHeight: 1,
-                      opacity: idx === 0 ? 0.3 : 1, minWidth: '20px', minHeight: '20px',
-                    }}
-                  >{'\u25B2'}</button>
-                  <button
-                    onClick={() => handleMoveDown(idx)}
-                    disabled={idx === sortedEntries.length - 1}
-                    style={{
-                      background: 'transparent', border: 'none', cursor: idx === sortedEntries.length - 1 ? 'default' : 'pointer',
-                      color: idx === sortedEntries.length - 1 ? colors.muted : colors.dim, fontSize: '14px', padding: '0', lineHeight: 1,
-                      opacity: idx === sortedEntries.length - 1 ? 0.3 : 1, minWidth: '20px', minHeight: '20px',
-                    }}
-                  >{'\u25BC'}</button>
-                </div>
-              )}
-
               <ToggleSwitch on={entry.enabled !== false} onChange={() => handleToggle(entry)} />
 
               <CategoryDot color={getCategoryColor(entry.category)} />
@@ -1296,8 +1247,8 @@ export default function ScheduleEditor({
                   fontSize: '14px',
                   cursor: 'pointer',
                   padding: '0 4px',
-                  minWidth: '32px',
-                  minHeight: '32px',
+                  minWidth: isMobile ? '40px' : '32px',
+                  minHeight: isMobile ? '40px' : '32px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1318,8 +1269,8 @@ export default function ScheduleEditor({
                   fontSize: '18px',
                   cursor: 'pointer',
                   padding: '0 4px',
-                  minWidth: '32px',
-                  minHeight: '32px',
+                  minWidth: isMobile ? '40px' : '32px',
+                  minHeight: isMobile ? '40px' : '32px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

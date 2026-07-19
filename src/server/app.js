@@ -145,7 +145,12 @@ export function createApp() {
   app.use('/stream', screenRouter);
 
   // ── 6c. State endpoint — kiosk (localhost, no login) or a logged-in admin ─
-  app.get('/api/state', localhostOrAuth, async (_req, res) => {
+  // csrfProtection is included here NOT to validate (GET is exempt) but so the
+  // _csrf cookie gets issued on the admin SPA's initial data load. Without it,
+  // the first mutating request after opening the admin panel always failed
+  // with 403 "CSRF validation failed" (the cookie was only issued by that
+  // failing response), and the change appeared to silently revert.
+  app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
     try {
       const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds] = await Promise.all([
         readJSON('cache.json'),

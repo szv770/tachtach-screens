@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
+import { NumberField } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
 const DISPLAY_MODES = [
@@ -294,13 +295,12 @@ export default function ImageUploader({ onSlideCreated }) {
                 <label style={labelStyle}>
                   {isVideo ? 'Duration (0 = play full clip)' : 'Duration (seconds)'}
                 </label>
-                <input
-                  type="number"
+                <NumberField
+                  value={duration}
+                  onCommit={setDuration}
                   min={0}
                   max={300}
-                  value={duration}
-                  onChange={(e) => setDuration(Number(e.target.value))}
-                  style={inputStyle}
+                  title={isVideo ? 'Seconds on screen (0 = play the full clip)' : 'Seconds on screen'}
                 />
               </div>
 

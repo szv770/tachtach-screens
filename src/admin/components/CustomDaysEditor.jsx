@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
+import { NumberField } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
 const HEBREW_MONTHS = [
@@ -90,13 +91,13 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
             </div>
             <div style={{ width: '80px' }}>
               <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Day</label>
-              <input
-                type="number"
+              <NumberField
+                value={form.hebrewDay}
+                onCommit={(v) => setForm(f => ({ ...f, hebrewDay: v }))}
                 min={1}
                 max={30}
-                value={form.hebrewDay}
-                onChange={(e) => setForm(f => ({ ...f, hebrewDay: Number(e.target.value) || 1 }))}
-                style={{ ...inputStyle, marginTop: '4px' }}
+                title="Day of the Hebrew month (1–30)"
+                style={{ marginTop: '4px' }}
               />
             </div>
           </>
@@ -104,24 +105,24 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
           <>
             <div style={{ width: '100px' }}>
               <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Month</label>
-              <input
-                type="number"
+              <NumberField
+                value={form.gregorianMonth}
+                onCommit={(v) => setForm(f => ({ ...f, gregorianMonth: v }))}
                 min={1}
                 max={12}
-                value={form.gregorianMonth}
-                onChange={(e) => setForm(f => ({ ...f, gregorianMonth: Number(e.target.value) || 1 }))}
-                style={{ ...inputStyle, marginTop: '4px' }}
+                title="Month (1–12)"
+                style={{ marginTop: '4px' }}
               />
             </div>
             <div style={{ width: '80px' }}>
               <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Day</label>
-              <input
-                type="number"
+              <NumberField
+                value={form.gregorianDay}
+                onCommit={(v) => setForm(f => ({ ...f, gregorianDay: v }))}
                 min={1}
                 max={31}
-                value={form.gregorianDay}
-                onChange={(e) => setForm(f => ({ ...f, gregorianDay: Number(e.target.value) || 1 }))}
-                style={{ ...inputStyle, marginTop: '4px' }}
+                title="Day of the month (1–31)"
+                style={{ marginTop: '4px' }}
               />
             </div>
           </>
@@ -228,8 +229,8 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
                 fontSize: '18px',
                 cursor: 'pointer',
                 padding: '0 4px',
-                minWidth: '32px',
-                minHeight: '32px',
+                minWidth: isMobile ? '40px' : '32px',
+                minHeight: isMobile ? '40px' : '32px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
