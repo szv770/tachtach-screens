@@ -206,9 +206,11 @@ function loginPage() {
       min-height: 100vh;
       display: flex;
       align-items: center;
+      align-items: safe center;
       justify-content: center;
       position: relative;
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
     }
 
     /* ── Grain overlay ── */
