@@ -137,9 +137,9 @@ export function createApp() {
   // ── 5. Auth routes (GET/POST /login, POST /logout) — before requireAuth ─
   app.use(authRouter);
 
-  // ── 6. Localhost-only guard on kiosk routes ──────────────────────────
-  app.use('/screen', localhostOnly);
-  app.use('/stream', localhostOnly);
+  // ── 6. Guard on kiosk routes — kiosk (localhost) or a logged-in admin ─
+  app.use('/screen', localhostOrAuth);
+  app.use('/stream', localhostOrAuth);
 
   // ── 6b. SSE stream route (before static serving) ────────────────────
   app.use('/stream', screenRouter);
