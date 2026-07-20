@@ -2,8 +2,16 @@ import fetch from "node-fetch";
 import { XMLParser } from "fast-xml-parser";
 import * as cheerio from "cheerio";
 import { RSS_MAP } from "../shared/constants.js";
+import { fetchRenderedHTML } from "./browserFetch.js";
 
 const UA = "Mozilla/5.0 (compatible; TachTach-Screens/1.0)";
+
+// chabad.org's dailystudy/*.asp pages sit behind a Cloudflare JS challenge for
+// bot-like User-Agents/requests. Detect the interstitial so callers can fall
+// back to a real (headless) browser fetch instead of parsing garbage.
+function isChallengePage(html) {
+  return /just a moment/i.test(html) && /cloudflare/i.test(html);
+}
 
 // ---------------------------------------------------------------------------
 // Zmanim
@@ -88,26 +96,18 @@ function trimDedication(heWords) {
 export function parseHayomYom(html) {
   const $ = cheerio.load(html);
 
-  // Remove commentary, noise, and dedication blocks.
-  // .hayom-yom-info contains the shiurim schedule table — must be removed first
-  // so its Hebrew text (חומש/תניא labels) doesn't pollute the saying extraction.
-  $('.co_commentary, .hayom-yom-info, script, style, nav, header, footer, noscript, iframe, .subnav, .social-bar, .breadcrumb, .related-articles, .dedication, .sponsor, [class*="sponsor"], [class*="dedicat"]').remove();
+  // Remove the shiurim schedule table first — its Hebrew labels (חומש/תניא)
+  // would otherwise pollute the saying extraction below.
+  $('.hayom-yom-info, script, style, nav, header, footer, noscript, iframe').remove();
 
-  // ── Hebrew extraction: target actual Hebrew text spans ─────────────────────
-  const heSpans = [];
-  $('span[lang="he"].alternate_he').each((_, el) => {
-    const text = $(el).text().replace(/\s+/g, ' ').trim();
-    if (text.length > 0) heSpans.push(text);
-  });
-
+  // ── Hebrew extraction ───────────────────────────────────────────────────────
+  // .hayom-yom-hebrew > div.hebrew holds just the day's saying (no header/copyright).
+  // Hayom Yom entries are frequently Yiddish in their original — authentic, not noise.
   let hayomHe = '';
-  if (heSpans.length > 0) {
-    const rawWords = heSpans
-      .join(' ')
-      .split(/\s+/)
-      .filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
-    const trimmed = trimDedication(rawWords);
-    hayomHe = trimmed.join(' ');
+  const heText = $('.hayom-yom-hebrew .hebrew').first().text().replace(/\s+/g, ' ').trim();
+  if (heText) {
+    const rawWords = heText.split(/\s+/).filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
+    hayomHe = trimDedication(rawWords).join(' ');
   } else {
     // Fallback: generic Hebrew-char detection
     const heSegments = [];
@@ -134,10 +134,12 @@ export function parseHayomYom(html) {
     }
   }
 
-  // ── English extraction: target English text spans ──────────────────────────
-  // (co_commentary was already removed above)
+  // ── English extraction ──────────────────────────────────────────────────────
+  // .hayom-yom-native > co:body holds just the day's saying (footnotes live in
+  // a separate sibling <co:footnotetable>, so this is already clean).
+  let hayomEn = $('.hayom-yom-native').find('co\\:body').first().text().replace(/\s+/g, ' ').trim();
   const enParts = [];
-  $('span.co_verse, span.text-with-annotation').each((_, el) => {
+  if (!hayomEn) $('span.co_verse, span.text-with-annotation').each((_, el) => {
     const text = $(el).text().replace(/\s+/g, ' ').trim();
     if (text.length < 10) return;
     const heChars = (text.match(/[\u05D0-\u05EA]/g) || []).length;
@@ -146,7 +148,7 @@ export function parseHayomYom(html) {
   });
 
   // Fallback to <p> elements if no co_verse spans found
-  if (enParts.length === 0) {
+  if (!hayomEn && enParts.length === 0) {
     $('p').each((_, el) => {
       const text = $(el).text().replace(/\s+/g, ' ').trim();
       if (text.length < 60) return;
@@ -158,7 +160,7 @@ export function parseHayomYom(html) {
     });
   }
 
-  const hayomEn = enParts.slice(0, 5).join(' ');
+  if (!hayomEn) hayomEn = enParts.slice(0, 5).join(' ');
 
   return { hayomHe, hayomEn };
 }
@@ -168,16 +170,28 @@ export function parseHayomYom(html) {
  * @returns {Promise<{hayomEn: string, hayomHe: string}|null>}
  */
 export async function fetchHayomYom(date) {
+  const d = date || new Date();
+  const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const url = `https://www.chabad.org/dailystudy/hayomyom.asp?tdate=${tdate}`;
+
   try {
-    const d = date || new Date();
-    const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-    const url = `https://www.chabad.org/dailystudy/hayomyom.asp?tdate=${tdate}`;
     const resp = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const html = await resp.text();
+    if (resp.ok) {
+      const html = await resp.text();
+      if (!isChallengePage(html)) return parseHayomYom(html);
+    }
+  } catch (err) {
+    console.warn("[chabad] fetchHayomYom plain fetch failed, trying browser render:", err.message);
+  }
+
+  // Plain fetch got Cloudflare-challenged — fall back to a real headless browser,
+  // which resolves the challenge automatically.
+  try {
+    const html = await fetchRenderedHTML(url);
+    if (!html) return null;
     return parseHayomYom(html);
   } catch (err) {
-    console.error("[chabad] fetchHayomYom failed:", err.message);
+    console.error("[chabad] fetchHayomYom browser fallback failed:", err.message);
     return null;
   }
 }
@@ -532,16 +546,26 @@ export function parseTanyaExcerpt(html) {
  * @returns {Promise<{ tanyaFirstWords: string, tanyaLastWords: string } | null>}
  */
 export async function fetchTanyaExcerpt(date) {
+  const d = date || new Date();
+  const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const url = `https://www.chabad.org/dailystudy/tanya.asp?tdate=${tdate}`;
+
   try {
-    const d = date || new Date();
-    const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
-    const url = `https://www.chabad.org/dailystudy/tanya.asp?tdate=${tdate}`;
     const resp = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const html = await resp.text();
+    if (resp.ok) {
+      const html = await resp.text();
+      if (!isChallengePage(html)) return parseTanyaExcerpt(html);
+    }
+  } catch (err) {
+    console.warn('[chabad] fetchTanyaExcerpt plain fetch failed, trying browser render:', err.message);
+  }
+
+  try {
+    const html = await fetchRenderedHTML(url);
+    if (!html) return null;
     return parseTanyaExcerpt(html);
   } catch (err) {
-    console.error('[chabad] fetchTanyaExcerpt failed:', err.message);
+    console.error('[chabad] fetchTanyaExcerpt browser fallback failed:', err.message);
     return null;
   }
 }
