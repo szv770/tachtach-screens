@@ -113,6 +113,14 @@ export function createApp() {
     next();
   });
 
+  // ── 0c. Never let an intermediary (Cloudflare Tunnel, browser bfcache) cache
+  // auth-sensitive responses — a cached /login or /admin response served back
+  // to a different request would look exactly like getting logged out.
+  app.use(['/login', '/admin', '/api'], (_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+  });
+
   // ── 1. Body parsing ──────────────────────────────────────────────────
   app.use(express.json({ limit: '16kb' }));
 

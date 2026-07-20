@@ -22,6 +22,11 @@ Environment=NODE_ENV=production
 # LAN access per the setup docs needs 0.0.0.0). Do NOT set this to 127.0.0.1 —
 # that silently breaks LAN/tunnel access while the server still "looks" up.
 Environment=HOST=0.0.0.0
+# Required when accessed via the Cloudflare Tunnel (or any reverse proxy) so
+# Express trusts X-Forwarded-Proto and correctly marks cookies `Secure` for
+# real HTTPS requests, instead of guessing based on the plain-HTTP hop between
+# cloudflared and this process.
+Environment=TRUST_PROXY=1
 
 # Logging
 StandardOutput=journal
