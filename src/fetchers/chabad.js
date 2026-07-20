@@ -13,6 +13,14 @@ function isChallengePage(html) {
   return /just a moment/i.test(html) && /cloudflare/i.test(html);
 }
 
+// fast-xml-parser collapses a single <item> down to a bare object instead of a
+// one-element array — normalize so callers can always iterate/index safely
+// regardless of how many <item> elements a feed happens to contain that day.
+function ensureArray(value) {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
 // ---------------------------------------------------------------------------
 // Zmanim
 // ---------------------------------------------------------------------------
@@ -20,7 +28,7 @@ function isChallengePage(html) {
 export function parseZmanimRSS(xml) {
   const parser = new XMLParser();
   const doc = parser.parse(xml);
-  const items = doc?.rss?.channel?.item || [];
+  const items = ensureArray(doc?.rss?.channel?.item);
   const res = {};
   for (const item of items) {
     const title = item.title || "";
@@ -234,7 +242,7 @@ function extractH2(html) {
 export function parseDailyStudyRSS(xml) {
   const parser = new XMLParser();
   const doc = parser.parse(xml);
-  const items = doc?.rss?.channel?.item || [];
+  const items = ensureArray(doc?.rss?.channel?.item);
 
   let rambam1 = null;
   let rambam3 = null;
@@ -384,7 +392,7 @@ export async function fetchDailyQuote() {
 export function parseDailyStudyHebrewRSS(xml) {
   const parser = new XMLParser();
   const doc = parser.parse(xml);
-  const items = doc?.rss?.channel?.item || [];
+  const items = ensureArray(doc?.rss?.channel?.item);
 
   const findItem = (titlePrefix) => {
     const item = items.find(i => {
@@ -633,7 +641,7 @@ export async function fetchParshaTidbits() {
 
     const parser = new XMLParser();
     const doc = parser.parse(xml);
-    const items = doc?.rss?.channel?.item || [];
+    const items = ensureArray(doc?.rss?.channel?.item);
 
     return (Array.isArray(items) ? items : [items])
       .filter(item => item?.title)
