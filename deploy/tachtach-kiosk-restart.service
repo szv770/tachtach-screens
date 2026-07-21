@@ -1,0 +1,8 @@
+[Unit]
+Description=TachTach-Screens Nightly Kiosk Restart
+After=tachtach-kiosk.service
+Requisite=tachtach-kiosk.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/systemctl restart tachtach-kiosk.service

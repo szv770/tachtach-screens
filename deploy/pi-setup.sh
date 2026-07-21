@@ -132,9 +132,15 @@ sed \
   -e "s#__PROJECT_DIR__#$PROJECT_DIR#g" \
   "$DEPLOY_DIR/tachtach-kiosk.service" > /etc/systemd/system/tachtach-kiosk.service
 
+# Nightly kiosk restart timer — no placeholder tokens, installed as-is.
+cp "$DEPLOY_DIR/tachtach-kiosk-restart.service" /etc/systemd/system/tachtach-kiosk-restart.service
+cp "$DEPLOY_DIR/tachtach-kiosk-restart.timer" /etc/systemd/system/tachtach-kiosk-restart.timer
+
 systemctl daemon-reload
 systemctl enable tachtach-server.service
 systemctl enable tachtach-kiosk.service
+systemctl enable tachtach-kiosk-restart.timer
+systemctl start tachtach-kiosk-restart.timer
 
 # ── 5. Disable screen blanking / screensaver ──────────────────────────────────
 
@@ -191,6 +197,7 @@ echo "============================================"
 echo ""
 echo "  Server:  systemctl status tachtach-server"
 echo "  Kiosk:   systemctl status tachtach-kiosk"
+echo "  Kiosk restarts nightly at 3:15 AM (systemctl list-timers tachtach-kiosk-restart.timer)"
 echo "  Logs:    journalctl -u tachtach-server -f"
 echo ""
 echo "  Admin access from kiosk:"

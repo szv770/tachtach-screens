@@ -1,0 +1,17 @@
+# Restarts the Chromium kiosk once a night, before Track B's 4:00 AM data
+# refresh. Chromium's GPU compositor has been observed to degrade after many
+# hours of continuous native-4K rendering (grain overlay, gradients, box
+# shadows, the whole-canvas scale transform) — symptoms range from washed-out
+# unstyled rendering to a frozen display. A nightly restart is cheap, safe
+# (the kiosk has no state of its own — it's a browser window pointed at
+# /screen), and keeps GPU state from ever accumulating enough degradation to
+# fail during the day.
+[Unit]
+Description=Nightly TachTach-Screens Kiosk Restart Timer
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
