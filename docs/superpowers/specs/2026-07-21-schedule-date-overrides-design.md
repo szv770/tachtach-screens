@@ -44,7 +44,9 @@ New file `data/schedule-dates.json`:
 
 Entry shape matches today's recurring entries minus `days` (the date key is the day). Categories stay in the **existing shared** `schedule.json.categories` — a per-date entry's `category` references that same list, so colors/icons stay consistent instead of every date needing its own category set. New category names typed into the spreadsheet get auto-created there.
 
-**Resolution rule:** the presence of a date's key in `schedule-dates.json` means "this date has an override — use it, even if `entries` is empty" (e.g. an off-day with nothing scheduled is a valid, explicit override, not a fallback trigger). No key present → fall back to filtering `schedule.json.entries` by day-of-week, unchanged from today.
+**Resolution rule:** the presence of a date's key in `schedule-dates.json` means "this date has an override — use it, even if `entries` is empty" (e.g. an off-day with nothing scheduled is a valid, explicit override, not a fallback trigger). No key present → fall back to `schedule.json.entries` filtered by day-of-week.
+
+**Correction found during planning:** `ScheduleSlide.jsx` (the actual kiosk display) currently shows every entry in `schedule.json` regardless of its `days` field — only `countdown.js` (alert timing) and the admin editor's own UI read `days` today. So "filter by day-of-week" for the fallback is a **real, deliberate behavior change** here, not a restatement of existing behavior — confirmed with the user: yes, start filtering the display too, since it's what the `days` field has always visually implied and matches what alerts already do. Day codes are the full capitalized names used throughout the codebase: `['Sun','Mon','Tue','Wed','Thu','Fri','Shabbos']` (see `ScheduleEditor.jsx`'s `DAYS` constant) — not `countdown.js`'s own internal lowercase `sun`/`mon`/.../`shabbos` mapping, which is a separate, pre-existing, unrelated inconsistency (not in scope to fix here).
 
 A shared helper, e.g. `getEffectiveSchedule(schedule, scheduleDates, dateISO)` in `src/shared/` (usable from both server and client code, similar to `pirkeiAvos.js`), implements this rule once. It must be used by both:
 - `src/screen/components/slides/ScheduleSlide.jsx` (what's displayed)
@@ -70,14 +72,16 @@ New dependency: **`exceljs`** (pure JS, no native build step).
 
 Sheet name = the ISO date (e.g. `2026-07-25`).
 
-### Getting a template — `GET /api/schedule/template`
+**Route naming correction found during planning:** `/api/schedule/template` (singular, POST) and `/api/schedule/templates` (plural, CRUD) already exist for a completely unrelated feature (saving/loading full JSON schedule snapshots — see `ScheduleEditor.jsx`'s "Save as Template"). To avoid confusion, this feature's routes live under `/api/schedule/dates/*` instead: `GET /api/schedule/dates` (list current overrides), `GET /api/schedule/dates/template` (Excel template), `POST /api/schedule/dates/import` (Excel upload), `DELETE /api/schedule/dates/:date` (remove one date's override).
+
+### Getting a template — `GET /api/schedule/dates/template`
 
 Query: `dates` (comma-separated ISO dates; defaults to the next 7 days), `mode=blank|export`.
 
 - `blank` — one empty sheet per requested date, with 1-2 example rows and a short instructions note.
 - `export` — one sheet per requested date, pre-filled with that date's **current effective** schedule (its override if one exists, else today's recurring fallback for that day-of-week) — editing an already-fine day is tweaking, not retyping.
 
-### Uploading — `POST /api/schedule/import`
+### Uploading — `POST /api/schedule/dates/import`
 
 Multipart upload (reuses the existing `multer` pattern from font/image upload). Validates the **entire workbook** before writing anything:
 
