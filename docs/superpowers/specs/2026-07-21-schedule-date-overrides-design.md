@@ -33,7 +33,7 @@ New file `data/schedule-dates.json`:
         "endTime": "17:30",
         "category": "activities",
         "alertBefore": 5,
-        "alertDisplay": "slide",
+        "countdownDisplay": "slide",
         "enabled": true,
         "icon": "sparkle"
       }
