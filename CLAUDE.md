@@ -46,6 +46,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 
 Append one line per notable fix/feature when you ship it — newest on top. Keep each entry to one line.
 
+- 2026-07-21 — Trusted-device TOTP skip (30-day remember-this-device, "Forget All Trusted Devices" in Settings); nightly 3:15 AM kiosk restart timer added to counter observed Chromium GPU-compositor degradation; kiosk grain overlay switched from a live SVG filter to a static texture; kiosk custom fonts now read from canonical `fonts.json` instead of a stale `settings.json` copy; puppeteer's Chrome profile dir moved off read-only `/tmp` on the Pi. See `docs/superpowers/specs/2026-07-21-*.md` for the two design specs behind this.
 - 2026-07-20 — `TRUST_PROXY` required for Cloudflare Tunnel deploy (IP detection was breaking localhost gating behind the tunnel); auth routes now send `Cache-Control: no-store`.
 - 2026-07-19 — Hayom Yom/Tanya fetchers bypass Cloudflare block; kiosk canvas scaling overhauled (pinned top-left, fills actual screen resolution, zoomed-in UI); Google Translate prompt suppressed.
 - 2026-07-19 — Admin mobile pass: sticky auto-scrolling tab nav, Preview bottom sheet, iOS input-zoom fix, typeable number/text inputs (commit-on-blur), unified mobile design tokens.
