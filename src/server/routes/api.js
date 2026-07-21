@@ -15,6 +15,7 @@ import { initCountdowns } from '../countdown.js';
 import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
+import { forgetAllTrustedDevices } from '../auth.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -600,6 +601,21 @@ router.post('/cleanup', async (_req, res) => {
   }
 });
 
+// ── Security ─────────────────────────────────────────────────────────────
+
+router.post('/security/forget-devices', async (req, res) => {
+  try {
+    await forgetAllTrustedDevices();
+    // Also clear the requesting browser's own trusted-device cookie —
+    // otherwise it looks trusted client-side until it happens to try again.
+    res.clearCookie('tachtach_trusted_device', { path: '/' });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[api] POST /security/forget-devices error:', err.message);
+    res.status(500).json({ error: 'Failed to forget trusted devices.' });
+  }
+});
+
 // ── Screen commands ────────────────────────────────────────────────────────
 
 router.post('/screen/pause', (_req, res) => {
@@ -973,6 +989,7 @@ router.post('/fonts', (req, res, next) => {
     const entry = { id, name, filename, format };
     fonts.push(entry);
     await writeJSON('fonts.json', fonts);
+    broadcast('fonts-update', fonts);
 
     res.status(201).json(entry);
   } catch (err) {
@@ -1000,6 +1017,7 @@ router.delete('/fonts/:id', async (req, res) => {
 
     fonts = fonts.filter(f => f.id !== req.params.id);
     await writeJSON('fonts.json', fonts);
+    broadcast('fonts-update', fonts);
 
     res.json({ success: true });
   } catch (err) {

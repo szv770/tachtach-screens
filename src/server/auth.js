@@ -8,6 +8,7 @@ const AUTH_FILE = 'auth.json';
 const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days rolling
 const SESSION_MAX_LIFETIME_MS = 90 * 24 * 60 * 60 * 1000; // 90 days absolute max
 const PREAUTH_DURATION_MS = 5 * 60 * 1000; // 5 minutes to complete the TOTP step
+const TRUSTED_DEVICE_DURATION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days rolling
 const TOTP_ISSUER = 'TachTach-Screens';
 const TOTP_ACCOUNT = 'admin';
 
@@ -29,6 +30,7 @@ async function readAuth() {
     totpSecret: null,
     totpEnabled: false,
     pendingAuth: null,
+    trustedDevices: [],
   };
 }
 
@@ -319,5 +321,77 @@ export async function validatePreAuth(token) {
 export async function clearPreAuth() {
   const auth = await readAuth();
   auth.pendingAuth = null;
+  await writeJSON(AUTH_FILE, auth);
+}
+
+// ─── Trusted devices (remember-this-device TOTP skip) ──────────────────────
+
+/**
+ * Drop expired entries from a trustedDevices array, same idea as the
+ * lockout-entry cleanup above — otherwise the array grows unbounded across
+ * every device that's ever verified TOTP and later expired or was revoked.
+ */
+function pruneTrustedDevices(trustedDevices) {
+  const now = Date.now();
+  return (trustedDevices || []).filter(d => new Date(d.expiresAt).getTime() > now);
+}
+
+/**
+ * Check whether a trusted-device token is currently valid. If so, rolls its
+ * expiry forward another 30 days (this only runs once per login, not per
+ * request like session validation, so there's no need for the hourly-write
+ * throttle that validateSession uses).
+ * @param {string} token
+ * @returns {Promise<boolean>}
+ */
+export async function checkAndRefreshTrustedDevice(token) {
+  if (!token) return false;
+
+  const auth = await readAuth();
+  const pruned = pruneTrustedDevices(auth.trustedDevices);
+
+  let matched = false;
+  for (const entry of pruned) {
+    const storedBuf = Buffer.from(entry.token);
+    const providedBuf = Buffer.from(token);
+    if (storedBuf.length === providedBuf.length && crypto.timingSafeEqual(storedBuf, providedBuf)) {
+      entry.expiresAt = new Date(Date.now() + TRUSTED_DEVICE_DURATION_MS).toISOString();
+      matched = true;
+      break;
+    }
+  }
+
+  auth.trustedDevices = pruned;
+  await writeJSON(AUTH_FILE, auth);
+  return matched;
+}
+
+/**
+ * Mark the current device as trusted (called after a successful TOTP
+ * verification) so it can skip straight to a session next time, no TOTP
+ * step, until this expires or forgetAllTrustedDevices() is called.
+ * @returns {Promise<string>} the new trusted-device token
+ */
+export async function trustDevice() {
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + TRUSTED_DEVICE_DURATION_MS).toISOString();
+
+  const auth = await readAuth();
+  auth.trustedDevices = pruneTrustedDevices(auth.trustedDevices);
+  auth.trustedDevices.push({ token, createdAt: now.toISOString(), expiresAt });
+  await writeJSON(AUTH_FILE, auth);
+
+  return token;
+}
+
+/**
+ * Revoke every trusted device at once (lost/stolen phone, or cleaning up
+ * after logging in on a shared computer). Every device needs full
+ * password+TOTP again next login.
+ */
+export async function forgetAllTrustedDevices() {
+  const auth = await readAuth();
+  auth.trustedDevices = [];
   await writeJSON(AUTH_FILE, auth);
 }

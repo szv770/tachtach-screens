@@ -697,8 +697,94 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
         )}
       </Section>
 
+      <TrustedDevices />
       <StorageCleanup />
     </div>
+  );
+}
+
+function TrustedDevices() {
+  const [running, setRunning] = useState(false);
+  const [result, setResult] = useState(null);
+
+  function getCsrfToken() {
+    const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  const handleForgetDevices = async () => {
+    if (!window.confirm('Forget all trusted devices? Every device — including this one — will need the full password + authenticator code on its next login.')) {
+      return;
+    }
+    setRunning(true);
+    setResult(null);
+    try {
+      const res = await fetch('/api/security/forget-devices', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': getCsrfToken() },
+        credentials: 'same-origin',
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setResult({ error: body.error || `Failed (${res.status})` });
+      } else {
+        setResult({ success: true });
+      }
+    } catch {
+      setResult({ error: 'Connection error' });
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <Section title="Security">
+      <p style={{
+        fontFamily: adminFonts.englishBody,
+        fontSize: '13px',
+        color: colors.dim,
+        marginBottom: '12px',
+        lineHeight: 1.6,
+      }}>
+        Devices that verified your authenticator code once are remembered for 30 days and skip
+        straight to just a password on later logins. If a trusted device is lost or stolen, forget
+        all of them immediately — every device, including this one, will need the full
+        password + code again next time.
+      </p>
+      <button
+        onClick={handleForgetDevices}
+        disabled={running}
+        style={{
+          ...buttonSecondary,
+          padding: '8px 20px',
+          fontSize: '13px',
+          opacity: running ? 0.6 : 1,
+          cursor: running ? 'wait' : 'pointer',
+        }}
+      >
+        {running ? 'Forgetting...' : 'Forget All Trusted Devices'}
+      </button>
+      {result?.success && (
+        <p style={{
+          fontFamily: adminFonts.englishBody,
+          fontSize: '13px',
+          color: colors.gold,
+          marginTop: '10px',
+        }}>
+          Done. Every device will need the full password + authenticator code on its next login.
+        </p>
+      )}
+      {result?.error && (
+        <p style={{
+          fontFamily: adminFonts.englishBody,
+          fontSize: '13px',
+          color: '#e87070',
+          marginTop: '10px',
+        }}>
+          {result.error}
+        </p>
+      )}
+    </Section>
   );
 }
 

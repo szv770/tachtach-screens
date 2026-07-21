@@ -84,6 +84,7 @@ async function readAuth() {
     totpSecret: null,
     totpEnabled: false,
     pendingAuth: null,
+    trustedDevices: [],
   };
 }
 
@@ -98,10 +99,11 @@ async function resetPassword() {
   auth.session = null;
   auth.lockouts = {};
   auth.pendingAuth = null;
+  auth.trustedDevices = [];
   // Intentionally NOT touching auth.totpSecret / auth.totpEnabled here.
   await writeJSON(AUTH_FILE, auth);
 
-  console.log('  ✓ Password reset. TOTP 2FA enrollment (if any) is unchanged.');
+  console.log('  ✓ Password reset. TOTP 2FA enrollment (if any) is unchanged. Previously trusted devices must verify TOTP again.');
 }
 
 async function resetTotp() {
@@ -123,10 +125,11 @@ async function resetTotp() {
   auth.session = null;
   auth.lockouts = {};
   auth.pendingAuth = null;
+  auth.trustedDevices = [];
   // Intentionally NOT touching auth.passwordHash here.
   await writeJSON(AUTH_FILE, auth);
 
-  console.log('  ✓ TOTP reset. Next successful password login will show a fresh QR code to re-enroll.');
+  console.log('  ✓ TOTP reset. Next successful password login will show a fresh QR code to re-enroll. Previously trusted devices must verify TOTP again too.');
 }
 
 async function main() {

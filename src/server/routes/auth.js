@@ -14,6 +14,8 @@ import {
   createPreAuth,
   validatePreAuth,
   clearPreAuth,
+  checkAndRefreshTrustedDevice,
+  trustDevice,
 } from '../auth.js';
 import { csrfProtection } from '../middleware.js';
 
@@ -21,6 +23,8 @@ const router = Router();
 
 const PREAUTH_COOKIE = 'tachtach_preauth';
 const PREAUTH_COOKIE_MAX_AGE_MS = 5 * 60 * 1000; // matches PREAUTH_DURATION_MS in auth.js
+const TRUSTED_DEVICE_COOKIE = 'tachtach_trusted_device';
+const TRUSTED_DEVICE_COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // matches TRUSTED_DEVICE_DURATION_MS in auth.js
 
 /**
  * Set the session cookie, marking it `secure` whenever the request actually
@@ -54,6 +58,16 @@ function clearPreAuthCookie(res) {
   res.clearCookie(PREAUTH_COOKIE, { path: '/' });
 }
 
+function setTrustedDeviceCookie(req, res, token) {
+  res.cookie(TRUSTED_DEVICE_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: req.secure,
+    maxAge: TRUSTED_DEVICE_COOKIE_MAX_AGE_MS,
+    path: '/',
+  });
+}
+
 // ─── GET /login ──────────────────────────────────────────────────────────────
 
 router.get('/login', async (req, res) => {
@@ -84,9 +98,23 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Password correct. Do NOT issue a session yet — TOTP is required next,
-    // either to confirm first-time enrollment or to verify a normal login.
     await clearLockout(ip);
+
+    // If this browser already verified TOTP on a prior login and was marked
+    // trusted (see /login/totp and /login/totp-setup below), skip straight
+    // to a session — no fresh TOTP code needed on a device that's already
+    // proven itself. Any other device still needs the full flow below.
+    const trustedToken = req.cookies?.[TRUSTED_DEVICE_COOKIE];
+    if (trustedToken && (await checkAndRefreshTrustedDevice(trustedToken))) {
+      setTrustedDeviceCookie(req, res, trustedToken); // refresh the cookie's own maxAge to match
+      const sessionToken = await createSession();
+      setSessionCookie(req, res, sessionToken);
+      return res.status(200).json({ status: 'authenticated' });
+    }
+
+    // Not a trusted device. Do NOT issue a session yet — TOTP is required
+    // next, either to confirm first-time enrollment or to verify a normal
+    // login.
     const preAuthToken = await createPreAuth();
     setPreAuthCookie(req, res, preAuthToken);
 
@@ -125,12 +153,15 @@ router.post('/login/totp-setup', async (req, res) => {
       return res.status(401).json({ error: 'Invalid code. Check your authenticator app and try again.' });
     }
 
-    // TOTP confirmed — this completes login.
+    // TOTP confirmed — this completes login. This device also becomes
+    // trusted (see POST /login above) so it can skip TOTP next time.
     await clearLockout(ip);
     await clearPreAuth();
     clearPreAuthCookie(res);
     const sessionToken = await createSession();
     setSessionCookie(req, res, sessionToken);
+    const trustedToken = await trustDevice();
+    setTrustedDeviceCookie(req, res, trustedToken);
 
     return res.status(200).json({ success: true });
   } catch (err) {
@@ -163,11 +194,15 @@ router.post('/login/totp', async (req, res) => {
       return res.status(401).json({ error: 'Invalid authentication code.' });
     }
 
+    // This device also becomes trusted (see POST /login above) so it can
+    // skip TOTP next time.
     await clearLockout(ip);
     await clearPreAuth();
     clearPreAuthCookie(res);
     const sessionToken = await createSession();
     setSessionCookie(req, res, sessionToken);
+    const trustedToken = await trustDevice();
+    setTrustedDeviceCookie(req, res, trustedToken);
 
     return res.status(200).json({ success: true });
   } catch (err) {
@@ -515,7 +550,9 @@ function loginPage() {
           return;
         }
 
-        if (data.status === 'totp_setup_required') {
+        if (data.status === 'authenticated') {
+          window.location.href = '/admin';
+        } else if (data.status === 'totp_setup_required') {
           qrImage.src = data.qrDataUrl;
           totpSecretText.textContent = data.secret;
           showStep('totp-setup');
