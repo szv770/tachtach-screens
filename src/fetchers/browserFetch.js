@@ -1,5 +1,20 @@
 import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const PROJECT_ROOT = path.resolve(__dirname, '../..');
+// puppeteer-core defaults its Chrome profile dir to the OS tmp dir. On the Pi
+// deploy, tachtach-server.service runs under systemd's ProtectSystem=strict,
+// which makes /tmp read-only for this process (only ReadWritePaths=data/ is
+// writable) — every launch failed with EROFS: mkdtemp '/tmp/puppeteer_...',
+// silently falling back to cached Hayom Yom/Tanya data forever. Using a
+// per-launch dir under data/ instead keeps this working under the same
+// hardening rather than loosening it.
+const PROFILE_ROOT = path.join(PROJECT_ROOT, 'data', '.puppeteer-tmp');
 
 // chabad.org's dailystudy/*.asp pages now sit behind a Cloudflare JS challenge
 // that a plain HTTP fetch can never pass (confirmed: 403 "Just a moment..."
@@ -42,10 +57,13 @@ export async function fetchRenderedHTML(url, opts = {}) {
   }
 
   let browser;
+  const profileDir = path.join(PROFILE_ROOT, crypto.randomBytes(8).toString('hex'));
   try {
+    fs.mkdirSync(profileDir, { recursive: true });
     browser = await puppeteer.launch({
       executablePath,
       headless: true,
+      userDataDir: profileDir,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     });
     const page = await browser.newPage();
@@ -67,5 +85,6 @@ export async function fetchRenderedHTML(url, opts = {}) {
     return null;
   } finally {
     if (browser) await browser.close();
+    fs.rm(profileDir, { recursive: true, force: true }, () => {});
   }
 }
