@@ -34,7 +34,6 @@ export default function StylePanel({ settings, onSave }) {
   const [hebrewFont, setHebrewFont] = useState(fontSettings.hebrewBody || fontSettings.hebrew || 'Frank Ruhl Libre');
   const [hebrewHeadingFont, setHebrewHeadingFont] = useState(fontSettings.hebrewHeading || fontSettings.hebrew || 'Frank Ruhl Libre');
   const [englishFont, setEnglishFont] = useState(fontSettings.english || 'EB Garamond');
-  const [customFonts, setCustomFonts] = useState(fontSettings.customFonts || []);
   const [hebrewFontScale, setHebrewFontScale] = useState(settings?.hebrewFontScale ?? 1.0);
   const [hebrewHeadingScale, setHebrewHeadingScale] = useState(settings?.hebrewHeadingScale ?? settings?.hebrewFontScale ?? 1.0);
   const [uploadedFonts, setUploadedFonts] = useState([]);
@@ -49,7 +48,6 @@ export default function StylePanel({ settings, onSave }) {
     setHebrewFont(fs.hebrewBody || fs.hebrew || 'Frank Ruhl Libre');
     setHebrewHeadingFont(fs.hebrewHeading || fs.hebrew || 'Frank Ruhl Libre');
     setEnglishFont(fs.english || 'EB Garamond');
-    setCustomFonts(fs.customFonts || []);
     setHebrewFontScale(settings?.hebrewFontScale ?? 1.0);
     setHebrewHeadingScale(settings?.hebrewHeadingScale ?? settings?.hebrewFontScale ?? 1.0);
   }, [settings?.fonts, settings?.hebrewFontScale, settings?.hebrewHeadingScale]);
@@ -108,9 +106,6 @@ export default function StylePanel({ settings, onSave }) {
 
       const entry = await res.json();
       setUploadedFonts(prev => [...prev, entry]);
-      // Also add to customFonts in settings
-      setCustomFonts(prev => [...prev, entry]);
-      setDirty(true);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -126,7 +121,6 @@ export default function StylePanel({ settings, onSave }) {
         headers: { 'X-CSRF-Token': getCsrfToken() },
       });
       setUploadedFonts(prev => prev.filter(f => f.id !== id));
-      setCustomFonts(prev => prev.filter(f => f.id !== id));
 
       // If the deleted font was selected, reset to default
       const deleted = uploadedFonts.find(f => f.id === id);
@@ -156,7 +150,6 @@ export default function StylePanel({ settings, onSave }) {
         hebrewBody: hebrewFont,
         hebrewHeading: hebrewHeadingFont,
         english: englishFont,
-        customFonts,
       },
       hebrewFontScale,
       hebrewHeadingScale,

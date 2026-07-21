@@ -185,6 +185,9 @@ function AppContent() {
       case 'rss-feeds-update':
         setState(prev => prev ? { ...prev, rssFeeds: data } : prev);
         break;
+      case 'fonts-update':
+        setState(prev => prev ? { ...prev, fonts: data } : prev);
+        break;
       case 'countdown-start':
         setCountdown(data);
         break;
@@ -288,9 +291,18 @@ function AppContent() {
   applyFontSettings(settings);
 
   // Inject @font-face for custom fonts and update Google Fonts link
+  // Custom font FILES come from state.fonts (data/fonts.json, the canonical
+  // upload list — same source the admin's dropdown and /api/fonts use), not
+  // from settings.fonts.customFonts. That was a second, easily-stale copy:
+  // it only updated when the admin clicked "Save Font Settings" right after
+  // an upload, and got silently reset by any unrelated settings-update SSE
+  // push in between — so a selected custom font's name could be saved into
+  // settings.fonts.hebrew/english while its @font-face was never injected,
+  // silently falling back to a generic font on the actual kiosk display.
   useEffect(() => {
     if (!settings.fonts) return;
-    const { hebrew, english, customFonts } = settings.fonts;
+    const { hebrew, english } = settings.fonts;
+    const customFonts = state?.fonts;
 
     // Built-in Google Font families that may need loading
     const BUILTIN_HEBREW = ['Frank Ruhl Libre', 'Noto Serif Hebrew', 'David Libre', 'Heebo', 'Rubik', 'Assistant'];
@@ -350,7 +362,7 @@ function AppContent() {
       // but remove custom font-face on unmount
       if (styleEl) styleEl.textContent = '';
     };
-  }, [settings.fonts]);
+  }, [settings.fonts, state?.fonts]);
 
   // Loading / fatal error state
   if (loading || (!state && loadError)) {

@@ -160,7 +160,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
     try {
-      const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds] = await Promise.all([
+      const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, fonts] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -170,6 +170,7 @@ export function createApp() {
         readJSON('google-albums.json'),
         readJSON('schedule.json'),
         readJSON('rss-feeds.json'),
+        readJSON('fonts.json'),
       ]);
       res.json({
         cache: cache ?? {},
@@ -181,6 +182,7 @@ export function createApp() {
         googleAlbums: googleAlbums ?? [],
         schedule: schedule ?? { entries: [], categories: [] },
         rssFeeds: rssFeeds ?? [],
+        fonts: fonts ?? [],
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });
@@ -234,6 +236,11 @@ export function createApp() {
       maxAge: '1y',
       immutable: true,
     }));
+
+    // Serve files Vite copied from public/ (e.g. grain.png) at the dist
+    // root. Registered after the more specific mounts above/below so it
+    // only catches requests nothing else claims first.
+    app.use(express.static(DIST_DIR, { maxAge: '7d' }));
 
     // Serve uploaded fonts
     app.use('/fonts', express.static(path.join(PROJECT_ROOT, 'data/fonts'), {

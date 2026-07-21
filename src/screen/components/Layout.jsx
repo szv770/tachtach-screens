@@ -96,8 +96,12 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
           `,
         }}
       >
-        {/* Grain overlay */}
-        <svg
+        {/* Grain overlay — static tiled texture, not a live SVG filter (see
+            scripts/generate-grain-texture.js for why: a live feTurbulence
+            filter recomposites on every repaint, which is expensive at
+            native 4K and contributed to observed GPU-compositor
+            degradation over long kiosk uptimes) */}
+        <div
           style={{
             position: 'fixed',
             inset: 0,
@@ -107,19 +111,11 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
             opacity: 0.06,
             mixBlendMode: 'overlay',
             zIndex: 1,
+            backgroundImage: 'url(/grain.png)',
+            backgroundRepeat: 'repeat',
+            backgroundSize: '256px 256px',
           }}
-        >
-          <filter id="grain-portrait">
-            <feTurbulence
-              type="fractalNoise"
-              baseFrequency="0.9"
-              numOctaves="4"
-              stitchTiles="stitch"
-            />
-            <feColorMatrix type="saturate" values="0" />
-          </filter>
-          <rect width="100%" height="100%" filter="url(#grain-portrait)" />
-        </svg>
+        />
 
         {/* Outer hairline frame */}
         <div
@@ -255,8 +251,9 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
         `,
       }}
     >
-      {/* Grain overlay */}
-      <svg
+      {/* Grain overlay — static tiled texture, see comment in the portrait
+          branch above for why this replaced a live SVG feTurbulence filter */}
+      <div
         style={{
           position: 'fixed',
           inset: 0,
@@ -266,19 +263,11 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
           opacity: 0.06,
           mixBlendMode: 'overlay',
           zIndex: 1,
+          backgroundImage: 'url(/grain.png)',
+          backgroundRepeat: 'repeat',
+          backgroundSize: '256px 256px',
         }}
-      >
-        <filter id="grain">
-          <feTurbulence
-            type="fractalNoise"
-            baseFrequency="0.9"
-            numOctaves="4"
-            stitchTiles="stitch"
-          />
-          <feColorMatrix type="saturate" values="0" />
-        </filter>
-        <rect width="100%" height="100%" filter="url(#grain)" />
-      </svg>
+      />
 
       {/* Outer hairline frame */}
       <div
