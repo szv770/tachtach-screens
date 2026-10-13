@@ -46,6 +46,8 @@ The Pi 5's RTC has no battery by default, so after unplugging it boots with the 
 
 `bca8429` → `74be920` → `626e148` (same day) all touched how the kiosk canvas scales to fill the actual TV resolution: scale-to-fill, then pin the scaled canvas to top-left (it was drifting/centering oddly), then a UI zoom pass. This is in `ScreenScaler.jsx`. If the screen looks shifted, cropped, or offset on a real TV after a change, this is the first file to check — it's been touched more than any other single screen-side file recently.
 
+2026-10-13: the scale used to be non-uniform (`scale(vw/1600, vh/900)`), which stretched everything on any non-16:9 viewport (desktop Preview tab ~1920x940, portrait monitors). It's now a single uniform scale = `min(vw/1600, vh/900)` with the canvas's logical width/height grown to `vw/scale` × `vh/scale`, so it fills exactly with no distortion. On a 16:9 TV this is byte-for-byte the old 1600x900 @ 2.4×. Don't reintroduce separate x/y scales. Also: measure slide fit in layout px (`clientHeight`/`scrollHeight`), not `getBoundingClientRect()` — the latter includes this transform.
+
 `74be920` also suppressed a Google Translate prompt that was appearing over the kiosk — Chromium's built-in translate popup, not app code; suppressed via Chromium launch flags / meta tag, not a screen bug.
 
 ## Never use `setup.js` to reset credentials

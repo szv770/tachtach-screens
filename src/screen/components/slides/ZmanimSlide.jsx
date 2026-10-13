@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { fonts } from '../../styles/tokens.js';
 import { ZMANIM_DISPLAY } from '../../../shared/constants.js';
 
@@ -124,8 +124,42 @@ export default function ZmanimSlide({ cache, tokens, settings, portrait = false,
 
   const isCompact = portrait && portraitLayout !== 'scroll';
 
+  // Shrink-to-fit. The full list (13 zmanim, plus the 5-row "tomorrow" block after
+  // sunset) is taller than the slide area on a 16:9 canvas, and SlideCarousel
+  // vertically centers slides inside an overflow:hidden box — so the overflow was
+  // cut off at BOTH ends (first zman hidden under the top edge). Measure in layout
+  // px (clientHeight/scrollHeight, NOT getBoundingClientRect, which includes the
+  // ScreenScaler transform) and scale down only — never up.
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const [fitScale, setFitScale] = useState(1);
+  // Portrait "scroll" layout deliberately lets the slide overflow and scroll instead.
+  const fitEnabled = !(portrait && portraitLayout === 'scroll');
+  useEffect(() => {
+    if (!fitEnabled) { setFitScale(1); return; }
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const measure = () => {
+      const avail = outer.clientHeight;
+      const natural = inner.scrollHeight;
+      if (avail > 0 && natural > 0) setFitScale(Math.max(0.5, Math.min(1, avail / natural)));
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(outer);
+    ro.observe(inner);
+    measure();
+    return () => ro.disconnect();
+  }, [fitEnabled]);
+
   return (
-    <div style={{ width: '100%', maxWidth: '720px' }}>
+    <div ref={outerRef} style={fitEnabled ? { width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' } : { width: '100%', display: 'flex', justifyContent: 'center' }}>
+    <div ref={innerRef} style={{
+      width: '100%',
+      maxWidth: '720px',
+      flexShrink: 0,
+      ...(fitScale < 0.999 ? { transform: `scale(${fitScale})`, transformOrigin: 'center center' } : {}),
+    }}>
       {/* Today's zmanim */}
       {displayList.map(z => {
         const time = todayZmanim[z.k];
@@ -188,6 +222,7 @@ export default function ZmanimSlide({ cache, tokens, settings, portrait = false,
           })}
         </>
       )}
+    </div>
     </div>
   );
 }
