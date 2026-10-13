@@ -247,6 +247,18 @@ Why not bake a token into the Chromium URL (`/screen?token=...`)? URLs end up in
 
 ---
 
+### Multiple devices, multiple platforms (owner requirement, 2026-10-13)
+
+The owner wants to add more screens/devices easily from the Vercel admin, and later run a device on something other than a Pi (e.g. a Windows PC), which will need its own platform code. Design for that now, build only the Pi agent first:
+
+- **The cloud never assumes a Pi.** Everything a device needs is the browser contract above: open `/kiosk`, pair with a code, then load `/screen` with the `tachtach_device` cookie. Any OS with a modern browser can be a screen with zero TachTach code installed.
+- **Per-platform "device agent" packages**, one folder each, sharing no runtime code with the cloud app: `devices/pi/` (today's `deploy/kiosk-launch.sh`, units, nightly restart, time-sync wait, optional chabad helper) and later `devices/windows/` (e.g. Edge/Chrome `--kiosk` via a Scheduled Task at logon, auto-login, power/sleep settings, a PowerShell equivalent of the helper). An agent's job is only: boot → launch browser fullscreen at `/kiosk` → keep it alive → optional helper jobs.
+- **Device registry carries a platform field.** `tt_devices` gets `platform` (`pi` | `windows` | `browser` | …) and `agent_version`, reported by the agent on each heartbeat, so the admin Screens list shows what each device is and which ones need an agent update.
+- **Per-device settings.** Each device gets an optional override of the playlist/board/theme (default: inherit the school-wide config), so a second TV can show something different without a second install.
+- **Adding a device from the admin** = Settings → Screens → "Add a screen" → pick platform → shows that platform's one-line install command (or "just open this URL" for `browser`) → the new device shows a pairing code → enter it. Same flow for every platform.
+
+---
+
 ## 5. Data migration
 
 ### Schema (Supabase Postgres, one new project)
