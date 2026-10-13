@@ -1,18 +1,25 @@
 [Unit]
 Description=TachTach-Screens Digital Signage Server
-After=network.target
-StartLimitIntervalSec=60
-StartLimitBurst=5
+# network-online (not just network) so the startup data fetch has a route out.
+After=network-online.target time-sync.target
+Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 # NOTE: __PI_USER__ / __PI_HOME__ / __PROJECT_DIR__ are placeholder tokens.
-# This file is a template — pi-setup.sh substitutes the real username, home
-# directory, and project path before copying it into /etc/systemd/system/.
-# Do not install this file verbatim; run pi-setup.sh instead.
+# This file is a template — install-services.sh substitutes the real
+# username, home directory, and project path before copying it into
+# /etc/systemd/system/. Do not install this file verbatim; run
+# deploy/install-services.sh instead.
 User=__PI_USER__
 Group=__PI_USER__
 WorkingDirectory=__PROJECT_DIR__
+# Hold startup (max 90s) until NTP has fixed the clock — after a power cut
+# the Pi boots with a stale clock and every HTTPS fetch fails with
+# "certificate is not yet valid". Leading "-": never block start on this.
+ExecStartPre=-/bin/bash __PROJECT_DIR__/deploy/wait-for-time-sync.sh
+TimeoutStartSec=150
 ExecStart=/usr/bin/node __PROJECT_DIR__/server.js
 Restart=always
 RestartSec=5
@@ -38,6 +45,11 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
 ReadWritePaths=__PROJECT_DIR__/data
+# Private, writable /tmp. Without it ProtectSystem=strict leaves /tmp
+# read-only, and the headless Chromium used by browserFetch.js (Hayom Yom /
+# Tanya Cloudflare bypass) can't create its singleton socket there — it dies
+# with "The browser is already running for <userDataDir>".
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

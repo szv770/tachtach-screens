@@ -11,7 +11,12 @@ Description=Nightly TachTach-Screens Kiosk Restart Timer
 
 [Timer]
 OnCalendar=*-*-* 03:15:00
-Persistent=true
+# Persistent=false on purpose. The Pi boots with a stale clock (no RTC
+# battery) and NTP then jumps it forward days/weeks; with Persistent=true that
+# jump counted as "missed 3:15 runs" and fired restarts right at boot, which
+# tripped the kiosk's old start limit and left the TV blank. A missed nightly
+# restart doesn't need catching up — the kiosk was just (re)started anyway.
+Persistent=false
 
 [Install]
 WantedBy=timers.target

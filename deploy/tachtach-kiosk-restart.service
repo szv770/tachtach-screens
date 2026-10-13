@@ -1,8 +1,9 @@
 [Unit]
 Description=TachTach-Screens Nightly Kiosk Restart
-After=tachtach-kiosk.service
-Requisite=tachtach-kiosk.service
+# No Requisite= on the kiosk: the nightly restart should also *recover* a
+# kiosk that has failed, not refuse to run because it isn't active.
 
 [Service]
 Type=oneshot
+ExecStart=/usr/bin/systemctl reset-failed tachtach-kiosk.service
 ExecStart=/usr/bin/systemctl restart tachtach-kiosk.service

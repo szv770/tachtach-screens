@@ -2,40 +2,31 @@
 Description=TachTach-Screens Chromium Kiosk
 After=tachtach-server.service graphical.target
 Wants=tachtach-server.service
-StartLimitIntervalSec=60
-StartLimitBurst=5
+# Never give up restarting. The old StartLimitBurst=5/60s let a burst of
+# restarts (e.g. the nightly-restart timer firing during a boot-time clock
+# jump) leave the kiosk permanently in "failed (start-limit-hit)" with a
+# blank TV until someone SSH'd in.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-# NOTE: __PI_USER__ / __PI_HOME__ are placeholder tokens. This file is a
-# template — pi-setup.sh substitutes the real username and home directory
-# before copying it into /etc/systemd/system/. Do not install this file
-# verbatim; run pi-setup.sh instead.
+# NOTE: __PI_USER__ / __PI_HOME__ / __PI_UID__ / __PROJECT_DIR__ are
+# placeholder tokens. This file is a template — install-services.sh
+# substitutes the real values before copying it into /etc/systemd/system/.
+# Do not install this file verbatim; run deploy/install-services.sh instead.
 User=__PI_USER__
 Group=__PI_USER__
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=__PI_HOME__/.Xauthority
+Environment=XDG_RUNTIME_DIR=/run/user/__PI_UID__
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/__PI_UID__/bus
 
-# Wait for server to be ready, then launch kiosk
-ExecStartPre=/bin/sleep 5
-ExecStart=/usr/bin/chromium-browser \
-    --kiosk \
-    --disable-restore-session-state \
-    --noerrdialogs \
-    --disable-infobars \
-    --disable-translate \
-    --no-first-run \
-    --start-fullscreen \
-    --check-for-update-interval=31536000 \
-    --overscroll-history-navigation=0 \
-    --disable-pinch \
-    --disable-features=TranslateUI \
-    --disable-dev-shm-usage \
-    --autoplay-policy=no-user-gesture-required \
-    http://127.0.0.1:3000/screen
+# kiosk-launch.sh waits for the desktop display and for the server to answer
+# /screen, clears Chromium's crash-restore state, then execs Chromium.
+ExecStart=/bin/bash __PROJECT_DIR__/deploy/kiosk-launch.sh
 
 Restart=always
-RestartSec=10
+RestartSec=5
 
 # Logging
 StandardOutput=journal

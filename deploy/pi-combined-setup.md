@@ -258,18 +258,18 @@ You should see the line you just added. Cron is now managing it — no further a
 The script (`deploy/update.sh`) runs these steps:
 
 ```
-git pull
+back up any data/*.json files the admin panel has edited (→ ~/tachtach-data-backups/)
+git pull --ff-only            (with those files temporarily reset, then restored)
 npm ci
 npm run build
+sudo bash deploy/install-services.sh   (re-installs the systemd units from the repo)
 sudo systemctl restart tachtach-server
 sudo systemctl restart tachtach-kiosk
 ```
 
 ### Important: data is preserved across updates
 
-The admin credentials (`data/auth.json`), cache, and uploads are gitignored and live only on the Pi — `git pull` never touches them. Most of the rest of `data/` (slides, settings, messages, schedule, etc.) is tracked in the repo as your committed starting configuration; edits made from the admin panel on the Pi are *local, uncommitted* changes there. In practice `git pull` on the Pi only fast-forwards, so it won't overwrite those files unless a future commit happens to touch the same file — if that ever happens, `git pull` will refuse to overwrite local changes and the update script will stop with an error rather than silently discarding your content. If that happens, resolve it on the Pi (e.g. `git stash` before pulling, `git stash pop` after) rather than force-overwriting.
-
----
+The admin credentials (`data/auth.json`), cache, and uploads are gitignored and live only on the Pi — `git pull` never touches them. Most of the rest of `data/` (slides, settings, messages, schedule, etc.) is tracked in the repo as the starting configuration, and the admin panel edits those files on the Pi. A plain `git pull` refuses to run over those edits, so `update.sh` copies the edited files to `~/tachtach-data-backups/<timestamp>/`, pulls, then puts the Pi's versions back (also if the pull fails). The last 10 backups are kept.
 
 ## Section 5 — Verify Everything Is Running
 
