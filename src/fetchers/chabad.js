@@ -181,12 +181,24 @@ export async function fetchHayomYom(date) {
   const d = date || new Date();
   const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
   const url = `https://www.chabad.org/dailystudy/hayomyom.asp?tdate=${tdate}`;
+  // An empty parse (challenge page, layout change, half-loaded page) is a
+  // failure, not "today has no Hayom Yom" — returning it would overwrite the
+  // last good cached entry with blanks and the slide would show nothing.
+  const parseOrNull = (html, via) => {
+    const r = parseHayomYom(html);
+    if (r.hayomHe || r.hayomEn) return r;
+    console.warn(`[chabad] fetchHayomYom: ${via} HTML parsed to empty text (${html.length} bytes) — page layout may have changed`);
+    return null;
+  };
 
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': UA } });
-    if (resp.ok) {
-      const html = await resp.text();
-      if (!isChallengePage(html)) return parseHayomYom(html);
+    const html = await resp.text();
+    if (resp.ok && !isChallengePage(html)) {
+      const r = parseOrNull(html, 'plain fetch');
+      if (r) return r;
+    } else {
+      console.warn(`[chabad] fetchHayomYom plain fetch got HTTP ${resp.status}${isChallengePage(html) ? ' (Cloudflare challenge)' : ''}, trying browser render`);
     }
   } catch (err) {
     console.warn("[chabad] fetchHayomYom plain fetch failed, trying browser render:", err.message);
@@ -195,9 +207,9 @@ export async function fetchHayomYom(date) {
   // Plain fetch got Cloudflare-challenged — fall back to a real headless browser,
   // which resolves the challenge automatically.
   try {
-    const html = await fetchRenderedHTML(url);
+    const html = await fetchRenderedHTML(url, { waitForSelector: '.hayom-yom-hebrew, .hayom-yom-native' });
     if (!html) return null;
-    return parseHayomYom(html);
+    return parseOrNull(html, 'browser render');
   } catch (err) {
     console.error("[chabad] fetchHayomYom browser fallback failed:", err.message);
     return null;

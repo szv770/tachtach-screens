@@ -6,6 +6,14 @@ import { readJSON, writeJSON } from "../server/storage.js";
 
 const CACHE_FILE = "cache.json";
 
+// YYYY-MM-DD in the server's local timezone (fetchHayomYom builds its tdate
+// from local date parts too, so this matches the page that was fetched).
+function localDateString(d) {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+
 /**
  * Fetch all data sources in parallel, merge into cache, and persist.
  * On individual fetch failure, preserves existing cached value for that key.
@@ -15,6 +23,7 @@ const CACHE_FILE = "cache.json";
 export async function fetchAll(config) {
   const { zip, locationId } = config;
   const now = new Date().toISOString();
+  const localDate = localDateString(new Date());
 
   // Load existing cache so we can preserve values on partial failure
   const existing = (await readJSON(CACHE_FILE)) || {};
@@ -85,9 +94,13 @@ export async function fetchAll(config) {
       ? { today: zmanim, tomorrow: existing.zmanim?.tomorrow || null, fetchedAt: now }
       : existing.zmanim || { today: null, tomorrow: null, fetchedAt: null },
 
+    // On failure keep the most recent good entry (even if it's from an earlier
+    // day) — the slide shows it rather than "No Hayom Yom data available".
+    // forDate is the server-local calendar date the text is for, so staleness
+    // is visible in cache.json and the logs.
     hayomYom: hayomYom
-      ? { en: hayomYom.hayomEn, he: hayomYom.hayomHe, fetchedAt: now }
-      : existing.hayomYom || { en: "", he: "", fetchedAt: null },
+      ? { en: hayomYom.hayomEn, he: hayomYom.hayomHe, fetchedAt: now, forDate: localDate }
+      : existing.hayomYom || { en: "", he: "", fetchedAt: null, forDate: null },
 
     // Limudim now sourced from Chabad.org Daily Study RSS (authoritative)
     limudim: dailyStudyRSS
@@ -157,7 +170,12 @@ export async function fetchAll(config) {
 
   // Log warnings for failed fetches
   if (!zmanim) console.warn("[fetchAll] zmanim fetch failed, using cached value");
-  if (!hayomYom) console.warn("[fetchAll] hayomYom fetch failed, using cached value");
+  if (!hayomYom) {
+    const cached = existing.hayomYom;
+    const forDate = cached?.forDate || cached?.fetchedAt?.slice(0, 10) || "never";
+    const stale = forDate !== localDate ? " — STALE, not today's" : "";
+    console.warn(`[fetchAll] hayomYom fetch failed, using cached value (for ${forDate}${stale})`);
+  }
   if (!dailyStudyRSS) console.warn("[fetchAll] dailyStudyRSS fetch failed, using cached value");
   if (!hebrewDate) console.warn("[fetchAll] hebrewDate fetch failed, using cached value");
   if (!parsha) console.warn("[fetchAll] parsha fetch failed, using cached value");
