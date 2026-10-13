@@ -29,8 +29,47 @@ log "=== TachTach update started ==="
 
 cd "$PROJECT_DIR"
 
+# ── Pull, without letting admin-panel edits block it ─────────────────────────
+# Several data/*.json files are tracked in git as starting defaults, and the
+# admin panel edits them on the Pi. A plain `git pull` refuses to run over
+# those local edits ("would be overwritten by merge") and, with set -e, the
+# whole update silently stopped there. So: back up the locally-modified data
+# files, reset them, pull, then put the Pi's versions back. The trap restores
+# them even if the pull fails, so content is never lost.
+BACKUP_ROOT="$HOME/tachtach-data-backups"
+BACKUP_DIR="$BACKUP_ROOT/$(date '+%Y%m%d-%H%M%S')"
+mapfile -t CHANGED < <(git diff --name-only -- data/)
+
+restore_data() {
+  for f in "${CHANGED[@]}"; do
+    if [ -f "$BACKUP_DIR/$f" ]; then
+      mkdir -p "$(dirname "$f")"
+      cp -p "$BACKUP_DIR/$f" "$f"
+    fi
+  done
+  return 0
+}
+
+if [ "${#CHANGED[@]}" -gt 0 ]; then
+  log "Backing up ${#CHANGED[@]} locally-edited data file(s) to $BACKUP_DIR"
+  for f in "${CHANGED[@]}"; do
+    mkdir -p "$BACKUP_DIR/$(dirname "$f")"
+    cp -p "$f" "$BACKUP_DIR/$f"
+  done
+  trap restore_data EXIT
+  git checkout -- "${CHANGED[@]}"
+fi
+
 log "Pulling latest code..."
-git pull
+git pull --ff-only
+
+if [ "${#CHANGED[@]}" -gt 0 ]; then
+  restore_data
+  trap - EXIT
+  log "Restored the Pi's own data files"
+  # keep only the 10 most recent backups
+  ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | tail -n +11 | xargs -r rm -rf
+fi
 
 log "Installing dependencies..."
 # NOTE: must NOT use --omit=dev — "npm run build" runs `vite build`, and vite
@@ -42,6 +81,11 @@ npm ci
 
 log "Building frontend..."
 npm run build
+
+log "Refreshing systemd units..."
+# Re-render + reinstall the units every update so fixes to deploy/*.service
+# reach the Pi (previously they only did on a fresh pi-setup.sh run).
+sudo bash "$PROJECT_DIR/deploy/install-services.sh"
 
 log "Restarting services..."
 sudo systemctl restart tachtach-server

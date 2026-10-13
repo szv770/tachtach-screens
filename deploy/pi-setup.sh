@@ -94,7 +94,8 @@ fi
 
 echo "[2/6] Installing Chromium and unclutter..."
 apt-get update -qq
-apt-get install -y --no-install-recommends chromium-browser unclutter-xfixes
+apt-get install -y --no-install-recommends chromium unclutter-xfixes \
+  || apt-get install -y --no-install-recommends chromium-browser unclutter-xfixes
 
 # ── 3. Install dependencies and build ─────────────────────────────────────────
 
@@ -114,32 +115,10 @@ fi
 
 echo "[4/6] Installing systemd services..."
 
-DEPLOY_DIR="$PROJECT_DIR/deploy"
-
-# The .service files in the repo are templates using placeholder tokens
-# (__PI_USER__, __PI_HOME__, __PROJECT_DIR__) since systemd unit files can't
-# read shell variables at install time. Substitute the real detected
-# user/home/project dir here, then write the result into /etc/systemd/system/.
-sed \
-  -e "s#__PI_USER__#$PI_USER#g" \
-  -e "s#__PI_HOME__#$PI_HOME#g" \
-  -e "s#__PROJECT_DIR__#$PROJECT_DIR#g" \
-  "$DEPLOY_DIR/tachtach-server.service" > /etc/systemd/system/tachtach-server.service
-
-sed \
-  -e "s#__PI_USER__#$PI_USER#g" \
-  -e "s#__PI_HOME__#$PI_HOME#g" \
-  -e "s#__PROJECT_DIR__#$PROJECT_DIR#g" \
-  "$DEPLOY_DIR/tachtach-kiosk.service" > /etc/systemd/system/tachtach-kiosk.service
-
-# Nightly kiosk restart timer — no placeholder tokens, installed as-is.
-cp "$DEPLOY_DIR/tachtach-kiosk-restart.service" /etc/systemd/system/tachtach-kiosk-restart.service
-cp "$DEPLOY_DIR/tachtach-kiosk-restart.timer" /etc/systemd/system/tachtach-kiosk-restart.timer
-
-systemctl daemon-reload
-systemctl enable tachtach-server.service
-systemctl enable tachtach-kiosk.service
-systemctl enable tachtach-kiosk-restart.timer
+# install-services.sh renders the unit templates (placeholder tokens →
+# real user/home/uid/project dir), installs + enables them, and sets
+# desktop autologin. update.sh re-runs it on every update.
+bash "$PROJECT_DIR/deploy/install-services.sh"
 systemctl start tachtach-kiosk-restart.timer
 
 # ── 5. Disable screen blanking / screensaver ──────────────────────────────────
@@ -209,9 +188,5 @@ echo "    http://<pi-ip>:3000/admin"
 echo "    (only if HOST=0.0.0.0 in environment)"
 echo ""
 echo "  To update the app:"
-echo "    cd $PROJECT_DIR"
-echo "    git pull"
-echo "    npm ci && npm run build"
-echo "    sudo systemctl restart tachtach-server"
-echo "    sudo systemctl restart tachtach-kiosk"
+echo "    bash $PROJECT_DIR/deploy/update.sh"
 echo ""
