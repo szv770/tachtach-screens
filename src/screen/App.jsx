@@ -16,6 +16,7 @@ import HiddenAccess from './components/HiddenAccess.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
 import AnimatedText from './components/AnimatedText.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
+import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { isEntryActiveOn } from '../shared/scheduleDays.js';
 
 /**
@@ -134,6 +135,16 @@ function AppContent() {
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
   slideRotationRef.current = slideRotation;
+
+  // A slide that throws while rendering is caught by SlideErrorBoundary
+  // (renders nothing); skip to the next slide after a short pause. The delay
+  // stops a rotation where every slide is broken from spinning hot.
+  const slideErrorTimer = useRef(null);
+  const handleSlideError = useCallback(() => {
+    clearTimeout(slideErrorTimer.current);
+    slideErrorTimer.current = setTimeout(() => slideRotationRef.current.advance(), 1000);
+  }, []);
+  useEffect(() => () => clearTimeout(slideErrorTimer.current), []);
 
   // Fetch initial state with retry
   // Date preview mode: fetch from /api/preview-state?date=YYYY-MM-DD (no SSE, no retry loop)
@@ -534,27 +545,32 @@ function AppContent() {
   );
 
   const rightColumn = (
-    <SlideCarousel
-      currentSlide={slideRotation.currentSlide}
-      currentIndex={slideRotation.currentIndex}
-      enabledSlides={slideRotation.enabledSlides}
-      progress={slideRotation.progress}
-      cache={state?.cache || {}}
-      tokens={tokens}
-      settings={settings}
-      activeBoards={boards.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date())}
-      onVideoEnded={slideRotation.advance}
-      onRequestDuration={slideRotation.setOverrideDuration}
-      googleAlbums={state?.googleAlbums || []}
-      schedule={state?.schedule}
-      countdown={countdown?.mode === 'slide' ? countdown : null}
-      onCountdownComplete={() => setCountdown(null)}
-      credit={settings.credit}
-      rssCache={rssCache}
-      rssFeeds={state?.rssFeeds || []}
-      portrait={isPortrait}
-      portraitLayout={settings.portraitLayout || 'compact'}
-    />
+    <SlideErrorBoundary
+      resetKey={`${slideRotation.currentSlide?.id}-${slideRotation.currentIndex}-${countdown?.id || ''}`}
+      onError={handleSlideError}
+    >
+      <SlideCarousel
+        currentSlide={slideRotation.currentSlide}
+        currentIndex={slideRotation.currentIndex}
+        enabledSlides={slideRotation.enabledSlides}
+        progress={slideRotation.progress}
+        cache={state?.cache || {}}
+        tokens={tokens}
+        settings={settings}
+        activeBoards={boards.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date())}
+        onVideoEnded={slideRotation.advance}
+        onRequestDuration={slideRotation.setOverrideDuration}
+        googleAlbums={state?.googleAlbums || []}
+        schedule={state?.schedule}
+        countdown={countdown?.mode === 'slide' ? countdown : null}
+        onCountdownComplete={() => setCountdown(null)}
+        credit={settings.credit}
+        rssCache={rssCache}
+        rssFeeds={state?.rssFeeds || []}
+        portrait={isPortrait}
+        portraitLayout={settings.portraitLayout || 'compact'}
+      />
+    </SlideErrorBoundary>
   );
 
   const progressDots = slideRotation.enabledSlides.length > 1 ? (

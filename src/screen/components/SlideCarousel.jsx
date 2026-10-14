@@ -87,6 +87,15 @@ function getLogoBlendFilter(blend, tokens) {
   return {};
 }
 
+// Opacity for the "On a specific slide" credit line. Module-level so the
+// SlideCarousel render can use it — it used to be a local const inside
+// SlideCreditContent, so referencing it from SlideCarousel threw a
+// ReferenceError and white-screened the kiosk (audit bug 8). Same scale as
+// Layout.jsx's creditOpacity().
+function creditOpacityFor(size) {
+  return size === 'large' ? 1.0 : size === 'medium' ? 0.8 : 0.55;
+}
+
 function SlideCreditContent({ credit, tokens }) {
   const logo = credit.logo;
   const logoSizePx = logo?.size === 'large' ? 64 : logo?.size === 'small' ? 28 : 44;
@@ -94,7 +103,6 @@ function SlideCreditContent({ credit, tokens }) {
   const textFontSize = credit.size === 'large' ? '20px' : credit.size === 'medium' ? '15px' : '11px';
   const blendStyle = getLogoBlendFilter(logo?.blend, tokens);
 
-  const creditOpacity = credit.size === 'large' ? 1.0 : credit.size === 'medium' ? 0.8 : 0.55;
   const textEl = credit.text ? (
     <span style={{ fontFamily: fonts.englishBody, fontSize: textFontSize, color: tokens.dim }}>
       {credit.text}
@@ -281,7 +289,7 @@ export default function SlideCarousel({ currentSlide, currentIndex, enabledSlide
           position: 'absolute',
           bottom: '8px',
           right: '16px',
-          opacity: creditOpacity,
+          opacity: creditOpacityFor(credit?.size),
           zIndex: 6,
           direction: 'ltr',
           pointerEvents: 'none',
