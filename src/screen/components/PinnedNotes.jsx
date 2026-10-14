@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fonts } from '../styles/tokens.js';
+import { FitLine } from './FitText.jsx';
+
+// Announcements "Side note" with look.fit 'auto' grow to fill the column
+// width (up to ~3 lines); migrated pinned notes keep the fixed 15px.
+const noteText = (note, text) => (note.fit
+  ? <FitLine min={15} max={30} maxHeightPx={120}>{text}</FitLine>
+  : text);
 
 export default function PinnedNotes({ pinned, tokens, visibility }) {
   const [startIndex, setStartIndex] = useState(0);
@@ -89,7 +96,7 @@ export default function PinnedNotes({ pinned, tokens, visibility }) {
                   direction: 'ltr',
                   display: 'block',
                 }}>
-                  {primaryEn}
+                  {noteText(note, primaryEn)}
                 </span>
               )}
               {primaryHe && (
@@ -103,7 +110,7 @@ export default function PinnedNotes({ pinned, tokens, visibility }) {
                   unicodeBidi: 'isolate',
                   display: 'block',
                 }}>
-                  {primaryHe}
+                  {noteText(note, primaryHe)}
                 </span>
               )}
               {subHe && (

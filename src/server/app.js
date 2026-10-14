@@ -11,6 +11,8 @@ import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, readScheduleDates } from './scheduleStore.js';
+import announcementsRouter from './routes/announcements.js';
+import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
@@ -33,6 +35,10 @@ const DIST_DIR = path.join(PROJECT_ROOT, 'dist');
  */
 export function createApp() {
   const app = express();
+
+  // Fold legacy messages/pinned/custom text slides into announcements.json
+  // (idempotent, backs up originals to data/legacy/). Readers await it.
+  ensureMigrated();
 
   // Initialize scheduler with fetch functions
   initScheduler({ fetchZmanimOnly, fetchAll });
@@ -184,12 +190,11 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
     try {
-      const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
-        readJSON('messages.json'),
-        readJSON('pinned.json'),
+        getStateExtras(), // { announcements, messages, pinned } (legacy views for old builds)
         readJSON('custom-days.json'),
         readJSON('google-albums.json'),
         readJSON('schedule.json'),
@@ -201,8 +206,7 @@ export function createApp() {
         cache: cache ?? {},
         settings: settings ?? {},
         slides: slides ?? [],
-        messages: messages ?? [],
-        pinned: pinned ?? [],
+        ...announcementState,
         customDays: customDays ?? [],
         googleAlbums: googleAlbums ?? [],
         schedule: schedule ?? { entries: [], categories: [] },
@@ -364,6 +368,9 @@ export function createApp() {
   app.use('/api', requireAuth, csrfProtection, apiMutationLimiter);
 
   // ── 9. API routes ────────────────────────────────────────────────────
+  // Announcements first: it also answers the legacy /messages, /pinned and
+  // custom-slide shapes (translated) before routes/api.js sees them.
+  app.use('/api', announcementsRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
 

@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { FitLine } from '../FitText.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fonts } from '../../styles/tokens.js';
 
@@ -774,7 +775,7 @@ const STYLES = {
             fontSize: '80px', fontWeight: 700,
             color: tokens.text, textAlign: 'center', lineHeight: 1.3, marginBottom: '28px',
             direction: takeover.primaryIsHe ? 'rtl' : 'ltr',
-          }}>{takeover.primary}</div>
+          }}>{fitPrimary(takeover)}</div>
         )}
         {takeover.secondary && (
           <div style={{
@@ -894,7 +895,7 @@ const STYLES = {
               filter: 'drop-shadow(0 4px 20px rgba(255,215,0,.4))',
               zIndex: 3, position: 'relative',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.secondary && (
@@ -1013,7 +1014,7 @@ const STYLES = {
               animation: 'emergencyTextGlow 1.8s ease-in-out infinite',
               padding: '0 80px', zIndex: 4, position: 'relative',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.secondary && (
@@ -1198,7 +1199,7 @@ const STYLES = {
               position: 'relative', zIndex: 3,
               WebkitTextStroke: '1px rgba(255,255,255,.3)',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.secondary && (
@@ -1313,7 +1314,7 @@ const STYLES = {
               direction: takeover.primaryIsHe ? 'rtl' : 'ltr',
               marginBottom: '20px', zIndex: 1,
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.secondary && (
@@ -1414,7 +1415,7 @@ const STYLES = {
               textShadow: '0 0 40px rgba(212,168,75,.3), 0 0 80px rgba(212,168,75,.15)',
               zIndex: 3, position: 'relative',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.subtitle && (
@@ -1522,7 +1523,7 @@ const STYLES = {
               textShadow: '0 4px 30px rgba(0,0,0,.3), 0 8px 60px rgba(0,0,0,.15)',
               zIndex: 3, position: 'relative',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.subtitle && (
@@ -1629,7 +1630,7 @@ const STYLES = {
               zIndex: 3, position: 'relative',
               letterSpacing: takeover.primaryIsHe ? '0' : '4px',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.subtitle && (
@@ -1739,7 +1740,7 @@ const STYLES = {
               textShadow: '0 0 30px rgba(255,180,50,.1)',
               zIndex: 3, position: 'relative',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.subtitle && (
@@ -1857,7 +1858,7 @@ const STYLES = {
               zIndex: 3, position: 'relative',
               letterSpacing: takeover.primaryIsHe ? '0' : '-2px',
             }}
-          >{takeover.primary}</motion.div>
+          >{fitPrimary(takeover)}</motion.div>
         )}
 
         {takeover.subtitle && (
@@ -1919,6 +1920,15 @@ const STYLES = {
 };
 
 /**
+ * Primary line: plain text (fixed px, migrated items) or auto-fit to the
+ * takeover (announcements with look.fit 'auto' — a few words become huge).
+ */
+function fitPrimary(takeover) {
+  if (!takeover.fit) return takeover.primary;
+  return <FitLine min={40} max={takeover.fitMax || 240} heightFrac={takeover.secondary ? 0.42 : 0.55}>{takeover.primary}</FitLine>;
+}
+
+/**
  * Determine which text is "primary" (big) and which is "secondary" (small).
  * If both are provided, whichever is longer is primary. If only one, it's primary.
  */
@@ -1951,6 +1961,7 @@ export default function Takeover({ takeover, tokens }) {
         {enriched && (
           <motion.div
             key={enriched.id || 'takeover'}
+            data-fit-root=""
             {...config.motionProps}
             style={{
               position: 'fixed',
@@ -1965,6 +1976,33 @@ export default function Takeover({ takeover, tokens }) {
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+/**
+ * A takeover style rendered as a card filling its parent (position:absolute)
+ * instead of the whole screen — used for Slide announcements that pick one of
+ * the takeover-only styles (torah, trip, phone, memorial, hype), which
+ * StyledSlide doesn't have.
+ */
+export function TakeoverCard({ takeover, tokens }) {
+  if (!takeover) return null;
+  const config = STYLES[takeover.style] || STYLES.classic;
+  const enriched = { ...takeover, ...getPrimarySecondary(takeover) };
+  return (
+    <>
+      <style>{TAKEOVER_KEYFRAMES}</style>
+      <div
+        data-fit-root=""
+        style={{
+          position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: '4px',
+          whiteSpace: 'pre-line',
+          ...config.getContainer(tokens),
+        }}
+      >
+        {config.renderContent(enriched, tokens)}
+      </div>
     </>
   );
 }

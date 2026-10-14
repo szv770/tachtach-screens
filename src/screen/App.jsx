@@ -3,14 +3,15 @@ import { getTokens, applyFontSettings, fonts } from './styles/tokens.js';
 import { useSSE } from './hooks/useSSE.js';
 import { useClock } from './hooks/useClock.js';
 import { useSlideRotation } from './hooks/useSlideRotation.js';
-import { useMessages } from './hooks/useMessages.js';
+import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
 import Clock from './components/Clock.jsx';
 import HebrewDate from './components/HebrewDate.jsx';
 import PinnedNotes from './components/PinnedNotes.jsx';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner, { bannerHeightFor } from './components/messages/Banner.jsx';
-import Takeover from './components/messages/Takeover.jsx';
+import { AnnouncementTakeover } from './components/slides/AnnouncementSlide.jsx';
+import { buildRotation, toRotationSlide, toBannerRow, toNoteRow } from './lib/announcementView.js';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import HiddenAccess from './components/HiddenAccess.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
@@ -96,8 +97,9 @@ function AppContent() {
   const [rssCache, setRssCache] = useState({});
   const clock = useClock();
 
-  // Message management with auto-expiry
-  const { banners, boards, takeovers } = useMessages(state?.messages);
+  // Announcements (slides, banners, side notes, takeovers) — what's live now,
+  // re-evaluated every second by the shared isActive() rules.
+  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone);
 
   // The schedule that applies today (or on ?previewDate=): that date's own
   // schedule from schedule-dates.json, else the weekly one. `clock` ticks
@@ -108,38 +110,17 @@ function AppContent() {
     [state?.schedule, state?.scheduleDates, scheduleDateISO]
   );
 
-  // Build slides array: regular slides + pinned notes + non-blocking board messages
-  const allSlides = React.useMemo(() => {
-    const slides = state?.slides || [];
-    const now = Date.now();
-    const pinnedSlides = (state?.pinned || [])
-      .filter(p => !p.expiresAt || now < new Date(p.expiresAt).getTime())
-      .filter(p => p.displayMode === 'slide')
-      .map(p => ({
-        id: `pinned-${p.id}`,
-        type: 'PINNED_SLIDE',
-        enabled: true,
-        duration: p.duration || 10,
-        fullscreen: p.fullscreen || false,
-        textHe: p.textHe,
-        textEn: p.textEn,
-        title: p.textEn || p.textHe || 'Pinned',
-      }));
-    const boardSlides = boards
-      .filter(b => !b.blocking && (!b.expiresAt || new Date(b.expiresAt) > new Date()))
-      .map(b => ({
-        id: `board-${b.id}`,
-        type: 'BOARD_SLIDE',
-        enabled: true,
-        duration: 12,
-        _board: b,
-        title: b.target || 'Message',
-      }));
-    return [...slides, ...pinnedSlides, ...boardSlides];
-  }, [state?.slides, state?.pinned, boards]);
+  // Rotation: slides.json rows (ANNOUNCEMENT refs resolved in place) + active
+  // slide announcements without a ref, appended at the end.
+  const allSlides = React.useMemo(
+    () => buildRotation(state?.slides || [], ann.slides),
+    [state?.slides, ann],
+  );
+  // Newest "pause everything else" slide replaces the slide area.
+  const holdSlide = React.useMemo(() => (ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann]);
 
-  // Slide rotation
-  const slideRotation = useSlideRotation(allSlides, state?.messages || []);
+  // Takeovers and holds pause the rotation timer; banners never do.
+  const slideRotation = useSlideRotation(allSlides, { paused: !!ann.takeover || !!holdSlide });
 
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
@@ -222,6 +203,9 @@ function AppContent() {
         break;
       case 'pinned-update':
         setState(prev => prev ? { ...prev, pinned: data } : prev);
+        break;
+      case 'announcements-update':
+        setState(prev => prev ? { ...prev, announcements: data } : prev);
         break;
       case 'custom-days-update':
         setState(prev => prev ? { ...prev, customDays: data } : prev);
@@ -480,12 +464,7 @@ function AppContent() {
     return <div style={{ width: '100%', height: '100vh', background: '#000' }} />;
   }
 
-  // Active takeover
-  const activeTakeover = takeovers.find(t =>
-    !t.expiresAt || new Date(t.expiresAt) > new Date()
-  );
-
-  const isFullscreen = slideRotation.currentSlide?.fullscreen === true;
+  const isFullscreen = (holdSlide || slideRotation.currentSlide)?.fullscreen === true;
   const isPortrait = settings.orientation === 'portrait';
 
   const leftColumn = (
@@ -549,7 +528,7 @@ function AppContent() {
         );
       })()}
       <PinnedNotes
-        pinned={(state?.pinned || []).filter(p => !p.expiresAt || Date.now() < new Date(p.expiresAt).getTime())}
+        pinned={ann.notes.map(toNoteRow)}
         tokens={tokens}
         visibility={visibility}
       />
@@ -569,7 +548,7 @@ function AppContent() {
         cache={state?.cache || {}}
         tokens={tokens}
         settings={settings}
-        activeBoards={boards.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date())}
+        hold={holdSlide}
         onVideoEnded={slideRotation.advance}
         onRequestDuration={slideRotation.setOverrideDuration}
         googleAlbums={state?.googleAlbums || []}
@@ -604,8 +583,8 @@ function AppContent() {
     </div>
   ) : null;
 
-  const liveBanners = banners.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date());
-  const banner = banners.length > 0 ? (
+  const liveBanners = ann.banners.map(toBannerRow);
+  const banner = liveBanners.length > 0 ? (
     <Banner
       banners={liveBanners}
       tokens={tokens}
@@ -651,7 +630,7 @@ function AppContent() {
         portrait={isPortrait}
         portraitTopBar={portraitTopBar}
       />
-      <Takeover takeover={activeTakeover} tokens={tokens} />
+      <AnnouncementTakeover item={ann.takeover} tokens={tokens} />
       {countdown?.mode === 'takeover' && (
         <CountdownOverlay
           countdown={countdown}

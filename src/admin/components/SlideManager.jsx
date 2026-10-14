@@ -3,6 +3,7 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '
 import { NumberField, DraftTextInput, ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ZMANIM_DISPLAY } from '../../shared/constants.js';
+import { status as announcementStatus, primaryText, selectActive } from '../../shared/announcements.js';
 
 const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
 
@@ -18,23 +19,6 @@ const BUILT_IN_LABELS = {
   MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard',
   MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen (embed)',
 };
-
-const TEMPLATES = [
-  { value: 'headline', label: 'Headline' },
-  { value: 'quote', label: 'Quote' },
-  { value: 'info', label: 'Info' },
-  { value: 'announcement', label: 'Announcement' },
-];
-
-const SLIDE_STYLES = [
-  { value: '', label: 'None', desc: 'Use template layout' },
-  { value: 'classic', label: 'Classic', desc: 'Clean, minimal' },
-  { value: 'grand', label: 'Grand', desc: 'Gold shimmer, elegant' },
-  { value: 'emergency', label: 'Emergency', desc: 'Red alert' },
-  { value: 'sleek', label: 'Sleek', desc: 'Modern minimal' },
-  { value: 'celebration', label: 'Celebration', desc: 'Confetti, joyful' },
-  { value: 'urgent', label: 'Notice', desc: 'Amber attention' },
-];
 
 function ToggleSwitch({ on, onChange, label }) {
   // A real <button> with role="switch" so it's reachable by keyboard (Tab +
@@ -78,29 +62,34 @@ const LIMUDIM_ITEMS = [
   { key: 'sefer',     label: 'Sefer HaMitzvot' },
 ];
 
-export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete, settings = {}, onSaveSettings, onNavigate }) {
+export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete, settings = {}, onSaveSettings, onNavigate, announcements = [], onNewMessage, onEditAnnouncement, onToggleAnnouncement }) {
   const isMobile = useIsMobile();
   const [showCreate, setShowCreate] = useState(false);
   const [zmanimExpanded, setZmanimExpanded] = useState(null); // slide index or null
   const [limudimExpanded, setLimudimExpanded] = useState(null); // slide index or null
   const [embedExpanded, setEmbedExpanded] = useState(null); // slide index or null
   const [embedUrlDraft, setEmbedUrlDraft] = useState('');
-  const [form, setForm] = useState({
-    template: 'headline', titleEn: '', titleHe: '', bodyEn: '', bodyHe: '', attribution: '', duration: 12, style: '', subtitle: '',
-  });
   const [confirmDelete, setConfirmDelete] = useState(null); // slide object or null
   // Drag state. Rows are only made draggable while the mouse is down on the
   // grab handle — otherwise HTML5 drag hijacks text selection inside the
   // label/duration inputs (you couldn't select text with the mouse at all).
   const [dragIdx, setDragIdx] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
-  // The create form renders below the (potentially long) slide list — scroll
-  // it into view when opened so clicking "+ New Slide" has a visible effect.
-  const createFormRef = useRef(null);
+  const annById = new Map(announcements.map(a => [a.id, a]));
+  const tz = settings?.location?.timezone || undefined;
+  const STATUS_TEXT = { draft: 'Draft', scheduled: 'Scheduled', paused: 'Paused', archived: 'Ended' };
+  // Slide announcements without a row here are appended after these slides.
+  const referenced = new Set(slides.filter(s => s.type === 'ANNOUNCEMENT').map(s => s.announcementId));
+  const appended = selectActive(announcements, new Date(), { tz }).slides.filter(a => !referenced.has(a.id));
+  // "+ New Slide" picker: Message opens the announcement composer; media/RSS
+  // sources live in their own tabs.
+  const newMenuRef = useRef(null);
   useEffect(() => {
-    if (showCreate) {
-      createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    if (!showCreate) return undefined;
+    const close = (e) => { if (!newMenuRef.current?.contains(e.target)) setShowCreate(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('touchstart', close);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('touchstart', close); };
   }, [showCreate]);
 
   const handleToggle = (index) => {
@@ -157,39 +146,16 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
     onUpdate(reordered);
   };
 
-  const [creating, setCreating] = useState(false);
-
-  const handleCreate = async () => {
-    setCreating(true);
-    try {
-      const result = await onCreate({
-        type: 'custom',
-        enabled: true,
-        template: form.style ? undefined : form.template,
-        titleHe: form.titleHe || undefined,
-        titleEn: form.titleEn || undefined,
-        bodyHe: form.bodyHe || undefined,
-        bodyEn: form.bodyEn || undefined,
-        attribution: form.attribution || undefined,
-        duration: form.duration,
-        style: form.style || undefined,
-        subtitle: form.subtitle || undefined,
-      });
-      if (result) {
-        setForm({ template: 'headline', titleEn: '', titleHe: '', bodyEn: '', bodyHe: '', attribution: '', duration: 12, style: '', subtitle: '' });
-        setShowCreate(false);
-      }
-    } finally {
-      setCreating(false);
-    }
-  };
-
   const getLabel = (slide) => {
     if (BUILT_IN_TYPES.includes(slide.type)) return BUILT_IN_LABELS[slide.type] || slide.type;
     if (slide.type === 'VIDEO_SLIDE') return slide.label || 'Video';
     if (slide.type === 'IMAGE_SLIDE') return slide.label || 'Image';
     if (slide.type === 'GOOGLE_PHOTOS_SLIDE') return slide.label || 'Google Photos';
     if (slide.type === 'RSS_SLIDE') return slide.label || 'RSS Feed';
+    if (slide.type === 'ANNOUNCEMENT') {
+      const a = annById.get(slide.announcementId);
+      return a ? (primaryText(a).split('\n')[0] || 'Message') : 'Message (deleted)';
+    }
     return slide.titleEn || slide.titleHe || slide.template || 'Custom';
   };
 
@@ -204,12 +170,37 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
             Toggle slides on/off, reorder them, and set how long each one shows. Built-in slides (Zmanim, Limudim, etc.) pull live data automatically.
           </p>
         </div>
-        <button
-          style={{ ...(showCreate ? buttonSecondary : buttonPrimary), flexShrink: 0 }}
-          onClick={() => setShowCreate(!showCreate)}
-        >
-          {showCreate ? 'Cancel' : '+ New Slide'}
-        </button>
+        <div ref={newMenuRef} style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            style={{ ...buttonPrimary, minHeight: '44px' }}
+            aria-haspopup="menu"
+            aria-expanded={showCreate}
+            onClick={() => setShowCreate(!showCreate)}
+          >
+            + New Slide
+          </button>
+          {showCreate && (
+            <div role="menu" className="tt-card" style={{
+              position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50, minWidth: '230px',
+              background: colors.bg, border: `1px solid ${colors.goldBd}`, borderRadius: '8px', padding: '6px',
+              boxShadow: '0 12px 40px rgba(0,0,0,.45)', display: 'flex', flexDirection: 'column',
+            }}>
+              {[
+                { label: 'Message', sub: 'Text, event, list or time — opens the composer', go: () => onNewMessage?.() },
+                { label: 'Image or video', sub: 'Upload in Media', go: () => onNavigate?.('images') },
+                { label: 'Google Photos album', sub: 'In Media', go: () => onNavigate?.('images') },
+                { label: 'RSS feed', sub: 'In RSS Feeds', go: () => onNavigate?.('rss-feeds') },
+              ].map(o => (
+                <button key={o.label} role="menuitem" type="button"
+                  onClick={() => { setShowCreate(false); o.go(); }}
+                  style={{ textAlign: 'left', background: 'transparent', border: 'none', borderRadius: '6px', padding: '10px 12px', minHeight: '48px', cursor: 'pointer' }}>
+                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', color: colors.text }}>{o.label}</div>
+                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim }}>{o.sub}</div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Slide list */}
@@ -274,7 +265,18 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   >{'\u25BC'}</button>
                 </div>
               )}
-              <ToggleSwitch on={slide.enabled !== false} onChange={() => handleToggle(idx)} />
+              {slide.type === 'ANNOUNCEMENT' ? (() => {
+                const a = annById.get(slide.announcementId);
+                return (
+                  <ToggleSwitch
+                    on={!!a && a.enabled !== false}
+                    label={a?.enabled !== false ? 'Showing — click to pause this message' : 'Paused — click to resume'}
+                    onChange={() => a && onToggleAnnouncement?.(a, a.enabled === false)}
+                  />
+                );
+              })() : (
+                <ToggleSwitch on={slide.enabled !== false} onChange={() => handleToggle(idx)} />
+              )}
               <span style={{
                 flex: 1,
                 fontFamily: adminFonts.englishBody,
@@ -300,7 +302,33 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   Not configured — not streaming
                 </span>
               )}
-              {!isMobile && (
+              {slide.type === 'ANNOUNCEMENT' && (() => {
+                const a = annById.get(slide.announcementId);
+                const st = a ? announcementStatus(a, new Date(), { tz }) : null;
+                return (
+                  <>
+                    {st && st !== 'live' && (
+                      <span style={{ padding: '2px 8px', borderRadius: '3px', fontFamily: adminFonts.englishBody, fontSize: '11px', whiteSpace: 'nowrap', flexShrink: 0, background: colors.surface, color: colors.dim }}>
+                        {STATUS_TEXT[st] || st}
+                      </span>
+                    )}
+                    {a && (
+                      <button
+                        onClick={() => onEditAnnouncement?.(a)}
+                        title="Edit this message"
+                        style={{
+                          background: 'transparent', border: `1px solid ${colors.muted}`, borderRadius: '4px', color: colors.dim,
+                          fontSize: '13px', cursor: 'pointer', padding: isMobile ? '6px 14px' : '3px 10px',
+                          minHeight: isMobile ? '38px' : '28px', fontFamily: adminFonts.englishBody,
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
+              {!isMobile && slide.type !== 'ANNOUNCEMENT' && (
                 <>
                   <DraftTextInput
                     value={slide.label || ''}
@@ -607,7 +635,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
             )}
 
             {/* Row 2 (mobile only): label, duration, fullscreen controls */}
-            {isMobile && (
+            {isMobile && slide.type !== 'ANNOUNCEMENT' && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -663,180 +691,19 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
         ))}
       </div>
 
-      {/* Create form */}
-      {showCreate && (
-        <div ref={createFormRef} className="tt-card" style={{
-          marginTop: '24px',
-          padding: '20px',
-          background: colors.surface,
-          borderRadius: '8px',
-          border: `1px solid ${colors.goldBd}`,
-          scrollMarginTop: '16px',
-        }}>
-          <h3 style={{
-            fontFamily: adminFonts.englishBody,
-            fontSize: '16px',
-            color: colors.text,
-            marginBottom: '16px',
-          }}>
-            New Slide
-          </h3>
-
-          {/* Style selector */}
-          <div style={{ marginBottom: '14px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-              Visual Style
-              <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, marginLeft: '8px' }}>
-                — choose a style for a themed look, or leave as "None" to use a simple template layout below
+      {appended.length > 0 && (
+        <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: '6px', border: `1px dashed ${colors.border}` }}>
+          <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>
+            Also in the rotation, after these slides (from Announcements):
+          </div>
+          {appended.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+              <span dir="auto" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>
+                {primaryText(a).split('\n')[0] || 'Message'}
               </span>
-            </label>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-              {SLIDE_STYLES.map(s => (
-                <button
-                  key={s.value}
-                  onClick={() => setForm(f => ({ ...f, style: s.value }))}
-                  title={s.desc}
-                  style={{
-                    ...buttonSecondary,
-                    padding: '6px 14px',
-                    fontSize: '13px',
-                    background: form.style === s.value ? colors.goldBg : 'transparent',
-                    borderColor: form.style === s.value ? colors.gold : colors.muted,
-                    color: form.style === s.value ? colors.gold : colors.text,
-                  }}
-                >
-                  {s.label}
-                </button>
-              ))}
+              <button onClick={() => onEditAnnouncement?.(a)} style={{ ...buttonSecondary, padding: '4px 12px', minHeight: isMobile ? '38px' : '30px', fontSize: '13px' }}>Edit</button>
             </div>
-          </div>
-
-          {/* Template selector (only when no style is selected) */}
-          {!form.style && (
-            <div style={{ marginBottom: '14px' }}>
-              <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-                Layout Template
-                <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, marginLeft: '8px' }}>
-                  — controls how text is arranged on the slide
-                </span>
-              </label>
-              <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-                {TEMPLATES.map(t => (
-                  <button
-                    key={t.value}
-                    onClick={() => setForm(f => ({ ...f, template: t.value }))}
-                    style={{
-                      ...buttonSecondary,
-                      padding: '6px 14px',
-                      fontSize: '13px',
-                      background: form.template === t.value ? colors.goldBg : 'transparent',
-                      borderColor: form.template === t.value ? colors.gold : colors.muted,
-                      color: form.template === t.value ? colors.gold : colors.text,
-                    }}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Title inputs — English first (primary), Hebrew optional */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Title</label>
-            <textarea
-              value={form.titleEn}
-              onChange={(e) => setForm(f => ({ ...f, titleEn: e.target.value }))}
-              rows={2}
-              placeholder="Title text"
-              style={{ ...inputStyle, marginTop: '4px', resize: 'vertical' }}
-            />
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-              Title (Hebrew) <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
-            </label>
-            <textarea
-              value={form.titleHe}
-              onChange={(e) => setForm(f => ({ ...f, titleHe: e.target.value }))}
-              rows={2}
-              placeholder="Optional Hebrew title"
-              style={{ ...inputStyle, marginTop: '4px', resize: 'vertical', direction: 'rtl' }}
-            />
-          </div>
-
-          {/* Body inputs — English first, Hebrew optional */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Body</label>
-            <textarea
-              value={form.bodyEn}
-              onChange={(e) => setForm(f => ({ ...f, bodyEn: e.target.value }))}
-              rows={3}
-              placeholder="Body text"
-              style={{ ...inputStyle, marginTop: '4px', resize: 'vertical' }}
-            />
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-              Body (Hebrew) <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
-            </label>
-            <textarea
-              value={form.bodyHe}
-              onChange={(e) => setForm(f => ({ ...f, bodyHe: e.target.value }))}
-              rows={3}
-              placeholder="Optional Hebrew body"
-              style={{ ...inputStyle, marginTop: '4px', resize: 'vertical', direction: 'rtl' }}
-            />
-          </div>
-
-          {/* Attribution for quote */}
-          {!form.style && form.template === 'quote' && (
-            <div style={{ marginBottom: '12px' }}>
-              <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Attribution</label>
-              <input
-                type="text"
-                value={form.attribution}
-                onChange={(e) => setForm(f => ({ ...f, attribution: e.target.value }))}
-                style={{ ...inputStyle, marginTop: '4px' }}
-              />
-            </div>
-          )}
-
-          {/* Subtitle */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-              Subtitle <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
-            </label>
-            <input
-              type="text"
-              value={form.subtitle}
-              onChange={(e) => setForm(f => ({ ...f, subtitle: e.target.value }))}
-              placeholder="Subtitle text (shown below main text)"
-              style={{ ...inputStyle, marginTop: '4px' }}
-            />
-          </div>
-
-          {/* Duration + submit */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Duration (s)</label>
-              <NumberField
-                value={form.duration}
-                onCommit={(v) => setForm(f => ({ ...f, duration: v }))}
-                min={1}
-                max={600}
-                title="How many seconds this slide stays on screen"
-                style={{ marginTop: '4px', width: '80px' }}
-              />
-            </div>
-            <button
-              style={{ ...buttonPrimary, opacity: creating ? 0.6 : 1, minHeight: '44px' }}
-              onClick={handleCreate}
-              disabled={creating}
-            >
-              {creating ? 'Creating...' : 'Create Slide'}
-            </button>
-          </div>
+          ))}
         </div>
       )}
 
@@ -844,7 +711,9 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
       {confirmDelete && (
         <ConfirmDialog
           title="Delete slide?"
-          message={`"${getLabel(confirmDelete)}" will be removed from the screen. This cannot be undone.`}
+          message={confirmDelete.type === 'ANNOUNCEMENT'
+            ? `"${getLabel(confirmDelete)}" will be removed from the screen and deleted from Announcements. This cannot be undone.`
+            : `"${getLabel(confirmDelete)}" will be removed from the screen. This cannot be undone.`}
           confirmLabel="Delete Slide"
           onConfirm={() => { onDelete(confirmDelete.id); setConfirmDelete(null); }}
           onCancel={() => setConfirmDelete(null)}

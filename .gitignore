@@ -16,3 +16,5 @@ data/.puppeteer-tmp/
 data/schedule-dates.json
 data/schedule-blocks.json
 data/zmanim-dates.json
+data/announcements.json
+data/legacy/

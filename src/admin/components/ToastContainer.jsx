@@ -71,6 +71,19 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             {toast.message}
           </span>
 
+          {toast.action && (
+            <button
+              onClick={toast.action.onClick}
+              style={{
+                background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.6)', borderRadius: '5px',
+                color: '#fff', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600,
+                padding: '6px 14px', minHeight: '34px', cursor: 'pointer', flexShrink: 0, margin: '-4px 0',
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
+
           {/* Dismiss button */}
           <button
             onClick={() => onDismiss(toast.id)}
