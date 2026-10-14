@@ -55,6 +55,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     return () => clearTimeout(t);
   }, [enterNow]);
 
+  const enterRef = useRef(enterNow); enterRef.current = enterNow;
   const pageRef = useRef(0);
   const [pages, setPages] = useState(1);
   const onPagesRef = useRef(onPages); onPagesRef.current = onPages;
@@ -68,9 +69,9 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
       const res = fitAll(root, { page: pageRef.current });
       setPages(res.pages);
       onPagesRef.current?.(res.pages);
+      if (enterRef.current) splitLively(root);
     };
     run();
-    if (enterNow) splitLively(root);
     let raf = 0;
     const refit = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(run); };
     document.fonts?.ready?.then(refit).catch(() => {});

@@ -351,7 +351,15 @@ export const TAKEOVER_CSS = `
 .tkr .qq .q-he:empty, .tkr .qq .q-en:empty { display: none; }
 .tkr .qq .attr:empty, .tkr .qq .rule.off { display: none; }
 .tkr .kick:empty { display: none; }
-.tkr .mo-fixed-clock { }
+/* Static states (Animation = Entrance only / Off, and prefers-reduced-motion): loops that are only meaningful in motion
+   (ripples, rings) stay hidden; rising pieces (balloons, sparks) rest half way up; everything else rests at its design pose. */
+.tkr .anim-off .lp[data-loop="kRipple"], .tkr .anim-off .lp[data-loop="kRing"],
+.tkr .anim-entrance .lp[data-loop="kRipple"], .tkr .anim-entrance .lp[data-loop="kRing"] { opacity: 0; }
+.tkr .anim-off .lp[data-loop="kRise"], .tkr .anim-entrance .lp[data-loop="kRise"] { transform: translateY(calc(var(--ry) * .5)); opacity: var(--ro, .9); }
+@media (prefers-reduced-motion: reduce) {
+  .tkr .stage .lp[data-loop="kRipple"], .tkr .stage .lp[data-loop="kRing"] { opacity: 0; }
+  .tkr .stage .lp[data-loop="kRise"] { transform: translateY(calc(var(--ry) * .5)); opacity: var(--ro, .9); }
+}
 `;
 
 let injected = false;

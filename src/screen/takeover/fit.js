@@ -4,7 +4,7 @@
  * a slot may wrap inside its height budget; if even the min does not fit it
  * is flagged (data-over) and line-clamped. Never per frame: run on mount,
  * content change and font load. All measurements are layout px
- * (offset*/scroll*/client*), so ScreenScaler's and the slide's transform
+ * (offsetWidth, scrollHeight, clientWidth...), so ScreenScaler's and the slide's transform
  * scale never skew them.
  */
 
@@ -61,6 +61,7 @@ function paginate(root, page) {
 
 /** Fit everything in `root` (the .tkr element). Returns { pages }. */
 export function fitAll(root, { page = 0 } = {}) {
+  unsplit(root);
   const heScale = +getComputedStyle(root).getPropertyValue('--he-scale') || 1;
   const $$ = (sel) => root.querySelectorAll(sel);
   $$('.fit, .pw').forEach((el) => { el.style.height = ''; });
@@ -142,14 +143,21 @@ export function alignGlyph(root) {
   g.style.top = (top0 + target - (top0 + g.offsetHeight / 2)) + 'px';
 }
 
+/** Undo splitLively (fitting measures the plain text, never the per-word / per-digit spans). */
+function unsplit(root) {
+  root.querySelectorAll('[data-orig]').forEach((el) => { el.innerHTML = el.dataset.orig; el.removeAttribute('data-orig'); });
+}
+
 /** lively extras: split big words / digits so they reveal one by one (entrance only). */
 export function splitLively(root) {
   root.querySelectorAll('.enter.x-lively .w-he, .enter.x-lively .w-en, .enter.x-lively .h-he, .enter.x-lively .h-en, .enter.x-lively .q-he').forEach((el) => {
-    if (el.querySelector('.w') || el.querySelector('br')) return;
+    if (el.dataset.orig != null || el.querySelector('br')) return;
+    el.dataset.orig = el.innerHTML;
     el.innerHTML = el.textContent.split(' ').map((w, i) => `<span class="w" style="--wi:${i}">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join(' ');
   });
   root.querySelectorAll('.enter.x-lively .big, .enter.x-lively .tile .t, .enter.x-lively .tcol .t').forEach((el) => {
-    if (el.querySelector('.dg')) return;
+    if (el.dataset.orig != null) return;
+    el.dataset.orig = el.innerHTML;
     let n = 0;
     const walk = (node) => {
       [...node.childNodes].forEach((c) => {

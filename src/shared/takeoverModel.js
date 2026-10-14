@@ -130,7 +130,7 @@ export function modelLetter(item) {
 /** layout name used by the stage ('quicktime' -> 'quick'; unknown / 'classic' -> bigwords). */
 export function stageLayout(layout) {
   if (layout === 'quicktime') return 'quick';
-  return ['bigwords', 'event', 'list', 'quote', 'sicha', 'letter'].includes(layout) ? layout : 'bigwords';
+  return ['bigwords', 'event', 'list', 'quick', 'quote', 'sicha', 'letter'].includes(layout) ? layout : 'bigwords';
 }
 
 export function modelFor(item, layout) {

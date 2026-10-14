@@ -1,4 +1,6 @@
 // Small admin-side helpers for the Announcements composer and list.
+import { listRow } from '../../../shared/takeoverModel.js';
+import { STYLE_GROUPS, STYLE_INFO, ANIMATIONS, ANIMATION_LABEL, DEFAULT_ANIMATION } from '../../../shared/takeoverStyles.js';
 
 export const DISPLAY_OPTIONS = [
   { value: 'slide', label: 'Slide', explain: 'Takes its turn in the slideshow with the other slides.' },
@@ -12,29 +14,27 @@ export const DISPLAY_LABEL = { slide: 'Slide', banner: 'Banner', note: 'Side not
 export const LAYOUT_OPTIONS = [
   { value: 'bigwords', label: 'Big words', explain: 'A short message, sized as big as fits.' },
   { value: 'event', label: 'Event', explain: 'Title, day and time tiles, place.' },
-  { value: 'list', label: 'List', explain: 'A heading and a few short items.' },
-  { value: 'quicktime', label: 'Quick time', explain: '"Mincha 1:45" — the time stands out.' },
+  { value: 'list', label: 'List', explain: 'A heading and a few short items (optional day and time on each).' },
+  { value: 'quicktime', label: 'Quick time', explain: '"Mincha 1:45": the time stands out. Optional second time, old time, or a countdown number.' },
+  { value: 'quote', label: 'Quote', explain: 'A short saying, set large, with its source.' },
+  { value: 'sicha', label: 'Sicha', explain: 'An excerpt at a readable size. Long text splits into pages (1/3, 2/3...).' },
+  { value: 'letter', label: 'Letter', explain: 'A letter with a date, greeting, body and signature. Long letters page the same way.' },
   { value: 'classic', label: 'Classic', explain: 'The original templates and styled cards.' },
 ];
 
 export const LAYOUT_LABEL = Object.fromEntries(LAYOUT_OPTIONS.map((l) => [l.value, l.label]));
 
-// All 11 takeover styles (the 6 StyledSlide ones are a subset). For a slide in
-// the Classic layout the takeover-only styles render as a slide card.
+/** Style picker: the 26 styles in groups (round 3b), plus "Theme" (no style). */
+export const STYLE_PICKER_GROUPS = STYLE_GROUPS.map((g) => ({
+  ...g,
+  options: g.ids.map((id) => ({ value: id, label: STYLE_INFO[id][0], desc: STYLE_INFO[id][1] })),
+}));
 export const STYLE_OPTIONS = [
-  { value: '', label: 'Theme', desc: 'Screen colours', swatch: null },
-  { value: 'classic', label: 'Classic', desc: 'Clean, minimal', swatch: '#C4342D' },
-  { value: 'grand', label: 'Grand', desc: 'Gold shimmer', swatch: 'linear-gradient(135deg,#1a1000,#FFD700)' },
-  { value: 'emergency', label: 'Emergency', desc: 'Red alert', swatch: '#DC2626' },
-  { value: 'sleek', label: 'Sleek', desc: 'Modern, black', swatch: 'linear-gradient(135deg,#000,#6366F1)' },
-  { value: 'celebration', label: 'Celebration', desc: 'Joyful', swatch: 'linear-gradient(135deg,#FF006E,#8338EC,#3A86FF)' },
-  { value: 'urgent', label: 'Notice', desc: 'Amber attention', swatch: '#FFC107' },
-  { value: 'torah', label: 'Torah', desc: 'Shiur, learning', swatch: 'linear-gradient(135deg,#0A0E1A,#D4A84B)' },
-  { value: 'trip', label: 'Trip', desc: 'Outing', swatch: 'linear-gradient(180deg,#0369A1,#7DD3FC)' },
-  { value: 'phone', label: 'Phone', desc: 'Call to action', swatch: 'linear-gradient(135deg,#0F172A,#38BDF8)' },
-  { value: 'memorial', label: 'Memorial', desc: 'Yahrzeit', swatch: 'linear-gradient(135deg,#08060F,#C8B496)' },
-  { value: 'hype', label: 'Hype', desc: 'Excitement', swatch: 'linear-gradient(135deg,#A855F7,#06B6D4)' },
+  { value: '', label: 'Theme', desc: 'The screen’s own colours (drawn as Classic)' },
+  ...STYLE_PICKER_GROUPS.flatMap((g) => g.options),
 ];
+
+export const ANIMATION_OPTIONS = ANIMATIONS.map((v) => ({ value: v, label: ANIMATION_LABEL[v] }));
 
 export const TEMPLATE_OPTIONS = [
   { value: 'headline', label: 'Headline' },
@@ -111,17 +111,28 @@ export function emptyItem(display = 'slide') {
     enabled: true,
     content: {
       headlineEn: '', headlineHe: '', bodyEn: '', bodyHe: '', subtitle: '', target: '', attribution: '',
-      event: { title: '', titleHe: '', day: '', time: '', place: '', placeHe: '' },
-      list: { heading: '', headingHe: '', items: ['', ''] },
-      quicktime: { time: '', name: '', nameHe: '', place: '' },
+      targetHe: '',
+      event: { title: '', titleHe: '', day: '', dayHe: '', time: '', place: '', place2: '', placeHe: '' },
+      list: { heading: '', headingHe: '', items: [{ text: '', textHe: '', day: '', time: '' }, { text: '', textHe: '', day: '', time: '' }] },
+      quicktime: { time: '', name: '', nameHe: '', place: '', placeHe: '', time2: '', label: '', labelHe: '', label2: '', label2He: '', was: '', big: '', bigLabel: '', pre: '' },
+      quote: { text: '', textHe: '', source: '', sourceHe: '' },
+      sicha: { title: '', titleHe: '', body: '', source: '' },
+      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
     },
-    look: { layout: 'bigwords', style: null, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
+    look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
     banner: { size: null, speed: null, repeat: null },
     when: { startsAt: null, expiresAt: null, lastDurationMin: null, recurrence: null },
   };
+}
+
+/** A list item as the composer edits it: { text, textHe, day, time } (old data was a plain string). */
+export function toListObject(x) {
+  if (x && typeof x === 'object') return { text: x.text || '', textHe: x.textHe || '', day: x.day || '', time: x.time || '' };
+  const r = listRow(x);
+  return { text: r.en, textHe: r.he, day: '', time: '' };
 }
 
 /** Deep-fill an existing item with defaults so the composer can edit any field. */
@@ -134,8 +145,11 @@ export function withDefaults(item) {
     content: {
       ...base.content, ...c,
       event: { ...base.content.event, ...(c.event || {}) },
-      list: { ...base.content.list, ...(c.list || {}), items: (c.list?.items?.length ? c.list.items : base.content.list.items) },
+      list: { ...base.content.list, ...(c.list || {}), items: (c.list?.items?.length ? c.list.items.map(toListObject) : base.content.list.items) },
       quicktime: { ...base.content.quicktime, ...(c.quicktime || {}) },
+      quote: { ...base.content.quote, ...(c.quote || {}) },
+      sicha: { ...base.content.sicha, ...(c.sicha || {}) },
+      letter: { ...base.content.letter, ...(c.letter || {}) },
     },
     look: { ...base.look, ...(item?.look || {}), layout: item?.look?.layout || 'classic' },
     slide: { ...base.slide, ...(item?.slide || {}) },
