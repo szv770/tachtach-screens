@@ -3,6 +3,7 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonD
 import { ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ICON_OPTIONS, ScheduleIcon } from '../../shared/ScheduleIcons.jsx';
+import { countdownDisplayOf } from '../../shared/scheduleDays.js';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Shabbos'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -31,14 +32,14 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const TEMPLATE_ENTRIES = [
-  { name: 'Shacharis', nameHe: '', time: '07:00', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, alertDisplay: 'slide', enabled: true },
-  { name: 'Breakfast', nameHe: '', time: '08:15', endTime: '', category: 'meals', days: [...WEEKDAYS], alertBefore: 0, alertDisplay: 'slide', enabled: true },
-  { name: 'First Seder', nameHe: '', time: '09:00', endTime: '12:30', category: 'learning', days: [...WEEKDAYS], alertBefore: 5, alertDisplay: 'slide', enabled: true },
-  { name: 'Lunch', nameHe: '', time: '12:30', endTime: '', category: 'meals', days: [...WEEKDAYS], alertBefore: 0, alertDisplay: 'slide', enabled: true },
-  { name: 'Mincha', nameHe: '', time: '13:30', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, alertDisplay: 'slide', enabled: true },
-  { name: 'Second Seder', nameHe: '', time: '14:00', endTime: '17:30', category: 'learning', days: [...WEEKDAYS], alertBefore: 5, alertDisplay: 'slide', enabled: true },
-  { name: 'Maariv', nameHe: '', time: '19:00', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, alertDisplay: 'slide', enabled: true },
-  { name: 'Night Seder', nameHe: '', time: '20:00', endTime: '22:00', category: 'learning', days: [...WEEKDAYS], alertBefore: 0, alertDisplay: 'slide', enabled: true },
+  { name: 'Shacharis', nameHe: '', time: '07:00', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
+  { name: 'Breakfast', nameHe: '', time: '08:15', endTime: '', category: 'meals', days: [...WEEKDAYS], alertBefore: 0, countdownDisplay: 'slide', enabled: true },
+  { name: 'First Seder', nameHe: '', time: '09:00', endTime: '12:30', category: 'learning', days: [...WEEKDAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
+  { name: 'Lunch', nameHe: '', time: '12:30', endTime: '', category: 'meals', days: [...WEEKDAYS], alertBefore: 0, countdownDisplay: 'slide', enabled: true },
+  { name: 'Mincha', nameHe: '', time: '13:30', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
+  { name: 'Second Seder', nameHe: '', time: '14:00', endTime: '17:30', category: 'learning', days: [...WEEKDAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
+  { name: 'Maariv', nameHe: '', time: '19:00', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
+  { name: 'Night Seder', nameHe: '', time: '20:00', endTime: '22:00', category: 'learning', days: [...WEEKDAYS], alertBefore: 0, countdownDisplay: 'slide', enabled: true },
 ];
 
 function ToggleSwitch({ on, onChange, label }) {
@@ -98,7 +99,7 @@ function CategoryDot({ color, size = 10 }) {
 const emptyForm = () => ({
   name: '', nameHe: '', time: '', endTime: '',
   category: '', days: [...WEEKDAYS],
-  alertBefore: 0, alertDisplay: 'slide', enabled: true,
+  alertBefore: 0, countdownDisplay: 'slide', enabled: true,
   icon: '',
 });
 
@@ -538,8 +539,8 @@ function EntryForm({ form, setForm, categories, onSubmit, onCancel, submitting, 
         <div>
           <label title="Slide — adds a brief alert slide in the carousel. Takeover — interrupts the screen with a full-screen overlay." style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Alert Type</label>
           <select
-            value={form.alertDisplay}
-            onChange={(e) => setForm(f => ({ ...f, alertDisplay: e.target.value }))}
+            value={form.countdownDisplay}
+            onChange={(e) => setForm(f => ({ ...f, countdownDisplay: e.target.value }))}
             style={{ ...inputStyle, marginTop: '4px' }}
           >
             <option value="slide">Slide (brief, in carousel)</option>
@@ -978,7 +979,8 @@ export default function ScheduleEditor({
       category: entry.category || '',
       days: entry.days || [...WEEKDAYS],
       alertBefore: entry.alertBefore || 0,
-      alertDisplay: entry.alertDisplay || 'slide',
+      // Legacy entries may carry `alertDisplay`; the stored key is `countdownDisplay`.
+      countdownDisplay: countdownDisplayOf(entry),
       enabled: entry.enabled !== false,
       icon: entry.icon || '',
     });
@@ -1001,7 +1003,7 @@ export default function ScheduleEditor({
         category: form.category || undefined,
         days: form.days,
         alertBefore: form.alertBefore,
-        alertDisplay: form.alertDisplay,
+        countdownDisplay: form.countdownDisplay,
         enabled: form.enabled,
         icon: form.icon || undefined,
       });
@@ -1026,7 +1028,7 @@ export default function ScheduleEditor({
         category: form.category || undefined,
         days: form.days,
         alertBefore: form.alertBefore,
-        alertDisplay: form.alertDisplay,
+        countdownDisplay: form.countdownDisplay,
         enabled: form.enabled,
         icon: form.icon || undefined,
       });
@@ -1225,14 +1227,14 @@ export default function ScheduleEditor({
                   </span>
                   {entry.alertBefore > 0 && (
                     <span
-                      title={`Alert ${entry.alertBefore} minute${entry.alertBefore > 1 ? 's' : ''} before — ${entry.alertDisplay === 'takeover' ? 'full-screen takeover' : 'slide in carousel'}`}
+                      title={`Alert ${entry.alertBefore} minute${entry.alertBefore > 1 ? 's' : ''} before — ${countdownDisplayOf(entry) === 'takeover' ? 'full-screen takeover' : 'slide in carousel'}`}
                       style={{
                         fontFamily: adminFonts.englishBody,
                         fontSize: '11px',
                         color: colors.copper,
                         flexShrink: 0,
                       }}>
-                      {entry.alertBefore}m {entry.alertDisplay === 'takeover' ? '⚡' : '▶'}
+                      {entry.alertBefore}m {countdownDisplayOf(entry) === 'takeover' ? '⚡' : '▶'}
                     </span>
                   )}
                 </>
@@ -1304,7 +1306,7 @@ export default function ScheduleEditor({
                     fontSize: '11px',
                     color: colors.copper,
                   }}>
-                    {entry.alertBefore}m {entry.alertDisplay === 'takeover' ? 'TKO' : 'SLD'}
+                    {entry.alertBefore}m {countdownDisplayOf(entry) === 'takeover' ? 'TKO' : 'SLD'}
                   </span>
                 )}
                 {entry.nameHe && (

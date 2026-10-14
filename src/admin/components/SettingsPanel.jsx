@@ -146,6 +146,20 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
 
   const visibility = local.visibility || {};
 
+  // Location / scheduler fields live in NESTED keys — that's what the server
+  // reads (app.js scheduler bootstrap, PUT /api/settings): settings.location.
+  // {zip,locationId} and settings.scheduler.{trackA,trackBTime}. Older admin
+  // builds wrote stray top-level zipCode/chabadLocationId/trackA/trackBTime,
+  // which the server ignored (audit bug 6). Read the nested key first and fall
+  // back to a stray key only for display; saving writes the nested key, and
+  // the server folds/removes stray keys (src/server/settings-migrate.js).
+  const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== '');
+  const locationZip = pick(local.location?.zip, local.zipCode) ?? '';
+  const locationId = pick(local.location?.locationId, local.chabadLocationId) ?? '';
+  // Server semantics: Track A runs unless scheduler.trackA === false.
+  const trackAEnabled = (local.scheduler?.trackA ?? local.trackA) !== false;
+  const trackBTime = pick(local.scheduler?.trackBTime, local.trackBTime) ?? '';
+
   return (
     <div>
       <div style={isMobile ? {
@@ -200,8 +214,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
             <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Zip Code <InfoIcon tip="Used to calculate daily zmanim (Jewish prayer times) for your location" /></label>
             <input
               type="text"
-              value={local.zipCode || ''}
-              onChange={(e) => update('zipCode', e.target.value)}
+              value={locationZip}
+              onChange={(e) => updateNested('location', 'zip', e.target.value)}
               style={{ ...inputStyle, marginTop: '4px' }}
             />
           </div>
@@ -209,8 +223,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
             <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Chabad Location ID <InfoIcon tip="Find your city's ID on chabad.org — used for Shabbat candle lighting times" /></label>
             <input
               type="text"
-              value={local.chabadLocationId || ''}
-              onChange={(e) => update('chabadLocationId', e.target.value)}
+              value={locationId}
+              onChange={(e) => updateNested('location', 'locationId', e.target.value)}
               style={{ ...inputStyle, marginTop: '4px' }}
             />
           </div>
@@ -424,8 +438,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
             <input
               type="checkbox"
-              checked={local.trackA || false}
-              onChange={(e) => update('trackA', e.target.checked)}
+              checked={trackAEnabled}
+              onChange={(e) => updateNested('scheduler', 'trackA', e.target.checked)}
             />
             <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>Enable Track A (morning schedule)</span>
           </label>
@@ -433,8 +447,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
             <label title="The time when the schedule switches from Track A to Track B. Use 24-hour format (e.g. 14:30 for 2:30 PM)" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Track B Start Time</label>
             <input
               type="text"
-              value={local.trackBTime || ''}
-              onChange={(e) => update('trackBTime', e.target.value)}
+              value={trackBTime}
+              onChange={(e) => updateNested('scheduler', 'trackBTime', e.target.value)}
               placeholder="e.g. 14:30 (24-hour)"
               style={{ ...inputStyle, marginTop: '4px', width: '180px' }}
             />

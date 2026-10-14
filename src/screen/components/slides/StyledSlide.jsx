@@ -871,6 +871,8 @@ export default function StyledSlide({ slide, tokens }) {
         inset: 0,
         overflow: 'hidden',
         borderRadius: '4px',
+        // Keep admin-typed line breaks in every style (inherited by all text).
+        whiteSpace: 'pre-line',
         ...config.getContainer(tokens),
       }}>
         {config.renderContent(data, tokens, slide)}

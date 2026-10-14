@@ -12,7 +12,12 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
   const reconnectTimer = useRef(null);
   const pollTimer = useRef(null);
   const lastEventTime = useRef(Date.now());
-  const [status, setStatus] = useState('disconnected');
+  const downTimer = useRef(null);
+  // 'disabled' when the caller turned SSE off (e.g. /screen?previewDate=…, which is a
+  // static snapshot from /api/preview-state and never opens /stream). This used to
+  // start as 'disconnected' and, with SSE disabled, never change — so every date
+  // preview showed a permanent "Disconnected" badge even though nothing was wrong.
+  const [status, setStatus] = useState(enabled ? 'connecting' : 'disabled');
 
   // Store callbacks in refs so the SSE connection doesn't depend on them
   const onEventRef = useRef(onEvent);
@@ -31,6 +36,15 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
   useEffect(() => {
     if (!enabled) return;
 
+    // Only report 'disconnected' after 10s without a live stream, so brief
+    // reconnects (tunnel hiccups, server restarts) don't flash the badge.
+    function markDown(next) {
+      setStatus(prev => (prev === 'disconnected' ? prev : next));
+      if (!downTimer.current) {
+        downTimer.current = setTimeout(() => setStatus('disconnected'), 10000);
+      }
+    }
+
     function connect() {
       if (esRef.current) {
         esRef.current.close();
@@ -48,6 +62,8 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
 
       es.onopen = () => {
         console.log('[SSE] Connected');
+        clearTimeout(downTimer.current);
+        downTimer.current = null;
         setStatus('connected');
         lastEventTime.current = Date.now();
         fetchFullState.current();
@@ -65,13 +81,14 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
 
       es.onerror = () => {
         console.warn('[SSE] Connection lost, reconnecting in 3s...');
-        setStatus('reconnecting');
+        markDown('reconnecting');
         es.close();
         esRef.current = null;
         reconnectTimer.current = setTimeout(connect, 3000);
       };
     }
 
+    markDown('connecting');
     connect();
 
     // Polling fallback — re-fetch full state every 5 seconds
@@ -81,7 +98,7 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
         console.warn('[SSE] Stale connection detected, forcing reconnect');
         esRef.current.close();
         esRef.current = null;
-        setStatus('reconnecting');
+        markDown('reconnecting');
         connect();
         return;
       }
@@ -95,6 +112,7 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
       }
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (pollTimer.current) clearInterval(pollTimer.current);
+      if (downTimer.current) clearTimeout(downTimer.current);
     };
   }, []); // Empty deps — connect once, never tear down from re-renders
 

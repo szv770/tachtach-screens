@@ -18,10 +18,17 @@ export function addClient(res, isPreview = false) {
   // Set SSE headers
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
+    // no-transform: tells Cloudflare (tunnel/proxy) not to compress or otherwise
+    // rewrite the stream — a transformed text/event-stream can be held back until a
+    // buffer fills, so events (incl. the 15s heartbeat) arrive late or not at all.
+    'Cache-Control': 'no-cache, no-transform',
     'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
   });
+
+  // Push headers out now and disable Nagle so small event frames aren't delayed.
+  res.flushHeaders?.();
+  res.socket?.setNoDelay?.(true);
 
   // Send initial connection event
   res.write(`data: ${JSON.stringify({ type: 'connected', data: { id } })}\n\n`);
