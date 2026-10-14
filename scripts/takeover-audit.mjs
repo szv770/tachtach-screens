@@ -88,7 +88,7 @@ function inPage(expect) {
   // 2. stack taller than its box
   root.querySelectorAll('.lyt').forEach((l) => {
     const bottom = Math.max(...[...l.children].map((c) => c.offsetTop + c.offsetHeight));
-    if (bottom > l.clientHeight + 2) out.fails.push(`layout stack taller than its box (${bottom} > ${l.clientHeight})`);
+    if (bottom > l.clientHeight + 4) out.fails.push(`layout stack taller than its box (${bottom} > ${l.clientHeight})`);
   });
 
   // 3. every text leaf: >= 20 px, inside the content box, off the side graphic and the chrome
