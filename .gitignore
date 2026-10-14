@@ -11,3 +11,5 @@ data/.puppeteer-tmp/
 .superpowers/
 .playwright-mcp/
 .claude/worktrees/
+data/announcements.json
+data/legacy/
