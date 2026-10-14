@@ -7,24 +7,20 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Rubik:wght@400;500;600;700;800&family=EB+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Frank+Ruhl+Libre:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-/* Owner-uploaded fonts (data/fonts.json → data/fonts/<id>.ttf). Family name = the name the owner gave it. */
 @font-face { font-family: 'FbMazalMedium';       src: url('fonts/639a27fb-e8a2-4ecd-9bd9-1ec66b07e521.ttf') format('truetype'); }
 @font-face { font-family: 'LiaShaharit Regular 1'; src: url('fonts/335be0ec-dc21-409c-bbc8-e10972958e94.ttf') format('truetype'); }
 @font-face { font-family: '1ShefaClassic';       src: url('fonts/1878d33d-34ff-495a-8a4a-7522a59e4b9a.ttf') format('truetype'); }
 @font-face { font-family: 'BAWSVenezia Regular'; src: url('fonts/6a5c0f34-1ccc-45f6-9775-0f65cd3526c4.ttf') format('truetype'); }
 @font-face { font-family: 'LiaHalel Regular';    src: url('fonts/0307dc9e-66e5-4fe7-88fd-19af31186c21.ttf') format('truetype'); }
 
-/* ═════════════ TachTach takeovers · round 3 ═════════════
-   BASE ROLES come from tokens.js exactly as in R2 (--bg --text --dim --muted --accent --onAccent --lift --liftPct).
-   A takeover STYLE only overrides STAGE ROLES, always derived from the base roles with color-mix():
-     --s-bg  stage surface        --s-ink  primary type      --s-dim  secondary type
-     --s-acc the one accent       --s-onacc type on accent   --s-accText accent used as type
-     --s-fill/--s-fillInk  time tile         --s-line hairlines
-     --a1..--a4  graphic hues (SVG art)      --sheet  an inner surface (scroll / doorway / page)
-   FONT ROLES only (never a family name in a style):
-     --f-he-disp --f-he --f-en-disp --f-en --f-num --f-th-he --f-th-en   (+ --he-scale)
-     a style picks a role for its display type: --f-disp-he / --f-disp-en / --f-big (numerals)
-   MOTION: entrance only, ≤1.2 s, opacity + transform, on small bbox-sized layers. No loops/blur/blend. */
+/* ═════════════ TachTach takeovers · round 3b ═════════════
+   BASE ROLES = R2 tokens (--bg --text --dim --muted --accent --onAccent --lift --liftPct).
+   A STYLE overrides STAGE ROLES only, derived with color-mix():
+     --s-bg --s-ink --s-dim --s-acc --s-onacc --s-accText --s-fill --s-fillInk --s-line --sheet --a1..--a4
+   FONT ROLES only: --f-he-disp --f-he --f-en-disp --f-en --f-num --f-th-he --f-th-en (+ --he-scale).
+   MOTION (owner decision, round 3b): a crafted ENTRANCE (≤1.2 s) + a gentle AMBIENT LOOP, takeovers only.
+     Only transform + opacity are ever animated; every moving thing is its own small layer (.lp);
+     no filter/blur/backdrop-filter/blend/box-shadow animation. Setting: anim = full | entrance | off. */
 
 @property --bg      { syntax: '<color>'; inherits: true; initial-value: #000; }
 @property --text    { syntax: '<color>'; inherits: true; initial-value: #fff; }
@@ -38,64 +34,60 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { background: var(--bg); overflow: hidden; }
-body { width: 1600px; height: 900px; color: var(--text); font-family: var(--f-en); -webkit-font-smoothing: antialiased; }
+body { color: var(--text); font-family: var(--f-en); -webkit-font-smoothing: antialiased; }
 .he { direction: rtl; font-family: var(--f-he); font-synthesis: none; }
 .num { font-family: var(--f-big); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
 
-/* ── stage ── */
 .stage {
   --s-bg: var(--bg); --s-ink: var(--text); --s-dim: var(--dim);
   --s-acc: var(--accent); --s-onacc: var(--onAccent); --s-accText: var(--s-acc);
   --s-fill: var(--s-acc); --s-fillInk: var(--s-onacc);
   --s-line: color-mix(in srgb, var(--s-ink) 16%, transparent);
-  --s-faint: color-mix(in srgb, var(--s-ink) 7%, transparent);
   --a1: var(--s-acc); --a2: var(--s-acc); --a3: var(--s-acc); --a4: var(--s-acc);
   --sheet: var(--raised);
   --f-disp-he: var(--f-he-disp); --f-disp-en: var(--f-en-disp); --f-big: var(--f-num);
-  --disp-w: 700; --tile-w: 700; --qt-w: 300; --en-track: -.03em;
-  position: relative; width: 1600px; height: 900px; overflow: hidden;
-  background: var(--s-bg); color: var(--s-ink);
+  --disp-w: 700; --en-w: 600; --tile-w: 700; --qt-w: 300; --en-track: -.03em;
+  position: relative; overflow: hidden; background: var(--s-bg); color: var(--s-ink);
 }
-/* readability floor: light families' secondary type never drops below 74% ink (tokens.js dim is 58%) */
 .light .stage { --s-dim: color-mix(in srgb, var(--s-ink) 74%, transparent); }
 .art { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
 .lay { position: absolute; }
-.lay > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.lp { position: absolute; inset: 0; }
+.lay svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .chrome { position: absolute; z-index: 4; font-size: 28px; font-weight: 600; color: var(--s-dim); line-height: 1; }
 .chrome.bh { font-family: var(--f-he); font-size: calc(30px * var(--he-scale)); font-weight: 500; direction: rtl; }
 .box { position: absolute; z-index: 3; }
 .box > .lyt { position: absolute; inset: 0; }
-
-/* svg art vocabulary: one monoline language for every style */
-.ln  { fill: none; stroke: var(--a1); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.ln2 { fill: none; stroke: var(--a2); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ln { fill: none; stroke: var(--a1); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ── type helpers ── */
-.fit { white-space: nowrap; overflow: hidden; line-height: 1.14; }
+.fit { overflow: hidden; line-height: 1.14; }
 .fit.wrap { white-space: normal; text-wrap: balance; }
+.fit.nw { white-space: nowrap; }
 .disp-he { font-family: var(--f-disp-he); font-weight: var(--disp-w); direction: rtl; font-synthesis: none; }
 .disp-en { font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: var(--en-track); }
-.kick { font-size: 34px; font-weight: 600; color: var(--s-accText); display: flex; gap: 22px; align-items: baseline; margin-bottom: 10px; }
-.kick .he { font-size: calc(36px * var(--he-scale)); font-weight: 600; }
+.kick { font-size: 34px; font-weight: 600; color: var(--s-accText); display: flex; gap: 22px; align-items: baseline; margin-bottom: 10px; white-space: nowrap; }
+.kick .he { font-size: 1.06em; font-weight: 600; }
 .center .kick { justify-content: center; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--s-line); display: inline-block; align-self: center; flex: none; }
+.w, .dg { display: inline-block; }
 
 /* ── LAYOUT: big words ── */
 .bw { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .start .bw { align-items: flex-start; text-align: left; }
-.bw .w-he { height: 42%; width: 100%; color: var(--s-accText); text-align: center; line-height: 1.12; }
+.bw .w-he { height: 44%; width: 100%; color: var(--s-accText); text-align: center; line-height: 1.12; }
 .start .bw .w-he { text-align: left; }
-.bw .w-en { height: 23%; width: 94%; font-weight: var(--en-w, 600); letter-spacing: -.02em; margin-top: 10px; line-height: 1.16; font-family: var(--f-disp-en); }
-.start .bw .w-en { width: 100%; }
-.bw .sub { margin-top: 26px; font-size: 32px; color: var(--s-dim); font-weight: 500; display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; justify-content: center; }
-.start .bw .sub { justify-content: flex-start; }
-.bw .sub .he { font-size: calc(34px * var(--he-scale)); }
+.bw .w-en { height: 26%; width: 96%; font-weight: var(--en-w); letter-spacing: -.02em; margin-top: 10px; line-height: 1.16; font-family: var(--f-disp-en); text-align: center; }
+.start .bw .w-en { width: 100%; text-align: left; }
+.bw .sub { margin-top: 24px; width: 100%; max-height: 110px; font-size: 32px; color: var(--s-dim); font-weight: 500; text-align: center; line-height: 1.3; }
+.start .bw .sub { text-align: left; }
+.bw .sub .he { font-size: 1.06em; }
 
 /* ── LAYOUT: event card ── */
 .ev { display: flex; flex-direction: column; }
 .ev .titles { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; }
-.ev .h-he { height: 34%; text-align: left; }
-.ev .h-en { height: 22%; }
+.ev .h-he { height: 54%; text-align: left; }
+.ev .h-en { height: 38%; }
 .center .ev .titles { align-items: center; text-align: center; } .center .ev .h-he { text-align: center; width: 100%; } .center .ev .h-en { width: 100%; }
 .ev .foot { flex: none; display: flex; align-items: center; gap: 44px; }
 .center .ev .foot { justify-content: center; }
@@ -104,69 +96,80 @@ body { width: 1600px; height: 900px; color: var(--text); font-family: var(--f-en
 .tile .day { font-size: 38px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
 .tile .day.he { font-size: calc(32px * var(--he-scale)); font-weight: 500; color: color-mix(in srgb, currentColor 80%, transparent); }
 .tile .t { font-size: var(--tile-size, 140px); font-weight: var(--tile-w); letter-spacing: -.05em; line-height: .9; white-space: nowrap; }
-.tile .t small { font-size: .28em; letter-spacing: 0; font-weight: 600; margin-left: 10px; color: color-mix(in srgb, currentColor 78%, transparent); }
-.place { min-width: 0; }
-.place .en { font-size: 42px; font-weight: 600; line-height: 1.15; }
-.place .en2 { font-size: 30px; color: var(--s-dim); font-weight: 500; margin-top: 4px; }
-.place .he { font-size: calc(34px * var(--he-scale)); color: var(--s-dim); text-align: left; margin-top: 6px; }
-.center .place .he { text-align: center; } .center .place { text-align: center; }
-.narrow .place .en { font-size: 36px; } .narrow .place .en2 { font-size: 27px; }
+.tile .t small { font-size: max(20px, .28em); letter-spacing: 0; font-weight: 600; margin-left: 10px; color: color-mix(in srgb, currentColor 78%, transparent); }
+.tile.only .when { display: none; }
+.tile.stackt { flex-direction: column; align-items: flex-start; gap: 6px; padding: 18px 32px 22px; }
+.tile.stackt .when { display: flex; gap: 16px; align-items: baseline; }
+.place { min-width: 0; max-width: 100%; }
+.place .en { font-size: calc(42px * var(--k, 1)); font-weight: 600; line-height: 1.15; }
+.place .en2 { font-size: calc(30px * var(--k, 1)); color: var(--s-dim); font-weight: 500; margin-top: 4px; line-height: 1.2; }
+.place .he { font-size: calc(34px * var(--he-scale) * var(--k, 1)); color: var(--s-dim); text-align: left; margin-top: 6px; line-height: 1.2; }
+.center .place .he, .center .place { text-align: center; }
 
 /* ── LAYOUT: list ── */
 .ls { display: flex; flex-direction: column; }
-.ls .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 30px; margin-bottom: 20px; }
-.ls .hd .en { font-size: 64px; line-height: 1.1; } .ls .hd .he { font-size: calc(58px * var(--he-scale)); line-height: 1.1; color: var(--s-accText); }
+.ls .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; margin-bottom: 20px; }
+.ls .hd .en { flex: 1 1 56%; min-width: 0; line-height: 1.15; }
+.ls .hd .he { flex: 0 1 38%; min-width: 0; line-height: 1.15; color: var(--s-accText); text-align: left; }
 .ls .items { flex: 1; display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
-.li { display: grid; grid-template-columns: 210px 1fr auto; align-items: center; column-gap: 28px; border-top: 2px solid var(--s-line); }
+.li { display: grid; grid-template-columns: 210px 1fr auto; align-items: center; column-gap: 28px; border-top: 2px solid var(--s-line); min-height: 0; overflow: hidden; }
 .li.nod { grid-template-columns: 1fr auto; }
-.li .d { font-size: 32px; font-weight: 600; color: var(--s-dim); }
+.li .d { font-size: 32px; font-weight: 600; color: var(--s-dim); line-height: 1.15; }
 .li .d.soon, .li.soon .tm { color: var(--s-accText); }
-.li .x { font-size: 42px; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; min-width: 0; }
-.li .x .he { display: block; font-size: calc(30px * var(--he-scale)); font-weight: 500; color: var(--s-dim); text-align: left; margin-top: 2px; }
-.li .tm { font-size: 54px; font-weight: 650; letter-spacing: -.035em; white-space: nowrap; }
+.li .x { font-size: calc(var(--lf, 42) * 1px); font-weight: 600; line-height: 1.16; letter-spacing: -.01em; min-width: 0; }
+.li .x .he { display: block; font-size: max(20px, calc(var(--lf, 42) * .78px * var(--he-scale))); font-weight: 500; color: var(--s-dim); text-align: left; margin-top: 2px; }
+.li .tm { font-size: calc(var(--lf, 42) * 1.28px); font-weight: 650; letter-spacing: -.035em; white-space: nowrap; }
 .li .tm small { font-size: 20px; font-weight: 600; letter-spacing: 0; margin-left: 6px; color: var(--s-dim); }
-.narrow .li { grid-template-columns: 150px 1fr auto; column-gap: 20px; } .narrow .li .d { font-size: 25px; } .narrow .li .x { font-size: 32px; } .narrow .ls .hd .en { font-size: 52px; }
+.narrow .li { grid-template-columns: 150px 1fr auto; column-gap: 20px; } .narrow .li .d { font-size: 25px; }
 
-/* ── LAYOUT: quick time (one time, two times, or a changed time) ── */
+/* ── LAYOUT: quick time ── */
 .qt { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .start .qt { align-items: flex-start; text-align: left; }
 .qt .nm { display: flex; align-items: baseline; gap: calc(34px * var(--k, 1)); max-width: 100%; white-space: nowrap; }
+.qt .nm.stack { flex-direction: column; align-items: inherit; gap: 0; white-space: nowrap; }
+.lyt > *, .qt > *, .ev > *, .bw > *, .qq > * { flex-shrink: 0; }
+.ev > .titles { flex-shrink: 1; }
 .qt .nm .he { font-size: calc(90px * var(--he-scale) * var(--k, 1)); line-height: 1.1; }
 .qt .nm .en { font-size: calc(78px * var(--k, 1)); line-height: 1.1; }
-.qt .big { height: 40%; width: 100%; font-weight: var(--qt-w); letter-spacing: -.06em; line-height: 1; color: var(--s-accText); text-align: inherit; }
+.pw { width: 100%; height: 42%; }
+.qt .big { height: 100%; width: 100%; font-weight: var(--qt-w); letter-spacing: -.06em; line-height: 1; color: var(--s-accText); text-align: inherit; }
 .qt .big small { font-size: .22em; font-weight: 500; letter-spacing: 0; margin-left: .18em; color: inherit; }
 .qt .big .pre { font-size: .2em; font-weight: 500; letter-spacing: 0; margin-right: .25em; color: var(--s-dim); }
 .qt .was { font-size: 34px; color: var(--s-dim); font-weight: 500; margin-top: -4px; display: flex; gap: 14px; align-items: baseline; }
 .qt .was s { text-decoration-thickness: 3px; color: var(--s-dim); }
-.qt .where { font-size: 36px; color: var(--s-dim); font-weight: 500; margin-top: 18px; display: flex; gap: 20px; align-items: baseline; flex-wrap: wrap; }
-.center .qt .where, .center .qt .was { justify-content: center; }
-.qt .where .he { font-size: calc(34px * var(--he-scale)); }
-.qt .times { display: flex; width: 100%; margin: 34px 0 6px; }
-.qt .tcol { flex: 1; min-width: 0; padding: 4px 44px 0; }
-.start .qt .tcol:first-child { padding-left: 0; }
-.qt .tcol + .tcol { border-left: 2px solid var(--s-line); }
-.qt .tcol .lab { display: flex; flex-direction: column; gap: 4px; }
-.start .qt .tcol .lab { align-items: flex-start; } .center .qt .tcol .lab { align-items: center; }
-.qt .tcol .lab .he { font-size: calc(40px * var(--he-scale)); font-weight: 600; }
-.qt .tcol .lab .en { font-size: 28px; color: var(--s-dim); font-weight: 500; }
-.qt .tcol .t { font-size: var(--t2-size, 150px); font-weight: var(--qt-w); letter-spacing: -.055em; line-height: 1; margin-top: 10px; color: var(--s-accText); white-space: nowrap; }
-.qt .tcol .t small { font-size: .26em; font-weight: 500; letter-spacing: 0; margin-left: .16em; }
+.qt .where { font-size: 36px; color: var(--s-dim); font-weight: 500; margin-top: 18px; max-width: 100%; line-height: 1.25; text-align: inherit; }
+.qt .where .he { font-size: 1.04em; }
+.times { display: flex; width: 100%; margin: 28px 0 6px; }
+.port .times { flex-direction: column; gap: 14px; }
+.tcol { flex: 1; min-width: 0; padding: 4px 44px 0; }
+.start .tcol:first-child { padding-left: 0; }
+.tcol + .tcol { border-left: 2px solid var(--s-line); }
+.port .tcol { padding: 0; } .port .tcol + .tcol { border-left: 0; border-top: 2px solid var(--s-line); padding-top: 14px; }
+.tcol .lab { display: flex; flex-direction: column; gap: 4px; }
+.start .tcol .lab { align-items: flex-start; } .center .tcol .lab { align-items: center; }
+.tcol .lab .he { font-size: calc(40px * var(--he-scale)); font-weight: 600; }
+.tcol .lab .en { font-size: 28px; color: var(--s-dim); font-weight: 500; }
+.tcol .t { font-size: var(--t2-size, 150px); font-weight: var(--qt-w); letter-spacing: -.055em; line-height: 1; margin-top: 10px; color: var(--s-accText); white-space: nowrap; }
+.tcol .t small { font-size: .26em; font-weight: 500; letter-spacing: 0; margin-left: .16em; }
 
-/* ── LAYOUT: inspiration (quote · sicha · letter) ── */
+/* ── LAYOUT: inspiration ── */
 .qq { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-.qq .q-he { width: 94%; height: 40%; font-family: var(--f-th-he); font-weight: 500; direction: rtl; text-align: center; line-height: 1.22; }
-.qq .q-en { width: 84%; height: 18%; font-family: var(--f-th-en); font-style: italic; font-weight: 400; color: var(--s-dim); line-height: 1.25; margin-top: 18px; }
+.qq .q-he { width: 94%; height: 42%; font-family: var(--f-th-he); font-weight: 500; direction: rtl; text-align: center; line-height: 1.22; }
+.qq .q-en { width: 86%; height: 22%; font-family: var(--f-th-en); font-style: italic; font-weight: 400; color: var(--s-dim); line-height: 1.25; margin-top: 18px; text-align: center; }
 .qq .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: 30px 0 22px; flex: none; }
-.qq .attr { font-size: 30px; color: var(--s-dim); font-weight: 500; display: flex; gap: 18px; align-items: baseline; }
-.qq .attr .he { font-family: var(--f-th-he); font-size: calc(32px * var(--he-scale)); }
+.qq .attr { font-size: 30px; color: var(--s-dim); font-weight: 500; max-width: 100%; text-align: center; }
+.qq .attr .he { font-family: var(--f-th-he); font-size: 1.06em; }
 .sc { display: flex; flex-direction: column; }
+.port .hd > * { flex: 0 0 auto !important; }
+.port .hd { flex-direction: column; align-items: stretch !important; gap: 6px !important; }
 .sc .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--s-line); }
-.sc .hd .en { font-family: var(--f-th-en); font-size: 44px; font-weight: 600; letter-spacing: -.01em; }
-.sc .hd .he { font-family: var(--f-th-he); font-size: calc(40px * var(--he-scale)); font-weight: 500; color: var(--s-accText); }
-.sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: 26px; font-family: var(--f-th-en); font-size: 38px; line-height: 1.5; font-weight: 400; text-wrap: pretty; max-width: 31em; }
+.sc .hd .en { flex: 1 1 58%; min-width: 0; font-family: var(--f-th-en); font-weight: 600; letter-spacing: -.01em; }
+.sc .hd .he { flex: 0 1 38%; min-width: 0; font-family: var(--f-th-he); font-weight: 500; color: var(--s-accText); text-align: left; }
+.sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: 26px; font-family: var(--f-th-en); font-size: 38px; line-height: 1.5; font-weight: 400; text-wrap: pretty; }
 .sc .body p + p { margin-top: .6em; }
 .ft { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 16px; font-size: 26px; color: var(--s-dim); font-weight: 500; }
-.ft .pg { display: flex; align-items: center; gap: 14px; }
+.ft > span:first-child { min-width: 0; }
+.ft .pg { display: flex; align-items: center; gap: 14px; flex: none; }
 .ft .pg i { width: 34px; height: 5px; border-radius: 3px; background: var(--s-line); }
 .ft .pg i.on { background: var(--s-accText); }
 .lt { display: flex; flex-direction: column; direction: rtl; }
@@ -176,57 +179,45 @@ body { width: 1600px; height: 900px; color: var(--text); font-family: var(--f-en
 .lt .close { font-family: var(--f-th-he); font-size: calc(36px * var(--he-scale)); font-weight: 700; text-align: left; margin-top: 20px; }
 .lt .ft { direction: ltr; }
 
-/* ═════════════ STYLES ═════════════
-   Each block: stage roles for the dark family, then `.light` overrides (chosen by luminance, as in R2). */
-
-/* classic — the theme exactly; one raised panel, one accent (light themes deepen the tile fill 12% so white type holds 4.5:1) */
-.light .st-classic { --s-fill: color-mix(in srgb, var(--s-acc) 88%, #000); }
+/* ═════════════ STYLES ═════════════ */
 .st-classic .panelbg { position: absolute; inset: 28px; border-radius: 40px; background: var(--raised); z-index: 0; }
+.light .st-classic { --s-fill: color-mix(in srgb, var(--s-acc) 88%, #000); }
 
-/* grand — gold, Torah-text display, engraved double keyline with notched corners */
 .st-grand { --s-bg: color-mix(in srgb, #000 26%, var(--bg)); --s-acc: #D6AF5C; --s-onacc: #1A1408;
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --f-big: var(--f-th-en); --disp-w: 600; --tile-w: 500; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --f-big: var(--f-th-en); --disp-w: 600; --en-w: 600; --tile-w: 500; --en-track: -.01em; }
 .light .st-grand { --s-bg: color-mix(in srgb, #FFF 50%, var(--bg)); --s-acc: #87631A; --s-onacc: #FFF; }
 .st-grand .tile { box-shadow: 0 0 0 2px var(--s-bg), 0 0 0 4px color-mix(in srgb, var(--s-acc) 60%, transparent); border-radius: 6px; }
 
-/* emergency — signal red, white type, hazard edge; never subtle */
 .st-emergency { --s-bg: #A3170F; --s-ink: #FFFFFF; --s-dim: rgba(255,255,255,.92); --s-acc: #FFFFFF; --s-onacc: #A3170F;
   --s-line: rgba(255,255,255,.32); --a1: #FFFFFF; --a2: rgba(0,0,0,.30); --disp-w: 800; }
 .light .st-emergency { --s-bg: #A91F17; --s-onacc: #A91F17; --s-dim: rgba(255,255,255,.92); --a2: rgba(255,255,255,.26); }
 
-/* sleek — monochrome, light numerals, a ruler */
 .st-sleek { --s-acc: var(--s-ink); --s-onacc: var(--s-bg); --s-accText: var(--s-ink); --a1: color-mix(in srgb, var(--s-ink) 42%, transparent);
   --a2: color-mix(in srgb, var(--s-ink) 20%, transparent); --disp-w: 500; --tile-w: 300; --qt-w: 200; }
 .st-sleek .tile { background: transparent; color: var(--s-ink); box-shadow: inset 0 0 0 2px var(--s-line); }
 
-/* celebration — fixed warm palette (no longer the theme accent), frozen confetti */
 .st-celebration { --s-bg: color-mix(in srgb, #2A0E22 74%, var(--bg)); --s-ink: color-mix(in srgb, #FFF4E6 78%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 70%, transparent); --s-acc: #EDBE5E; --s-onacc: #2A0E22;
   --a1: #EDBE5E; --a2: #E68C9F; --a3: #6CC7B8; --a4: #F4E7CC; --disp-w: 800; }
 .light .st-celebration { --s-bg: color-mix(in srgb, #FFF8EC 66%, var(--bg)); --s-ink: color-mix(in srgb, #3A1026 72%, var(--text));
   --s-acc: #A8325A; --s-onacc: #FFF; --a1: #D9A23A; --a2: #C9486F; --a3: #2F9A8C; --a4: #6E8FD6; }
 
-/* urgent — amber ring + folded corner; attention without alarm */
 .st-urgent { --s-acc: #F2A33A; --s-onacc: #1E1405; --s-bg: color-mix(in srgb, #F2A33A 7%, var(--bg)); }
 .light .st-urgent { --s-acc: #B05C08; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #F2A33A 9%, color-mix(in srgb, #FFF 40%, var(--bg))); }
 
-/* torah — an open scroll between two atzei chaim; parchment sheet; antique gold */
 .st-torah { --s-bg: color-mix(in srgb, #C9A46A 7%, var(--bg)); --sheet: color-mix(in srgb, #C9A46A 13%, var(--raised));
   --s-acc: #CFA155; --s-onacc: #1C1206; --a1: #CFA155; --a2: color-mix(in srgb, #CFA155 30%, var(--s-bg));
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 600; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 600; --en-w: 600; --en-track: -.01em; }
 .light .st-torah { --s-bg: color-mix(in srgb, #C9A46A 30%, var(--bg)); --sheet: color-mix(in srgb, #FBF1DA 80%, #FFF);
   --s-acc: #7A5520; --s-onacc: #FFF; --a1: #8E6A2E; --a2: color-mix(in srgb, #C9A46A 45%, #FFF); }
 
-/* trip — teal route, bus, contour map */
 .st-trip { --s-acc: #5BBCD0; --s-onacc: #06181C; --s-bg: color-mix(in srgb, #5BBCD0 7%, var(--bg)); }
 .light .st-trip { --s-acc: #156E7E; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #5BBCD0 9%, color-mix(in srgb, #FFF 40%, var(--bg))); }
 
-/* phone — indigo, outlined tile, phone into the box */
 .st-phone { --s-acc: #A3AEFF; --s-onacc: #0B0F2A; --s-bg: color-mix(in srgb, #7D8BFF 7%, var(--bg)); --tile-w: 600; }
 .light .st-phone { --s-acc: #3E4CC0; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #7D8BFF 8%, color-mix(in srgb, #FFF 40%, var(--bg))); }
 .st-phone .tile { background: transparent; color: var(--s-acc); box-shadow: inset 0 0 0 4px var(--s-acc); }
 
-/* memorial — accent-free type, one yahrzeit candle, slow fade */
 .st-memorial { --s-bg: color-mix(in srgb, #000 42%, var(--bg)); --s-ink: color-mix(in srgb, var(--text) 86%, var(--s-bg));
   --s-dim: color-mix(in srgb, var(--s-ink) 64%, transparent); --s-acc: var(--s-ink); --s-onacc: var(--s-bg); --s-accText: var(--s-ink);
   --a1: color-mix(in srgb, var(--s-ink) 46%, transparent); --a2: #EDB566; --a3: #FFF0CC;
@@ -235,106 +226,167 @@ body { width: 1600px; height: 900px; color: var(--text); font-family: var(--f-en
   --a1: color-mix(in srgb, var(--s-ink) 52%, transparent); --a2: #D48A24; --a3: #FFF6DE; }
 .st-memorial .tile { background: transparent; color: var(--s-ink); box-shadow: inset 0 0 0 2px var(--s-line); }
 
-/* hype — red-orange, heavy, static sunburst + speed bars */
 .st-hype { --s-acc: #FF6A45; --s-onacc: #1A0904; --s-bg: color-mix(in srgb, #FF5B3A 8%, var(--bg)); --disp-w: 800; --qt-w: 800; }
 .light .st-hype { --s-acc: #D23A1A; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #FF5B3A 6%, color-mix(in srgb, #FFF 45%, var(--bg))); }
 
-/* shabbos — night blue, two candlesticks, two times */
 .st-shabbos { --s-bg: color-mix(in srgb, #0A1536 74%, var(--bg)); --s-ink: color-mix(in srgb, #F6EFE2 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #F2C46A; --s-onacc: #0A1536;
   --a1: color-mix(in srgb, var(--s-ink) 52%, transparent); --a2: #F6C35E; --a3: #FFF4D6; --a4: #F3EEE4;
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 600; --qt-w: 300; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 600; --en-w: 600; --qt-w: 300; --en-track: -.01em; }
 .light .st-shabbos { --s-bg: color-mix(in srgb, #FCF8F0 62%, var(--bg)); --s-ink: color-mix(in srgb, #16224A 74%, var(--text));
   --s-acc: #2B4796; --s-onacc: #FFF; --a1: color-mix(in srgb, #8C6A2A 70%, transparent); --a2: #E3A02E; --a3: #FFF7E2; --a4: #FFFFFF; }
 
-/* yom tov — teal and gold, Magen David frieze top and bottom */
 .st-yomtov { --s-bg: color-mix(in srgb, #0B2B2A 72%, var(--bg)); --s-ink: color-mix(in srgb, #F2EEDF 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #DDB664; --s-onacc: #0B2B2A; --a1: #DDB664; --a2: #4FB5A5;
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-w: 600; --en-track: -.01em; }
 .light .st-yomtov { --s-bg: color-mix(in srgb, #F8F3E6 62%, var(--bg)); --s-ink: color-mix(in srgb, #0F2E2C 74%, var(--text));
   --s-acc: #1D6B63; --s-onacc: #FFF; --a1: #B58A33; --a2: #1D6B63; }
 
-/* siyum — leather and gold, a Gemara page with a ribbon */
 .st-siyum { --s-bg: color-mix(in srgb, #2B1512 66%, var(--bg)); --s-ink: color-mix(in srgb, #F5EBDC 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #DDB26A; --s-onacc: #2B1512;
   --a1: color-mix(in srgb, var(--s-ink) 20%, transparent); --a2: #B8404E; --a3: #DDB26A; --sheet: color-mix(in srgb, #F5EBDC 6%, var(--s-bg));
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-w: 600; --en-track: -.01em; }
 .light .st-siyum { --s-bg: color-mix(in srgb, #FBF5E8 62%, var(--bg)); --s-ink: color-mix(in srgb, #2A1210 74%, var(--text));
   --s-acc: #8A2A38; --s-onacc: #FFF; --a1: color-mix(in srgb, var(--s-ink) 22%, transparent); --a2: #9E2B3B; --a3: #B88A3A; --sheet: #FFFDF8; }
 
-/* farbrengen — warm copper, a lamp and a table */
 .st-farbrengen { --s-bg: color-mix(in srgb, #24150D 72%, var(--bg)); --s-ink: color-mix(in srgb, #F7EADB 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #E39B60; --s-onacc: #24150D; --a1: #E39B60; --a2: #F2B36A; --disp-w: 700; }
 .light .st-farbrengen { --s-bg: color-mix(in srgb, #F8EEDF 64%, var(--bg)); --s-ink: color-mix(in srgb, #2D170B 74%, var(--text));
   --s-acc: #9A4B1C; --s-onacc: #FFF; --a1: #A0582A; --a2: #F0B060; }
 
-/* mivtzoim — green, ripples spreading outward (ufaratzta) */
 .st-mivtzoim { --s-acc: #84C273; --s-onacc: #0C1A08; --s-bg: color-mix(in srgb, #84C273 6%, var(--bg)); }
 .light .st-mivtzoim { --s-acc: #2E7A3B; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #84C273 9%, color-mix(in srgb, #FFF 40%, var(--bg))); }
 
-/* welcome — Jerusalem-stone doorway */
 .st-welcome { --s-bg: color-mix(in srgb, #1F1A13 62%, var(--bg)); --s-ink: color-mix(in srgb, #F6EEDF 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #D8B983; --s-onacc: #1F1A13;
   --sheet: color-mix(in srgb, #FFF 5%, var(--s-bg)); --a1: #D8B983; --a2: color-mix(in srgb, var(--s-ink) 7%, transparent);
-  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-track: -.01em; }
+  --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-w: 600; --en-track: -.01em; }
 .light .st-welcome { --s-bg: color-mix(in srgb, #E9DCC4 58%, var(--bg)); --s-ink: color-mix(in srgb, #2A1E0E 74%, var(--text));
   --s-acc: #87602C; --s-onacc: #FFF; --sheet: color-mix(in srgb, #FFF 62%, var(--s-bg)); --a1: #A07A40; --a2: color-mix(in srgb, #87602C 12%, transparent); }
 
-/* simcha — birthday / personal simcha; bunting */
 .st-simcha { --s-bg: color-mix(in srgb, #0F2233 72%, var(--bg)); --s-ink: color-mix(in srgb, #F5F1EA 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #F4A869; --s-onacc: #0F2233;
   --a1: #F4A869; --a2: #EBCB6A; --a3: #74C7B4; --a4: #E98DA2; --disp-w: 800; }
 .light .st-simcha { --s-bg: color-mix(in srgb, #FFF8F1 64%, var(--bg)); --s-ink: color-mix(in srgb, #1E2A3A 72%, var(--text));
   --s-acc: #B8492A; --s-onacc: #FFF; --a1: #E08A5A; --a2: #D9B347; --a3: #3FA390; --a4: #D4708A; }
 
-/* schedule change — blue, clock with the old time ghosted */
 .st-schedule { --s-acc: #7AA8EA; --s-onacc: #08142A; --s-bg: color-mix(in srgb, #6F9FE0 6%, var(--bg));
   --a1: color-mix(in srgb, var(--s-ink) 40%, transparent); --a2: color-mix(in srgb, var(--s-ink) 24%, transparent); }
 .light .st-schedule { --s-acc: #2A5AA8; --s-onacc: #FFF; --s-bg: color-mix(in srgb, #6F9FE0 8%, color-mix(in srgb, #FFF 45%, var(--bg))); }
 
-/* quiet — no hue, no art, softer ink; for gentle notices */
 .st-quiet { --s-bg: color-mix(in srgb, var(--text) 3%, var(--bg)); --s-ink: color-mix(in srgb, var(--text) 88%, var(--s-bg));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: var(--s-ink); --s-onacc: var(--s-bg); --s-accText: var(--s-ink); --disp-w: 500; --en-w: 500; --qt-w: 300; --tile-w: 400; }
 .st-quiet .tile { background: transparent; color: var(--s-ink); box-shadow: inset 0 0 0 2px var(--s-line); }
 
-/* chanukah — indigo and gold, a Chabad (straight-armed) menorah */
 .st-chanukah { --s-bg: color-mix(in srgb, #0D1538 76%, var(--bg)); --s-ink: color-mix(in srgb, #F3EEE2 72%, var(--text));
   --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #EEC064; --s-onacc: #0D1538; --a1: #D9AE5A; --a2: #F7C65A; --a3: #FFF4D6; --a4: #F3EEE4; }
 .light .st-chanukah { --s-bg: color-mix(in srgb, #F8F6EF 62%, var(--bg)); --s-ink: color-mix(in srgb, #15204A 74%, var(--text));
   --s-acc: #24408E; --s-onacc: #FFF; --a1: #B4882E; --a2: #E39B25; --a3: #FFF7E2; --a4: #FFFFFF; }
 
-/* ═════════════ ENTRANCE (?enter=1) — one-shot, ≤1.2 s, transform/opacity only ═════════════ */
+.st-purim { --s-bg: color-mix(in srgb, #2B1146 74%, var(--bg)); --s-ink: color-mix(in srgb, #FBEFE0 78%, var(--text));
+  --s-dim: color-mix(in srgb, var(--s-ink) 70%, transparent); --s-acc: #F1C45A; --s-onacc: #2B1146;
+  --a1: #F1C45A; --a2: #E0589C; --a3: #59C9B5; --a4: #F6E3C8; --disp-w: 800; }
+.light .st-purim { --s-bg: color-mix(in srgb, #FFF6E8 66%, var(--bg)); --s-ink: color-mix(in srgb, #3A1546 74%, var(--text));
+  --s-acc: #8E2A74; --s-onacc: #FFF; --a1: #D9A02E; --a2: #C2408A; --a3: #2E9C8C; --a4: #6B4FB5; }
+
+.st-pesach { --s-bg: color-mix(in srgb, #2A0F18 74%, var(--bg)); --s-ink: color-mix(in srgb, #F6EBDD 76%, var(--text));
+  --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #E8C068; --s-onacc: #2A0F18;
+  --a1: #E8C068; --a2: #B03A50; --a3: #8FB08A; --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-w: 600; --en-track: -.01em; }
+.light .st-pesach { --s-bg: color-mix(in srgb, #FBF5EA 66%, var(--bg)); --s-ink: color-mix(in srgb, #3A1620 76%, var(--text));
+  --s-acc: #8C2438; --s-onacc: #FFF; --a1: #B08A3A; --a2: #9E2B3F; --a3: #5F8A5A; }
+
+.st-roshchodesh { --s-bg: color-mix(in srgb, #101A30 76%, var(--bg)); --s-ink: color-mix(in srgb, #EEF1F8 78%, var(--text));
+  --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #D3DDF7; --s-onacc: #101A30;
+  --a1: color-mix(in srgb, var(--s-ink) 48%, transparent); --a2: #E9D49A; --a3: #D3DDF7; --disp-w: 600; --en-w: 600; }
+.light .st-roshchodesh { --s-bg: color-mix(in srgb, #F1F2F7 66%, var(--bg)); --s-ink: color-mix(in srgb, #1A2340 76%, var(--text));
+  --s-acc: #2F4A8F; --s-onacc: #FFF; --a1: color-mix(in srgb, var(--s-ink) 50%, transparent); --a2: #B8913A; --a3: #2F4A8F; }
+
+.st-lagbaomer { --s-bg: color-mix(in srgb, #1E1710 74%, var(--bg)); --s-ink: color-mix(in srgb, #F7EBDA 76%, var(--text));
+  --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #F29A3E; --s-onacc: #1E1710;
+  --a1: #F29A3E; --a2: #F6D36A; --a3: #E2573B; --a4: #6B4A2B; --disp-w: 800; }
+.light .st-lagbaomer { --s-bg: color-mix(in srgb, #FBF1E0 66%, var(--bg)); --s-ink: color-mix(in srgb, #2E1A0C 76%, var(--text));
+  --s-acc: #B4511A; --s-onacc: #FFF; --a1: #E27A22; --a2: #F2B93E; --a3: #CC4A28; --a4: #7A5330; }
+
+.st-chassidic { --s-bg: color-mix(in srgb, #2A1013 74%, var(--bg)); --s-ink: color-mix(in srgb, #F8ECDD 76%, var(--text));
+  --s-dim: color-mix(in srgb, var(--s-ink) 68%, transparent); --s-acc: #E7B866; --s-onacc: #2A1013;
+  --a1: #E7B866; --a2: #F7D58A; --a3: #FFF3D2; --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --disp-w: 700; --en-w: 600; --en-track: -.01em; }
+.light .st-chassidic { --s-bg: color-mix(in srgb, #FBF3E6 66%, var(--bg)); --s-ink: color-mix(in srgb, #2E1114 76%, var(--text));
+  --s-acc: #8A2530; --s-onacc: #FFF; --a1: #B3862E; --a2: #D9A53A; --a3: #FFF1CF; }
+
+/* ═════════════ MOTION ═════════════
+   ENTRANCE (?enter=1): ≤1.2 s, staggered: art layers, then kicker / headline / tile / place.
+   AMBIENT (class anim-full): per-layer infinite loops on transform / opacity only, seamless by construction:
+     alternate (flame, sway, breathe, pulse, glide) · period translate (fall, drift, hazard, rise) · opacity 0 at both ends (ripple, rise, bus) · 360° spin.
+   anim-entrance = entrance only · anim-off = nothing. prefers-reduced-motion = nothing. */
 .enter .stage-in   { animation: aFade 260ms ease-out both; }
 .enter .lay[data-a] { animation-name: var(--an); animation-duration: var(--dur); animation-delay: var(--d); animation-timing-function: var(--ease, cubic-bezier(.22,.7,.2,1)); animation-fill-mode: backwards; }
 .enter [data-s] { animation: var(--tx-an, smIn) var(--tx-dur, 520ms) var(--tx-ease, cubic-bezier(.22,.7,.2,1)) backwards; animation-delay: calc(var(--tx-d0, 120ms) + min(var(--i, 0), 5) * var(--tx-step, 60ms)); }
+.enter .tile[data-s] { --tx-an: tilePop; --tx-dur: 600ms; --tx-ease: cubic-bezier(.2,1.25,.3,1); }
+.enter .kick[data-s] { --tx-an: kickIn; }
 .mo-calm   { --tx-an: fadeIn; --tx-dur: 720ms; --tx-step: 70ms; --tx-d0: 120ms; --tx-ease: ease-out; }
 .mo-rise   { --tx-an: smIn;  --tx-dur: 560ms; --tx-step: 70ms; --tx-d0: 160ms; }
 .mo-lively { --tx-an: liIn;  --tx-dur: 560ms; --tx-step: 60ms; --tx-d0: 180ms; --tx-ease: cubic-bezier(.2,.9,.25,1.12); }
 .mo-snap   { --tx-an: snIn;  --tx-dur: 240ms; --tx-step: 0ms;  --tx-d0: 60ms;  --tx-ease: ease-out; }
+.mo-drop   { --tx-an: dropIn; --tx-dur: 640ms; --tx-step: 70ms; --tx-d0: 200ms; --tx-ease: cubic-bezier(.2,.9,.3,1.1); }
+.mo-slide  { --tx-an: slideIn; --tx-dur: 600ms; --tx-step: 70ms; --tx-d0: 160ms; }
+/* lively extras (motion=lively, entrance only): words and digits reveal one by one, tile overshoots further */
+.enter.x-lively .w  { animation: wIn 520ms cubic-bezier(.2,1.1,.3,1) backwards; animation-delay: calc(260ms + min(var(--wi, 0), 8) * 45ms); }
+.enter.x-lively .dg { animation: dgIn 480ms cubic-bezier(.2,1,.3,1) backwards; animation-delay: calc(380ms + min(var(--wi, 0), 6) * 55ms); }
+.enter.x-lively .li[data-s] { --tx-an: slideIn; }
+
 @keyframes fadeIn { from { opacity: 0; } }
 @keyframes aFade  { from { opacity: 0; } }
 @keyframes smIn   { from { opacity: 0; transform: translateY(16px); } }
 @keyframes liIn   { from { opacity: 0; transform: translateY(30px) scale(.98); } }
 @keyframes snIn   { from { opacity: 0; transform: scale(.985); } }
+@keyframes dropIn { from { opacity: 0; transform: translateY(-26px); } }
+@keyframes slideIn{ from { opacity: 0; transform: translateX(-34px); } }
+@keyframes kickIn { from { opacity: 0; transform: translateX(-20px); } }
+@keyframes tilePop{ from { opacity: 0; transform: translateY(20px) scale(.9); } }
+@keyframes wIn    { from { opacity: 0; transform: translateY(.28em) scale(.96); } }
+@keyframes dgIn   { from { opacity: 0; transform: translateY(.18em); } }
 @keyframes aDrop  { from { opacity: 0; transform: translateY(-80px); } }
 @keyframes aDropS { from { opacity: 0; transform: translateY(-36px); } }
 @keyframes aRise  { from { opacity: 0; transform: translateY(40px); } }
 @keyframes aGrow  { from { opacity: 0; transform: scale(.94); } }
 @keyframes aGrowS { from { opacity: 0; transform: scale(.985); } }
+@keyframes aGrowY { from { opacity: 0; transform: scaleY(.55); } }
 @keyframes aSlideL{ from { opacity: 0; transform: translateX(-140px); } }
 @keyframes aSlideR{ from { opacity: 0; transform: translateX(140px); } }
 @keyframes aOpenL { from { opacity: 0; transform: translateX(240px); } }
 @keyframes aOpenR { from { opacity: 0; transform: translateX(-240px); } }
 @keyframes aUnroll{ from { opacity: 0; transform: scaleX(.7); } }
-@keyframes aDrive { from { opacity: 0; transform: translateX(-340px); } 30% { opacity: 1; } }
-@keyframes aInsert{ from { transform: translateY(-110px); } }
+@keyframes aInsert{ from { opacity: 0; transform: translateY(-60px); } }
+@keyframes aSlash { from { opacity: 0; transform: translate(-46px, -46px); } }
 @keyframes aFlame { from { opacity: 0; transform: scale(.4); } }
 @keyframes aTurnM { from { transform: rotate(-180deg); } }
 @keyframes aTurnH { from { transform: rotate(-15deg); } }
 @keyframes aSpin  { from { opacity: 0; transform: rotate(-9deg); } }
 @keyframes aBand  { from { opacity: 0; transform: translateY(-50px); } }
 @keyframes aBandU { from { opacity: 0; transform: translateY(50px); } }
-@media (prefers-reduced-motion: reduce) { .enter * { animation: none !important; } }
+@keyframes aBalloon { from { opacity: 0; transform: translateY(60px); } }
+
+/* ambient loops (each class = one keyframe; amplitude/period come from --vars on the .lp layer) */
+.anim-full .lp[data-loop] { animation: var(--lk) calc(var(--ld) * var(--ts, 1) * 1s) var(--le, ease-in-out) calc(var(--ldl, 0) * 1s) infinite var(--ldir, alternate); }
+@keyframes kBreathe { 0%, 100% { opacity: var(--o0, .65); } 50% { opacity: 1; } }
+@keyframes kTwinkle { 0%, 100% { opacity: .22; } 50% { opacity: 1; } }
+@keyframes kPulse   { 0%, 100% { transform: scale(1); } 50% { transform: scale(var(--ps, 1.05)); } }
+@keyframes kSway    { 0%, 100% { transform: rotate(calc(var(--sa, 1.2) * -1deg)); } 50% { transform: rotate(calc(var(--sa, 1.2) * 1deg)); } }
+@keyframes kBob     { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(var(--by, -5px)); } }
+@keyframes kGlide   { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(var(--dx)); } }
+@keyframes kFlameA  { 0%, 100% { transform: scale(1, 1) rotate(0deg); } 17% { transform: scale(.96, 1.06) rotate(-1.8deg); } 38% { transform: scale(1.03, .96) rotate(1.3deg); } 61% { transform: scale(.97, 1.07) rotate(-.9deg); } 83% { transform: scale(1.02, .98) rotate(1.6deg); } }
+@keyframes kFlameB  { 0%, 100% { transform: scale(1, 1.02) rotate(.6deg); } 22% { transform: scale(1.03, .96) rotate(-1.4deg); } 47% { transform: scale(.96, 1.07) rotate(1.7deg); } 69% { transform: scale(1.02, 1) rotate(-1deg); } 88% { transform: scale(.98, 1.05) rotate(.8deg); } }
+@keyframes kFall    { from { transform: translateY(0); } to { transform: translateY(var(--fy)); } }
+@keyframes kDrift   { from { transform: translateX(0); } to { transform: translateX(var(--dx)); } }
+@keyframes kSpin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes kRipple  { 0% { opacity: 0; transform: scale(.6); } 14% { opacity: var(--ro, .9); } 100% { opacity: 0; transform: scale(1.16); } }
+@keyframes kRing    { 0% { opacity: 0; transform: scale(.7); } 20% { opacity: var(--ro, .6); } 100% { opacity: 0; transform: scale(1.5); } }
+@keyframes kRise    { 0% { opacity: 0; transform: translateY(0); } 12% { opacity: var(--ro, .9); } 82% { opacity: var(--ro, .9); } 100% { opacity: 0; transform: translateY(var(--ry)); } }
+@keyframes kPhase   { 0%, 100% { opacity: .35; } 8%, 16% { opacity: 1; } 28% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .stage, .stage * { animation: none !important; } }
+.anim-entrance .lp[data-loop], .anim-off .lp[data-loop] { animation: none; }
+.anim-off, .anim-off * { animation: none !important; }
+.anim-full .st-hype .pw { animation: kPulse 3.2s ease-in-out infinite; --ps: 1.03; transform-origin: 50% 60%; }
 </style>
 </head>
 <body>
@@ -364,8 +416,6 @@ function applyTheme(name) {
   for (const k in v) rs.setProperty('--' + k, v[k]);
   document.documentElement.classList.toggle('light', light);
 }
-
-/* ── font roles. Presets only fill roles; any uploaded family can be dropped into any role. ── */
 const FB = { heSans: "'Rubik'", enSans: "'Manrope'", heSerif: "'Frank Ruhl Libre'", enSerif: "'EB Garamond'" };
 const FONTSETS = {
   default: { heDisp: FB.heSans, he: FB.heSans, enDisp: FB.enSans, en: FB.enSans, num: FB.enSans, thHe: FB.heSerif, thEn: FB.enSerif, heScale: 1 },
@@ -374,272 +424,316 @@ const FONTSETS = {
 };
 const q = new URLSearchParams(location.search);
 const P = { style: q.get('style') || 'celebration', layout: q.get('layout'), theme: q.get('theme') || 'midnight', fonts: q.get('fonts') || 'default',
-  hefont: q.get('hefont'), enter: q.get('enter') === '1', t: q.get('t'), pg: +(q.get('pg') || 1), msg: q.get('msg') };
+  hefont: q.get('hefont'), enter: q.get('enter') === '1', t: q.get('t'), pg: +(q.get('pg') || 1), len: q.get('len'),
+  canvas: q.get('canvas') || 'land', motion: q.get('motion') || 'smooth', anim: q.get('anim'), ts: q.get('ts') };
+/* animation setting: full | entrance | off.  Global motion mode maps: smooth → full, minimal → entrance only, lively → full + extras */
+const ANIM = P.anim || (P.motion === 'minimal' ? 'entrance' : 'full');
 applyTheme(P.theme);
 const F = { ...(FONTSETS[P.fonts] || FONTSETS.default) };
-if (P.hefont) { const fam = `'${P.hefont}', ${FB.heSerif}`; F.heDisp = fam; F.thHe = fam; F.heScale = +(q.get('hescale') || 1.1); }  // any uploaded font into the Hebrew display + Torah roles
+if (P.hefont) { const fam = `'${P.hefont}', ${FB.heSerif}`; F.heDisp = fam; F.thHe = fam; F.heScale = +(q.get('hescale') || 1.1); }
 const rs = document.documentElement.style;
 [['he-disp', F.heDisp], ['he', F.he], ['en-disp', F.enDisp], ['en', F.en], ['num', F.num], ['th-he', F.thHe], ['th-en', F.thEn]]
   .forEach(([k, v]) => rs.setProperty('--f-' + k, v + ', serif'));
 rs.setProperty('--he-scale', F.heScale);
 
+/* ── canvas: land 1600x900 · 16x10 = 1600x1000 · port 900x1600 ── */
+const CANVAS = { land: [1600, 900], '16x10': [1600, 1000], port: [900, 1600] }[P.canvas] || [1600, 900];
+const [W, H] = CANVAS, PORT = W < H;
+document.body.style.cssText = `width:${W}px;height:${H}px`;
+
 /* ── tiny helpers ── */
 function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 const f1 = n => (+n).toFixed(1);
-/* a layer = a bbox-sized div holding SVG drawn in stage coordinates. Only layers that animate become compositor layers,
-   and only for the ≤1.2 s of the entrance (fill-mode: backwards → they drop back to static paint afterwards). */
-function layer(x, y, w, h, inner, a = null) {
-  const an = a ? ` data-a style="left:${x}px;top:${y}px;width:${w}px;height:${h}px;--an:${a.an};--dur:${a.dur || 700}ms;--d:${a.d || 0}ms;${a.ease ? `--ease:${a.ease};` : ''}transform-origin:${a.o || 'center'}"`
-               : ` style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"`;
-  return `<div class="lay"${an}><svg viewBox="${x} ${y} ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${inner}</svg></div>`;
+let MAP = { s: 1, ox: 0, oy: 0 }; const ID = { s: 1, ox: 0, oy: 0 };
+let SIDE = ID, ARTRECTS = [], UID = 0;
+const side = fn => { const p = MAP; MAP = SIDE; const r = fn(); MAP = p; return r; };
+/* a layer = a bbox-sized div holding SVG in stage coordinates.
+   a  = entrance {an,dur,d,ease,o}       lp = ambient loop {k,d,dl,e,dir,o,vars:{fy:px,...}}   (px vars scale with MAP) */
+function layer(x, y, w, h, inner, a = null, lp = null) {
+  const m = MAP, X = m.ox + x * m.s, Y = m.oy + y * m.s, Wd = w * m.s, Ht = h * m.s;
+  const ea = a ? ` data-a style="left:${f1(X)}px;top:${f1(Y)}px;width:${f1(Wd)}px;height:${f1(Ht)}px;--an:${a.an};--dur:${a.dur || 700}ms;--d:${a.d || 0}ms;${a.ease ? `--ease:${a.ease};` : ''}transform-origin:${a.o || '50% 50%'}"`
+               : ` style="left:${f1(X)}px;top:${f1(Y)}px;width:${f1(Wd)}px;height:${f1(Ht)}px"`;
+  let la = '';
+  if (lp) { const v = Object.entries(lp.vars || {}).map(([k, val]) => `--${k}:${typeof val === 'number' ? f1(val * m.s) + 'px' : val}`).join(';');
+    la = ` data-loop="${lp.k}" style="--lk:${lp.k};--ld:${lp.d};--ldl:${lp.dl || 0};--le:${lp.e || 'ease-in-out'};--ldir:${lp.dir || 'alternate'};transform-origin:${lp.o || '50% 50%'};${v}"`; }
+  return `<div class="lay ${(a && a.cls) || ''}"${ea}><div class="lp"${la}><svg viewBox="${x} ${y} ${w} ${h}" xmlns="http://www.w3.org/2000/svg">${inner}</svg></div></div>`;
 }
-const flame = (cx, by, h, outer = 'var(--a2)', inner = 'var(--a3)') => {   // static flame: base centre (cx, by), height h
+const flame = (cx, by, h, outer = 'var(--a2)', inner = 'var(--a3)') => {
   const w = h * .42;
   return `<path d="M${cx} ${by - h} C${cx + w * .55} ${by - h * .62} ${cx + w * .62} ${by - h * .25} ${cx + w * .4} ${by - h * .08} C${cx + w * .25} ${by + h * .04} ${cx - w * .25} ${by + h * .04} ${cx - w * .4} ${by - h * .08} C${cx - w * .62} ${by - h * .25} ${cx - w * .55} ${by - h * .62} ${cx} ${by - h}Z" style="fill:${outer}"/>
     <path d="M${cx} ${by - h * .55} C${cx + w * .26} ${by - h * .36} ${cx + w * .28} ${by - h * .14} ${cx + w * .14} ${by - h * .05} C${cx + w * .06} ${by} ${cx - w * .06} ${by} ${cx - w * .14} ${by - h * .05} C${cx - w * .28} ${by - h * .14} ${cx - w * .26} ${by - h * .36} ${cx} ${by - h * .55}Z" style="fill:${inner}"/>`;
 };
-const glow = (id, cx, cy, r, col, a) => `<defs><radialGradient id="${id}"><stop offset="0" style="stop-color:${col};stop-opacity:${a}"/><stop offset=".45" style="stop-color:${col};stop-opacity:${a * .38}"/><stop offset="1" style="stop-color:${col};stop-opacity:0"/></radialGradient></defs><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id})"/>`;
+const glow = (cx, cy, r, col, a) => { const id = 'g' + (++UID); return `<defs><radialGradient id="${id}"><stop offset="0" style="stop-color:${col};stop-opacity:${a}"/><stop offset=".45" style="stop-color:${col};stop-opacity:${a * .38}"/><stop offset="1" style="stop-color:${col};stop-opacity:0"/></radialGradient></defs><circle cx="${cx}" cy="${cy}" r="${r}" fill="url(#${id})"/>`; };
+const star4 = (x, y, r, st) => { const i = r * .26; return `<path d="M${f1(x)} ${f1(y - r)} L${f1(x + i)} ${f1(y - i)} L${f1(x + r)} ${f1(y)} L${f1(x + i)} ${f1(y + i)} L${f1(x)} ${f1(y + r)} L${f1(x - i)} ${f1(y + i)} L${f1(x - r)} ${f1(y)} L${f1(x - i)} ${f1(y - i)}Z" style="${st}"/>`; };
 
-/* ═════════════ ART — one function per style; returns layers ═════════════ */
+/* confetti-like scatter: static top garland + two falling strips on each side (period = H, seamless) */
+function rain(G, seed, make, { nTop = 30, nCol = 12, cols = 4 }) {
+  const R = rng(seed), [bl, bt, br, bb] = G.box, pad = 30; let out = '';
+  const top = [];
+  for (let i = 0, t = 0; i < nTop && t < 4000; t++) {
+    const x = R() * W, y = R() * H * .24;
+    if (x > bl - pad && x < br + pad && y > bt - pad) continue;
+    if (y < 96 && (x < 330 || x > W - 330)) continue;
+    top.push(make(R, x, y, cols)); i++;
+  }
+  out += layer(0, 0, W, H * .26, top.join(''), { an: 'aDrop', dur: 760, d: 0, ease: 'cubic-bezier(.2,.8,.3,1)' });
+  /* strips: left [0, bl-pad], right [br+pad, W]; two speeds each. Pieces are duplicated one period below so the loop has no seam. */
+  const strips = [[0, Math.max(60, bl - pad)], [Math.min(W - 60, br + pad), W]];
+  strips.forEach(([x0, x1], si) => [0, 1].forEach(k => {
+    const pcs = []; const RR = rng(seed + si * 31 + k * 7);
+    for (let i = 0; i < nCol; i++) { const x = x0 + 14 + RR() * (x1 - x0 - 28), y = RR() * H; if (y < 96 && (x < 330 || x > W - 330)) { i--; continue; } pcs.push([x, y, RR]); }
+    const mk = (dy) => pcs.map(([x, y, r2]) => make(rng(Math.round(x * 7 + y)), x, y + dy, cols)).join('');
+    out += layer(x0, -H, x1 - x0, 2 * H, mk(0) + mk(-H), { an: 'aFade', dur: 700, d: 160 + k * 100 },
+      { k: 'kFall', d: k ? 46 : 70, e: 'linear', dir: 'normal', dl: -(si * 11 + k * 23), vars: { fy: H } });
+  }));
+  return out;
+}
+const pieceConfetti = (R, x, y, cols) => {
+  const c = `var(--a${1 + Math.floor(R() * cols)})`, rot = Math.round(R() * 180), k = R(), op = (.5 + R() * .45).toFixed(2);
+  if (k < .42) { const w = 16 + R() * 16, h = 7 + R() * 4; return `<rect x="${f1(x - w / 2)}" y="${f1(y - h / 2)}" width="${f1(w)}" height="${f1(h)}" rx="2" transform="rotate(${rot} ${f1(x)} ${f1(y)})" style="fill:${c};opacity:${op}"/>`; }
+  if (k < .64) return `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(4 + R() * 5)}" style="fill:${c};opacity:${op}"/>`;
+  if (k < .84) { const L = 16 + R() * 10; return `<path d="M${f1(x - L)} ${f1(y)} q${f1(L / 2)} -${f1(L / 2.2)} ${f1(L)} 0 t${f1(L)} 0" transform="rotate(${rot} ${f1(x)} ${f1(y)})" style="fill:none;stroke:${c};stroke-width:4;stroke-linecap:round;opacity:${op}"/>`; }
+  return star4(x, y, 7 + R() * 7, `fill:${c};opacity:${op}`);
+};
+const pieceHaman = (R, x, y, cols) => {   /* hamantaschen: rounded triangle with a filling dot */
+  const c = `var(--a${1 + Math.floor(R() * cols)})`, r = 15 + R() * 13, rot = Math.round(R() * 120), op = (.55 + R() * .4).toFixed(2);
+  const p = [0, 1, 2].map(j => { const a = (-90 + j * 120) * Math.PI / 180; return [x + r * Math.cos(a), y + r * Math.sin(a)]; });
+  if (R() < .3) return star4(x, y, 6 + R() * 6, `fill:var(--a1);opacity:${op}`);
+  return `<g transform="rotate(${rot} ${f1(x)} ${f1(y)})" style="opacity:${op}"><path d="M${f1(p[0][0])} ${f1(p[0][1])} L${f1(p[1][0])} ${f1(p[1][1])} L${f1(p[2][0])} ${f1(p[2][1])}Z" style="fill:${c};stroke:${c};stroke-width:5;stroke-linejoin:round"/><circle cx="${f1(x)}" cy="${f1(y + r * .12)}" r="${f1(r * .26)}" style="fill:var(--a4);opacity:.85"/></g>`;
+};
+const twinkles = (G, seed, n, color, rmin = 5, rmax = 11, region = [0, 0, W, Math.round(H * .24)]) => {
+  const R = rng(seed), [bl, bt, br, bb] = G.box; let a = '', b = '';
+  for (let i = 0, t = 0; i < n && t < 3000; t++) { const x = region[0] + R() * region[2], y = region[1] + R() * region[3];
+    if (x > bl - 24 && x < br + 24 && y > bt - 24 && y < bb + 24) continue; if (y < 96 && (x < 330 || x > W - 330)) continue;
+    (i % 2 ? a : b); const s = star4(x, y, rmin + R() * (rmax - rmin), `fill:${color};opacity:.9`); if (i % 2) a += s; else b += s; i++; }
+  return layer(region[0], region[1], region[2], region[3], a, { an: 'aFade', dur: 800, d: 300 }, { k: 'kTwinkle', d: 3.6, dl: -1.2 }) + layer(region[0], region[1], region[2], region[3], b, { an: 'aFade', dur: 800, d: 380 }, { k: 'kTwinkle', d: 4.4, dl: -3 });
+};
+
+/* ═════════════ ART — one function per style; returns layers.  G = {W,H,port,box:[l,t,r,b],light} ═════════════ */
 const ART = {
-  classic() {
-    return `<div class="panelbg"></div>` + layer(28, 28, 1544, 10, `<rect x="748" y="28" width="104" height="7" rx="3.5" style="fill:var(--s-acc)"/>`);
+  classic(G) {
+    return `<div class="panelbg"></div>` + layer(W / 2 - 52, 28, 104, 10, `<rect x="${W / 2 - 52}" y="28" width="104" height="7" rx="3.5" style="fill:var(--s-acc)"/>`, null, { k: 'kBreathe', d: 4.5, vars: { o0: .45 } });
   },
 
-  grand() {
-    const W = 1600, H = 900;
+  grand(G) {
     const notch = (i, r) => `M${i + r} ${i} H${W - i - r} A${r} ${r} 0 0 0 ${W - i} ${i + r} V${H - i - r} A${r} ${r} 0 0 0 ${W - i - r} ${H - i} H${i + r} A${r} ${r} 0 0 0 ${i} ${H - i - r} V${i + r} A${r} ${r} 0 0 0 ${i + r} ${i}Z`;
     const dia = (x, y, s) => `<path d="M${x} ${y - s} L${x + s} ${y} L${x} ${y + s} L${x - s} ${y}Z" style="fill:var(--s-acc)"/>`;
-    const cartouche = y => `<rect x="${800 - 70}" y="${y - 8}" width="140" height="16" style="fill:var(--s-bg)"/>${dia(800, y, 9)}
-      <path d="M${800 - 64} ${y} H${800 - 22} M${800 + 22} ${y} H${800 + 64}" style="stroke:var(--s-acc);stroke-width:1.6"/>
-      <circle cx="${800 - 70}" cy="${y}" r="2.6" style="fill:var(--s-acc)"/><circle cx="${800 + 70}" cy="${y}" r="2.6" style="fill:var(--s-acc)"/>`;
-    const corners = [[46, 46], [W - 46, 46], [46, H - 46], [W - 46, H - 46]].map(([x, y]) => dia(x, y, 7)).join('');
+    const cart = y => `<rect x="${W / 2 - 70}" y="${y - 8}" width="140" height="16" style="fill:var(--s-bg)"/>
+      <path d="M${W / 2 - 64} ${y} H${W / 2 - 22} M${W / 2 + 22} ${y} H${W / 2 + 64}" style="stroke:var(--s-acc);stroke-width:1.6"/>
+      <circle cx="${W / 2 - 70}" cy="${y}" r="2.6" style="fill:var(--s-acc)"/><circle cx="${W / 2 + 70}" cy="${y}" r="2.6" style="fill:var(--s-acc)"/>`;
     const frame = `<path d="${notch(40, 34)}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 75%, transparent);stroke-width:2.4"/>
-      <path d="${notch(54, 48)}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 42%, transparent);stroke-width:1.2"/>${corners}${cartouche(40)}${cartouche(H - 40)}`;
-    return layer(0, 0, W, H, frame, { an: 'aGrowS', dur: 900, d: 0 });
+      <path d="${notch(54, 48)}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 42%, transparent);stroke-width:1.2"/>${cart(40)}${cart(H - 40)}`;
+    let o = layer(0, 0, W, H, frame, { an: 'aGrowS', dur: 900, d: 0 });
+    [[46, 46], [W - 46, 46], [46, H - 46], [W - 46, H - 46], [W / 2, 40], [W / 2, H - 40]].forEach(([x, y], i) =>
+      o += layer(x - 14, y - 14, 28, 28, dia(x, y, i > 3 ? 9 : 7), { an: 'aFade', dur: 500, d: 300 + i * 50 }, { k: 'kBreathe', d: 5.5, dl: -i * .9, vars: { o0: .3 } }));
+    return o;
   },
 
-  emergency() {
-    const band = y => { let s = ''; for (let x = -40; x < 1640; x += 56) s += `<path d="M${x} ${y + 26} L${x + 26} ${y} H${x + 54} L${x + 28} ${y + 26}Z" style="fill:var(--a2)"/>`; return s; };
+  emergency(G) {
+    const band = y => { let s = ''; for (let x = -56; x < W + 112; x += 56) s += `<path d="M${x} ${y + 26} L${x + 26} ${y} H${x + 54} L${x + 28} ${y + 26}Z" style="fill:var(--a2)"/>`; return s; };
     const tri = `<path d="M250 268 L432 610 Q440 626 422 626 H78 Q60 626 68 610 Z" style="fill:none;stroke:var(--a1);stroke-width:22;stroke-linejoin:round"/>
       <path d="M250 398 V514" style="stroke:var(--a1);stroke-width:24;stroke-linecap:round"/><circle cx="250" cy="570" r="15" style="fill:var(--a1)"/>`;
-    return layer(0, 0, 1600, 26, band(0)) + layer(0, 874, 1600, 26, band(874)) + layer(50, 250, 400, 400, tri, { an: 'aGrow', dur: 320, d: 40, ease: 'cubic-bezier(.2,.9,.3,1.2)' });
+    return layer(-56, 0, W + 112, 26, band(0), null, { k: 'kDrift', d: 2.6, e: 'linear', dir: 'normal', vars: { dx: 56 } })
+      + layer(-56, H - 26, W + 112, 26, band(H - 26), null, { k: 'kDrift', d: 2.6, e: 'linear', dir: 'normal', vars: { dx: -56 } })
+      + side(() => layer(50, 250, 400, 400, tri, { an: 'aGrow', dur: 320, d: 40, ease: 'cubic-bezier(.2,.9,.3,1.2)' }, { k: 'kPulse', d: 1.3, vars: { ps: 1.05 } }));
   },
 
-  sleek() {
-    let t = `<path d="M96 836 H1504" style="stroke:var(--a1);stroke-width:1.5"/>`;
-    for (let x = 96, k = 0; x <= 1504; x += 17.6, k++) t += `<path d="M${f1(x)} 836 V${k % 10 === 0 ? 812 : k % 5 === 0 ? 822 : 828}" style="stroke:${k % 10 === 0 ? 'var(--a1)' : 'var(--a2)'};stroke-width:1.5"/>`;
-    return layer(90, 800, 1420, 50, t, { an: 'aUnroll', dur: 800, d: 0, o: 'left center' });
+  sleek(G) {
+    let t = `<path d="M96 ${H - 64} H${W - 96}" style="stroke:var(--a1);stroke-width:1.5"/>`;
+    for (let x = 96, k = 0; x <= W - 96; x += 17.6, k++) t += `<path d="M${f1(x)} ${H - 64} V${H - 64 - (k % 10 === 0 ? 24 : k % 5 === 0 ? 14 : 8)}" style="stroke:${k % 10 === 0 ? 'var(--a1)' : 'var(--a2)'};stroke-width:1.5"/>`;
+    const mk = `<path d="M96 ${H - 66} l-8 -22 h16Z" style="fill:var(--s-ink)"/>`;
+    return layer(90, H - 100, W - 180, 50, t, { an: 'aUnroll', dur: 800, d: 0, o: '0% 50%' })
+      + layer(88, H - 94, 16, 30, mk, { an: 'aFade', dur: 600, d: 600 }, { k: 'kGlide', d: 30, vars: { dx: W - 192 } });
   },
 
-  celebration() {
-    const R = rng(7), regions = { top: [0, 0, 1600, 230], left: [0, 230, 250, 670], right: [1350, 230, 250, 670], bot: [250, 800, 1100, 100] };
-    const out = { top: '', left: '', right: '', bot: '' };
-    const cols = ['var(--a1)', 'var(--a2)', 'var(--a3)', 'var(--a4)'];
-    let n = 0, tries = 0;
-    while (n < 64 && tries < 6000) {
-      tries++;
-      const x = R() * 1600, y = R() * 900;
-      const inCentre = x > 250 && x < 1350 && y > 200 && y < 800;
-      if (inCentre || (y < 96 && (x < 300 || x > 1440))) continue;   // keep clear of the text and of the clock / ב״ה
-      const edge = Math.min(x, 1600 - x) / 800, top = y / 900;          // denser at top corners, sparser downward
-      const p = y < 230 ? .9 - edge * .55 : (x < 250 || x > 1350) ? .7 - top * .55 : .18;
-      if (R() > p) continue;
-      const reg = y < 230 ? 'top' : x < 250 ? 'left' : x > 1350 ? 'right' : 'bot';
-      const c = cols[Math.floor(R() * 4)], rot = Math.round(R() * 180), k = R(), op = (.45 + R() * .45).toFixed(2);
-      let s;
-      if (k < .42) { const w = 16 + R() * 16, h = 7 + R() * 4; s = `<rect x="${f1(x - w / 2)}" y="${f1(y - h / 2)}" width="${f1(w)}" height="${f1(h)}" rx="2" transform="rotate(${rot} ${f1(x)} ${f1(y)})" style="fill:${c};opacity:${op}"/>`; }
-      else if (k < .64) s = `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(4 + R() * 5)}" style="fill:${c};opacity:${op}"/>`;
-      else if (k < .84) { const L = 16 + R() * 10; s = `<path d="M${f1(x - L)} ${f1(y)} q${f1(L / 2)} -${f1(L / 2.2)} ${f1(L)} 0 t${f1(L)} 0" transform="rotate(${rot} ${f1(x)} ${f1(y)})" style="fill:none;stroke:${c};stroke-width:4;stroke-linecap:round;opacity:${op}"/>`; }
-      else { const r = 7 + R() * 7, i = r * .28; s = `<path d="M${f1(x)} ${f1(y - r)} L${f1(x + i)} ${f1(y - i)} L${f1(x + r)} ${f1(y)} L${f1(x + i)} ${f1(y + i)} L${f1(x)} ${f1(y + r)} L${f1(x - i)} ${f1(y + i)} L${f1(x - r)} ${f1(y)} L${f1(x - i)} ${f1(y - i)}Z" style="fill:${c};opacity:${op}"/>`; }
-      out[reg] += s; n++;
-    }
-    /* two curled streamers in the top corners */
-    const curl = (x, y, m, c) => `<path d="M${x} ${y} c${40 * m} 30 ${10 * m} 70 ${50 * m} 90 s${50 * m} -6 ${34 * m} 46 s-${16 * m} 34 ${10 * m} 54" style="fill:none;stroke:${c};stroke-width:5;stroke-linecap:round;opacity:.9"/>`;
-    out.top += curl(380, -10, 1, 'var(--a2)') + curl(1250, -10, -1, 'var(--a1)');
-    return layer(...regions.top, out.top, { an: 'aDrop', dur: 760, d: 0, ease: 'cubic-bezier(.2,.8,.3,1)' })
-      + layer(...regions.left, out.left, { an: 'aDropS', dur: 760, d: 140 }) + layer(...regions.right, out.right, { an: 'aDropS', dur: 760, d: 180 })
-      + layer(...regions.bot, out.bot, { an: 'aFade', dur: 700, d: 300 });
+  celebration(G) {
+    let o = rain(G, 7, pieceConfetti, { nTop: 30, nCol: 11, cols: 4 });
+    const curl = (x, m, c) => `<path d="M${x} -10 c${40 * m} 30 ${10 * m} 70 ${50 * m} 90 s${50 * m} -6 ${34 * m} 46 s${-16 * m} 34 ${10 * m} 54" style="fill:none;stroke:${c};stroke-width:5;stroke-linecap:round;opacity:.9"/>`;
+    o += layer(W * .24 - 80, -10, 160, 200, curl(W * .24, 1, 'var(--a2)'), { an: 'aDrop', dur: 760, d: 60 }, { k: 'kSway', d: 5.5, o: '50% 0%', vars: { sa: 2.2 } });
+    o += layer(W * .78 - 80, -10, 160, 200, curl(W * .78, -1, 'var(--a1)'), { an: 'aDrop', dur: 760, d: 120 }, { k: 'kSway', d: 6.5, dl: -2, o: '50% 0%', vars: { sa: 2.2 } });
+    return o + twinkles(G, 21, 16, 'var(--a4)', 6, 11);
   },
 
-  urgent() {
-    const ring = `<rect x="24" y="24" width="1552" height="852" rx="40" style="fill:none;stroke:var(--s-acc);stroke-width:10"/>`;
-    const fold = `<path d="M29 210 V69 Q29 29 69 29 H210 Z" style="fill:var(--s-acc)"/>
-      <path d="M86 70 V118" style="stroke:var(--s-onacc);stroke-width:13;stroke-linecap:round"/><circle cx="86" cy="146" r="8" style="fill:var(--s-onacc)"/>`;
-    return layer(0, 0, 1600, 900, ring) + layer(24, 24, 200, 200, fold, { an: 'aGrow', dur: 420, d: 60, o: 'top left', ease: 'cubic-bezier(.2,.9,.3,1.25)' });
+  urgent(G) {
+    const ring = `<rect x="24" y="24" width="${W - 48}" height="${H - 48}" rx="40" style="fill:none;stroke:var(--s-acc);stroke-width:10"/>`;
+    const bw = 78, x0 = 29, y0 = 29, y1 = H - 29, r = 40;
+    const bar = `<path d="M${x0 + bw} ${y0} H${x0 + r} a${r} ${r} 0 0 0 -${r} ${r} V${y1 - r} a${r} ${r} 0 0 0 ${r} ${r} H${x0 + bw}Z" style="fill:var(--s-acc)"/>`;
+    const cy = Math.round(G.box[1] + 22), cx = x0 + bw / 2 + 2;   /* glyph sits on the kicker line, cut into the bar */
+    const glyph = `<circle cx="${cx}" cy="${cy}" r="25" style="fill:none;stroke:var(--s-onacc);stroke-width:5"/>
+      <path d="M${cx} ${cy - 12} V${cy + 3}" style="stroke:var(--s-onacc);stroke-width:5.5;stroke-linecap:round"/><circle cx="${cx}" cy="${cy + 13}" r="3.4" style="fill:var(--s-onacc)"/>`;
+    ARTRECTS.push({ x: 24, y: 24, w: bw + 10, h: H - 48 });
+    return layer(0, 0, W, H, ring, { an: 'aFade', dur: 500 }, { k: 'kBreathe', d: 3.4, vars: { o0: .6 } })
+      + layer(x0, y0, bw, y1 - y0, bar, { an: 'aGrowY', dur: 520, d: 40, o: '50% 0%' })
+      + layer(cx - 30, cy - 30, 60, 60, glyph, { an: 'aGrow', dur: 420, d: 420, ease: 'cubic-bezier(.2,1.3,.3,1)', cls: 'glyph' }, { k: 'kPulse', d: 2.2, vars: { ps: 1.1 } });
   },
 
-  torah() {
+  torah(G) {
+    const rl = PORT ? 70 : 118, rr = W - rl;
     const roller = x => `
       <rect x="${x - 8}" y="58" width="16" height="56" rx="8" class="ln" style="fill:var(--a2)"/>
       <circle cx="${x}" cy="50" r="15" class="ln" style="fill:var(--a2)"/><path d="M${x} 35 V27" class="ln"/>
       <rect x="${x - 50}" y="112" width="100" height="14" rx="7" class="ln" style="fill:var(--a2)"/>
-      <rect x="${x - 36}" y="126" width="72" height="648" rx="12" class="ln" style="fill:var(--sheet)"/>
-      <path d="M${x - 18} 140 V760 M${x + 14} 140 V760" class="ln" style="stroke-width:1.5;opacity:.45"/>
-      <rect x="${x - 50}" y="774" width="100" height="14" rx="7" class="ln" style="fill:var(--a2)"/>
-      <rect x="${x - 9}" y="788" width="18" height="70" rx="9" class="ln" style="fill:var(--a2)"/>`;
-    const sheet = `<rect x="154" y="138" width="1292" height="624" style="fill:var(--sheet)"/>
-      <path d="M154 138 H1446 M154 762 H1446" style="stroke:color-mix(in srgb, var(--a1) 45%, transparent);stroke-width:2"/>
-      <path d="M200 168 H1400 M200 732 H1400" style="stroke:color-mix(in srgb, var(--a1) 22%, transparent);stroke-width:1.2"/>`;
-    return layer(150, 130, 1300, 640, sheet, { an: 'aUnroll', dur: 900, d: 0 })
-      + layer(60, 20, 120, 850, roller(118), { an: 'aOpenL', dur: 900, d: 0 }) + layer(1420, 20, 120, 850, roller(1482), { an: 'aOpenR', dur: 900, d: 0 });
+      <rect x="${x - 36}" y="126" width="72" height="${H - 252}" rx="12" class="ln" style="fill:var(--sheet)"/>
+      <path d="M${x - 18} 140 V${H - 140} M${x + 14} 140 V${H - 140}" class="ln" style="stroke-width:1.5;opacity:.45"/>
+      <rect x="${x - 50}" y="${H - 126}" width="100" height="14" rx="7" class="ln" style="fill:var(--a2)"/>
+      <rect x="${x - 9}" y="${H - 112}" width="18" height="70" rx="9" class="ln" style="fill:var(--a2)"/>`;
+    const sx0 = rl + 36, sx1 = rr - 36;
+    const sheet = `<rect x="${sx0}" y="138" width="${sx1 - sx0}" height="${H - 276}" style="fill:var(--sheet)"/>
+      <path d="M${sx0} 138 H${sx1} M${sx0} ${H - 138} H${sx1}" style="stroke:color-mix(in srgb, var(--a1) 45%, transparent);stroke-width:2"/>
+      <path d="M${sx0 + 46} 168 H${sx1 - 46} M${sx0 + 46} ${H - 168} H${sx1 - 46}" style="stroke:color-mix(in srgb, var(--a1) 22%, transparent);stroke-width:1.2"/>`;
+    return layer(sx0 - 4, 130, sx1 - sx0 + 8, H - 260, sheet, { an: 'aUnroll', dur: 900, d: 0 })
+      + layer(sx0 + 40, 150, sx1 - sx0 - 80, H - 300, glow(W / 2, H / 2, Math.min(sx1 - sx0, H - 300) * .55, 'var(--a1)', .16), { an: 'aFade', dur: 900, d: 300 }, { k: 'kBreathe', d: 7.5, vars: { o0: .35 } })
+      + layer(rl - 60, 20, 120, H - 40, roller(rl), { an: 'aOpenL', dur: 900, d: 0 })
+      + layer(rr - 60, 20, 120, H - 40, roller(rr), { an: 'aOpenR', dur: 900, d: 0 });
   },
 
-  trip() {
-    /* route along the bottom: dotted, start dot → pin; the bus rides it */
-    const d = 'M118 812 C 380 866, 520 744, 790 792 S 1210 852, 1470 784';
+  trip(G) {
+    const sy = H - 88, d = `M118 ${sy} C ${f1(W * .24)} ${sy + 54}, ${f1(W * .33)} ${sy - 68}, ${f1(W * .5)} ${sy - 20} S ${f1(W * .76)} ${sy + 40}, ${f1(W - 130)} ${sy - 28}`;
     const tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); tmp.setAttribute('d', d);
     const sv = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); sv.style.position = 'absolute'; sv.appendChild(tmp); document.body.appendChild(sv);
-    const L = tmp.getTotalLength(), p = tmp.getPointAtLength(L * .62), p2 = tmp.getPointAtLength(L * .62 + 4); sv.remove();
-    const ang = Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI;
+    const Lh = tmp.getTotalLength(), at = f => { const p = tmp.getPointAtLength(Lh * f), p2 = tmp.getPointAtLength(Math.min(Lh, Lh * f + 4)); return [p.x, p.y, Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI]; };
+    const f0 = .6, [bx0, by0, a0] = at(f0);
+    /* bus keyframes: translate/rotate relative to the static pose, sampled along the path (opacity 0 at both ends → seamless) */
+    let kf = ''; for (let i = 0; i <= 28; i++) { const f = .04 + .92 * i / 28, [x, y, a] = at(f); kf += `${f1(i / 28 * 100)}%{transform:translate(${f1(x - bx0)}px,${f1(y - by0)}px) rotate(${f1(a - a0)}deg);opacity:${i === 0 || i === 28 ? 0 : i === 1 || i === 27 ? .7 : 1}}`; }
+    const stl = document.createElement('style'); stl.textContent = `@keyframes kBus{${kf}}`; document.head.appendChild(stl);
+    const [px, py] = at(1); sv.remove();
     const route = `<path d="${d}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 75%, transparent);stroke-width:7;stroke-linecap:round;stroke-dasharray:.1 19"/>
-      <circle cx="118" cy="812" r="13" style="fill:var(--s-acc)"/><circle cx="118" cy="812" r="24" class="ln" style="stroke:color-mix(in srgb, var(--s-acc) 45%, transparent)"/>
-      <path d="M1470 784 c-24 -26 -36 -44 -36 -62 a36 36 0 0 1 72 0 c0 18 -12 36 -36 62z" style="fill:var(--s-acc)"/><circle cx="1470" cy="722" r="13" style="fill:var(--s-bg)"/>`;
-    const bx = p.x, by = p.y;   // bus: side view, facing right, wheels on the route
-    const bus = `<g transform="rotate(${f1(ang)} ${f1(bx)} ${f1(by)})">
-      <path d="M${bx - 92} ${by - 14} V${by - 82} Q${bx - 92} ${by - 96} ${bx - 78} ${by - 96} H${bx + 66} Q${bx + 84} ${by - 96} ${bx + 90} ${by - 78} L${bx + 98} ${by - 46} V${by - 14} Q${bx + 98} ${by - 8} ${bx + 92} ${by - 8} H${bx - 86} Q${bx - 92} ${by - 8} ${bx - 92} ${by - 14}Z" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/>
-      ${[0, 1, 2, 3].map(i => `<rect x="${bx - 80 + i * 36}" y="${by - 84}" width="28" height="28" rx="5" style="fill:color-mix(in srgb, var(--s-acc) 30%, transparent)"/>`).join('')}
-      <path d="M${bx + 68} ${by - 84} H${bx + 80} Q${bx + 86} ${by - 84} ${bx + 88} ${by - 78} L${bx + 94} ${by - 56} H${bx + 68}Z" style="fill:color-mix(in srgb, var(--s-acc) 30%, transparent)"/>
-      <path d="M${bx - 92} ${by - 44} H${bx + 98}" class="ln" style="stroke:var(--s-acc);stroke-width:2.5"/>
-      <circle cx="${bx - 56}" cy="${by - 8}" r="14" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/><circle cx="${bx - 56}" cy="${by - 8}" r="4" style="fill:var(--s-acc)"/>
-      <circle cx="${bx + 60}" cy="${by - 8}" r="14" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/><circle cx="${bx + 60}" cy="${by - 8}" r="4" style="fill:var(--s-acc)"/></g>`;
-    /* contour lines, top right (a map, not a picture) */
-    let topo = ''; const R = rng(11);
-    const ph = [R() * 6, R() * 6, R() * 6];
-    for (let k = 1; k <= 7; k++) {
-      let dd = ''; for (let i = 0; i <= 72; i++) { const th = i / 72 * Math.PI * 2;
-        const r = k * 46 + 14 * Math.sin(3 * th + ph[0] + k * .25) + 9 * Math.cos(5 * th + ph[1]) + 6 * Math.sin(2 * th + ph[2]);
-        dd += (i ? 'L' : 'M') + f1(1500 + r * Math.cos(th)) + ' ' + f1(90 + r * .8 * Math.sin(th)); }
-      topo += `<path d="${dd}Z" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) ${k % 3 === 0 ? 34 : 18}%, transparent);stroke-width:${k % 3 === 0 ? 2.4 : 1.6}"/>`;
-    }
-    return layer(1080, 0, 520, 420, topo, { an: 'aFade', dur: 900 }) + layer(80, 690, 1460, 190, route, { an: 'aFade', dur: 500 })
-      + layer(bx - 140, by - 150, 280, 180, bus, { an: 'aDrive', dur: 1000, d: 120, ease: 'cubic-bezier(.25,.75,.25,1)' });
+      <circle cx="118" cy="${sy}" r="13" style="fill:var(--s-acc)"/><circle cx="118" cy="${sy}" r="24" class="ln" style="stroke:color-mix(in srgb, var(--s-acc) 45%, transparent)"/>`;
+    const pin = `<path d="M${W - 130} ${sy - 28} c-24 -26 -36 -44 -36 -62 a36 36 0 0 1 72 0 c0 18 -12 36 -36 62z" style="fill:var(--s-acc)"/><circle cx="${W - 130}" cy="${sy - 90}" r="13" style="fill:var(--s-bg)"/>`;
+    const bus = `<g transform="translate(${f1(bx0)} ${f1(by0)}) rotate(${f1(a0)})">
+      <path d="M-92 -14 V-82 Q-92 -96 -78 -96 H66 Q84 -96 90 -78 L98 -46 V-14 Q98 -8 92 -8 H-86 Q-92 -8 -92 -14Z" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/>
+      ${[0, 1, 2, 3].map(i => `<rect x="${-80 + i * 36}" y="-84" width="28" height="28" rx="5" style="fill:color-mix(in srgb, var(--s-acc) 30%, transparent)"/>`).join('')}
+      <path d="M68 -84 H80 Q86 -84 88 -78 L94 -56 H68Z" style="fill:color-mix(in srgb, var(--s-acc) 30%, transparent)"/><path d="M-92 -44 H98" class="ln" style="stroke:var(--s-acc);stroke-width:2.5"/>
+      <circle cx="-56" cy="-8" r="14" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/><circle cx="-56" cy="-8" r="4" style="fill:var(--s-acc)"/>
+      <circle cx="60" cy="-8" r="14" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/><circle cx="60" cy="-8" r="4" style="fill:var(--s-acc)"/></g>`;
+    let topo = ''; const R = rng(11), ph = [R() * 6, R() * 6, R() * 6], ts = PORT ? .6 : 1, tx = W - 100 * (PORT ? .6 : 1);
+    for (let k = 1; k <= 7; k++) { let dd = ''; for (let i = 0; i <= 72; i++) { const th = i / 72 * Math.PI * 2;
+      const r = (k * 46 + 14 * Math.sin(3 * th + ph[0] + k * .25) + 9 * Math.cos(5 * th + ph[1]) + 6 * Math.sin(2 * th + ph[2])) * ts;
+      dd += (i ? 'L' : 'M') + f1(tx + r * Math.cos(th)) + ' ' + f1(90 + r * .8 * Math.sin(th)); }
+      topo += `<path d="${dd}Z" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) ${k % 3 === 0 ? 34 : 18}%, transparent);stroke-width:${k % 3 === 0 ? 2.4 : 1.6}"/>`; }
+    return layer(W - 520, 0, 520, 420, topo, { an: 'aFade', dur: 900 }, { k: 'kBreathe', d: 9, vars: { o0: .5 } })
+      + layer(80, sy - 110, W - 160, 190, route + pin, { an: 'aFade', dur: 500 })
+      + layer(px - 40, py - 120, 80, 120, `<circle cx="${px}" cy="${py - 90}" r="30" style="fill:none;stroke:var(--s-acc);stroke-width:3"/>`, { an: 'aFade', dur: 500, d: 300 }, { k: 'kRing', d: 3.2, dir: 'normal', e: 'ease-out', vars: { ro: .7 }, o: '50% 75%' })
+      + layer(bx0 - 110, by0 - 110, 220, 140, bus, { an: 'aFade', dur: 600, d: 150 }, { k: 'kBus', d: 24, e: 'linear', dir: 'normal', o: '110px 110px' });
   },
 
-  phone() {
-    const back = `<path d="M128 548 L176 506 H452 L404 548Z" style="fill:color-mix(in srgb, var(--s-acc) 22%, var(--s-bg));stroke:var(--s-acc);stroke-width:3.5;stroke-linejoin:round"/>
-      <path d="M196 528 H382" style="stroke:var(--s-acc);stroke-width:7;stroke-linecap:round;opacity:.55"/>`;
-    const ph = `<g transform="rotate(-7 290 420)"><rect x="224" y="282" width="132" height="250" rx="22" class="ln" style="fill:var(--s-bg);stroke:var(--s-acc);stroke-width:4"/>
-      <rect x="236" y="306" width="108" height="196" rx="8" style="fill:color-mix(in srgb, var(--s-acc) 18%, transparent)"/>
-      <path d="M272 295 H308" style="stroke:var(--s-acc);stroke-width:4;stroke-linecap:round"/></g>
-      <path d="M180 300 V350 M160 330 V362 M402 290 V336" style="stroke:color-mix(in srgb, var(--s-acc) 50%, transparent);stroke-width:4;stroke-linecap:round"/>`;
-    const front = `<path d="M128 548 H404 V746 Q404 760 390 760 H142 Q128 760 128 746Z" style="fill:color-mix(in srgb, var(--s-acc) 12%, var(--s-bg));stroke:var(--s-acc);stroke-width:4;stroke-linejoin:round"/>
-      <path d="M404 548 L452 506 V706 Q452 716 444 722 L404 758" style="fill:color-mix(in srgb, var(--s-acc) 6%, var(--s-bg));stroke:var(--s-acc);stroke-width:4;stroke-linejoin:round"/>
-      <path d="M128 548 L176 506 H452" style="fill:none;stroke:var(--s-acc);stroke-width:4;stroke-linejoin:round"/>
-      <rect x="216" y="626" width="100" height="44" rx="10" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 55%, transparent);stroke-width:3"/>`;
-    return layer(110, 490, 360, 280, back) + layer(140, 240, 300, 320, ph, { an: 'aInsert', dur: 900, d: 150, ease: 'cubic-bezier(.4,0,.2,1)' }) + layer(110, 490, 360, 280, front);
+  phone(G) {
+    /* "phones away": a phone inside a prohibition sign (ring + diagonal slash). One glance, no explanation needed. */
+    const cx = 290, cy = 450, r = 170;
+    const sign = `<circle cx="${cx}" cy="${cy}" r="${r}" style="fill:none;stroke:var(--s-acc);stroke-width:18"/>
+      <rect x="${cx - 62}" y="${cy - 110}" width="124" height="220" rx="26" style="fill:color-mix(in srgb, var(--s-acc) 14%, transparent);stroke:var(--s-ink);stroke-width:9;opacity:.92"/>
+      <rect x="${cx - 44}" y="${cy - 86}" width="88" height="150" rx="9" style="fill:color-mix(in srgb, var(--s-ink) 14%, transparent)"/>
+      <path d="M${cx - 18} ${cy + 86} H${cx + 18}" style="stroke:var(--s-ink);stroke-width:7;stroke-linecap:round;opacity:.8"/>`;
+    const a = Math.PI / 4, dx = r * Math.cos(a), dy = r * Math.sin(a);
+    const slash = `<path d="M${f1(cx - dx)} ${f1(cy - dy)} L${f1(cx + dx)} ${f1(cy + dy)}" style="stroke:var(--s-bg);stroke-width:44;stroke-linecap:butt"/>
+      <path d="M${f1(cx - dx)} ${f1(cy - dy)} L${f1(cx + dx)} ${f1(cy + dy)}" style="stroke:var(--s-acc);stroke-width:18;stroke-linecap:butt"/>`;
+    return side(() => layer(cx - r - 14, cy - r - 14, 2 * r + 28, 2 * r + 28, sign, { an: 'aGrow', dur: 560, d: 80 }, { k: 'kPulse', d: 6, vars: { ps: 1.025 } })
+      + layer(cx - r - 14, cy - r - 14, 2 * r + 28, 2 * r + 28, slash, { an: 'aSlash', dur: 520, d: 520, ease: 'cubic-bezier(.2,.9,.3,1.1)' })
+      + layer(cx - r - 14, cy - r - 14, 2 * r + 28, 2 * r + 28, `<circle cx="${cx}" cy="${cy}" r="${r + 9}" style="fill:none;stroke:var(--s-acc);stroke-width:3"/>`, { an: 'aFade', dur: 400, d: 700 }, { k: 'kRing', d: 4.2, dir: 'normal', e: 'ease-out', vars: { ro: .5 }, dl: 1.2 }));
   },
 
-  memorial() {
-    const cx = 290, top = 520, bot = 760;
+  memorial(G) {
+    const cx = 290, top = 390, bot = 630;
     const candle = `
       <path d="M${cx - 78} ${top} L${cx - 68} ${bot - 12} Q${cx - 67} ${bot} ${cx - 55} ${bot} H${cx + 55} Q${cx + 67} ${bot} ${cx + 68} ${bot - 12} L${cx + 78} ${top}" style="fill:color-mix(in srgb, var(--s-ink) 5%, transparent);stroke:var(--a1);stroke-width:3;stroke-linejoin:round"/>
       <ellipse cx="${cx}" cy="${top}" rx="78" ry="13" style="fill:none;stroke:var(--a1);stroke-width:3"/>
       <path d="M${cx - 76} ${top + 46} Q${cx} ${top + 62} ${cx + 76} ${top + 46}" style="fill:none;stroke:var(--a1);stroke-width:2"/>
       <path d="M${cx - 50} ${top + 40} L${cx - 44} ${bot - 30}" style="stroke:color-mix(in srgb, var(--s-ink) 22%, transparent);stroke-width:5;stroke-linecap:round"/>
       <path d="M${cx} ${top + 30} V${top + 6}" style="stroke:var(--a1);stroke-width:3.5;stroke-linecap:round"/>`;
-    return layer(150, 240, 280, 540, glow('mg', cx, top - 40, 170, 'var(--a2)', .30)) + layer(190, 500, 200, 280, candle)
-      + layer(cx - 40, top - 110, 80, 120, flame(cx, top + 6, 96), { an: 'aFlame', dur: 700, d: 450, o: '50% 100%' });
+    return side(() => layer(cx - 170, top - 190, 340, 340, glow(cx, top - 40, 170, 'var(--a2)', .3), { an: 'aFade', dur: 900, d: 300 }, { k: 'kBreathe', d: 5.2, vars: { o0: .6 } })
+      + layer(cx - 90, top - 20, 180, bot - top + 40, candle)
+      + layer(cx - 40, top - 110, 80, 120, flame(cx, top + 6, 96), { an: 'aFlame', dur: 700, d: 450, o: '50% 100%' }, { k: 'kFlameA', d: 3.1, o: '50% 100%' }));
   },
 
-  hype() {
-    let rays = ''; const ox = 1600, oy = 900, N = 26;
-    for (let i = 0; i < N; i++) { if (i % 2) continue;
-      const a0 = Math.PI + (i / N) * Math.PI / 2, a1 = Math.PI + ((i + 1) / N) * Math.PI / 2, r = 1500;
-      rays += `<path d="M${ox} ${oy} L${f1(ox + r * Math.cos(a0))} ${f1(oy + r * Math.sin(a0))} L${f1(ox + r * Math.cos(a1))} ${f1(oy + r * Math.sin(a1))}Z" style="fill:color-mix(in srgb, var(--s-acc) 8%, transparent)"/>`; }
-    const bars = [0, 1, 2].map(i => `<path d="M${-60 + i * 58} 0 h40 l-150 260 h-40z" style="fill:color-mix(in srgb, var(--s-acc) ${[100, 62, 30][i]}%, transparent)"/>`).join('');
-    return layer(0, 0, 1600, 900, rays, { an: 'aSpin', dur: 1000, d: 0, o: '100% 100%' }) + layer(-220, 0, 420, 270, bars, { an: 'aSlideL', dur: 600, d: 100 });
+  hype(G) {
+    const ox = W, oy = H, N = 26, rr = Math.hypot(W, H); let A = '', B = '';
+    for (let i = 0; i < N; i++) {
+      const a0 = Math.PI + (i / N) * Math.PI / 2, a1 = Math.PI + ((i + 1) / N) * Math.PI / 2;
+      const p = `<path d="M${ox} ${oy} L${f1(ox + rr * Math.cos(a0))} ${f1(oy + rr * Math.sin(a0))} L${f1(ox + rr * Math.cos(a1))} ${f1(oy + rr * Math.sin(a1))}Z" style="fill:color-mix(in srgb, var(--s-acc) 9%, transparent)"/>`;
+      if (i % 2) B += p; else A += p;
+    }
+    return layer(0, 0, W, H, A, { an: 'aSpin', dur: 1000, d: 0, o: '100% 100%' })
+      + layer(0, 0, W, H, B, { an: 'aSpin', dur: 1000, d: 120, o: '100% 100%' }, { k: 'kBreathe', d: 3.6, vars: { o0: .1 } });
   },
 
-  shabbos() {
-    const stick = (x) => `
+  shabbos(G) {
+    const stick = x => `
       <path d="M${x - 58} 790 Q${x - 58} 772 ${x - 30} 768 Q${x - 10} 764 ${x - 9} 740 L${x - 7} 650 Q${x - 22} 640 ${x - 7} 630 L${x - 6} 560 Q${x - 18} 552 ${x - 6} 544 L${x - 6} 528 Q${x - 34} 524 ${x - 38} 500 H${x + 38} Q${x + 34} 524 ${x + 6} 528 L${x + 6} 544 Q${x + 18} 552 ${x + 6} 560 L${x + 7} 630 Q${x + 22} 640 ${x + 7} 650 L${x + 9} 740 Q${x + 10} 764 ${x + 30} 768 Q${x + 58} 772 ${x + 58} 790Z" class="ln" style="fill:color-mix(in srgb, var(--a1) 14%, var(--s-bg));stroke:var(--a1)"/>
       <path d="M${x - 64} 792 H${x + 64}" class="ln" style="stroke:var(--a1)"/>
       <rect x="${x - 15}" y="318" width="30" height="182" rx="4" style="fill:var(--a4);stroke:color-mix(in srgb, var(--s-ink) 25%, transparent);stroke-width:2"/>
       <path d="M${x} 318 V306" style="stroke:color-mix(in srgb, var(--s-ink) 60%, transparent);stroke-width:3;stroke-linecap:round"/>`;
-    const R = rng(3); let stars = '';
-    for (let i = 0; i < 70; i++) { const x = R() * 1600, y = R() * 900; const inText = x > 470 && y > 120 && y < 860; if (inText && R() > .12) continue;
-      stars += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(.9 + R() * 1.8)}" style="fill:var(--s-ink);opacity:${(.18 + R() * .45).toFixed(2)}"/>`; }
-    [[120, 160, 9], [470, 92, 7], [1480, 120, 8]].forEach(([x, y, r]) => { const i = r * .26;
-      stars += `<path d="M${x} ${y - r} L${x + i} ${y - i} L${x + r} ${y} L${x + i} ${y + i} L${x} ${y + r} L${x - i} ${y + i} L${x - r} ${y} L${x - i} ${y - i}Z" style="fill:var(--s-ink);opacity:.55"/>`; });
-    const light = document.documentElement.classList.contains('light');
-    return (light ? '' : layer(0, 0, 1600, 900, stars, { an: 'aFade', dur: 900 }))
-      + layer(60, 140, 440, 500, glow('sg', 280, 300, 220, 'var(--a2)', light ? .16 : .22), { an: 'aFade', dur: 800, d: 350 })
-      + layer(130, 290, 300, 520, stick(200) + stick(360))
-      + layer(180, 230, 40, 82, flame(200, 306, 70), { an: 'aFlame', dur: 360, d: 420, o: '50% 100%' })
-      + layer(340, 230, 40, 82, flame(360, 306, 70), { an: 'aFlame', dur: 360, d: 680, o: '50% 100%' });
+    const R = rng(3), [bl, bt, br, bb] = G.box; let sa = '', sb = '';
+    if (!G.light) for (let i = 0, t = 0; i < 64 && t < 4000; t++) { const x = R() * W, y = R() * H; if (x > bl - 20 && x < br + 20 && y > bt - 20 && y < bb + 20) continue; if (y < 96 && (x < 330 || x > W - 330)) continue;
+      const s = `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(.9 + R() * 1.8)}" style="fill:var(--s-ink);opacity:${(.3 + R() * .5).toFixed(2)}"/>`; if (x < bl) sa += s; else sb += s; i++; }
+    const flames = side(() => [200, 360].map((x, i) => layer(x - 22, 224, 44, 86, flame(x, 306, 70), { an: 'aFlame', dur: 360, d: 420 + i * 260, o: '50% 100%' }, { k: i ? 'kFlameB' : 'kFlameA', d: 2.9 + i * .6, dl: -i * 1.1, o: '50% 100%' })).join(''));
+    return (G.light ? '' : layer(0, 0, Math.max(40, bl), H, sa, { an: 'aFade', dur: 900 }, { k: 'kTwinkle', d: 5, dl: -1 }) + layer(Math.max(40, bl), 0, W - Math.max(40, bl), H, sb, { an: 'aFade', dur: 900, d: 100 }, { k: 'kTwinkle', d: 6.2, dl: -3 }))
+      + side(() => layer(60, 140, 440, 360, glow(280, 300, 220, 'var(--a2)', G.light ? .16 : .24), { an: 'aFade', dur: 800, d: 350 }, { k: 'kBreathe', d: 4.6, vars: { o0: .6 } })
+        + layer(130, 290, 300, 520, stick(200) + stick(360))) + flames;
   },
 
-  yomtov() {
-    const frieze = (cy) => {
-      let s = `<path d="M0 ${cy - 31} H1600 M0 ${cy + 31} H1600" style="stroke:color-mix(in srgb, var(--a1) 70%, transparent);stroke-width:1.6"/>
-               <path d="M0 ${cy - 37} H1600 M0 ${cy + 37} H1600" style="stroke:color-mix(in srgb, var(--a1) 35%, transparent);stroke-width:1"/>`;
-      for (let x = 20, k = 0; x < 1640; x += 76, k++) {
-        const R = 25, tri = o => [0, 1, 2].map(j => { const a = (o + j * 120) * Math.PI / 180; return `${f1(x + R * Math.cos(a))} ${f1(cy + R * Math.sin(a))}`; }).join(' L');
-        s += `<path d="M${tri(-90)}Z M${tri(90)}Z" style="fill:none;stroke:var(--a1);stroke-width:2.2;stroke-linejoin:round"/>`;
-        s += `<circle cx="${x + 38}" cy="${cy}" r="3.4" style="fill:var(--a2)"/>`;
-      }
-      return s;
-    };
-    return layer(0, 34, 1600, 82, frieze(75), { an: 'aBand', dur: 800, d: 0 }) + layer(0, 784, 1600, 82, frieze(825), { an: 'aBandU', dur: 800, d: 0 });
+  yomtov(G) {
+    const n = Math.ceil((W + 152) / 76) + 1;
+    const frieze = cy => { let s = `<path d="M-76 ${cy - 31} H${W + 76} M-76 ${cy + 31} H${W + 76}" style="stroke:color-mix(in srgb, var(--a1) 70%, transparent);stroke-width:1.6"/>
+        <path d="M-76 ${cy - 37} H${W + 76} M-76 ${cy + 37} H${W + 76}" style="stroke:color-mix(in srgb, var(--a1) 35%, transparent);stroke-width:1"/>`;
+      for (let k = 0; k < n; k++) { const x = -56 + k * 76, R = 25, tri = o => [0, 1, 2].map(j => { const a = (o + j * 120) * Math.PI / 180; return `${f1(x + R * Math.cos(a))} ${f1(cy + R * Math.sin(a))}`; }).join(' L');
+        s += `<path d="M${tri(-90)}Z M${tri(90)}Z" style="fill:none;stroke:var(--a1);stroke-width:2.2;stroke-linejoin:round"/><circle cx="${x + 38}" cy="${cy}" r="3.4" style="fill:var(--a2)"/>`; } return s; };
+    return layer(-76, 34, W + 152, 82, frieze(75), { an: 'aBand', dur: 800, d: 0 }, { k: 'kDrift', d: 16, e: 'linear', dir: 'normal', vars: { dx: 76 }, })
+      + layer(-76, H - 116, W + 152, 82, frieze(H - 75), { an: 'aBandU', dur: 800, d: 0 }, { k: 'kDrift', d: 16, e: 'linear', dir: 'normal', vars: { dx: -76 } });
   },
 
-  siyum() {
+  siyum(G) {
     const R = rng(5); let lines = '';
     const block = (x0, x1, y0, y1, gap = 13, h = 5, para = 9) => { let s = ''; for (let y = y0, n = 0; y <= y1; y += gap, n++) {
       const last = n % para === para - 1; const w = (x1 - x0) * (last ? .35 + R() * .4 : .94 + R() * .06);
       s += `<rect x="${x0}" y="${f1(y)}" width="${f1(w)}" height="${h}" rx="${h / 2}" style="fill:var(--a1)"/>`; } return s; };
     const px = 70, py = 104, pw = 420, ph = 700;
     lines += `<rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="6" style="fill:var(--sheet);stroke:color-mix(in srgb, var(--s-ink) 16%, transparent);stroke-width:2"/>`;
-    lines += `<rect x="${px + 150}" y="${py + 40}" width="120" height="58" rx="4" style="fill:color-mix(in srgb, var(--a3) 34%, transparent)"/>`;   // the opening word box
     lines += `<rect x="${px + 26}" y="${py + 22}" width="44" height="7" rx="3.5" style="fill:var(--a1)"/><rect x="${pw + px - 70}" y="${py + 22}" width="44" height="7" rx="3.5" style="fill:var(--a1)"/>`;
-    lines += block(px + 130, px + 290, py + 114, py + 450, 14, 6, 8);           // Gemara (centre column)
-    lines += block(px + 26, px + 118, py + 60, py + 470, 11, 4, 12);            // Rashi (inner)
-    lines += block(px + 302, px + 394, py + 60, py + 470, 11, 4, 14);           // Tosafos (outer)
-    lines += block(px + 26, px + 200, py + 488, py + 670, 11, 4, 10);           // Rashi wraps under
-    lines += block(px + 220, px + 394, py + 488, py + 670, 11, 4, 16);          // Tosafos wraps under
-    const ribbon = `<path d="M${px + 330} ${py - 12} H${px + 366} V${py + 420} L${px + 348} ${py + 398} L${px + 330} ${py + 420}Z" style="fill:var(--a2)"/>
-      <path d="M${px + 336} ${py - 12} V${py + 404}" style="stroke:color-mix(in srgb, #FFF 22%, transparent);stroke-width:2"/>`;
-    return layer(60, 96, 440, 716, lines, { an: 'aRise', dur: 700, d: 0 }) + layer(px + 320, py - 20, 56, 450, ribbon, { an: 'aDrop', dur: 700, d: 380, ease: 'cubic-bezier(.2,.9,.3,1.15)' });
+    lines += block(px + 130, px + 290, py + 114, py + 450, 14, 6, 8) + block(px + 26, px + 118, py + 60, py + 470, 11, 4, 12) + block(px + 302, px + 394, py + 60, py + 470, 11, 4, 14)
+      + block(px + 26, px + 200, py + 488, py + 670, 11, 4, 10) + block(px + 220, px + 394, py + 488, py + 670, 11, 4, 16);
+    const word = `<rect x="${px + 150}" y="${py + 40}" width="120" height="58" rx="4" style="fill:color-mix(in srgb, var(--a3) 34%, transparent)"/>`;
+    const ribbon = `<path d="M${px + 330} ${py - 12} H${px + 366} V${py + 420} L${px + 348} ${py + 398} L${px + 330} ${py + 420}Z" style="fill:var(--a2)"/><path d="M${px + 336} ${py - 12} V${py + 404}" style="stroke:color-mix(in srgb, #FFF 22%, transparent);stroke-width:2"/>`;
+    return side(() => layer(60, 96, 440, 716, lines, { an: 'aRise', dur: 700, d: 0 })
+      + layer(px + 150, py + 40, 120, 58, word, null, { k: 'kBreathe', d: 5.5, vars: { o0: .35 } })
+      + layer(px + 320, py - 20, 56, 450, ribbon, { an: 'aDrop', dur: 700, d: 380, ease: 'cubic-bezier(.2,.9,.3,1.15)' }, { k: 'kSway', d: 5, o: '50% 0%', vars: { sa: 1.6 } }));
   },
 
-  farbrengen() {
-    const tbl = `<path d="M70 828 H1530" style="stroke:color-mix(in srgb, var(--a1) 55%, transparent);stroke-width:3;stroke-linecap:round"/>`;
-    const cup = (x, fill) => `<path d="M${x - 17} 770 L${x - 12} 826 H${x + 12} L${x + 17} 770Z" class="ln" style="fill:var(--s-bg)"/>${fill ? `<path d="M${x - 15} 788 L${x - 12} 822 H${x + 12} L${x + 15} 788Z" style="fill:color-mix(in srgb, var(--a1) 32%, transparent)"/>` : ''}`;
-    const bottle = x => `<path d="M${x - 9} 668 H${x + 9} V712 Q${x + 9} 724 ${x + 22} 736 Q${x + 30} 744 ${x + 30} 760 V818 Q${x + 30} 826 ${x + 22} 826 H${x - 22} Q${x - 30} 826 ${x - 30} 818 V760 Q${x - 30} 744 ${x - 22} 736 Q${x - 9} 724 ${x - 9} 712Z" class="ln" style="fill:var(--s-bg)"/>
-      <rect x="${x - 30}" y="766" width="60" height="34" style="fill:color-mix(in srgb, var(--a1) 22%, transparent)"/><path d="M${x - 11} 668 H${x + 11}" class="ln" style="stroke-width:5"/>`;
-    const plate = x => `<path d="M${x - 78} 818 Q${x} 834 ${x + 78} 818" class="ln"/>` + [-40, 0, 40].map((d, i) =>
-      `<path d="M${x + d - 22} ${812 - (i === 1 ? 8 : 0)} q22 -26 44 0" class="ln" style="fill:color-mix(in srgb, var(--a1) 22%, var(--s-bg))"/>`).join('');
-    const sefer = `<rect x="150" y="804" width="150" height="22" rx="3" class="ln" style="fill:color-mix(in srgb, var(--a1) 22%, var(--s-bg))"/><path d="M166 815 H284" class="ln" style="stroke-width:1.6"/>`;
-    const lamp = `<path d="M1310 0 V96" class="ln" style="stroke-width:2.5"/><path d="M1262 150 L1284 96 H1336 L1358 150Z" class="ln" style="fill:color-mix(in srgb, var(--a1) 30%, var(--s-bg))"/>
-      <path d="M1296 150 Q1310 166 1324 150" class="ln" style="fill:var(--a2);stroke:var(--a2)"/>`;
-    return layer(960, 60, 700, 620, glow('fg', 1310, 220, 420, 'var(--a2)', .2), { an: 'aFade', dur: 1000 })
-      + layer(1240, -10, 140, 190, lamp, { an: 'aDropS', dur: 700, d: 100 })
-      + layer(60, 640, 1480, 200, tbl + sefer + plate(1110) + cup(1236, true) + cup(1286, false) + bottle(1376) + cup(1460, true), { an: 'aRise', dur: 700, d: 200 });
+  farbrengen(G) {
+    const tx = W - 490, tbl = `<path d="M70 ${H - 72} H${W - 70}" style="stroke:color-mix(in srgb, var(--a1) 55%, transparent);stroke-width:3;stroke-linecap:round"/>`;
+    const y0 = H - 72;
+    const cup = (x, fill) => `<path d="M${x - 17} ${y0 - 58} L${x - 12} ${y0 - 2} H${x + 12} L${x + 17} ${y0 - 58}Z" class="ln" style="fill:var(--s-bg)"/>${fill ? `<path d="M${x - 15} ${y0 - 40} L${x - 12} ${y0 - 6} H${x + 12} L${x + 15} ${y0 - 40}Z" style="fill:color-mix(in srgb, var(--a1) 32%, transparent)"/>` : ''}`;
+    const bottle = x => `<path d="M${x - 9} ${y0 - 160} H${x + 9} V${y0 - 116} Q${x + 9} ${y0 - 104} ${x + 22} ${y0 - 92} Q${x + 30} ${y0 - 84} ${x + 30} ${y0 - 68} V${y0 - 10} Q${x + 30} ${y0 - 2} ${x + 22} ${y0 - 2} H${x - 22} Q${x - 30} ${y0 - 2} ${x - 30} ${y0 - 10} V${y0 - 68} Q${x - 30} ${y0 - 84} ${x - 22} ${y0 - 92} Q${x - 9} ${y0 - 104} ${x - 9} ${y0 - 116}Z" class="ln" style="fill:var(--s-bg)"/>
+      <rect x="${x - 30}" y="${y0 - 62}" width="60" height="34" style="fill:color-mix(in srgb, var(--a1) 22%, transparent)"/><path d="M${x - 11} ${y0 - 160} H${x + 11}" class="ln" style="stroke-width:5"/>`;
+    const plate = x => `<path d="M${x - 78} ${y0 - 10} Q${x} ${y0 + 6} ${x + 78} ${y0 - 10}" class="ln"/>` + [-40, 0, 40].map((d, i) => `<path d="M${x + d - 22} ${y0 - 16 - (i === 1 ? 8 : 0)} q22 -26 44 0" class="ln" style="fill:color-mix(in srgb, var(--a1) 22%, var(--s-bg))"/>`).join('');
+    const sefer = `<rect x="150" y="${y0 - 24}" width="150" height="22" rx="3" class="ln" style="fill:color-mix(in srgb, var(--a1) 22%, var(--s-bg))"/><path d="M166 ${y0 - 13} H284" class="ln" style="stroke-width:1.6"/>`;
+    const lx = W - 290, lamp = `<path d="M${lx} 0 V96" class="ln" style="stroke-width:2.5"/><path d="M${lx - 48} 150 L${lx - 26} 96 H${lx + 26} L${lx + 48} 150Z" class="ln" style="fill:color-mix(in srgb, var(--a1) 30%, var(--s-bg))"/>
+      <path d="M${lx - 14} 150 Q${lx} 166 ${lx + 14} 150" class="ln" style="fill:var(--a2);stroke:var(--a2)"/>`;
+    return layer(lx - 350, 0, 700, 620, glow(lx, 220, 380, 'var(--a2)', .22), { an: 'aFade', dur: 1000 }, { k: 'kBreathe', d: 6.2, vars: { o0: .55 } })
+      + layer(lx - 60, -10, 120, 190, lamp, { an: 'aDropS', dur: 700, d: 100 }, { k: 'kSway', d: 7.5, o: '50% 0%', vars: { sa: 1.4 } })
+      + layer(60, y0 - 170, W - 120, 200, tbl + sefer + plate(tx + 380) + cup(tx + 254, true) + cup(tx + 304, false) + bottle(tx + 394 + 0) + cup(tx + 478, true), { an: 'aRise', dur: 700, d: 200 });
   },
 
-  mivtzoim() {
-    const ox = 1720, oy = 560, R = rng(9); const layers = [[], [], []];
-    [180, 290, 400, 510, 620, 730].forEach((r, k) => {
-      const op = [.62, .5, .4, .3, .22, .15][k];
-      let s = `<circle cx="${ox}" cy="${oy}" r="${r}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) ${op * 100}%, transparent);stroke-width:${k < 2 ? 3 : 2.4}"/>`;
-      for (let j = 0; j < 2 + k; j++) { const a = Math.PI * (.62 + R() * .7); const x = ox + r * Math.cos(a), y = oy + r * Math.sin(a);
-        if (x < 1600 && y > 0 && y < 900) s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${k < 3 ? 7 : 5.5}" style="fill:color-mix(in srgb, var(--s-acc) ${Math.round(op * 100 + 20)}%, transparent)"/>`; }
-      layers[Math.floor(k / 2)].push(s);
+  mivtzoim(G) {
+    const ox = PORT ? W / 2 : W + 160, oy = PORT ? H + 150 : H * .6, radii = PORT ? [90, 160, 230, 300, 370] : [130, 215, 300, 385, 470, 555];
+    const rmax = radii[radii.length - 1] + 12, R = rng(9);
+    const x0 = PORT ? 0 : ox - rmax, w = PORT ? W : W - x0, y0 = PORT ? oy - rmax : 0, h = PORT ? H - y0 : H;
+    let out = layer(ox - 100, oy - 100, 200, 200, `<circle cx="${ox}" cy="${oy}" r="96" style="fill:color-mix(in srgb, var(--s-acc) 26%, transparent)"/>`, { an: 'aGrow', dur: 700 }, { k: 'kPulse', d: 5, vars: { ps: 1.08 } });
+    radii.forEach((r, k) => {
+      const op = [.62, .5, .4, .32, .26, .2][k] || .2;
+      let s = `<circle cx="${ox}" cy="${oy}" r="${r}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) ${Math.round(op * 100)}%, transparent);stroke-width:${k < 2 ? 3 : 2.4}"/>`;
+      for (let j = 0; j < 2 + k; j++) { const a = Math.PI * (PORT ? 1.1 + R() * .8 : .62 + R() * .7), x = ox + r * Math.cos(a), y = oy + r * Math.sin(a); if (x < W && y > 0 && y < H) s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${k < 3 ? 7 : 5.5}" style="fill:color-mix(in srgb, var(--s-acc) ${Math.round(op * 100 + 20)}%, transparent)"/>`; }
+      out += layer(x0, y0, w, h, s, { an: 'aGrow', dur: 700, d: k * 70, o: `${f1((ox - x0) / w * 100)}% ${f1((oy - y0) / h * 100)}%` });
     });
-    const core = `<circle cx="${ox}" cy="${oy}" r="96" style="fill:color-mix(in srgb, var(--s-acc) 26%, transparent)"/>`;
-    const o = `${ox - 900}px ${oy - 0}px`;
-    return layer(900, 0, 700, 900, core + layers[0].join(''), { an: 'aGrow', dur: 700, d: 0, o: '820px 560px' })
-      + layer(900, 0, 700, 900, layers[1].join(''), { an: 'aGrow', dur: 700, d: 120, o: '820px 560px' })
-      + layer(900, 0, 700, 900, layers[2].join(''), { an: 'aGrow', dur: 700, d: 240, o: '820px 560px' });
+    /* outgoing ripples: three single rings expanding from the core, staggered by a third of the period */
+    [0, 1, 2].forEach(i => out += layer(x0, y0, w, h, `<circle cx="${ox}" cy="${oy}" r="${radii[radii.length - 1]}" style="fill:none;stroke:var(--s-acc);stroke-width:2.4"/>`, null,
+      { k: 'kRipple', d: 9, dir: 'normal', e: 'ease-out', dl: -i * 3, vars: { ro: .5 }, o: `${f1((ox - x0) / w * 100)}% ${f1((oy - y0) / h * 100)}%` }));
+    return out;
   },
 
-  welcome() {
-    const cx = 800, sy = 470, Ro = 432, Ri = 396;
-    let wall = ''; for (let y = 60, r = 0; y < 900; y += 74, r++) {   // ashlar courses, very faint
-      wall += `<path d="M0 ${y} H1600" style="stroke:var(--a2);stroke-width:2"/>`;
-      for (let x = (r % 2) * 95; x < 1600; x += 190) wall += `<path d="M${x} ${y} V${y + 74}" style="stroke:var(--a2);stroke-width:2"/>`; }
-    const arch = (R) => `M${cx - R} 900 V${sy} A${R} ${R} 0 0 1 ${cx + R} ${sy} V900`;
+  welcome(G) {
+    const cx = W / 2, sy = Math.round(H * (PORT ? .45 : .52)), Ro = Math.min(432, W / 2 - 60), Ri = Ro - 36;
+    let wall = ''; for (let y = 60, r = 0; y < H; y += 74, r++) { wall += `<path d="M0 ${y} H${W}" style="stroke:var(--a2);stroke-width:2"/>`; for (let x = (r % 2) * 95; x < W; x += 190) wall += `<path d="M${x} ${y} V${y + 74}" style="stroke:var(--a2);stroke-width:2"/>`; }
+    const arch = R => `M${cx - R} ${H} V${sy} A${R} ${R} 0 0 1 ${cx + R} ${sy} V${H}`;
     let vous = ''; for (let a = 180; a <= 360; a += 12) { if (Math.abs(a - 270) < 7) continue; const t = a * Math.PI / 180;
       vous += `<path d="M${f1(cx + Ri * Math.cos(t))} ${f1(sy + Ri * Math.sin(t))} L${f1(cx + Ro * Math.cos(t))} ${f1(sy + Ro * Math.sin(t))}" style="stroke:color-mix(in srgb, var(--a1) 55%, transparent);stroke-width:2"/>`; }
     const k0 = 264 * Math.PI / 180, k1 = 276 * Math.PI / 180, kr0 = Ri - 6, kr1 = Ro + 14;
@@ -647,84 +741,159 @@ const ART = {
     const door = `<path d="${arch(Ro)}Z" style="fill:var(--s-bg)"/><path d="${arch(Ri)}Z" style="fill:var(--sheet)"/>
       <path d="${arch(Ro)}" style="fill:none;stroke:var(--a1);stroke-width:3"/><path d="${arch(Ri)}" style="fill:none;stroke:color-mix(in srgb, var(--a1) 70%, transparent);stroke-width:2"/>${vous}${key}
       <path d="M${cx - Ro - 40} ${sy} H${cx - Ro} M${cx + Ro} ${sy} H${cx + Ro + 40}" style="stroke:var(--a1);stroke-width:3;stroke-linecap:round"/>`;
-    return layer(0, 0, 1600, 900, wall, { an: 'aFade', dur: 700 }) + layer(cx - Ro - 50, sy - Ro - 20, 2 * Ro + 100, 900 - sy + Ro + 20, door, { an: 'aGrowS', dur: 900, d: 60, o: '50% 100%' });
+    ARTRECTS.arch = { cx, sy, Ri };
+    return layer(0, 0, W, H, wall, { an: 'aFade', dur: 700 })
+      + layer(cx - Ro - 50, sy - Ro - 20, 2 * Ro + 100, H - sy + Ro + 20, door, { an: 'aGrowS', dur: 900, d: 60, o: '50% 100%' })
+      + layer(cx - Ri, sy - Ri, 2 * Ri, H - sy + Ri, glow(cx, sy + 40, Ri * .95, 'var(--a1)', .16), { an: 'aFade', dur: 700, d: 300 }, { k: 'kBreathe', d: 7, vars: { o0: .4 } });
   },
 
-  simcha() {
+  simcha(G) {
     const string = (x0, y0, x1, y1, cxp, cyp, step, w, len, op, cols) => {
-      const P = t => [(1 - t) ** 2 * x0 + 2 * (1 - t) * t * cxp + t * t * x1, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cyp + t * t * y1];
+      const Pt = t => [(1 - t) ** 2 * x0 + 2 * (1 - t) * t * cxp + t * t * x1, (1 - t) ** 2 * y0 + 2 * (1 - t) * t * cyp + t * t * y1];
       let s = `<path d="M${x0} ${y0} Q${cxp} ${cyp} ${x1} ${y1}" style="fill:none;stroke:color-mix(in srgb, var(--s-ink) 40%, transparent);stroke-width:2"/>`;
       const N = Math.round((x1 - x0) / step);
-      for (let i = 1; i < N; i++) { const t = i / N, [x, y] = P(t), [xa, ya] = P(t - .01), [xb, yb] = P(t + .01);
+      for (let i = 1; i < N; i++) { const t = i / N, [x, y] = Pt(t), [xa, ya] = Pt(t - .01), [xb, yb] = Pt(t + .01);
         const ang = Math.atan2(yb - ya, xb - xa), ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux;
         const a = [x - ux * w / 2, y - uy * w / 2], b = [x + ux * w / 2, y + uy * w / 2], c = [x + nx * len, y + ny * len];
         s += `<path d="M${f1(a[0])} ${f1(a[1])} L${f1(b[0])} ${f1(b[1])} L${f1(c[0])} ${f1(c[1])}Z" style="fill:${cols[i % cols.length]};opacity:${op}"/>`; }
-      return s;
-    };
-    const cols = ['var(--a1)', 'var(--a2)', 'var(--a3)', 'var(--a4)'];
-    return layer(0, 0, 1600, 200, string(-30, -6, 1630, 6, 800, 150, 64, 40, 54, .5, [cols[2], cols[0], cols[3], cols[1]]), { an: 'aDrop', dur: 900, d: 0, ease: 'cubic-bezier(.2,1.25,.4,1)' })
-      + layer(0, 0, 1600, 230, string(-30, 20, 1630, 34, 800, 240, 76, 52, 72, 1, cols), { an: 'aDrop', dur: 900, d: 120, ease: 'cubic-bezier(.2,1.25,.4,1)' });
+      return s; };
+    const cols = ['var(--a1)', 'var(--a2)', 'var(--a3)', 'var(--a4)'], sc = PORT ? .6 : 1;
+    let out = layer(0, 0, W, 200, string(-30, -6, W + 30, 6, W / 2, 150, 64 * sc, 40 * sc, 54 * sc, .5, [cols[2], cols[0], cols[3], cols[1]]), { an: 'aDrop', dur: 900, d: 0, ease: 'cubic-bezier(.2,1.25,.4,1)' }, { k: 'kSway', d: 6.5, o: '50% 0%', vars: { sa: .45 } })
+      + layer(0, 0, W, 230, string(-30, 20, W + 30, 34, W / 2, 240, 76 * sc, 52 * sc, 72 * sc, 1, cols), { an: 'aDrop', dur: 900, d: 120, ease: 'cubic-bezier(.2,1.25,.4,1)' }, { k: 'kSway', d: 5.5, dl: -2, o: '50% 0%', vars: { sa: .45 } });
+    /* three balloons drift up the margins, fading in and out (period translate, opacity 0 at both ends) */
+    const bl = (x, y, c, k, d, dl) => layer(x - 40, y - 60, 80, 170, `<ellipse cx="${x}" cy="${y}" rx="30" ry="38" style="fill:${c}"/><path d="M${x} ${y + 38} l-6 10 h12Z" style="fill:${c}"/><path d="M${x} ${y + 48} q-10 30 4 60" style="fill:none;stroke:color-mix(in srgb, var(--s-ink) 45%, transparent);stroke-width:2"/><ellipse cx="${x - 10}" cy="${y - 12}" rx="6" ry="11" style="fill:#fff;opacity:.28"/>`,
+      { an: 'aBalloon', dur: 700, d: 300 + k * 80 }, { k: 'kRise', d, e: 'linear', dir: 'normal', dl, vars: { ry: -(H - 120), ro: .85 } });
+    const mx = G.box[0] * .5, mx2 = W - (W - G.box[2]) * .5;
+    return out + bl(Math.max(70, mx), H - 80, cols[0], 0, 26, 0) + bl(Math.min(W - 70, mx2), H - 80, cols[3], 1, 30, -9) + bl(Math.min(W - 60, mx2) - (PORT ? 40 : 56), H - 80, cols[2], 2, 34, -20);
   },
 
-  schedule() {
+  schedule(G) {
     const cx = 280, cy = 470, r = 176;
     let face = `<circle cx="${cx}" cy="${cy}" r="${r}" style="fill:color-mix(in srgb, var(--s-ink) 4%, transparent);stroke:var(--a1);stroke-width:3"/>`;
     for (let i = 0; i < 12; i++) { const a = i * 30 * Math.PI / 180, big = i % 3 === 0, r0 = r - (big ? 30 : 18);
       face += `<path d="M${f1(cx + r0 * Math.sin(a))} ${f1(cy - r0 * Math.cos(a))} L${f1(cx + (r - 10) * Math.sin(a))} ${f1(cy - (r - 10) * Math.cos(a))}" style="stroke:var(--a1);stroke-width:${big ? 5 : 3};stroke-linecap:round"/>`; }
     const hand = (deg, len, w, col, dash = '') => { const a = deg * Math.PI / 180; return `<path d="M${cx} ${cy} L${f1(cx + len * Math.sin(a))} ${f1(cy - len * Math.cos(a))}" style="stroke:${col};stroke-width:${w};stroke-linecap:round;${dash}"/>`; };
-    face += hand(52.5, 92, 7, 'var(--a2)', 'stroke-dasharray:2 13') + hand(270, 136, 5, 'var(--a2)', 'stroke-dasharray:2 12');   // was 1:45, ghosted
-    const R2 = r + 30;   // arc arrow: minute hand 270° → 90° (+30 min), clockwise over the top
+    face += hand(52.5, 92, 7, 'var(--a2)', 'stroke-dasharray:2 13') + hand(270, 136, 5, 'var(--a2)', 'stroke-dasharray:2 12');
+    const R2 = r + 30;
     const arc = `<path d="M${cx - R2} ${cy} A${R2} ${R2} 0 0 1 ${cx + R2} ${cy}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 70%, transparent);stroke-width:4;stroke-linecap:round"/>
       <path d="M${cx + R2 - 13} ${cy - 16} L${cx + R2} ${cy + 2} L${cx + R2 + 15} ${cy - 15}" style="fill:none;stroke:color-mix(in srgb, var(--s-acc) 70%, transparent);stroke-width:4;stroke-linecap:round;stroke-linejoin:round"/>`;
-    const L = (inner, an, d) => layer(cx - 220, cy - 220, 440, 440, inner, { an, dur: 900, d, o: '220px 220px', ease: 'cubic-bezier(.3,.7,.2,1)' });
-    return layer(cx - 220, cy - 220, 440, 440, face) + layer(cx - 230, cy - 230, 460, 260, arc, { an: 'aFade', dur: 500, d: 600 })
-      + L(hand(67.5, 92, 9, 'var(--s-acc)'), 'aTurnH', 150) + L(hand(90, 140, 6, 'var(--s-acc)') + `<circle cx="${cx}" cy="${cy}" r="11" style="fill:var(--s-acc)"/>`, 'aTurnM', 150);
+    const L = (inner, an, d) => layer(cx - 220, cy - 220, 440, 440, inner, { an, dur: 900, d, o: '50% 50%', ease: 'cubic-bezier(.3,.7,.2,1)' });
+    return side(() => layer(cx - 220, cy - 220, 440, 440, face) + layer(cx - 230, cy - 230, 460, 260, arc, { an: 'aFade', dur: 500, d: 600 })
+      + L(hand(67.5, 92, 9, 'var(--s-acc)'), 'aTurnH', 150) + L(hand(90, 140, 6, 'var(--s-acc)') + `<circle cx="${cx}" cy="${cy}" r="11" style="fill:var(--s-acc)"/>`, 'aTurnM', 150)
+      + layer(cx - 220, cy - 220, 440, 440, `<path d="M${cx} ${cy + 24} L${cx} ${cy - 150}" style="stroke:var(--s-ink);stroke-width:2;stroke-linecap:round;opacity:.55"/><circle cx="${cx}" cy="${cy - 150}" r="4" style="fill:var(--s-ink);opacity:.55"/>`, { an: 'aFade', dur: 500, d: 600 }, { k: 'kSpin', d: 60, e: 'linear', dir: 'normal' }));
   },
 
   quiet() { return ''; },
 
-  chanukah() {
-    const cx = 280, cupY = 420, sp = 44; let arms = '', cups = '', flames = [];
+  chanukah(G) {
+    const cx = 280, cupY = 420, sp = 44; let arms = '', cups = '', fl = [];
     const xs = [-4, -3, -2, -1, 1, 2, 3, 4].map(k => cx + k * sp);
     xs.forEach(x => { const d = Math.abs(x - cx); arms += `<path d="M${cx} ${cupY + 26 + d * 1.15} L${x} ${cupY + 14}" class="ln" style="stroke-width:5"/>`; });
     arms += `<path d="M${cx} ${cupY - 54} V790" class="ln" style="stroke-width:7"/><path d="M${cx - 64} 792 Q${cx} 744 ${cx + 64} 792Z" class="ln" style="fill:color-mix(in srgb, var(--a1) 24%, var(--s-bg));stroke-width:4"/>`;
     [...xs, cx].forEach((x, i) => { const y = i === 8 ? cupY - 68 : cupY;
       cups += `<rect x="${x - 15}" y="${y}" width="30" height="14" rx="3" style="fill:var(--a1)"/><rect x="${x - 6}" y="${y - 34}" width="12" height="34" rx="2" style="fill:var(--a4);stroke:color-mix(in srgb, var(--s-ink) 22%, transparent);stroke-width:1.5"/>`;
-      flames.push([x, y - 38]); });
-    let out = layer(80, 240, 400, 570, arms + cups) + layer(40, 120, 480, 420, glow('cg', cx, 360, 230, 'var(--a2)', .16), { an: 'aFade', dur: 800, d: 300 });
-    /* shamash first, then the eight from right to left as they are kindled */
-    const order = [8, 7, 6, 5, 4, 3, 2, 1, 0];
-    order.forEach((idx, k) => { const [x, y] = flames[idx]; out += layer(x - 16, y - 46, 32, 50, flame(x, y, 40), { an: 'aFlame', dur: 300, d: 300 + k * 70, o: '50% 100%' }); });
-    return out;
+      fl.push([x, y - 38]); });
+    return side(() => {
+      let out = layer(80, 240, 400, 570, arms + cups) + layer(40, 120, 480, 420, glow(cx, 360, 230, 'var(--a2)', .17), { an: 'aFade', dur: 800, d: 300 }, { k: 'kBreathe', d: 5.2, vars: { o0: .6 } });
+      [8, 7, 6, 5, 4, 3, 2, 1, 0].forEach((idx, k) => { const [x, y] = fl[idx];
+        out += layer(x - 16, y - 46, 32, 50, flame(x, y, 40), { an: 'aFlame', dur: 300, d: 300 + k * 70, o: '50% 100%' }, { k: k % 2 ? 'kFlameB' : 'kFlameA', d: 2.4 + (k % 4) * .35, dl: -k * .7, o: '50% 100%' }); });
+      return out; });
+  },
+
+  purim(G) {
+    const crown = `<path d="M130 560 L110 380 L200 460 L290 340 L380 460 L470 380 L450 560Z" style="fill:color-mix(in srgb, var(--a1) 20%, var(--s-bg));stroke:var(--a1);stroke-width:5;stroke-linejoin:round"/>
+      <rect x="126" y="560" width="328" height="44" rx="8" style="fill:var(--a1)"/>
+      ${[[110, 380], [290, 340], [470, 380]].map(([x, y]) => `<circle cx="${x}" cy="${y - 8}" r="15" style="fill:var(--a2)"/>`).join('')}
+      ${[0, 1, 2, 3, 4].map(i => `<circle cx="${170 + i * 60}" cy="582" r="9" style="fill:${['var(--a2)', 'var(--a3)', 'var(--a4)', 'var(--a3)', 'var(--a2)'][i]}"/>`).join('')}`;
+    return rain(G, 13, pieceHaman, { nTop: 14, nCol: 6, cols: 4 })
+      + side(() => layer(100, 320, 400, 300, crown, { an: 'aInsert', dur: 800, d: 120, ease: 'cubic-bezier(.2,.9,.3,1.15)' }, { k: 'kBob', d: 4.6, vars: { by: -8 } })
+        + layer(90, 290, 420, 80, [[110, 372], [290, 332], [470, 372]].map(([x, y]) => star4(x, y - 30, 12, 'fill:var(--a4)')).join(''), { an: 'aFade', dur: 600, d: 500 }, { k: 'kTwinkle', d: 3.3 }));
+  },
+
+  pesach(G) {
+    const cupSvg = (x, y, s, fill, halo) => `<g transform="translate(${x} ${y}) scale(${s})">${halo ? `<circle cx="0" cy="-70" r="62" style="fill:none;stroke:var(--a1);stroke-width:3;opacity:.7"/>` : ''}
+      <path d="M-44 -118 H44 Q44 -58 0 -50 Q-44 -58 -44 -118Z" style="fill:color-mix(in srgb, var(--a2) ${fill ? 55 : 8}%, transparent);stroke:var(--a1);stroke-width:5;stroke-linejoin:round"/>
+      <path d="M0 -50 V-12 M-26 -8 H26" style="stroke:var(--a1);stroke-width:6;stroke-linecap:round"/><path d="M-36 -98 H36" style="stroke:var(--a1);stroke-width:2;opacity:.6"/></g>`;
+    const by = H - 70, gap = (W - 260) / 3; let out = '';
+    out += layer(80, by - 220, W - 160, 280, glow(W / 2, by - 40, (W - 160) * .42, 'var(--a2)', G.light ? .07 : .16), { an: 'aFade', dur: 900, d: 200 }, { k: 'kBreathe', d: 7, vars: { o0: .5 } });
+    [0, 1, 2, 3].forEach(i => { const x = 130 + i * gap;
+      out += layer(x - 70, by - 150, 140, 170, cupSvg(x, by, 1, i < 3, i === 3), { an: 'aRise', dur: 700, d: 150 + i * 110 }, { k: 'kBob', d: 5.4, dl: -i * 1.3, vars: { by: -5 } }); });
+    return out + layer(0, 28, W, 30, `<path d="M70 44 H${W - 70}" style="stroke:color-mix(in srgb, var(--a1) 55%, transparent);stroke-width:2"/>` + Array.from({ length: Math.floor((W - 140) / 90) }, (_, i) => `<path d="M${110 + i * 90} 44 q10 -16 24 -6 q-10 14 -24 6Z" style="fill:var(--a3);opacity:.7"/>`).join(''), { an: 'aBand', dur: 800, d: 0 });
+  },
+
+  roshchodesh(G) {
+    const phases = [[0, 1], [.14, 1], [.5, 1], [.82, 1], [1, 1], [.82, 0], [.5, 0], [.14, 0], [0, 0]];
+    const n = phases.length, xs = i => W * .13 + (W * .74) * i / (n - 1), ys = i => H - 80 - Math.sin(Math.PI * i / (n - 1)) * 36, r = 26;
+    let out = '';
+    phases.forEach(([f, wax], i) => {
+      const cx = xs(i), cy = ys(i), cur = i === 1;
+      let lit = '';
+      if (f >= .999) lit = `<circle cx="${cx}" cy="${cy}" r="${r}"/>`;
+      else if (f > .001) { const k = r * Math.abs(1 - 2 * f), sw = f < .5 ? 0 : 1; lit = `<path d="M${f1(cx)} ${f1(cy - r)} A${r} ${r} 0 0 1 ${f1(cx)} ${f1(cy + r)} A${f1(k)} ${r} 0 0 ${sw} ${f1(cx)} ${f1(cy - r)}Z" ${wax ? '' : `transform="translate(${f1(2 * cx)} 0) scale(-1 1)"`}/>`; }
+      const col = cur ? 'var(--a2)' : 'var(--a1)';
+      out += layer(cx - r - 8, cy - r - 8, 2 * r + 16, 2 * r + 16, `<circle cx="${cx}" cy="${cy}" r="${r}" style="fill:none;stroke:${col};stroke-width:2.4"/><g style="fill:${col}">${lit}</g>`
+        + (cur ? `<circle cx="${cx}" cy="${cy}" r="${r + 9}" style="fill:none;stroke:var(--a2);stroke-width:2;opacity:.6"/>` : ''), { an: 'aFade', dur: 600, d: 100 + i * 45 }, { k: 'kPhase', d: 27, dl: -i * 3, dir: 'normal', e: 'ease-in-out' });
+    });
+    return out + layer(W * .13 - 60, H - 150, W * .74 + 120, 100, `<path d="M${W * .13} ${H - 54} Q${W / 2} ${H - 130} ${W * .87} ${H - 54}" style="fill:none;stroke:var(--a1);stroke-width:1.5;stroke-dasharray:2 10;stroke-linecap:round;opacity:.6"/>`, { an: 'aFade', dur: 700 });
+  },
+
+  lagbaomer(G) {
+    const cx = 290, by = 700;
+    const logs = `<g transform="rotate(-18 ${cx} ${by})"><rect x="${cx - 120}" y="${by - 17}" width="240" height="34" rx="17" style="fill:var(--a4)"/><circle cx="${cx + 120}" cy="${by}" r="14" style="fill:color-mix(in srgb, var(--a4) 60%, var(--s-ink))"/></g>
+      <g transform="rotate(18 ${cx} ${by})"><rect x="${cx - 120}" y="${by - 17}" width="240" height="34" rx="17" style="fill:var(--a4)"/><circle cx="${cx - 120}" cy="${by}" r="14" style="fill:color-mix(in srgb, var(--a4) 60%, var(--s-ink))"/></g>
+      <rect x="${cx - 100}" y="${by + 14}" width="200" height="26" rx="13" style="fill:var(--a4)"/>`;
+    const bow = `<path d="M${cx + 170} 330 Q${cx + 250} 450 ${cx + 170} 570" style="fill:none;stroke:var(--a4);stroke-width:7;stroke-linecap:round"/><path d="M${cx + 170} 330 L${cx + 170} 570" style="stroke:var(--s-ink);stroke-width:2;opacity:.5"/><path d="M${cx + 170} 450 H${cx + 270}" style="stroke:var(--a1);stroke-width:5;stroke-linecap:round"/><path d="M${cx + 270} 450 l-16 -9 v18Z" style="fill:var(--a1)"/>`;
+    const sparks = [[-40, 0, 7], [26, 1, 5], [-6, 2, 6], [48, 3, 4], [-62, 4, 5], [8, 5, 4]];
+    return side(() => layer(cx - 200, by - 330, 400, 360, glow(cx, by - 120, 210, 'var(--a1)', .3), { an: 'aFade', dur: 900, d: 300 }, { k: 'kBreathe', d: 3.8, vars: { o0: .55 } })
+      + layer(cx - 150, by - 40, 300, 100, logs, { an: 'aRise', dur: 600, d: 100 })
+      + [[200, 'var(--a3)', 0, 'kFlameA'], [150, 'var(--a1)', .3, 'kFlameB'], [100, 'var(--a2)', .6, 'kFlameA']].map(([h, c, dl, kf], i) =>
+        layer(cx - h * .3 + (i - 1) * 40 * (i ? 1 : 0), by - h - 20, h * .6, h + 24, flame(cx + (i - 1) * 40 * (i ? 1 : 0), by - 6, h, c, i === 2 ? 'var(--a3)' : 'var(--a2)'), { an: 'aFlame', dur: 500, d: 350 + i * 120, o: '50% 100%' }, { k: kf, d: 1.9 + i * .4, dl: -dl * 3, o: '50% 100%' })).join('')
+      + sparks.map(([dx, i, rr]) => layer(cx + dx - 10, by - 330, 20, 330, `<circle cx="${cx + dx}" cy="${by - 220}" r="${rr}" style="fill:var(--a2)"/>`, null, { k: 'kRise', d: 5 + i * .8, e: 'ease-out', dir: 'normal', dl: -i * 1.1, vars: { ry: -110, ro: .85 } })).join(''));
+  },
+
+  chassidic(G) {
+    const cx = W / 2, fy = 150; let rays = '';
+    for (let i = 0; i < 23; i++) { const a = (24 + i * (132 / 22)) * Math.PI / 180, len = Math.hypot(W, H) * 1.05;
+      rays += `<path d="M${cx} ${fy + 40} L${f1(cx + len * Math.cos(a))} ${f1(fy + 40 + len * Math.sin(a))}" style="stroke:var(--a1);stroke-width:2;opacity:${i % 2 ? .1 : .18}"/>`; }
+    const halos = [70, 112, 160].map((r, i) => layer(cx - 170, fy - 170, 340, 340, `<circle cx="${cx}" cy="${fy - 30}" r="${r}" style="fill:none;stroke:var(--a1);stroke-width:2.4"/>`, { an: 'aFade', dur: 650, d: 300 + i * 80 }, { k: 'kRing', d: 6.5, dir: 'normal', e: 'ease-out', dl: -i * 2.1, vars: { ro: .55 }, o: '50% 50%' })).join('');
+    return layer(0, 0, W, H, rays, { an: 'aFade', dur: 900, d: 100 }, { k: 'kBreathe', d: 7.5, vars: { o0: .45 } })
+      + layer(cx - 220, fy - 220, 440, 360, glow(cx, fy - 30, 190, 'var(--a2)', .3), { an: 'aFade', dur: 800, d: 250 }, { k: 'kBreathe', d: 4.4, vars: { o0: .6 } })
+      + halos
+      + layer(cx - 34, fy - 112, 68, 120, flame(cx, fy + 6, 100), { an: 'aFlame', dur: 700, d: 300, o: '50% 100%' }, { k: 'kFlameA', d: 3.2, o: '50% 100%' });
   },
 };
 
 /* ═════════════ STYLE REGISTRY ═════════════
-   box  = content insets (L R T B), set by where the art lives
-   align: start | center         motion: calm | rise | lively | snap
-   clock/bh: chrome positions (tl tr bl br) — ב״ה always top-right unless the art needs the corner */
+   box  = content insets [L,R,T,B] (landscape)    pbox = portrait insets (styles without a side graphic)
+   bb   = bounding box of the SIDE graphic in landscape design space; vertically centred on 16:10, moved to a top band in portrait
+   ent  = text-entrance personality: calm · rise · lively · snap · drop · slide */
 const STY = {
-  classic:     { name: 'Classic',        layout: 'event',    box: [104, 104, 112, 96],  align: 'start',  motion: 'rise' },
-  grand:       { name: 'Grand',          layout: 'event',    box: [150, 150, 124, 112], align: 'center', motion: 'calm', chrome: { top: 72, side: 100 } },
-  emergency:   { name: 'Emergency',      layout: 'bigwords', box: [500, 96, 100, 90],   align: 'start',  motion: 'snap', chrome: { top: 50 } },
-  sleek:       { name: 'Sleek',          layout: 'quick',    box: [96, 96, 110, 120],   align: 'start',  motion: 'rise' },
-  celebration: { name: 'Celebration',    layout: 'bigwords', box: [260, 260, 200, 110], align: 'center', motion: 'lively' },
-  urgent:      { name: 'Urgent',         layout: 'event',    box: [120, 110, 150, 100], align: 'start',  motion: 'rise', clock: 'br', chrome: { top: 58, side: 76, bottom: 58 } },
-  torah:       { name: 'Torah',          layout: 'quote',    box: [220, 220, 176, 164], align: 'center', motion: 'calm', chrome: { top: 70, side: 196 } },
-  trip:        { name: 'Trip',           layout: 'event',    box: [104, 104, 112, 200], align: 'start',  motion: 'rise' },
-  phone:       { name: 'Phone',          layout: 'quick',    box: [540, 96, 110, 96],   align: 'start',  motion: 'rise' },
-  memorial:    { name: 'Memorial',       layout: 'bigwords', box: [520, 110, 130, 120], align: 'center', motion: 'calm' },
-  hype:        { name: 'Hype',           layout: 'quick',    box: [200, 140, 110, 90],  align: 'center', motion: 'lively', clock: 'bl', chrome: { side: 64, bottom: 44 } },
-  shabbos:     { name: 'Shabbos',        layout: 'quick',    box: [540, 96, 110, 96],   align: 'start',  motion: 'calm' },
-  yomtov:      { name: 'Yom Tov',        layout: 'event',    box: [130, 130, 170, 160], align: 'center', motion: 'rise', chrome: { top: 132 } },
-  siyum:       { name: 'Siyum',          layout: 'event',    box: [560, 96, 112, 96],   align: 'start',  motion: 'rise' },
-  farbrengen:  { name: 'Farbrengen',     layout: 'event',    box: [104, 400, 112, 200], align: 'start',  motion: 'rise', bh: 'tl', clock: 'tr' },
-  mivtzoim:    { name: 'Mivtzoim',       layout: 'list',     box: [104, 420, 112, 96],  align: 'start',  motion: 'rise' },
-  welcome:     { name: 'Welcome',        layout: 'bigwords', box: [456, 456, 262, 96],  align: 'center', motion: 'rise' },
-  simcha:      { name: 'Simcha',         layout: 'bigwords', box: [180, 180, 250, 110], align: 'center', motion: 'lively', chrome: { top: 40 }, bh: 'none', clock: 'br' },
-  schedule:    { name: 'Schedule change',layout: 'quick',    box: [560, 96, 110, 96],   align: 'start',  motion: 'rise' },
-  quiet:       { name: 'Quiet',          layout: 'bigwords', box: [220, 220, 200, 180], align: 'center', motion: 'calm' },
-  chanukah:    { name: 'Chanukah',       layout: 'event',    box: [540, 96, 112, 96],   align: 'start',  motion: 'calm' },
+  classic:     { layout: 'event',    box: [104, 104, 112, 96],  pbox: [90, 90, 130, 120],  align: 'start',  ent: 'rise' },
+  grand:       { layout: 'event',    box: [150, 150, 124, 112], pbox: [120, 120, 150, 140], align: 'center', ent: 'calm', chrome: { top: 72, side: 100 } },
+  emergency:   { layout: 'bigwords', box: [500, 96, 100, 90],   bb: [50, 250, 450, 650], pbox: null, align: 'start',  ent: 'snap', chrome: { top: 50 } },
+  sleek:       { layout: 'quick',    box: [96, 96, 110, 130],   pbox: [80, 80, 140, 150],  align: 'start',  ent: 'rise' },
+  celebration: { layout: 'bigwords', box: [260, 260, 200, 110], pbox: [120, 120, 220, 150], align: 'center', ent: 'lively' },
+  urgent:      { layout: 'event',    box: [150, 110, 150, 100], pbox: [150, 70, 150, 110], align: 'start',  ent: 'slide', clock: 'br', chrome: { top: 58, side: 76, bottom: 58 } },
+  torah:       { layout: 'quote',    box: [220, 220, 176, 164], pbox: [190, 190, 190, 190], align: 'center', ent: 'calm', chrome: { top: 70, side: 196 } },
+  trip:        { layout: 'event',    box: [104, 104, 112, 220], pbox: [70, 70, 220, 270],  align: 'start',  ent: 'rise' },
+  phone:       { layout: 'quick',    box: [560, 96, 110, 96],   bb: [96, 266, 484, 634], align: 'start',  ent: 'rise' },
+  memorial:    { layout: 'bigwords', box: [520, 110, 130, 120], bb: [190, 300, 390, 640], align: 'center', ent: 'calm' },
+  hype:        { layout: 'quick',    box: [200, 140, 110, 100], pbox: [90, 90, 140, 130],  align: 'center', ent: 'lively', clock: 'bl', chrome: { side: 64, bottom: 44 } },
+  shabbos:     { layout: 'quick',    box: [540, 96, 110, 96],   bb: [130, 224, 430, 810], align: 'start',  ent: 'calm' },
+  yomtov:      { layout: 'event',    box: [130, 130, 200, 170], pbox: [90, 90, 210, 190],  align: 'center', ent: 'rise', chrome: { top: 128 } },
+  siyum:       { layout: 'event',    box: [560, 96, 112, 96],   bb: [60, 96, 500, 812],  align: 'start',  ent: 'rise' },
+  farbrengen:  { layout: 'event',    box: [104, 400, 112, 210], pbox: [70, 70, 230, 290],  align: 'start',  ent: 'rise', bh: 'tl', clock: 'tr' },
+  mivtzoim:    { layout: 'list',     box: [104, 430, 112, 96],  pbox: [70, 70, 150, 330],  align: 'start',  ent: 'slide' },
+  welcome:     { layout: 'bigwords', box: [456, 456, 262, 96],  pbox: [150, 150, 560, 150], align: 'center', ent: 'rise' },
+  simcha:      { layout: 'bigwords', box: [180, 180, 250, 110], pbox: [90, 90, 250, 150],  align: 'center', ent: 'lively', chrome: { top: 40 }, bh: 'none', clock: 'br' },
+  schedule:    { layout: 'quick',    box: [560, 96, 110, 96],   bb: [74, 254, 486, 646], align: 'start',  ent: 'rise' },
+  quiet:       { layout: 'bigwords', box: [220, 220, 200, 180], pbox: [90, 90, 220, 220],  align: 'center', ent: 'calm' },
+  chanukah:    { layout: 'event',    box: [540, 96, 112, 96],   bb: [130, 240, 430, 795], align: 'start',  ent: 'calm' },
+  purim:       { layout: 'event',    box: [560, 150, 120, 110], bb: [100, 300, 480, 620], align: 'start',  ent: 'lively' },
+  pesach:      { layout: 'bigwords', box: [200, 200, 110, 260], pbox: [90, 90, 150, 300], align: 'center', ent: 'calm', chrome: { top: 70 } },
+  roshchodesh: { layout: 'bigwords', box: [220, 220, 130, 220], pbox: [90, 90, 150, 240], align: 'center', ent: 'calm' },
+  lagbaomer:   { layout: 'event',    box: [600, 96, 112, 96],   bb: [140, 380, 440, 710], align: 'start',  ent: 'lively' },
+  chassidic:   { layout: 'bigwords', box: [200, 200, 290, 110], pbox: [90, 90, 330, 140],  align: 'center', ent: 'calm' },
 };
 
 /* ═════════════ SAMPLE CONTENT ═════════════ */
@@ -739,6 +908,30 @@ const GENERIC = {
   letter:   { top: 'ב״ה<br>ט״ו מרחשון, ה׳תשט״ז · ברוקלין, נ.י.', sal: 'שלום וברכה!', close: 'בברכה להצלחה ולבשורות טובות', source: ['Igros Kodesh (placeholder text)', 'אגרות קודש'],
     body: `במענה על מכתבו, בו כותב אודות הלימוד בישיבה והקשיים שנתקל בהם. והנה ידוע פתגם רבותינו נשיאינו, אשר מעט מן האור דוחה הרבה מן החושך, ועל אחת כמה וכמה אורה של תורה ומצוותיה. ולכן אין להתפעל מן הקשיים, כי אם להוסיף בלימוד בשקידה ובהתמדה, ובפרט בלימוד תורת החסידות, ולעשות כל זה מתוך שמחה וטוב לבב. ויהי רצון שיבשר טוב בכל האמור, ושתהיה לו הצלחה רבה בלימודיו, ויהיה דוגמא חיה לחבריו בכל עניני תורה ויראת שמים.` },
 };
+/* stress content: len = s (one word / minimal) · m (typical) · l (at the composer limits: He ~40 chars, En ~95 chars, 2 lines, 6 list items) */
+const LONGBODY = GENERIC.sicha.body + '|' + 'The Rebbe explained that this is why every Jew, wherever he is, can bring light into the world: not by waiting for a better moment, but by using the very moment he is in. A single act of kindness, a single page learned with joy, changes the entire space around it.|Let us each take one new resolution this week, in learning, in davening, or in how we treat the person sitting next to us.';
+const STRESS = {
+  bigwords: { s: { he: 'שבת', en: 'Shabbos' },
+    m: GENERIC.bigwords,
+    l: { he: 'מזל טוב לכבוד חתונתו של הרב מנדל כהן', en: 'Mazel Tov to Rabbi Mendel Cohen and family on the engagement of their son Yossi to Chaya Mushka', sub: ['Reception Thursday night at 8:00 PM in the main dining room, all bochurim welcome', 'הכנסת כלה בליל חמישי בחדר האוכל'] } },
+  event: { s: { he: 'שיעור', en: 'Shiur', when: ['Today', 'היום'], time: ['1:00', 'PM'] },
+    m: GENERIC.event,
+    l: { he: 'אסיפת הורים שנתית לכבוד פתיחת שנת הלימודים', en: 'Annual Parent–Teacher Evening and Open House for the New School Year', when: ['Wednesday', 'יום רביעי'], time: ['11:45', 'PM'], place: { en: 'In the main dining room, second floor', en2: 'Light refreshments and childcare provided', he: 'בחדר האוכל הגדול, קומה שנייה' } } },
+  list: { s: { hd: ['Today', 'היום'], items: [['Tonight', 'Farbrengen', 'התוועדות', '9:30 PM', 1], ['Friday', 'Mincha', 'מנחה', '5:40 PM']] },
+    m: GENERIC.list,
+    l: { hd: ['Upcoming events at the yeshiva this month', 'אירועים קרובים בישיבה החודש'], items: [
+      ['Tonight', 'Farbrengen in the zal with Rabbi Levin', 'התוועדות בזאל עם הרב לוין', '9:30 PM', 1], ['Wednesday', 'Siyum on Maseches Brachos and seudas mitzvah', 'סיום מסכת ברכות וסעודת מצוה', '8:00 PM'],
+      ['Thursday', 'Mivtza Tefillin on Lincoln Road, buses leave from Lot B', 'מבצע תפילין בליינקולן רוד', '2:00 PM'], ['Friday', 'Early Mincha and Kabbalas Shabbos', 'מנחה מוקדמת וקבלת שבת', '5:40 PM'],
+      ['Sunday', 'Parent–Teacher evening in the main hall', 'אסיפת הורים באולם הגדול', '7:30 PM'], ['Monday', 'Trip to the Everglades, bring water', 'טיול לאוורגליידס', '8:15 AM']] } },
+  quick: { s: { name: ['Mincha', 'מנחה'], times: [['1:45', 'PM']] },
+    m: GENERIC.quick,
+    l: { name: ['Rabbi Levin’s Chassidus Shiur', 'שיעור חסידות עם הרב לוין'], times: [['10:45', 'AM', 'Starts', 'מתחיל'], ['12:15', 'PM', 'Ends', 'מסתיים']], where: ['In the Beis Medrash on the second floor, near the library', 'בבית המדרש בקומה השנייה, ליד הספרייה'] } },
+  quote: { s: { he: 'שמח', en: 'Be happy', attr: ['Tanya', 'תניא'] },
+    m: GENERIC.quote,
+    l: { he: 'תכלית הבריאה היא שיעשה הקב״ה דירה בתחתונים, ועל ידי עבודת האדם נעשה העולם כולו דירה לו', en: 'The purpose of creation is that G-d make for Himself a dwelling in the lowest realms; through a person’s service the whole world becomes His home.', attr: ['Tanya, chapter 36, as explained in the Rebbe’s sichos', 'תניא, פרק לו'] } },
+  sicha: { s: { ...GENERIC.sicha, body: 'Come into the teivah, you and all your household.' }, m: GENERIC.sicha, l: { ...GENERIC.sicha, body: LONGBODY } },
+  letter: { s: { ...GENERIC.letter, body: 'במענה על מכתבו. יבשר טוב.' }, m: GENERIC.letter, l: { ...GENERIC.letter, body: GENERIC.letter.body + ' ' + GENERIC.letter.body } },
+};
 const SAMPLES = {
   classic:     { event: { he: 'אסיפת הורים', en: 'Parent–Teacher Evening', when: ['Thursday', 'יום חמישי'], time: ['7:30', 'PM'], place: { en: 'In the main hall', en2: 'Light refreshments', he: 'באולם הגדול' } } },
   grand:       { event: { he: 'הדינער השנתי', en: 'Annual Yeshiva Dinner', when: ['Sunday', 'יום ראשון'], time: ['6:30', 'PM'], place: { en: 'The Grand Ballroom', en2: 'Reception from 6:00', he: 'באולם הנשפים' } } },
@@ -747,12 +940,13 @@ const SAMPLES = {
   celebration: { bigwords: { he: 'מזל טוב!', en: 'Mazel Tov to Mendel Cohen on his engagement!', sub: ['to Chaya Mushka Levin of Crown Heights', 'לרגל אירוסיו'] },
                  event: { he: 'שבע ברכות', en: 'Sheva Brachos for Mendel & Chaya Mushka', when: ['Tonight', 'הערב'], time: ['8:00', 'PM'], place: { en: 'In the dining room', en2: 'All bochurim welcome', he: 'בחדר האוכל' } },
                  list: { hd: ['Simchas this week', 'שמחות השבוע'], items: [['Tonight', 'L’chaim — Mendel Cohen', 'לחיים', '9:30 PM', 1], ['Wednesday', 'Sheva Brachos in the dining room', 'שבע ברכות', '8:00 PM'], ['Thursday', 'Bar Mitzvah — Yossi Gordon', 'בר מצוה', '7:00 PM'], ['Sunday', 'Upsherin — the Kaplan family', 'חלאקה', '11:00 AM']] } },
-  urgent:      { event: { he: 'יציאה מוקדמת היום', en: 'Early dismissal — storm warning', when: ['Today', 'היום'], time: ['2:00', 'PM'], place: { en: 'Buses wait in Lot B', en2: 'Leave seforim in the zal', he: 'האוטובוסים במגרש B' } } },
+  urgent:      { event: { kick: ['Important', 'חשוב'], he: 'יציאה מוקדמת היום', en: 'Early dismissal — storm warning', when: ['Today', 'היום'], time: ['2:00', 'PM'], place: { en: 'Buses wait in Lot B', en2: 'Leave seforim in the zal', he: 'האוטובוסים במגרש B' } } },
   torah:       { quote: GENERIC.quote },
   trip:        { event: { he: 'טיול לאוורגליידס', en: 'Everglades Trip', when: ['Tomorrow', 'מחר'], time: ['8:15', 'AM'], place: { en: 'Bus leaves from Lot B', en2: 'Bring water and a hat', he: 'האוטובוס יוצא ממגרש B' } },
                  bigwords: { he: 'יוצאים לדרך!', en: 'Bus leaves 8:15 AM — Lot B', sub: ['Everglades trip · bring water and a hat', ''] },
                  list: { hd: ['Trip day', 'יום הטיול'], items: [['Lot B', 'Board the buses', 'עולים לאוטובוסים', '8:15 AM', 1], ['Shark Valley', 'Tram tour, then Shacharis', 'סיור ושחרית', '10:00 AM'], ['Everglades City', 'Lunch and Mincha', 'ארוחה ומנחה', '1:30 PM'], ['Yeshiva', 'Back for Maariv', 'חזרה לישיבה', '6:30 PM']] } },
-  phone:       { quick: { name: ['Phones in the box', 'טלפונים לקופסה'], pre: 'by', times: [['9:00', 'AM']], where: ['The box is by the office door', 'ליד דלת המשרד'] } },
+  phone:       { quick: { name: ['Phones away', 'טלפונים בצד'], pre: 'by', times: [['9:00', 'AM']], where: ['Hand them in at the office door', 'מוסרים בדלת המשרד'] },
+                 event: { he: 'טלפונים בצד', en: 'Phones away', when: ['Today', 'היום'], time: ['9:00', 'AM'], place: { en: 'Hand them in at the office', he: 'מוסרים במשרד' } } },
   memorial:    { bigwords: { kick: ['', 'לעילוי נשמת'], he: 'ר׳ יוסף ב״ר אברהם ז״ל', en: 'Yahrzeit of Reb Yosef ben Avraham', sub: ['15 Cheshvan · Mishnayos after Mincha', 'ת.נ.צ.ב.ה.'] },
                  quote: { he: 'וְהַחַי יִתֵּן אֶל לִבּוֹ', en: 'And the living shall take it to heart.', attr: ['Koheles 7:2', 'קהלת ז, ב'] } },
   hype:        { quick: { name: ['Winter Shabbaton', 'שבתון חורף'], big: ['3', 'days to go'], where: ['Parshas Lech Lecha · sign up in the office', 'הרשמה במשרד'] } },
@@ -769,38 +963,52 @@ const SAMPLES = {
   schedule:    { quick: { kick: ['Today only', 'היום בלבד'], name: ['Mincha', 'מנחה'], times: [['2:15', 'PM']], was: '1:45 PM', where: ['In the zal', 'בזאל'] } },
   quiet:       { bigwords: { he: 'שקט, בבקשה', en: 'Quiet please — farher in the zal until 11:30' } },
   chanukah:    { event: { he: 'הדלקת נר חנוכה', en: 'Public Menorah Lighting', when: ['Tonight', 'הערב'], time: ['5:45', 'PM'], place: { en: 'Lincoln Road', en2: 'Bring a friend', he: 'בלינקולן רוד' } } },
+  purim:       { event: { he: 'קריאת המגילה', en: 'Megillah Reading', when: ['Tonight', 'הערב'], time: ['7:15', 'PM'], place: { en: 'In the zal', en2: 'Mishloach manos table in the lobby', he: 'בזאל' } },
+                 bigwords: { he: 'פורים שמח!', en: 'Purim Sameach! Megillah tonight at 7:15 PM', sub: ['Mishloach manos table in the lobby', 'משלוח מנות בלובי'] } },
+  pesach:      { bigwords: { he: 'חג כשר ושמח', en: 'Wishing everyone a kosher and joyous Pesach', sub: ['Seder tonight · Maariv at 6:50 PM', 'ליל הסדר הערב'] } },
+  roshchodesh: { bigwords: { he: 'ראש חודש כסלו', en: 'Rosh Chodesh Kislev', sub: ['Hallel after Shacharis · Yaaleh V’yavo', 'הלל אחרי שחרית'] } },
+  lagbaomer:   { event: { he: 'מדורת ל״ג בעומר', en: 'Lag BaOmer Bonfire', when: ['Sunday', 'יום ראשון'], time: ['8:00', 'PM'], place: { en: 'On the field behind the zal', en2: 'Bring a friend', he: 'בשדה מאחורי הזאל' } } },
+  chassidic:   { bigwords: { he: 'י״ט כסלו', en: 'Yud-Tes Kislev — Rosh Hashanah of Chassidus', sub: ['Farbrengen tonight at 9:30 PM in the zal', 'התוועדות הערב'] } },
 };
+
+/* ═════════════ FIT RULES (documented in README; used by fitAll) ═════════════ */
+const FIT = {
+  bwHe: [300, 64], bwEn: [84, 34], bwSub: [32, 22], kick: [34, 22],
+  evHe: [230, 44], evEn: [170, 32], lsHdEn: [64, 28], lsHdHe: [58, 28],
+  qtBig: [330, 110], qHe: [220, 48], qEn: [64, 28], attr: [30, 22], scHdEn: [44, 28], scHdHe: [40, 24], where: [36, 24],
+};
+const fa = (k, extra = '') => `data-max="${FIT[k][0]}" data-min="${FIT[k][1]}"${extra}`;
 
 /* ═════════════ LAYOUTS ═════════════ */
 const T = (t, ap) => `${t}<small>${ap}</small>`;
-const kick = k => k ? `<div class="kick" data-s style="--i:0">${k[0] ? `<span>${k[0]}</span>` : ''}${k[0] && k[1] ? '<i class="dot"></i>' : ''}${k[1] ? `<span class="he">${k[1]}</span>` : ''}</div>` : '';
-const pair = (en, he) => `${en ? `<span>${en}</span>` : ''}${en && he ? '<i class="dot"></i>' : ''}${he ? `<span class="he">${he}</span>` : ''}`;
+const kick = k => k ? `<div class="fit nw kick" ${fa('kick')} data-s style="--i:0">${k[0] ? `<span>${k[0]}</span>` : ''}${k[0] && k[1] ? '<i class="dot"></i>' : ''}${k[1] ? `<span class="he">${k[1]}</span>` : ''}</div>` : '';
+const pair = (en, he) => `${en ? `<span>${en}</span>` : ''}${en && he ? ' <i class="dot" style="display:inline-block;margin:0 14px 4px"></i> ' : ''}${he ? `<span class="he">${he}</span>` : ''}`;
 const LAYOUTS = {
   bigwords: m => `<div class="lyt bw">${kick(m.kick)}
-    <div class="fit wrap w-he disp-he" data-max="300" data-s style="--i:1">${m.he}</div>
-    <div class="fit wrap w-en" data-max="84" data-s style="--i:2">${m.en}</div>
-    ${m.sub ? `<div class="sub" data-s style="--i:3">${pair(m.sub[0], m.sub[1])}</div>` : ''}</div>`,
+    <div class="fit wrap w-he disp-he" ${fa('bwHe')} data-s style="--i:1">${m.he}</div>
+    <div class="fit wrap w-en" ${fa('bwEn')} data-s style="--i:2">${m.en}</div>
+    ${m.sub ? `<div class="fit wrap sub" ${fa('bwSub', ' data-h="112"')} data-s style="--i:3">${pair(m.sub[0], m.sub[1])}</div>` : ''}</div>`,
   event: m => `<div class="lyt ev"><div class="titles">${kick(m.kick)}
-      <div class="fit h-he disp-he" data-max="230" data-s style="--i:1">${m.he}</div>
-      <div class="fit h-en disp-en" data-max="170" data-s style="--i:2">${m.en}</div></div>
-    <div class="foot"><div class="tile" data-s style="--i:3"><div class="when"><div class="day">${m.when[0]}</div><div class="day he">${m.when[1]}</div></div><div class="t num">${T(...m.time)}</div></div>
-      <div class="place" data-s style="--i:4"><div class="en">${m.place.en}</div>${m.place.en2 ? `<div class="en2">${m.place.en2}</div>` : ''}${m.place.he ? `<div class="he">${m.place.he}</div>` : ''}</div></div></div>`,
-  list: m => `<div class="lyt ls"><div class="hd" data-s style="--i:0"><span class="en disp-en">${m.hd[0]}</span><span class="he disp-he">${m.hd[1]}</span></div>
+      <div class="fit wrap h-he disp-he" ${fa('evHe')} data-s style="--i:1">${m.he}</div>
+      <div class="fit wrap h-en disp-en" ${fa('evEn')} data-s style="--i:2">${m.en}</div></div>
+    ${m.time || m.place ? `<div class="foot">${m.time ? `<div class="tile ${m.when ? '' : 'only'}" data-s style="--i:3">${m.when ? `<div class="when"><div class="day">${m.when[0]}</div><div class="day he">${m.when[1]}</div></div>` : ''}<div class="t num">${T(...m.time)}</div></div>` : ''}
+      ${m.place ? `<div class="place" data-s style="--i:4"><div class="en">${m.place.en}</div>${m.place.en2 ? `<div class="en2">${m.place.en2}</div>` : ''}${m.place.he ? `<div class="he">${m.place.he}</div>` : ''}</div>` : ''}</div>` : ''}</div>`,
+  list: m => `<div class="lyt ls"><div class="hd" data-s style="--i:0"><span class="fit wrap en disp-en" ${fa('lsHdEn', ' data-h="150"')}>${m.hd[0]}</span><span class="fit wrap he disp-he" ${fa('lsHdHe', ' data-h="150"')}>${m.hd[1]}</span></div>
     <div class="items">${m.items.map(([d, en, he, t, soon], i) => { const [tt, ap] = t.split(' ');
-      return `<div class="li ${m.nod ? 'nod' : ''} ${soon ? 'soon' : ''}" data-s style="--i:${i + 1}">${m.nod ? '' : `<span class="d ${soon ? 'soon' : ''}">${d}</span>`}<span class="x">${en}<span class="he">${he}</span></span><span class="tm num">${tt}<small>${ap}</small></span></div>`; }).join('')}</div></div>`,
+      return `<div class="li ${m.nod ? 'nod' : ''} ${soon ? 'soon' : ''}" data-s style="--i:${i + 1}">${m.nod ? '' : `<span class="d ${soon ? 'soon' : ''}">${d}</span>`}<span class="x">${en}${he ? `<span class="he">${he}</span>` : ''}</span><span class="tm num">${tt}<small>${ap}</small></span></div>`; }).join('')}</div></div>`,
   quick: m => {
     const name = `<div class="nm" data-s style="--i:1"><span class="he disp-he">${m.name[1]}</span><span class="en disp-en">${m.name[0]}</span></div>`;
     let mid;
-    if (m.big) mid = `<div class="fit big num" data-max="330" data-s style="--i:2">${m.big[0]}<small>${m.big[1]}</small></div>`;
+    if (m.big) mid = `<div class="pw"><div class="fit nw big num" ${fa('qtBig')} data-s style="--i:2">${m.big[0]}<small>${m.big[1]}</small></div></div>`;
     else if (m.times.length > 1) mid = `<div class="times">${m.times.map(([t, ap, en, he], i) => `<div class="tcol" data-s style="--i:${i + 2}"><div class="lab"><span class="he">${he}</span><span class="en">${en}</span></div><div class="t num">${T(t, ap)}</div></div>`).join('')}</div>`;
-    else mid = `<div class="fit big num" data-max="330" data-s style="--i:2">${m.pre ? `<span class="pre">${m.pre}</span>` : ''}${T(...m.times[0])}</div>`;
+    else mid = `<div class="pw"><div class="fit nw big num" ${fa('qtBig')} data-s style="--i:2">${m.pre ? `<span class="pre">${m.pre}</span>` : ''}${T(...m.times[0])}</div></div>`;
     const was = m.was ? `<div class="was" data-s style="--i:3"><span>was</span><s class="num">${m.was}</s></div>` : '';
-    return `<div class="lyt qt">${kick(m.kick)}${name}${mid}${was}${m.where ? `<div class="where" data-s style="--i:4">${pair(m.where[0], m.where[1])}</div>` : ''}</div>`;
+    return `<div class="lyt qt">${kick(m.kick)}${name}${mid}${was}${m.where ? `<div class="fit wrap where" ${fa('where', ' data-h="120"')} data-s style="--i:4">${pair(m.where[0], m.where[1])}</div>` : ''}</div>`;
   },
-  quote: m => `<div class="lyt qq"><div class="fit wrap q-he" data-max="150" data-s style="--i:1">${m.he}</div>
-    <div class="fit wrap q-en" data-max="64" data-s style="--i:2">${m.en}</div><div class="rule" data-s style="--i:3"></div>
-    <div class="attr" data-s style="--i:4">${pair(m.attr[0], m.attr[1])}</div></div>`,
-  sicha: m => `<div class="lyt sc"><div class="hd" data-s style="--i:0"><span class="en">${m.title[0]}</span><span class="he">${m.title[1]}</span></div>
+  quote: m => `<div class="lyt qq"><div class="fit wrap q-he" ${fa('qHe')} data-s style="--i:1">${m.he}</div>
+    <div class="fit wrap q-en" ${fa('qEn')} data-s style="--i:2">${m.en}</div><div class="rule" data-s style="--i:3"></div>
+    <div class="fit wrap attr" ${fa('attr', ' data-h="84"')} data-s style="--i:4">${pair(m.attr[0], m.attr[1])}</div></div>`,
+  sicha: m => `<div class="lyt sc"><div class="hd" data-s style="--i:0"><span class="fit wrap en" ${fa('scHdEn', ' data-h="110"')}>${m.title[0]}</span><span class="fit wrap he" ${fa('scHdHe', ' data-h="110"')}>${m.title[1]}</span></div>
     <div class="body paged" data-s style="--i:1" data-text="${m.body.replace(/"/g, '&quot;')}"></div>
     <div class="ft" data-s style="--i:2"><span>${m.source}</span><span class="pg"></span></div></div>`,
   letter: m => `<div class="lyt lt"><div class="top" data-s style="--i:0">${m.top}</div><div class="sal" data-s style="--i:1">${m.sal}</div>
@@ -811,37 +1019,85 @@ const LAYOUTS = {
 /* ═════════════ RENDER ═════════════ */
 function render() {
   const S = STY[P.style] || STY.classic, layout = P.layout || S.layout;
-  const m = (SAMPLES[P.style] || {})[layout] || GENERIC[layout];
-  const [L, R, Tp, B] = S.box, W = 1600 - L - R;
+  const m = (P.len && STRESS[layout]) ? STRESS[layout][P.len] : ((SAMPLES[P.style] || {})[layout] || GENERIC[layout]);
+  /* content box */
+  let [L, R, Tp, B] = S.box, align = S.align;
+  const light = document.documentElement.classList.contains('light');
+  if (PORT) {
+    if (S.bb) { const [x0, y0, x1, y1] = S.bb, bw = x1 - x0, bh = y1 - y0, s = Math.min((W - 120) / bw, 420 / bh, 1); SIDE = { s, ox: W / 2 - s * (x0 + x1) / 2, oy: 110 + (420 - s * bh) / 2 - s * y0 };
+      L = 70; R = 70; Tp = Math.round(110 + (420 + s * bh) / 2 + 40); B = 120; ARTRECTS.push({ x: SIDE.ox + s * x0, y: SIDE.oy + s * y0, w: s * bw, h: s * bh }); }
+    else [L, R, Tp, B] = S.pbox || [70, 70, 150, 120];
+    align = 'center';
+  } else {
+    const dy = (H - 900) / 2; Tp += dy; B += dy;
+    if (S.bb) { const [x0, y0, x1, y1] = S.bb; SIDE = { s: 1, ox: 0, oy: H / 2 - (y0 + y1) / 2 }; ARTRECTS.push({ x: x0, y: SIDE.oy + y0, w: x1 - x0, h: y1 - y0 }); }
+  }
+  const G = { W, H, port: PORT, light, box: [L, Tp, W - R, H - B] };
+  MAP = ID;
+  const art = ART[P.style] ? ART[P.style](G) : '';
   const ch = { top: 34, side: 56, bottom: 34, ...(S.chrome || {}) };
   const pos = p => ({ tl: `top:${ch.top}px;left:${ch.side}px`, tr: `top:${ch.top}px;right:${ch.side}px`, bl: `bottom:${ch.bottom}px;left:${ch.side}px`, br: `bottom:${ch.bottom}px;right:${ch.side}px` }[p]);
   const clock = `<div class="chrome num" style="${pos(S.clock || 'tl')}">12:41 PM</div>`;
   const bh = (S.bh || 'tr') === 'none' ? '' : `<div class="chrome bh" style="${pos(S.bh || 'tr')}">ב״ה</div>`;
-  document.getElementById('app').innerHTML = `<div class="stage st-${P.style} ${S.align} mo-${S.motion} ${W < 1000 ? 'narrow' : ''} ${P.enter ? 'enter' : ''}">
-    <div class="art stage-in">${ART[P.style] ? ART[P.style]() : ''}</div>${clock}${bh}
+  const ent = P.motion === 'lively' ? 'lively' : S.ent, lively = P.motion === 'lively' || S.ent === 'lively';
+  const bw = W - L - R;
+  const cls = ['stage', `st-${P.style}`, align, `mo-${ent}`, bw < 1000 ? 'narrow' : '', PORT ? 'port' : '', P.enter ? 'enter' : '', lively ? 'x-lively' : '', `anim-${ANIM}`].join(' ');
+  document.getElementById('app').innerHTML = `<div class="${cls}" style="width:${W}px;height:${H}px${P.ts ? `;--ts:${P.ts}` : ''}">
+    <div class="art stage-in">${art}</div>${clock}${bh}
     <div class="box" style="left:${L}px;right:${R}px;top:${Tp}px;bottom:${B}px">${LAYOUTS[layout](m)}</div></div>`;
-  if (W < 1000) document.querySelector('.stage').style.setProperty('--tile-size', '112px');
-  fitAll();
+  window.__box = G.box; window.__art = ARTRECTS;
+  fitAll(); alignGlyph();
 }
 
-/* one-shot auto-fit (binary search), never per frame */
+/* ── fitting (one-shot binary searches, never per frame) ── */
+function fitEl(el) {
+  let lo = +el.dataset.min || 16, hi = +el.dataset.max || 200;
+  if (el.classList.contains('disp-he') || el.classList.contains('q-he')) { const hs = +getComputedStyle(document.documentElement).getPropertyValue('--he-scale') || 1; hi = Math.round(hi * hs); lo = Math.round(lo * hs); }
+  const mh = +el.dataset.h; if (mh) el.style.maxHeight = mh + 'px';
+  const nw = el.classList.contains('nw') && !el.classList.contains('big'); const ok = () => el.scrollWidth <= el.clientWidth + 1 && (nw || el.scrollHeight <= el.clientHeight + parseFloat(el.style.fontSize) * .2);
+  el.style.display = ''; el.style.webkitLineClamp = ''; el.removeAttribute('data-over');
+  const floor = lo; let best = floor, a = floor, b = hi;
+  el.style.fontSize = floor + 'px';
+  if (!ok()) { el.dataset.over = '1'; const lines = Math.max(1, Math.floor(el.clientHeight / (floor * 1.14))); el.style.display = '-webkit-box'; el.style.webkitBoxOrient = 'vertical'; el.style.webkitLineClamp = lines; return; }
+  while (b - a > 1) { const mid = (a + b) >> 1; el.style.fontSize = mid + 'px'; ok() ? (a = mid) : (b = mid); }
+  el.style.fontSize = a + 'px'; el.dataset.fit = a;
+}
 function fitAll() {
-  document.querySelectorAll('.fit').forEach(el => el.style.height = '');
-  document.querySelectorAll('.fit').forEach(el => {
-    let lo = 16, hi = +el.dataset.max || 200;
-    if (el.classList.contains('disp-he') || el.classList.contains('q-he')) hi = Math.round(hi * (+getComputedStyle(document.documentElement).getPropertyValue('--he-scale') || 1));
-    while (hi - lo > 1) { const mid = (lo + hi) >> 1; el.style.fontSize = mid + 'px';
-      (el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 2) ? lo = mid : hi = mid; }
-    el.style.fontSize = lo + 'px';
-  });
-  document.querySelectorAll('.fit').forEach(el => el.style.height = 'auto');
-  document.querySelectorAll('.qt .nm').forEach(el => { let k = 1; el.style.setProperty('--k', k); const W = el.parentElement.clientWidth;
-    while (el.scrollWidth > W + 1 && k > .4) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); } });
-  /* two-time quick layout: one size for both times, fitted to the narrower column */
-  const ts = [...document.querySelectorAll('.qt .tcol .t')];
-  if (ts.length) { let s = 170; const ok = () => ts.every(t => t.scrollWidth <= t.parentElement.clientWidth - (parseFloat(getComputedStyle(t.parentElement).paddingLeft) + parseFloat(getComputedStyle(t.parentElement).paddingRight)) + 1);
+  document.querySelectorAll('.fit, .pw').forEach(el => { el.style.height = ''; });
+  document.querySelectorAll('.fit').forEach(fitEl);
+  document.querySelectorAll('.fit.wrap, .fit.big').forEach(el => { if (el.dataset.over) return; el.style.maxHeight = ''; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
+  document.querySelectorAll('.pw').forEach(el => { el.style.height = 'auto'; });
+  /* quick name row: one line while it fits at >= .75, else stacked (He over En), scaled down to .45 */
+  document.querySelectorAll('.qt .nm').forEach(el => { const Wd = el.parentElement.clientWidth; el.classList.remove('stack'); let k = 1; el.style.setProperty('--k', k);
+    const fits = () => el.scrollWidth <= Wd + 1;
+    while (!fits() && k > .75) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); }
+    if (!fits()) { el.classList.add('stack'); k = 1; el.style.setProperty('--k', k); while (!fits() && k > .45) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); } } });
+  /* two-time quick layout: one size for both, fitted to the narrower column */
+  const ts = [...document.querySelectorAll('.times .tcol .t')];
+  if (ts.length) { let s = 170; const ok = () => ts.every(t => { const c = t.parentElement, cs = getComputedStyle(c); return t.scrollWidth <= c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + 1; });
     ts.forEach(t => t.style.display = 'inline-block'); do { ts.forEach(t => t.style.fontSize = s + 'px'); s -= 4; } while (!ok() && s > 60); ts.forEach(t => t.style.display = ''); }
-  /* pagination at fixed reading size (from R2) */
+  /* quick layout is height-aware: if the whole stack is taller than the box, shrink name and times together */
+  document.querySelectorAll('.lyt.qt').forEach(l => { let n = 0; while (l.scrollHeight > l.clientHeight + 4 && n++ < 40) {
+    const nm = l.querySelector('.nm'), k = parseFloat(nm.style.getPropertyValue('--k') || 1); if (k > .45) nm.style.setProperty('--k', (k - .03).toFixed(2));
+    l.querySelectorAll('.tcol .t').forEach(t => { const fs = parseFloat(t.style.fontSize) || 150; if (fs > 64) t.style.fontSize = (fs - 6) + 'px'; });
+    const w = l.querySelector('.where'); if (w && n > 8) { const fs = parseFloat(w.style.fontSize); if (fs > 24) w.style.fontSize = (fs - 1) + 'px'; } } });
+  /* event tile: shrink the time until the tile fits its row (narrow: full width; wide: <= 62%) */
+  document.querySelectorAll('.tile').forEach(tile => { const foot = tile.parentElement, st = tile.closest('.stage'); const narrow = st.classList.contains('narrow');
+    const lim = foot.clientWidth * (narrow || !foot.querySelector('.place') ? 1 : .62); let s = narrow ? 112 : 140; tile.style.setProperty('--tile-size', s + 'px');
+    tile.classList.remove('stackt');
+    while (tile.getBoundingClientRect().width > lim && s > 72) { s -= 4; tile.style.setProperty('--tile-size', s + 'px'); }
+    if (tile.getBoundingClientRect().width > lim) { tile.classList.add('stackt'); s = narrow ? 112 : 140; tile.style.setProperty('--tile-size', s + 'px'); while (tile.getBoundingClientRect().width > lim && s > 72) { s -= 4; tile.style.setProperty('--tile-size', s + 'px'); } } });
+  /* place block: scale down (min .6) until it fits beside / under the tile */
+  document.querySelectorAll('.place').forEach(pl => { pl.style.setProperty('--k', 1); let k = 1; const foot = pl.parentElement, tile = foot.querySelector('.tile'), narrow = pl.closest('.stage').classList.contains('narrow');
+    const maxH = narrow ? 190 : Math.max(190, tile ? tile.offsetHeight : 190);
+    const room = narrow ? foot.clientWidth : foot.clientWidth - (tile ? tile.offsetWidth : 0) - 44;
+    pl.style.maxWidth = Math.max(160, room) + 'px';
+    while ((pl.scrollHeight > maxH || pl.scrollWidth > pl.clientWidth + 1) && k > .6) { k -= .04; pl.style.setProperty('--k', k.toFixed(2)); } });
+  /* list rows: one size for every row (largest that fits the tightest row) */
+  document.querySelectorAll('.items').forEach(it => { let s = 44; const rows = [...it.querySelectorAll('.li')];
+    const ok = () => rows.every(r => { const x = r.querySelector('.x'); return r.scrollHeight <= r.clientHeight + 1 && x.scrollWidth <= x.clientWidth + 1 && r.scrollWidth <= r.clientWidth + 1; });
+    it.style.setProperty('--lf', s); while (!ok() && s > 24) { s -= 1; it.style.setProperty('--lf', s); } it.dataset.lf = s; });
+  /* pagination at a fixed reading size */
   document.querySelectorAll('.paged').forEach(el => {
     const paras = el.dataset.text.split('|'); const words = paras.map((p, i) => p.split(' ').map((w, j) => ({ w, br: j === 0 && i > 0 }))).flat();
     const build = arr => '<p>' + arr.map((x, k) => (x.br && k > 0 ? '</p><p>' : '') + x.w).join(' ').replace(/<p> /g, '<p>') + '</p>';
@@ -856,14 +1112,31 @@ function fitAll() {
     const cur = Math.min(P.pg, pages.length) - 1; el.innerHTML = build(pages[cur]);
     const pg = el.closest('.lyt').querySelector('.pg');
     if (pg) pg.innerHTML = pages.length < 2 ? '' : `<span class="num">${cur + 1} / ${pages.length}</span>` + pages.map((_, k) => `<i class="${k === cur ? 'on' : ''}"></i>`).join('');
+    el.dataset.pages = pages.length;
   });
+}
+/* urgent: the glyph in the bar sits on the same line as the kicker (or the first title line when there is no kicker) */
+function alignGlyph() {
+  const g = document.querySelector('.glyph'); if (!g) return;
+  const k = document.querySelector('.kick') || document.querySelector('.fit'); if (!k) return;
+  const st = document.querySelector('.stage').getBoundingClientRect(), kr = k.getBoundingClientRect(), gr = g.getBoundingClientRect();
+  const target = kr.top - st.top + (document.querySelector('.kick') ? kr.height / 2 : Math.min(kr.height / 2, 40));
+  g.style.top = (parseFloat(g.style.top) + target - (gr.top - st.top + gr.height / 2)) + 'px';
+}
+/* lively extras: split big words / digits so they reveal one by one (entrance only) */
+function splitLively() {
+  document.querySelectorAll('.enter.x-lively .w-he, .enter.x-lively .w-en, .enter.x-lively .h-he, .enter.x-lively .h-en, .enter.x-lively .q-he').forEach(el => {
+    if (el.children.length) return; el.innerHTML = el.textContent.split(' ').map((w, i) => `<span class="w" style="--wi:${i}">${w}</span>`).join(' '); });
+  document.querySelectorAll('.enter.x-lively .big, .enter.x-lively .tile .t, .enter.x-lively .tcol .t').forEach(el => {
+    let n = 0; const walk = node => { [...node.childNodes].forEach(c => { if (c.nodeType === 3) { const f = document.createDocumentFragment(); [...c.textContent].forEach(ch => { if (/[0-9]/.test(ch)) { const s = document.createElement('span'); s.className = 'dg'; s.style.setProperty('--wi', n++); s.textContent = ch; f.appendChild(s); } else f.appendChild(document.createTextNode(ch)); }); c.replaceWith(f); } else if (c.nodeType === 1 && !c.classList.contains('pre')) walk(c); }); };
+    walk(el); });
 }
 
 render();
 const fams = [F.heDisp, F.he, F.enDisp, F.en, F.thHe, F.thEn].map(f => f.split(',')[0]);
 Promise.all(fams.flatMap(f => ['400', '600', '700'].map(w => document.fonts.load(`${w} 40px ${f}`, 'אבג Ab12')))).catch(() => {}).then(() => document.fonts.ready).then(() => {
-  fitAll();
-  if (P.t != null) document.getAnimations().forEach(a => { a.pause(); a.currentTime = +P.t; });   // scrub the entrance: ?enter=1&t=400
+  fitAll(); alignGlyph(); splitLively();
+  if (P.t != null) document.getAnimations().forEach(a => { a.pause(); a.currentTime = +P.t; });
   window.__ready = true;
 });
 </script>
