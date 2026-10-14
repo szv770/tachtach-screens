@@ -453,16 +453,54 @@ export function describeTiming(item, now = new Date(), opts = {}) {
 
 // ── Content helpers ─────────────────────────────────────────────────────────
 
-/** Main text for list rows / previews: Hebrew or English headline, else body. */
+export const LAYOUTS = ['bigwords', 'event', 'list', 'quicktime', 'classic'];
+
+/** Effective layout. Banners and side notes are always plain text. */
+export function layoutOf(item) {
+  const l = item?.look?.layout;
+  return LAYOUTS.includes(l) ? l : 'classic';
+}
+
+/** "13:45" → "1:45 PM" (also accepts already-12h text, returned as is). */
+export function to12h(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? '').trim());
+  if (!m) return String(hhmm ?? '').trim();
+  const h = +m[1] % 24;
+  const ap = h < 12 ? 'AM' : 'PM';
+  return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${ap}`;
+}
+
+const nonEmpty = (v) => !!String(v ?? '').trim();
+
+/** Main text for list rows / previews (layout-aware). */
 export function primaryText(item) {
   const c = item?.content || {};
+  const usesLayout = item?.display === 'slide' || item?.display === 'takeover';
+  const layout = usesLayout ? layoutOf(item) : 'bigwords';
+  if (layout === 'event') {
+    const e = c.event || {};
+    const when = [e.day, e.time ? to12h(e.time) : ''].filter(nonEmpty).join(' ');
+    return [e.title || e.titleHe, when, e.place || e.placeHe].filter(nonEmpty).join(' · ');
+  }
+  if (layout === 'list') {
+    const l = c.list || {};
+    return [l.heading || l.headingHe, ...(l.items || []).filter(nonEmpty)].filter(nonEmpty).join(' · ');
+  }
+  if (layout === 'quicktime') {
+    const q = c.quicktime || {};
+    return [q.name || q.nameHe, q.time ? to12h(q.time) : '', q.place].filter(nonEmpty).join(' ');
+  }
   return c.headlineHe || c.headlineEn || c.bodyHe || c.bodyEn || '';
 }
 
 export function hasText(item) {
   const c = item?.content || {};
-  return !!(String(c.headlineHe || '').trim() || String(c.headlineEn || '').trim()
-    || String(c.bodyHe || '').trim() || String(c.bodyEn || '').trim());
+  const usesLayout = item?.display === 'slide' || item?.display === 'takeover';
+  const layout = usesLayout ? layoutOf(item) : 'bigwords';
+  if (layout === 'event') return nonEmpty(c.event?.title) || nonEmpty(c.event?.titleHe);
+  if (layout === 'list') return nonEmpty(c.list?.heading) || nonEmpty(c.list?.headingHe) || (c.list?.items || []).some(nonEmpty);
+  if (layout === 'quicktime') return nonEmpty(c.quicktime?.time) && (nonEmpty(c.quicktime?.name) || nonEmpty(c.quicktime?.nameHe));
+  return nonEmpty(c.headlineHe) || nonEmpty(c.headlineEn) || nonEmpty(c.bodyHe) || nonEmpty(c.bodyEn);
 }
 
 /** Minutes between start (or created) and expiry, or null. */

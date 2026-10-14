@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { readdir, unlink, stat, rmdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { readJSON } from './storage.js';
+import { purgeArchived } from './announcements-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -220,6 +221,14 @@ export async function runCleanup() {
   const uploads = await cleanUploads();
   const gp = await cleanGooglePhotos();
   const bak = await cleanBackupsAndTmp();
+
+  // Archived announcements (ended N days ago, settings.announcements.archiveDays,
+  // default 30) are deleted for good.
+  try {
+    await purgeArchived();
+  } catch (err) {
+    console.error('[cleanup] Announcement archive purge failed:', err.message);
+  }
 
   const deletedFiles = [...uploads.deletedFiles, ...gp.deletedFiles, ...bak.deletedFiles];
   const freedBytes = uploads.freedBytes + gp.freedBytes + bak.freedBytes;

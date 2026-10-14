@@ -17,6 +17,7 @@ import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
 import { normalizeSettingsKeys } from '../settings-migrate.js';
+import { getStateExtras } from '../announcements-store.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -56,13 +57,8 @@ function pick(obj, allowedFields) {
   return result;
 }
 
-const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl'];
+const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'announcementId'];
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
-// `blocking` = board "Hold screen on this board" (replaces the slide area while
-// active); bannerSize/Speed/Repeat = per-message overrides read by Banner.jsx.
-// All four used to be stripped here, so those features were no-ops (audit bug 5).
-const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bgColor', 'style', 'target', 'subtitle', 'blocking', 'bannerSize', 'bannerSpeed', 'bannerRepeat'];
-const PINNED_FIELDS = ['textHe', 'textEn', 'priority', 'enabled', 'order', 'icon', 'expiresAt', 'displayMode', 'duration', 'fullscreen'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
 // `alertDisplay` is accepted only as a legacy alias (older admin builds and
@@ -207,118 +203,10 @@ router.delete('/slides/:id', async (req, res) => {
   }
 });
 
-// ── Messages ───────────────────────────────────────────────────────────────
-
-router.get('/messages', async (_req, res) => {
-  try {
-    const messages = await readJSON('messages.json');
-    res.json(messages ?? []);
-  } catch (err) {
-    console.error('[api] GET /messages error:', err.message);
-    res.status(500).json({ error: 'Failed to read messages.' });
-  }
-});
-
-router.post('/messages', async (req, res) => {
-  try {
-    if (!req.body?.type) {
-      return res.status(400).json({ error: 'Message type is required.' });
-    }
-    if (!req.body?.textHe && !req.body?.textEn) {
-      return res.status(400).json({ error: 'Message text (Hebrew or English) is required.' });
-    }
-    const messages = (await readJSON('messages.json')) ?? [];
-    const newMsg = {
-      id: uuidv4(),
-      timestamp: new Date().toISOString(),
-      ...pick(req.body, MESSAGE_FIELDS),
-    };
-    // Only boards can hold the screen; store a real boolean.
-    if ('blocking' in newMsg) {
-      if (newMsg.type === 'board' && newMsg.blocking === true) newMsg.blocking = true;
-      else delete newMsg.blocking;
-    }
-    messages.push(newMsg);
-    await writeJSON('messages.json', messages);
-    broadcast('messages-update', messages);
-    res.status(201).json(newMsg);
-  } catch (err) {
-    console.error('[api] POST /messages error:', err.message);
-    res.status(500).json({ error: 'Failed to send message.' });
-  }
-});
-
-router.delete('/messages/:id', async (req, res) => {
-  try {
-    let messages = (await readJSON('messages.json')) ?? [];
-    messages = messages.filter((m) => m.id !== req.params.id);
-    await writeJSON('messages.json', messages);
-    broadcast('messages-update', messages);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[api] DELETE /messages error:', err.message);
-    res.status(500).json({ error: 'Failed to delete message.' });
-  }
-});
-
-// ── Pinned ─────────────────────────────────────────────────────────────────
-
-router.get('/pinned', async (_req, res) => {
-  try {
-    const pinned = await readJSON('pinned.json');
-    res.json(pinned ?? []);
-  } catch (err) {
-    console.error('[api] GET /pinned error:', err.message);
-    res.status(500).json({ error: 'Failed to read pinned notes.' });
-  }
-});
-
-router.post('/pinned', async (req, res) => {
-  try {
-    if (!req.body?.textHe && !req.body?.textEn) {
-      return res.status(400).json({ error: 'Pinned note text (Hebrew or English) is required.' });
-    }
-    const pinned = (await readJSON('pinned.json')) ?? [];
-    const newPin = { id: uuidv4(), ...pick(req.body, PINNED_FIELDS) };
-    pinned.push(newPin);
-    await writeJSON('pinned.json', pinned);
-    broadcast('pinned-update', pinned);
-    res.status(201).json(newPin);
-  } catch (err) {
-    console.error('[api] POST /pinned error:', err.message);
-    res.status(500).json({ error: 'Failed to add pinned note.' });
-  }
-});
-
-router.put('/pinned/:id', async (req, res) => {
-  try {
-    const pinned = (await readJSON('pinned.json')) ?? [];
-    const idx = pinned.findIndex((p) => p.id === req.params.id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Pinned note not found. It may have been deleted.' });
-    }
-    pinned[idx] = { ...pinned[idx], ...pick(req.body, PINNED_FIELDS), id: req.params.id };
-    await writeJSON('pinned.json', pinned);
-    broadcast('pinned-update', pinned);
-    res.json(pinned[idx]);
-  } catch (err) {
-    console.error('[api] PUT /pinned error:', err.message);
-    res.status(500).json({ error: 'Failed to update pinned note.' });
-  }
-});
-
-router.delete('/pinned/:id', async (req, res) => {
-  try {
-    let pinned = (await readJSON('pinned.json')) ?? [];
-    pinned = pinned.filter((p) => p.id !== req.params.id);
-    await writeJSON('pinned.json', pinned);
-    broadcast('pinned-update', pinned);
-    res.json({ success: true });
-  } catch (err) {
-    console.error('[api] DELETE /pinned error:', err.message);
-    res.status(500).json({ error: 'Failed to delete pinned note.' });
-  }
-});
+// ── Messages / Pinned ────────────────────────────────────────────────────
+// Moved to routes/announcements.js (unified announcements). The legacy
+// /api/messages and /api/pinned endpoints are answered there by translating
+// to/from data/announcements.json for one release.
 
 // ── Custom Days ────────────────────────────────────────────────────────────
 
@@ -1206,11 +1094,10 @@ router.get('/preview-state', async (req, res) => {
       return res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
     }
 
-    const [settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, currentCache] = await Promise.all([
+    const [settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, currentCache] = await Promise.all([
       readJSON('settings.json'),
       readJSON('slides.json'),
-      readJSON('messages.json'),
-      readJSON('pinned.json'),
+      getStateExtras(),
       readJSON('custom-days.json'),
       readJSON('google-albums.json'),
       readJSON('schedule.json'),
@@ -1328,8 +1215,7 @@ router.get('/preview-state', async (req, res) => {
       cache: previewCache,
       settings: settings ?? {},
       slides: slides ?? [],
-      messages: messages ?? [],
-      pinned: pinned ?? [],
+      ...announcementState,
       customDays: customDays ?? [],
       googleAlbums: googleAlbums ?? [],
       schedule: schedule ?? { entries: [], categories: [] },
