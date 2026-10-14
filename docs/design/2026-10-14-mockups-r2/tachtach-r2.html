@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TachTach Round 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200..800&family=Rubik:wght@400;500;600;700;800&family=EB+Garamond:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: 'FbMazalMedium'; src: url('fonts/FbMazalMedium.ttf') format('truetype'); }
+
+/* ═══════════════════ TachTach screen system · round 2 ═══════════════════
+   BASE ROLES (from tokens.js; registered so day/night can crossfade them):
+     --bg --text --dim --muted --accent(=gold) --onAccent(computed) --lift --liftPct
+   DERIVED ROLES (never stored per theme):
+     --raised  the one surface: panel, rail cards, banner
+     --hi      neutral highlight (the "next" row when the accent is busy elsewhere)
+     --line    hairlines / tracks           --past   faded past items (colour, never opacity)
+   PANEL-LOCAL ROLES (overridden by announcement styles):
+     --panel --ink --inkDim --fill --fillInk --accentText --f-disp-he --f-disp-en
+   Motion: page enter/exit only; opacity + transform; no loops, blur, blend modes. */
+
+@property --bg      { syntax: '<color>'; inherits: true; initial-value: #000; }
+@property --text    { syntax: '<color>'; inherits: true; initial-value: #fff; }
+@property --dim     { syntax: '<color>'; inherits: true; initial-value: #aaa; }
+@property --muted   { syntax: '<color>'; inherits: true; initial-value: #666; }
+@property --accent  { syntax: '<color>'; inherits: true; initial-value: #888; }
+@property --onAccent{ syntax: '<color>'; inherits: true; initial-value: #000; }
+@property --lift    { syntax: '<color>'; inherits: true; initial-value: #fff; }
+@property --liftPct { syntax: '<percentage>'; inherits: true; initial-value: 6%; }
+:root {
+  --raised: color-mix(in srgb, var(--lift) var(--liftPct), var(--bg));
+  --hi: color-mix(in srgb, var(--text) 11%, var(--raised));
+}
+:root.fading { transition: --bg 3s linear, --text 3s linear, --dim 3s linear, --muted 3s linear, --accent 3s linear, --onAccent 3s linear, --lift 3s linear, --liftPct 3s linear; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); overflow: hidden; }
+body { color: var(--text); font-family: var(--f-en); -webkit-font-smoothing: antialiased; }
+.he { direction: rtl; font-family: var(--f-he); }
+.num { font-family: var(--f-num); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
+
+/* ── grid: 1600×900, 40 margin, 40 gutter, rail 400 ── */
+.canvas { position: relative; width: 1600px; height: 900px; padding: 40px; display: grid; grid-template-columns: 400px 1fr; column-gap: 40px; }
+.canvas.rail-right { grid-template-columns: 1fr 400px; }
+.rail-right .rail { order: 2; text-align: right; align-items: flex-end; }
+.rail-right .rail .he { text-align: right; }
+.rail-right .clock { justify-content: flex-end; }
+.rail-right .wx { flex-direction: row-reverse; }
+.rail-right .wx .m { align-items: flex-end; }
+.pagecol { display: flex; flex-direction: column; gap: 20px; min-width: 0; min-height: 0; }
+
+/* ── rail ── */
+.rail { display: flex; flex-direction: column; align-items: stretch; min-height: 0; padding: 4px 0 2px; }
+.rail .he { text-align: left; }
+.clock { display: flex; align-items: flex-start; line-height: .8; }
+.clock .hm { font-size: 136px; font-weight: 700; letter-spacing: -.045em; }
+.clock .ap { font-size: 28px; font-weight: 600; color: var(--dim); margin: 4px 0 0 12px; }
+.hdate { font-size: calc(58px * var(--he-scale)); font-weight: 600; line-height: 1.1; margin-top: 42px; }
+.edate { font-size: 28px; color: var(--dim); font-weight: 500; margin-top: 6px; }
+.parsha { margin-top: 30px; }
+.parsha .he { font-size: calc(42px * var(--he-scale)); font-weight: 500; line-height: 1.1; }
+.parsha .en { font-size: 26px; color: var(--dim); font-weight: 500; margin-top: 4px; }
+.rail .spacer { flex: 1; min-height: 20px; }
+.wx { display: flex; align-items: center; gap: 18px; }
+.wx svg { width: 60px; height: 60px; flex: none; }
+.wx .deg { font-size: 62px; font-weight: 600; letter-spacing: -.03em; line-height: 1; }
+.wx .m { display: flex; flex-direction: column; font-size: 24px; font-weight: 500; line-height: 1.3; }
+.wx .m span:last-child { color: var(--dim); }
+/* busy rail (up-next and/or notes showing): date block tightens, parsha goes to one line */
+.rail.busy .hdate { margin-top: 30px; font-size: calc(52px * var(--he-scale)); }
+.rail.busy .parsha { margin-top: 18px; display: flex; gap: 14px; align-items: baseline; }
+.rail-right .rail.busy .parsha { flex-direction: row-reverse; }
+.rail.busy .parsha .he { font-size: calc(34px * var(--he-scale)); }
+.rail.busy .parsha .en { margin: 0; font-size: 24px; }
+.rail.busy .wx svg { width: 50px; height: 50px; } .rail.busy .wx .deg { font-size: 52px; }
+
+.card { background: var(--raised); border-radius: 24px; padding: 18px 24px; width: 100%; text-align: left; margin-bottom: 14px; }
+.rail-right .card { text-align: right; }
+.upnext { background: var(--accent); color: var(--onAccent); display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: 12px; padding: 20px 24px; }
+.upnext .nm { font-size: calc(38px * var(--he-scale)); font-weight: 600; line-height: 1.15; text-align: left; }
+.upnext .en { font-size: 23px; opacity: .8; margin-top: 2px; }
+.upnext .eta { grid-column: 2; grid-row: 1 / span 2; text-align: right; line-height: .85; }
+.upnext .eta b { font-size: 84px; font-weight: 700; letter-spacing: -.045em; display: block; }
+.upnext .eta span { font-size: 22px; font-weight: 600; }
+.note { font-size: 25px; line-height: 1.3; font-weight: 500; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.note.he { font-size: calc(28px * var(--he-scale)); line-height: 1.25; }
+.rail-right .note.he { text-align: right; }
+
+/* ── page panel ── */
+.panel {
+  --panel: var(--raised); --ink: var(--text); --inkDim: var(--dim);
+  --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent);
+  --line: color-mix(in srgb, var(--ink) 15%, transparent); --past: color-mix(in srgb, var(--ink) 34%, transparent);
+  --f-disp-he: var(--f-he); --f-disp-en: var(--f-en); --disp-w: 700;
+  flex: 1; min-height: 0; background: var(--panel); color: var(--ink); border-radius: 32px; padding: 30px 40px 32px;
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+}
+/* while the rail's up-next card holds the accent, the page's own highlight goes neutral */
+.has-upnext .panel:not([class*=" st-"]), .has-upnext .panel.st-classic { --fill: var(--hi); --fillInk: var(--text); --accentText: var(--text); }
+.ptitle { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.ptitle .en { font-size: 26px; color: var(--inkDim); font-weight: 500; }
+.ptitle .he { font-size: calc(36px * var(--he-scale)); font-weight: 600; }
+
+/* zmanim · clean board */
+.board { flex: 1; display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; margin: 0 -22px; }
+.zr { display: grid; grid-template-columns: 250px 1fr auto; align-items: center; padding: 0 22px; border-radius: 18px; min-height: 0; }
+.tm { font-weight: 700; letter-spacing: -.035em; line-height: 1; white-space: nowrap; }
+.tm small { font-weight: 600; letter-spacing: 0; color: var(--inkDim); margin-left: 6px; }
+.zr .tm { font-size: 52px; }
+.zr .tm b { display: inline-block; min-width: 2.72em; text-align: right; font-weight: inherit; }
+.zr .tm small { font-size: 20px; }
+.zr .en { font-size: 24px; color: var(--inkDim); font-weight: 500; }
+.zr .hn { font-size: calc(43px * var(--he-scale)); font-weight: 500; line-height: 1.1; white-space: nowrap; }
+.zr.past, .zr.past .en, .zr.past small { color: var(--past); }
+.zr.next { background: var(--fill); color: var(--fillInk); }
+.zr.next .en, .zr.next .tm small { color: var(--fillInk); opacity: .78; }
+.zr.next .hn { font-weight: 600; }
+.zr .eta { font-weight: 700; margin-left: 18px; }
+
+/* zmanim · board + slim arc */
+.arc { flex: none; height: 120px; position: relative; margin: 6px 0 26px; }
+.arc svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.arc .lab { position: absolute; top: 100%; margin-top: 6px; font-size: 20px; color: var(--inkDim); font-weight: 500; }
+.board2 { flex: 1; display: grid; grid-template-columns: 1fr 1fr; column-gap: 32px; min-height: 0; margin: 0 -18px; }
+.board2 .col { display: grid; grid-template-rows: repeat(6, minmax(0, 1fr)); min-height: 0; }
+.board2 .zr { grid-template-columns: auto 1fr; padding: 0 18px; }
+.board2 .zr .tm { font-size: 46px; } .board2 .zr .tm b { min-width: 2.72em; }
+.board2 .zr .nmwrap { text-align: right; }
+.board2 .zr .hn { font-size: calc(36px * var(--he-scale)); display: block; }
+.board2 .zr .en { font-size: 20px; display: block; margin-top: 2px; }
+.board2 .zr .eta { margin-left: 0; }
+
+/* schedule · flagship: spotlight (now | next) → proportional day ribbon → later today */
+.sx { padding: 30px 44px 34px; }
+.sx .dayl { display: flex; align-items: baseline; justify-content: space-between; margin-top: -4px; }
+.sx .dayl .en { font-size: 38px; font-weight: 600; letter-spacing: -.015em; }
+.sx .dayl .he { font-size: calc(38px * var(--he-scale)); font-weight: 600; }
+.sxb { flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; padding-top: 22px; }
+.spot { display: grid; grid-template-columns: 1fr 1fr; column-gap: 56px; }
+.sp { display: flex; flex-direction: column; min-width: 0; }
+.sp + .sp { border-left: 2px solid var(--line); padding-left: 56px; margin-left: -28px; }
+.sp .k { font-size: 26px; color: var(--inkDim); font-weight: 500; }
+.sp .k b { color: var(--accentText); font-weight: 600; }
+.sp .hn { height: calc(var(--sh) * 1.2); font-family: var(--f-he); font-weight: 600; direction: rtl; text-align: left; margin-top: 8px; line-height: 1.15; }
+.sp .en { font-size: 30px; color: var(--inkDim); font-weight: 500; display: flex; align-items: center; gap: 12px; white-space: nowrap; margin-top: 2px; }
+.dotc { width: 12px; height: 12px; border-radius: 50%; background: var(--catDot); flex: none; }
+.sp .en svg, .lc .en svg { width: 1.1em; height: 1.1em; flex: none; margin: 0 -.15em 0 -.2em; }
+.sp .big { margin-top: 18px; font-size: var(--st); font-weight: 650; letter-spacing: -.04em; line-height: 1; white-space: nowrap; }
+.sp .big small { font-size: .36em; font-weight: 600; letter-spacing: .01em; margin-left: .22em; color: var(--inkDim); }
+.sp .big .dash { font-weight: 400; color: var(--inkDim); margin: 0 .12em; }
+.sp .big .pre { font-size: .42em; font-weight: 500; letter-spacing: 0; color: var(--inkDim); margin-right: .25em; }
+.sp.next .big, .sp.next .big small { color: var(--accentText); }
+.sp .sub { margin-top: 14px; font-size: 26px; font-weight: 600; color: var(--inkDim); display: flex; align-items: center; gap: 18px; height: 30px; }
+.sp.next .sub { color: var(--accentText); }
+.sp .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.sp .bar b { display: block; height: 100%; background: var(--ink); border-radius: 4px; }
+.sp.then .big { color: var(--ink); }
+/* day ribbon: real time scale */
+.dayr { position: relative; height: 66px; }
+.dayr .base { position: absolute; left: 0; right: 0; top: 13px; height: 2px; background: var(--line); }
+.dayr .sg { position: absolute; top: 8px; height: 12px; border-radius: 6px; background: var(--cat); }
+.dayr .sg.past { background: color-mix(in srgb, var(--ink) 22%, transparent); }
+.dayr .sg.now { background: linear-gradient(90deg, var(--ink) 0 var(--p), var(--cat) var(--p) 100%); }
+.dayr .sg.next { background: var(--accentText); }
+.dayr .nw { position: absolute; top: -4px; width: 4px; height: 36px; border-radius: 2px; background: var(--ink); box-shadow: 0 0 0 4px var(--panel); }
+.dayr .hr { position: absolute; top: 34px; font-size: 20px; color: var(--inkDim); font-weight: 500; transform: translateX(-50%); white-space: nowrap; }
+.dayr .hr::before { content: ''; position: absolute; left: 50%; top: -12px; width: 2px; height: 7px; background: var(--line); }
+/* later today */
+.later .lk { font-size: 26px; color: var(--inkDim); font-weight: 500; margin-bottom: 14px; }
+.lrow { display: grid; column-gap: 28px; }
+.lc { min-width: 0; padding-top: 16px; border-top: 2px solid var(--line); }
+.lc .tm { font-size: var(--lt); letter-spacing: -.035em; font-weight: 650; }
+.lc .tm small { font-size: .4em; margin-left: .2em; font-weight: 600; letter-spacing: .01em; }
+.lc .tm .to { font-size: .48em; color: var(--inkDim); font-weight: 600; letter-spacing: -.01em; margin-left: .3em; }
+.lc .hn { font-family: var(--f-he); font-weight: 600; direction: rtl; text-align: left; white-space: nowrap; margin-top: 10px; line-height: 1.15; }
+.lc .en { font-size: var(--le); color: var(--inkDim); font-weight: 500; margin-top: 4px; display: flex; align-items: flex-start; gap: 9px; line-height: 1.2; }
+.lc .en .dotc { width: 10px; height: 10px; margin-top: .42em; }
+.lc .tm .to { margin-left: .12em; }
+.lc.past .tm, .lc.past .tm small, .lc.past .tm .to, .lc.past .hn, .lc.past .en { color: var(--past); }
+.lc.past .dotc { background: var(--past); }
+
+/* inspiration: quote · sicha · letter ("Torah text" font option = --f-torah-*) */
+.insp { --f-torah-he: var(--f-th, 'Frank Ruhl Libre', serif); --f-torah-en: 'EB Garamond', serif; padding: 56px 72px 48px; }
+.qq { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 0; }
+.qq .q-he { width: 92%; height: 330px; font-family: var(--f-torah-he); font-weight: 500; direction: rtl; text-align: center; line-height: 1.2; text-wrap: balance; }
+.qq .q-en { width: 80%; height: 160px; text-wrap: balance; font-family: var(--f-torah-en); font-style: italic; font-weight: 400; color: var(--inkDim); line-height: 1.25; margin-top: 22px; }
+.qq .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--accentText); margin: 34px 0 24px; }
+.qq .attr { font-size: 30px; color: var(--inkDim); font-weight: 500; }
+.qq .attr .he { font-family: var(--f-torah-he); font-size: calc(32px * var(--he-scale)); }
+.sc .hd { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 22px; border-bottom: 2px solid var(--line); }
+.sc .hd .en { font-family: var(--f-torah-en); font-size: 46px; font-weight: 600; letter-spacing: -.01em; }
+.sc .hd .he { font-family: var(--f-torah-he); font-size: calc(40px * var(--he-scale)); font-weight: 500; color: var(--inkDim); }
+.sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: 30px; font-family: var(--f-torah-en); font-size: 39px; line-height: 1.5; font-weight: 400; hyphens: none; text-wrap: pretty; }
+.sc .body p + p { margin-top: .6em; }
+.ft { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; font-size: 26px; color: var(--inkDim); font-weight: 500; }
+.ft .pg { display: flex; align-items: center; gap: 14px; }
+.ft .pg i { width: 34px; height: 5px; border-radius: 3px; background: var(--line); }
+.ft .pg i.on { background: var(--accentText); }
+.lt { direction: rtl; }
+.lt .top { font-family: var(--f-torah-he); color: var(--inkDim); font-size: calc(28px * var(--he-scale)); line-height: 1.4; }
+.lt .sal { font-family: var(--f-torah-he); font-size: calc(42px * var(--he-scale)); font-weight: 700; margin: 18px 0 10px; }
+.lt .body { flex: 1; min-height: 0; overflow: hidden; font-family: var(--f-torah-he); font-size: calc(35px * var(--he-scale)); line-height: 1.6; text-align: right; text-wrap: pretty; }
+.lt .close { font-family: var(--f-torah-he); font-size: calc(36px * var(--he-scale)); font-weight: 700; text-align: left; margin-top: 26px; }
+.lt .ft { direction: ltr; }
+.paper { --panel: color-mix(in srgb, #D8BC84 7%, var(--raised)); }
+.light .paper { --panel: color-mix(in srgb, #F2E3C2 60%, var(--raised)); }
+
+/* ── announcements ── */
+.ann { padding: 48px 60px 52px; }
+.fit { white-space: nowrap; overflow: hidden; line-height: 1.12; }
+.fit.wrap { white-space: normal; }
+.disp-he { font-family: var(--f-disp-he); font-weight: var(--disp-w); direction: rtl; }
+.disp-en { font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: -.03em; }
+/* event card */
+.ev { flex: 1; display: grid; grid-template-rows: 1fr auto; min-height: 0; }
+.ev .titles { display: flex; flex-direction: column; justify-content: center; min-height: 0; }
+.ev .h-he { height: 230px; text-align: left; }
+.ev .h-en { height: 196px; }
+.ev .foot { display: flex; align-items: flex-end; gap: 48px; }
+.tile { background: var(--fill); color: var(--fillInk); border-radius: 30px; padding: 26px 44px 30px; display: flex; align-items: center; gap: 40px; }
+.tile .day { font-size: 40px; font-weight: 600; line-height: 1.15; }
+.tile .day.he { font-size: calc(34px * var(--he-scale)); opacity: .78; font-weight: 500; }
+.tile .t { font-size: 150px; font-weight: var(--tile-w, 700); letter-spacing: -.05em; line-height: .9; }
+.tile .t small { font-size: 42px; letter-spacing: 0; font-weight: 600; margin-left: 10px; opacity: .78; color: inherit; }
+.ev .place { padding-bottom: 8px; }
+.ev .place .en { font-size: 42px; font-weight: 600; line-height: 1.15; }
+.ev .place .en2 { font-size: 30px; color: var(--inkDim); font-weight: 500; margin-top: 4px; }
+.ev .place .he { font-size: calc(34px * var(--he-scale)); color: var(--inkDim); text-align: left; margin-top: 6px; }
+/* big words */
+.bw { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 0; text-align: center; }
+.bw .w-he { height: 320px; width: 100%; text-align: center; color: var(--accentText); }
+.bw .w-en { height: 170px; width: 88%; font-weight: 600; letter-spacing: -.02em; margin-top: 18px; text-align: center; line-height: 1.18; }
+/* list */
+.ls .hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 22px; }
+.ls .hd .en { font-size: 66px; }
+.ls .hd .he { font-size: calc(56px * var(--he-scale)); }
+.ls .items { flex: 1; display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
+.li { display: grid; grid-template-columns: 220px 1fr auto; align-items: center; column-gap: 28px; border-top: 2px solid var(--line); }
+.li .d { font-size: 34px; font-weight: 600; color: var(--inkDim); }
+.li .d.soon { color: var(--accentText); }
+.li .x { font-size: 40px; font-weight: 600; line-height: 1.2; letter-spacing: -.01em; }
+.li .x .he { display: block; font-size: calc(30px * var(--he-scale)); font-weight: 500; color: var(--inkDim); text-align: left; margin-top: 2px; }
+.li .tm { font-size: 46px; } .li .tm small { font-size: 20px; }
+/* quick time */
+.qt { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 0; }
+.qt .nm { display: flex; align-items: baseline; gap: 36px; }
+.qt .nm .he { font-size: calc(88px * var(--he-scale)); }
+.qt .nm .en { font-size: 80px; }
+.qt .big { font-size: 340px; font-weight: var(--qt-w, 300); letter-spacing: -.06em; line-height: .95; color: var(--accentText); margin: 6px 0 16px; }
+.qt .big small { font-size: 72px; font-weight: 500; letter-spacing: 0; margin-left: 16px; color: inherit; }
+.qt .where { font-size: 38px; color: var(--inkDim); font-weight: 500; }
+.qt .where .he { font-size: calc(34px * var(--he-scale)); }
+
+/* ── announcement STYLES (the 11 Takeover styles ⊇ the 6 StyledSlide styles) ──
+   Each is a handful of role overrides on the panel. Static only: no infinite animation. */
+.st-sleek       { --fill: var(--ink); --fillInk: var(--panel); --accentText: var(--ink); --disp-w: 500; --tile-w: 400; --qt-w: 200; }
+.st-grand       { --f-disp-he: 'Frank Ruhl Libre', var(--f-he); --f-disp-en: 'EB Garamond', serif; --disp-w: 600;
+                  --accent: #D2AA55; --onAccent: #1A1408; --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent);
+                  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 0 0 12px var(--panel), inset 0 0 0 13px color-mix(in srgb, var(--accent) 30%, transparent); }
+.light .st-grand { --accent: #8A6516; --onAccent: #FFFFFF; }
+.st-celebration { --panel: var(--accent); --ink: var(--onAccent); --inkDim: color-mix(in srgb, var(--onAccent) 72%, transparent);
+                  --fill: var(--onAccent); --fillInk: var(--accent); --accentText: var(--onAccent); --disp-w: 800;
+                  background: linear-gradient(150deg, color-mix(in srgb, #FFFFFF 14%, var(--accent)) 0%, var(--accent) 55%, color-mix(in srgb, #000000 18%, var(--accent)) 100%); }
+.st-urgent      { --accent: #F2A33A; --onAccent: #1E1405; --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent);
+                  --panel: color-mix(in srgb, var(--accent) 7%, var(--raised)); box-shadow: inset 0 0 0 6px var(--accent); }
+.light .st-urgent { --accent: #B4600A; --onAccent: #FFFFFF; }
+.st-emergency   { --panel: #B42318; --ink: #FFFFFF; --inkDim: rgba(255,255,255,.8); --fill: #FFFFFF; --fillInk: #B42318; --accentText: #FFFFFF; --disp-w: 800; }
+.st-torah       { --f-disp-he: 'Frank Ruhl Libre', var(--f-he); --f-disp-en: 'EB Garamond', serif; --disp-w: 600;
+                  --accent: #C99A4E; --onAccent: #1C1206; --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent);
+                  --panel: color-mix(in srgb, #C9A46A 11%, var(--raised)); }
+.light .st-torah { --accent: #7A5520; --onAccent: #FFFFFF; --panel: color-mix(in srgb, #E8D4A8 55%, var(--raised)); }
+.st-trip        { --accent: #4CB386; --onAccent: #06180F; --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent);
+                  --panel: color-mix(in srgb, var(--accent) 8%, var(--raised)); }
+.light .st-trip { --accent: #1E7A52; --onAccent: #FFFFFF; }
+.st-phone       { --fill: transparent; --fillInk: var(--accent); --accentText: var(--accent); --tile-w: 600; }
+.st-phone .tile { box-shadow: inset 0 0 0 4px var(--accent); }
+.st-memorial    { --f-disp-he: 'Frank Ruhl Libre', var(--f-he); --f-disp-en: 'EB Garamond', serif; --disp-w: 500;
+                  --fill: transparent; --fillInk: var(--ink); --accentText: var(--inkDim); --tile-w: 400; --qt-w: 300;
+                  --panel: color-mix(in srgb, #000000 22%, var(--raised)); }
+.st-memorial .tile { box-shadow: inset 0 0 0 2px var(--line); }
+.light .st-memorial { --panel: color-mix(in srgb, var(--text) 5%, var(--raised)); }
+.st-hype        { --accent: #FF5B3A; --onAccent: #FFFFFF; --fill: var(--accent); --fillInk: var(--onAccent); --accentText: var(--accent); --disp-w: 800;
+                  background: linear-gradient(120deg, color-mix(in srgb, var(--accent) 26%, var(--raised)) 0%, var(--raised) 58%); }
+.light .st-hype { --accent: #D9381A; }
+
+/* banner: exists only when active; belongs to the page column */
+.banner { flex: none; height: 76px; background: var(--raised); border-radius: 24px; display: flex; align-items: center; gap: 22px; padding: 0 32px; white-space: nowrap; overflow: hidden; }
+.banner .tx { font-size: 30px; font-weight: 500; }
+.banner .he { font-size: calc(30px * var(--he-scale)); font-weight: 500; }
+.banner .sep { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); flex: none; }
+
+/* takeover: full canvas, rail hidden, a small clock stays */
+.canvas.takeover { grid-template-columns: 1fr; }
+.canvas.takeover .rail { display: none; }
+.minclock { position: absolute; top: 34px; right: 48px; font-size: 34px; font-weight: 600; color: var(--inkDim); z-index: 3; }
+
+/* ── portrait 900×1600: rail → top band ── */
+.canvas.portrait { width: 900px; height: 1600px; padding: 36px; grid-template-columns: 1fr; grid-template-rows: auto 1fr; row-gap: 32px; }
+.portrait .rail { display: grid; grid-template-columns: auto 1fr; column-gap: 24px; padding: 0 6px; }
+.portrait .rail .spacer { display: none; }
+.portrait .clock { grid-column: 1; grid-row: 1; }
+.portrait .clock .hm { font-size: 136px; }
+.portrait .rail .dates { grid-column: 2; grid-row: 1; text-align: right; }
+.portrait .rail .dates .he, .portrait .rail .parsha .he { text-align: right; }
+.portrait .hdate { margin-top: 0; font-size: calc(54px * var(--he-scale)); }
+.portrait .rail .wx { grid-column: 1; grid-row: 2; margin-top: 28px; }
+.portrait .rail .parsha { grid-column: 2; grid-row: 2; text-align: right; margin-top: 28px; align-self: center; }
+.portrait .rail .card { grid-column: 1 / -1; margin: 22px 0 0; }
+.portrait .rail .wx svg { width: 54px; height: 54px; } .portrait .rail .wx .deg { font-size: 54px; }
+.portrait .panel { padding: 32px 40px; }
+.portrait .zr { grid-template-columns: 236px 1fr auto; }
+.portrait .zr .tm { font-size: 58px; }
+.portrait .zr .hn { font-size: calc(50px * var(--he-scale)); }
+.portrait .zr .en { font-size: 25px; }
+
+/* ── motion modes (page transitions only) ── */
+.m-smooth .page.enter  { animation: smIn 480ms cubic-bezier(.22,.7,.2,1) both; }
+.m-smooth .page.exit   { animation: fadeOut 260ms ease-in both; }
+.m-minimal .page.enter { animation: fadeIn 500ms linear both; }
+.m-minimal .page.exit  { animation: fadeOut 300ms linear both; }
+.m-lively .page.enter  { animation: fadeIn 220ms ease-out both; }
+.m-lively .page.enter [data-s] { animation: liIn 520ms cubic-bezier(.2,.9,.25,1.12) both; animation-delay: calc(min(var(--i, 0), 10) * 55ms + 100ms); }
+.m-lively .page.exit   { animation: liOut 300ms ease-in both; }
+@keyframes smIn   { from { opacity: 0; transform: translateY(14px); } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeOut{ to   { opacity: 0; } }
+@keyframes liIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
+@keyframes liOut  { to   { opacity: 0; transform: translateY(-10px); } }
+.m-smooth .hm.tick, .m-lively .hm.tick { animation: fadeIn 280ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .page.enter, .page.exit, .page.enter [data-s] { animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* ── themes: the 8 from tokens.js verbatim (roles used here) + 2 proposed ── */
+const THEMES = {
+  /* Dark family */
+  dark:         { fam:'dark',  bg:'#12100C', text:'#EFE3C0', dim:'rgba(239,227,192,.60)', muted:'rgba(239,227,192,.30)', gold:'#D4A84B' },
+  'dark-hc':    { fam:'dark',  bg:'#0D0B08', text:'#F5EDD5', dim:'rgba(245,237,213,.78)', muted:'rgba(245,237,213,.48)', gold:'#E8BD5A' },
+  midnight:     { fam:'dark',  bg:'#0B1120', text:'#E0E8F5', dim:'rgba(224,232,245,.75)', muted:'rgba(224,232,245,.40)', gold:'#7EB8E0' },
+  graphite:     { fam:'dark',  bg:'#111214', text:'#ECEDEF', dim:'rgba(236,237,239,.64)', muted:'rgba(236,237,239,.32)', gold:'#F0B44C', isNew:true },
+  /* Light family (owner's grouping; note sepia's tokens are a dark page — see README) */
+  parchment:    { fam:'light', bg:'#F0E4C4', text:'#1C0E05', dim:'rgba(28,14,5,.60)',     muted:'rgba(28,14,5,.30)',     gold:'#8B5E00' },
+  sepia:        { fam:'light', bg:'#2A2118', text:'#F0DFC0', dim:'rgba(240,223,192,.75)', muted:'rgba(240,223,192,.40)', gold:'#D4A84B' },
+  'clean-white':{ fam:'light', bg:'#F7F8FA', text:'#1A1D23', dim:'rgba(26,29,35,.58)',    muted:'rgba(26,29,35,.25)',    gold:'#3B6B96' },
+  ivory:        { fam:'light', bg:'#F5F0E6', text:'#2C1E0E', dim:'rgba(44,30,14,.58)',    muted:'rgba(44,30,14,.25)',    gold:'#9B7530' },
+  sky:          { fam:'light', bg:'#EDF4FA', text:'#0F1E33', dim:'rgba(15,30,51,.58)',    muted:'rgba(15,30,51,.25)',    gold:'#1A7A7A' },
+  stone:        { fam:'light', bg:'#ECEBE6', text:'#1B1C1E', dim:'rgba(27,28,30,.60)',    muted:'rgba(27,28,30,.28)',    gold:'#2F6B53', isNew:true },
+};
+const hex = h => [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+const lum = h => { const c = hex(h).map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126*c[0] + .7152*c[1] + .0722*c[2]; };
+const contrast = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+/* derivation: the only per-theme inputs are tokens.js values; everything else is computed */
+function base(t) {
+  const light = lum(t.bg) > .4;   // by luminance, not by family label
+  return { light, vars: {
+    bg: t.bg, text: t.text, dim: t.dim, muted: t.muted, accent: t.gold,
+    onAccent: contrast(t.gold, t.bg) >= contrast(t.gold, '#FFFFFF') ? t.bg : '#FFFFFF',
+    lift: light ? '#FFFFFF' : t.text, liftPct: light ? '72%' : '6%',
+  } };
+}
+function applyTheme(name) {
+  const b = base(THEMES[name] || THEMES.midnight), rs = document.documentElement.style;
+  for (const k in b.vars) rs.setProperty('--' + k, b.vars[k]);
+  document.documentElement.classList.toggle('light', b.light);
+}
+const FONTS = {
+  default: { he: "'Rubik', sans-serif", en: "'Manrope', sans-serif", num: "'Manrope', sans-serif", heScale: 1 },
+  serif:   { he: "'FbMazalMedium', 'Frank Ruhl Libre', serif", en: "'EB Garamond', serif", num: "'EB Garamond', serif", heScale: 1.1 },
+};
+
+const q = new URLSearchParams(location.search);
+const P = {
+  page: q.get('page') || 'zmanim', theme: q.get('theme') || 'midnight', rail: q.get('rail') || 'left',
+  fonts: q.get('fonts') || 'default', time: q.get('time') || '12:41', notes: +(q.get('notes') || 0),
+  banner: q.get('banner') === '1', items: +(q.get('items') || 9), orient: q.get('orient') || 'landscape',
+  motion: q.get('motion') || 'smooth', demo: q.get('demo'), upNextMinutes: +(q.get('upnext') || 5),
+  style: q.get('style') || 'classic', takeover: q.get('takeover') === '1', words: q.get('words') || 'mazeltov', day: q.get('day') || 'tue', page2: +(q.get('pg') || 1),
+};
+applyTheme(P.theme);
+const F = FONTS[P.fonts] || FONTS.default, rs = document.documentElement.style;
+rs.setProperty('--f-he', F.he); rs.setProperty('--f-en', F.en); rs.setProperty('--f-num', F.num); rs.setProperty('--he-scale', F.heScale); if (P.fonts === 'serif') rs.setProperty('--f-th', F.he);
+
+/* ── content ── */
+const m = s => { const [h, mm] = s.split(':').map(Number); return h * 60 + mm; };
+let NOW = m(P.time);
+const fmt = v => { const h = Math.floor(v / 60), mm = v % 60, h12 = ((h + 11) % 12) + 1; return { t: `${h12}:${String(mm).padStart(2, '0')}`, ap: h < 12 ? 'AM' : 'PM' }; };
+const tm = (v, cls = '') => { const f = fmt(v); return `<span class="tm num ${cls}"><b>${f.t}</b><small>${f.ap}</small></span>`; };
+const ZM = [
+  ['עלות השחר','Alos Hashachar','6:01'], ['משיכיר','Misheyakir','6:25'], ['הנץ החמה','Netz Hachamah','7:19'],
+  ['סוף זמן ק״ש','Sof Zman Shema','10:08'], ['סוף זמן תפילה','Sof Zman Tefillah','11:04'], ['חצות היום','Chatzos','12:57'],
+  ['מנחה גדולה','Mincha Gedolah','13:25'], ['מנחה קטנה','Mincha Ketanah','16:14'], ['פלג המנחה','Plag Hamincha','17:24'],
+  ['שקיעה','Shkiah','18:35'], ['צאת הכוכבים','Tzeis Hakochavim','19:01'],
+].map(([he, en, t]) => ({ he, en, v: m(t) }));
+/* categories (from the schedule model). Colour is a hue; the screen mixes it softly into the panel. */
+const CATS = { Davening:'#6F9FE0', Shiur:'#A88BDB', Seder:'#4FB5A5', Meals:'#DCA45A', Mivtzoim:'#7DBB6C', Farbrengen:'#DA8C8C', Events:'#D8B65A', Trips:'#58B6C9', Breaks:'#9AA3AE' };
+const SCHED9 = [
+  ['שחרית','Shacharis','7:30',null,'Davening'], ['ארוחת בוקר','Breakfast','8:45',null,'Meals'], ['סדר בוקר','Morning Seder','9:30','13:00','Seder'],
+  ['ארוחת צהריים','Lunch','13:00',null,'Meals'], ['מנחה','Mincha','13:45',null,'Davening'], ['סדר אחה״צ','Afternoon Seder','14:30','18:00','Seder'],
+  ['ארוחת ערב','Supper','18:00',null,'Meals'], ['סדר לילה','Night Seder','19:30','21:00','Seder'], ['מעריב','Maariv','21:00',null,'Davening'],
+];
+const SCHED14 = [
+  ['חסידות','Chassidus','6:30','7:25','Shiur'], ['שחרית','Shacharis','7:30',null,'Davening'], ['ארוחת בוקר','Breakfast','8:45',null,'Meals'], ['סדר גמרא','Gemara Seder','9:30','11:00','Seder'],
+  ['שיעור עיון','Iyun Shiur','11:00','13:00','Shiur'], ['ארוחת צהריים','Lunch','13:00',null,'Meals'], ['מנחה','Mincha','13:45',null,'Davening'], ['סדר אחה״צ','Afternoon Seder','14:30','16:30','Seder'],
+  ['הלכה','Halacha','16:30','17:30','Shiur'], ['הפסקה','Break','17:30',null,'Breaks'], ['ארוחת ערב','Supper','18:00',null,'Meals'], ['סדר לילה','Night Seder','19:30','21:00','Seder'],
+  ['מעריב','Maariv','21:00',null,'Davening'], ['התוועדות','Farbrengen','21:30',null,'Farbrengen'],
+];
+const SCHEDFRI = [
+  ['שחרית','Shacharis','7:05',null,'Davening'], ['מנחה','Mincha','13:30',null,'Davening'], ['הדלקת נרות','Candle Lighting','18:28',null,'Events','candle'],
+  ['קבלת שבת ומעריב','Kabbalas Shabbos & Maariv','18:40','19:30','Davening'], ['סעודת שבת','Seudas Shabbos','20:00',null,'Meals'],
+];
+const DAYS = {
+  tue: { hdate:'ב׳ חשון תשפ״ז', edate:'Tuesday, October 13', label:null },
+  fri: { hdate:'ה׳ חשון תשפ״ז', edate:'Friday, October 16', label:['Erev Shabbos · Parshas Noach','ערב שבת קודש'] },
+};
+const DAY = DAYS[P.day] || DAYS.tue;
+const SCHED = (P.day === 'fri' ? SCHEDFRI : P.items >= 14 ? SCHED14 : SCHED9).map(([he, en, t, end, cat, icon]) => ({ he, en, v: m(t), end: end ? m(end) : null, cat, icon }));
+/* side notes: one text each, in whichever language the composer used */
+const NOTES = [
+  { he: true,  text: 'נמצא כובע שחור בזאל. אפשר לקבל אותו במשרד.' },
+  { he: false, text: 'Mivtza Tefillin sign-up sheet is on the office door.' },
+];
+
+function zStatus() { const i = ZM.findIndex(z => z.v > NOW); return ZM.map((z, k) => i < 0 || k < i ? 'past' : k === i ? 'next' : ''); }
+function sStatus() {
+  const ni = SCHED.findIndex(s => s.v > NOW); const li = (ni < 0 ? SCHED.length : ni) - 1;   // li = last started
+  const st = SCHED.map((s, k) => {
+    if (k === ni) return 'next';
+    if (k > li) return '';
+    if (k < li) return 'past';
+    return (s.end ? NOW < s.end : NOW <= s.v + 5) ? 'now' : 'past';
+  });
+  return { ni, ci: li, st };
+}
+const mins = d => d < 60 ? `${d} min` : `${Math.floor(d / 60)} hr${d % 60 ? ' ' + (d % 60) + ' min' : ''}`;
+
+const WX = `<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="9"/><path d="M24 6v4M8.5 12.5l2.8 2.8M6 28h4M39.5 12.5l-2.8 2.8"/><path d="M23 52h25a9 9 0 0 0 .5-18 13 13 0 0 0-24.5 3.5A7.3 7.3 0 0 0 23 52z" fill="var(--bg)"/></svg>`;
+
+/* ── rail ── */
+function upNextItem(page) {
+  if (page === 'schedule') return null;          // the schedule page already shows it: no duplicate
+  const { ni } = sStatus(); const nx = SCHED[ni];
+  return nx && nx.v - NOW <= P.upNextMinutes ? nx : null;
+}
+function rail(page) {
+  const nx = upNextItem(page);
+  const up = nx ? `<div class="card upnext"><div class="nm he">${nx.he}</div><div class="en">${nx.en} at <span class="num">${fmt(nx.v).t}</span></div>
+      <div class="eta num"><b>${nx.v - NOW}</b><span>min</span></div></div>` : '';
+  const notes = NOTES.slice(0, P.notes).map(n => `<div class="card note ${n.he ? 'he' : ''}">${n.text}</div>`).join('');
+  const f = fmt(NOW);
+  return `<aside class="rail ${up || notes ? 'busy' : ''}">
+    <div class="clock num"><span class="hm">${f.t}</span><span class="ap">${f.ap}</span></div>
+    <div class="dates"><div class="hdate he">${DAY.hdate}</div><div class="edate">${DAY.edate}</div></div>
+    <div class="parsha"><div class="he">פרשת נח</div><div class="en">Parshas Noach</div></div>
+    <div class="spacer"></div>
+    ${up}${notes}
+    <div class="wx">${WX}<span class="deg num">84°</span><div class="m"><span>Partly cloudy</span><span class="num">H 88° · L 77°</span></div></div>
+  </aside>`;
+}
+
+/* ── pages ── */
+const title = (he, en) => `<header class="ptitle" data-s style="--i:0"><span class="en">${en}</span><span class="he">${he}</span></header>`;
+function zRow(z, s, i, two) {
+  const eta = s === 'next' ? `<span class="eta">in ${mins(z.v - NOW)}</span>` : '';
+  if (two) return `<div class="zr ${s}" data-s style="--i:${i + 1}">${tm(z.v)}<div class="nmwrap"><span class="hn he">${z.he}</span><span class="en">${eta ? eta + ' · ' : ''}${z.en}</span></div></div>`;
+  return `<div class="zr ${s}" data-s style="--i:${i + 1}">${tm(z.v)}<span class="en">${z.en}${eta}</span><span class="hn he">${z.he}</span></div>`;
+}
+function pageZmanim() {
+  const st = zStatus();
+  return `<section class="panel page">${title('זמני היום', 'Zmanim · Miami Beach')}
+    <div class="board">${ZM.map((z, i) => zRow(z, st[i], i)).join('')}</div></section>`;
+}
+function arcSvg() {
+  const W = 1000, H = 120, x0 = 8, x1 = W - 8, baseY = 112, top = 12;
+  const netz = ZM[2].v, shk = ZM[9].v;
+  const pt = v => { const f = (v - netz) / (shk - netz); return [x0 + (x1 - x0) * f, baseY - (baseY - top) * Math.sin(Math.PI * f)]; };
+  const path = (a, b) => Array.from({ length: 61 }, (_, i) => pt(a + (b - a) * i / 60)).map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const st = zStatus();
+  const ticks = ZM.map((z, i) => ({ z, s: st[i] })).filter(o => o.z.v > netz && o.z.v < shk)
+    .map(({ z, s }) => { const [x, y] = pt(z.v); return s === 'next'
+      ? `<circle cx="${x}" cy="${y}" r="9" fill="var(--accentText)"/>`
+      : `<circle cx="${x}" cy="${y}" r="5" fill="${s === 'past' ? 'var(--inkDim)' : 'var(--line)'}"/>`; }).join('');
+  const [sx, sy] = pt(NOW);
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <line x1="0" x2="${W}" y1="${baseY}" y2="${baseY}" stroke="var(--line)" stroke-width="2"/>
+    <path d="${path(netz, shk)}" fill="none" stroke="var(--line)" stroke-width="3"/>
+    <path d="${path(netz, NOW)}" fill="none" stroke="var(--inkDim)" stroke-width="4" stroke-linecap="round"/>
+    ${ticks}<circle cx="${sx}" cy="${sy}" r="15" fill="var(--ink)"/>
+  </svg><span class="lab" style="left:0">Sunrise</span><span class="lab" style="right:0">Sunset</span>`;
+}
+function pageZmanimArc() {
+  const st = zStatus();
+  const col = a => `<div class="col">${a.map(i => zRow(ZM[i], st[i], i, true)).join('')}</div>`;
+  return `<section class="panel page">${title('זמני היום', 'Zmanim · Miami Beach')}
+    <div class="arc" data-s style="--i:1">${arcSvg()}</div>
+    <div class="board2">${col([0,1,2,3,4,5])}${col([6,7,8,9,10])}</div></section>`;
+}
+const ICONS = { candle: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2c1.3 1.5 1.9 2.6 1.9 3.6a1.9 1.9 0 0 1-3.8 0c0-1 .6-2.1 1.9-3.6z"/><rect x="9" y="11" width="6" height="10" rx="1.2"/></svg>` };
+function pageSchedule() {
+  const { ni, ci, st } = sStatus();
+  const light = document.documentElement.classList.contains('light');
+  const catOf = s => { const h = CATS[s.cat] || CATS.Breaks; return `--cat:color-mix(in srgb, ${h} ${light ? 45 : 40}%, var(--panel));--catDot:color-mix(in srgb, ${h} 85%, var(--panel))`; };
+  const lead = s => s.icon && ICONS[s.icon] ? ICONS[s.icon] : '<i class="dotc"></i>';
+  const T = (v, cls = '') => { const f = fmt(v); return `<span class="num">${f.t}</span><small>${f.ap}</small>`; };
+  /* spotlight: [now, next] when something is running, otherwise [next, then] */
+  const sh = DAY.label ? 58 : 68;
+  const nowIdx = st.indexOf('now');
+  const pair = nowIdx >= 0 ? [nowIdx, ni] : [ni, ni + 1];
+  const card = (i, role) => {
+    const s = SCHED[i]; if (!s) return '<div></div>';
+    let k, big, sub;
+    if (role === 'now') {
+      const p = Math.min(1, (NOW - s.v) / ((s.end || s.v + 5) - s.v));
+      const nx = SCHED[ni], seamless = nx && s.end === nx.v;   // ends exactly as Next starts → don't repeat the countdown
+      k = 'Now'; big = s.end ? `<span class="num">${fmt(s.v).t}</span><span class="dash">–</span>${T(s.end)}` : T(s.v);
+      sub = s.end ? `<span class="bar"><b style="width:${(p * 100).toFixed(0)}%"></b></span>${seamless ? '' : `<span>${mins(s.end - NOW)} left</span>`}` : '';
+    } else if (role === 'next') {
+      k = `Next`; big = T(s.v) + (s.end ? `<small style="margin-left:.5em">to ${fmt(s.end).t}</small>` : ''); sub = `in ${mins(s.v - NOW)}`;
+    } else { k = 'Then'; big = T(s.v) + (s.end ? `<small style="margin-left:.5em">to ${fmt(s.end).t}</small>` : ''); sub = ''; }
+    return `<div class="sp ${role}" data-s style="--i:${role === 'now' ? 1 : 2};${catOf(s)}">
+      <div class="k">${k}</div><div class="hn fit" data-max="${sh}">${s.he}</div>
+      <div class="en">${lead(s)}<span>${s.en}</span></div>
+      <div class="big">${big}</div><div class="sub">${sub}</div></div>`;
+  };
+  const spot = `<div class="spot">${card(pair[0], nowIdx >= 0 ? 'now' : 'next')}${card(pair[1], nowIdx >= 0 ? 'next' : 'then')}</div>`;
+  /* proportional day ribbon */
+  const last = SCHED[SCHED.length - 1];
+  const t0 = Math.floor(SCHED[0].v / 60) * 60, t1 = Math.ceil(((last.end || last.v + 30)) / 60) * 60;
+  const X = v => ((v - t0) / (t1 - t0) * 100);
+  const segs = SCHED.map((s, i) => {
+    const nx = SCHED[i + 1]; let e = s.end || Math.min(s.v + 25, nx ? nx.v : s.v + 25);
+    const cls = st[i] === 'now' ? 'now' : st[i] === 'past' ? 'past' : st[i] === 'next' ? 'next' : '';
+    const p = cls === 'now' ? `--p:${((NOW - s.v) / (e - s.v) * 100).toFixed(1)}%;` : '';
+    return `<i class="sg ${cls}" style="${catOf(s)};${p}left:${X(s.v)}%;width:calc(${X(e) - X(s.v)}% - 4px)"></i>`;
+  }).join('');
+  const step = (t1 - t0) / 60 > 12 ? 180 : 120; let hrs = '';
+  for (let h = Math.ceil(t0 / step) * step; h <= t1; h += step) { if (h === t0 || h === t1) continue; const hh = h / 60, h12 = ((hh + 11) % 12) + 1; hrs += `<span class="hr" style="left:${X(h)}%">${h12} ${hh < 12 ? 'AM' : 'PM'}</span>`; }
+  const ribbon = `<div class="dayr" data-s style="--i:3"><i class="base"></i>${segs}${NOW > t0 && NOW < t1 ? `<i class="nw" style="left:calc(${X(NOW)}% - 2px)"></i>` : ''}${hrs}</div>`;
+  /* later today: everything after the spotlight */
+  let after = SCHED.map((s, i) => ({ s, i })).filter(o => o.i > Math.max(...pair));
+  if (after.length < 3) after = SCHED.map((s, i) => ({ s, i })).filter(o => !pair.includes(o.i));   // short tail: show the whole day, past faded
+  const cols = Math.max(after.length, 4), dense = after.length > 6;
+  const lt = dense ? 34 : 44, lh = dense ? 26 : 32, le = dense ? 18 : 21;
+  const later = after.length ? `<div class="later" style="--lt:${lt}px;--le:${le}px">
+    <div class="lrow" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${after.map(({ s, i }) => `<div class="lc ${st[i] === 'past' ? 'past' : ''}" data-s style="--i:${i + 5};${catOf(s)}">
+      <div class="tm num">${fmt(s.v).t}${s.end && !dense ? `<span class="to">–${fmt(s.end).t}</span>` : ''}<small>${fmt(s.end && !dense ? s.end : s.v).ap}</small></div>
+      <div class="hn fitg" data-group="later" data-max="${lh}" data-floor="${Math.round(lh * .8)}">${s.he}</div>
+      <div class="en">${lead(s)}<span>${s.en}</span></div>${s.end && dense ? `<div class="en" style="padding-left:19px">to <span class="num">${fmt(s.end).t}</span></div>` : ''}</div>`).join('')}</div></div>` : '<div></div>';
+  const lab = DAY.label ? `<div class="dayl" data-s style="--i:0"><span class="en">${DAY.label[0]}</span><span class="he">${DAY.label[1]}</span></div>` : '';
+  const stt = DAY.label ? 66 : 76;
+  return `<section class="panel page sx" style="--sh:${sh}px;--st:${stt}px">${title('סדר היום', 'Today’s schedule')}${lab}<div class="sxb">${spot}${ribbon}${later}</div></section>`;
+}
+/* ── inspiration ── */
+function pageQuote() {
+  return `<section class="panel ann page insp ${sty()}"><div class="qq">
+    <div class="fit wrap q-he" data-max="150" data-s style="--i:1">מעט מן האור דוחה הרבה מן החושך</div>
+    <div class="fit wrap q-en" data-max="70" data-s style="--i:2">A little light dispels a great deal of darkness.</div>
+    <div class="rule" data-s style="--i:3"></div>
+    <div class="attr" data-s style="--i:4">Tanya, chapter 12 &nbsp;·&nbsp; <span class="he">תניא, פרק י״ב</span></div>
+  </div></section>`;
+}
+const SICHA = `The Torah tells Noach, “Come into the teivah, you and all your household.” The Baal Shem Tov taught that teivah means not only an ark but also a word. When the floodwaters of daily life rise — the worry of making a living, the noise and distraction of the world — a person is told: come into the word. Enter the words of Torah and the words of tefillah, and bring your whole household with you.|Inside the teivah the flood cannot reach you. More than that: the very waters that threatened to drown lift the ark higher, above the mountains. So too, the challenges of the world, met from within the words of Torah and prayer, do not diminish a Jew; they raise him up. And the teivah had a tzohar, a window of light, for even inside the ark one must shine outward, so that when the waters recede the world is ready to be rebuilt.`;
+function pageSicha() {
+  return `<section class="panel ann page insp sc ${sty()}">
+    <div class="hd" data-s style="--i:0"><span class="en">From a Sicha of Parshas Noach</span><span class="he">מתוך שיחת ש״פ נח</span></div>
+    <div class="body paged" data-s style="--i:1" data-text="${SICHA.replace(/"/g, '&quot;')}"></div>
+    <div class="ft" data-s style="--i:2"><span>Likkutei Sichos, vol. 5, p. 23</span><span class="pg"></span></div>
+  </section>`;
+}
+const LETTER = `במענה על מכתבו, בו כותב אודות הלימוד בישיבה והקשיים שנתקל בהם. והנה ידוע פתגם רבותינו נשיאינו, אשר מעט מן האור דוחה הרבה מן החושך, ועל אחת כמה וכמה אורה של תורה ומצוותיה. ולכן אין להתפעל מן הקשיים, כי אם להוסיף בלימוד בשקידה ובהתמדה, ובפרט בלימוד תורת החסידות, ולעשות כל זה מתוך שמחה וטוב לבב. ויהי רצון שיבשר טוב בכל האמור, ושתהיה לו הצלחה רבה בלימודיו, ויהיה דוגמא חיה לחבריו בכל עניני תורה ויראת שמים.`;
+function pageLetter() {
+  return `<section class="panel ann page insp lt paper ${sty()}">
+    <div class="top" data-s style="--i:0">ב״ה<br>ט״ו מרחשון, ה׳תשט״ז · ברוקלין, נ.י.</div>
+    <div class="sal" data-s style="--i:1">שלום וברכה!</div>
+    <div class="body paged" data-s style="--i:2" data-text="${LETTER}"></div>
+    <div class="close" data-s style="--i:3">בברכה להצלחה ולבשורות טובות</div>
+    <div class="ft" data-s style="--i:4"><span style="display:flex;gap:28px;align-items:center">Igros Kodesh, vol. 12<span class="pg"></span></span><span class="he" style="font-family:var(--f-torah-he)">אגרות קודש, חלק י״ב</span></div>
+  </section>`;
+}
+const sty = () => `st-${P.style}`;
+function pageEvent() {
+  return `<section class="panel ann page ${sty()}"><div class="ev">
+    <div class="titles">
+      <div class="fit h-he disp-he" data-max="210" data-s style="--i:1">התוועדות</div>
+      <div class="fit h-en disp-en" data-max="180" data-s style="--i:2">Farbrengen</div>
+    </div>
+    <div class="foot">
+      <div class="tile" data-s style="--i:3"><div class="when"><div class="day">Tonight</div><div class="day he">הערב</div></div><div class="t num">9:30<small>PM</small></div></div>
+      <div class="place" data-s style="--i:4"><div class="en">In the zal</div><div class="en2">after Maariv</div><div class="he">בזאל, אחרי מעריב</div></div>
+    </div>
+  </div></section>`;
+}
+const WORDS = {
+  mazeltov: ['מזל טוב!', 'Mazel Tov to the Cohen family on the birth of a baby boy'],
+  drill: ['תרגיל אש', 'Fire drill. Walk out calmly through the front doors.'],
+};
+function pageWords() {
+  const [he, en] = WORDS[P.words] || WORDS.mazeltov;
+  return `<section class="panel ann page ${sty()}"><div class="bw">
+    <div class="fit w-he disp-he" data-max="330" data-s style="--i:1">${he}</div>
+    <div class="fit wrap w-en" data-max="76" data-s style="--i:2">${en}</div>
+  </div></section>`;
+}
+function pageList() {
+  const L = [
+    ['Tonight', 'Farbrengen in the zal', 'התוועדות בזאל', '21:30', true],
+    ['Wednesday', 'Siyum on Maseches Brachos', 'סיום מסכת ברכות', '20:00'],
+    ['Thursday', 'Mivtza Tefillin on Lincoln Road', 'מבצע תפילין', '14:00'],
+    ['Friday', 'Early Mincha', 'מנחה מוקדמת', '17:40'],
+  ];
+  return `<section class="panel ann page ls ${sty()}">
+    <div class="hd" data-s style="--i:0"><span class="en disp-en">This week</span><span class="he disp-he">השבוע</span></div>
+    <div class="items">${L.map(([d, en, he, t, soon], i) => `<div class="li" data-s style="--i:${i + 1}">
+      <span class="d ${soon ? 'soon' : ''}">${d}</span><span class="x">${en}<span class="he">${he}</span></span>${tm(m(t))}</div>`).join('')}</div>
+  </section>`;
+}
+function pageQuick() {
+  return `<section class="panel ann page ${sty()}"><div class="qt">
+    <div class="nm" data-s style="--i:0"><span class="en disp-en">Mincha</span><span class="he disp-he">מנחה</span></div>
+    <div class="big num" data-s style="--i:1">1:45<small>PM</small></div>
+    <div class="where" data-s style="--i:2">In the zal &nbsp;·&nbsp; <span class="he">בזאל</span></div>
+  </div></section>`;
+}
+const PAGES = { zmanim: pageZmanim, 'zmanim-arc': pageZmanimArc, schedule: pageSchedule, event: pageEvent, words: pageWords, list: pageList, quick: pageQuick, quote: pageQuote, sicha: pageSicha, letter: pageLetter };
+const BANNER = `<div class="banner"><span class="tx">Yeshiva photo Thursday · hat and jacket</span><span class="sep"></span><span class="he">תמונת הישיבה ביום חמישי</span></div>`;
+
+function render(pageName) {
+  const portrait = P.orient === 'portrait';
+  document.body.style.cssText = portrait ? 'width:900px;height:1600px' : 'width:1600px;height:900px';
+  const has = !P.takeover && upNextItem(pageName);
+  const f = fmt(NOW);
+  document.getElementById('app').innerHTML = `<div class="canvas ${portrait ? 'portrait' : ''} rail-${P.rail} m-${P.motion} ${has ? 'has-upnext' : ''} ${P.takeover ? 'takeover' : ''}">
+    ${rail(pageName)}<div class="pagecol">${PAGES[pageName]()}${P.banner ? BANNER : ''}</div></div>`;
+  if (P.takeover) document.querySelector('.panel').insertAdjacentHTML('afterbegin', `<span class="minclock num">${f.t} ${f.ap}</span>`);
+  fitAll();
+}
+/* one-shot auto-fit per render (binary search on font-size); never per frame */
+function fitAll() {
+  document.querySelectorAll('.fit').forEach(el => {
+    let lo = 16, hi = +el.dataset.max || 200;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; el.style.fontSize = mid + 'px';
+      (el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 2) ? lo = mid : hi = mid; }
+    el.style.fontSize = lo + 'px';
+  });
+  /* grouped fit: every Hebrew name in a timeline row gets the same size (the largest that fits the longest one) */
+  const groups = {};
+  document.querySelectorAll('.fitg').forEach(el => {
+    let size = +el.dataset.max; el.style.fontSize = size + 'px';
+    while (el.scrollWidth > el.clientWidth + 1 && size > 18) { size -= 1; el.style.fontSize = size + 'px'; }
+    const g = el.dataset.group; groups[g] = Math.min(groups[g] ?? 999, size);
+  });
+  document.querySelectorAll('.fitg').forEach(el => {
+    const size = Math.max(groups[el.dataset.group], +el.dataset.floor || 0);
+    el.style.fontSize = size + 'px';
+    if (el.scrollWidth > el.clientWidth + 1) el.style.whiteSpace = 'normal';
+  });
+  /* pagination: readable size is fixed; text that doesn't fit splits into pages at sentence ends */
+  document.querySelectorAll('.paged').forEach(el => {
+    const paras = el.dataset.text.split('|'); const words = paras.map((p, i) => p.split(' ').map((w, j) => ({ w, br: j === 0 && i > 0 }))).flat();
+    const build = arr => '<p>' + arr.map((x, k) => (x.br && k > 0 ? '</p><p>' : '') + x.w).join(' ').replace(/<p> /g, '<p>') + '</p>';
+    const pages = []; let i = 0;
+    while (i < words.length) {
+      let j = i + 1; el.innerHTML = build(words.slice(i, j));
+      while (j < words.length) { el.innerHTML = build(words.slice(i, j + 1)); if (el.scrollHeight > el.clientHeight + 1) break; j++; }
+      if (j < words.length) {
+        let k = j; while (k > i && !words[k].br) k--;                       // paragraph boundary
+        if (k > i && (k - i) >= (j - i) * .6) j = k;
+        else { k = j; while (k > i + 20 && !/[.!?”]$/.test(words[k - 1].w)) k--; if (k > i + 20) j = k; }
+      }
+      pages.push(words.slice(i, j)); i = j;
+    }
+    const cur = Math.min(P.page2, pages.length) - 1;
+    el.innerHTML = build(pages[cur]);
+    const pg = el.parentElement.querySelector('.pg');
+    if (pg) pg.innerHTML = pages.length < 2 ? '' : `<span class="num">${cur + 1} / ${pages.length}</span>` + pages.map((_, k) => `<i class="${k === cur ? 'on' : ''}"></i>`).join('');
+  });
+}
+
+/* ── demos: ?demo=pages&motion=smooth|minimal|lively  ·  ?demo=daynight ── */
+function swap(next) {
+  const cur = document.querySelector('.page');
+  const exitMs = { smooth: 260, minimal: 300, lively: 300 }[P.motion] || 260;
+  cur.classList.add('exit');
+  setTimeout(() => {
+    const tmp = document.createElement('div'); tmp.innerHTML = PAGES[next]();
+    const el = tmp.firstElementChild; el.classList.add('enter');
+    cur.replaceWith(el); fitAll();
+    setTimeout(() => el.classList.remove('enter'), 1400);
+  }, exitMs);
+}
+render(P.page);
+Promise.all([F.he, F.en].map(f => document.fonts.load('600 40px ' + f, 'אב12'))).catch(() => {}).then(() => document.fonts.ready).then(() => {
+  fitAll();
+  window.__ready = true;
+  if (P.demo === 'pages' || P.demo === '1') {
+    const order = ['zmanim', 'schedule', 'event', 'quick', 'list', 'words', 'zmanim-arc']; let k = Math.max(0, order.indexOf(P.page));
+    setInterval(() => { k = (k + 1) % order.length; swap(order[k]); }, 6000);
+    setInterval(() => { NOW += 1; const hm = document.querySelector('.hm'); hm.textContent = fmt(NOW).t; hm.classList.remove('tick'); void hm.offsetWidth; hm.classList.add('tick'); }, 60000);
+  }
+  if (P.demo === 'daynight') {   // crossfade the base roles; derived roles follow automatically
+    document.documentElement.classList.add('fading');
+    const pair = [q.get('night') || 'midnight', q.get('day') || 'sky']; let k = pair.indexOf(P.theme) < 0 ? 0 : pair.indexOf(P.theme);
+    setInterval(() => { k = 1 - k; applyTheme(pair[k]); }, 7000);
+  }
+});
+</script>
+</body>
+</html>
