@@ -18,6 +18,7 @@ import { initCountdowns, scheduleMidnightReset } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
 import { initRSSSchedulers } from './rss-scheduler.js';
 import { startMivtzahScheduler } from './mivtzah-scheduler.js';
+import { migrateSettingsKeys } from './settings-migrate.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +38,16 @@ export function createApp() {
   // Start scheduler after a short delay (allow server to be ready)
   setTimeout(async () => {
     try {
-      const settings = await readJSON('settings.json');
+      // Fold stray top-level zipCode/chabadLocationId/trackA/trackBTime
+      // (written by older admin builds) into settings.location/.scheduler
+      // before anything reads them. Idempotent. See GOTCHAS.md.
+      let settings;
+      try {
+        settings = await migrateSettingsKeys();
+      } catch (migErr) {
+        console.error('[settings] Key migration failed:', migErr.message);
+        settings = await readJSON('settings.json');
+      }
       const config = settings?.location ?? {};
 
       if (settings?.location) {

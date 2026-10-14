@@ -16,6 +16,7 @@ import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
+import { normalizeSettingsKeys } from '../settings-migrate.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -64,40 +65,10 @@ const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 
 const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon'];
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];
 
-// ── GET /api/state — full initial payload ──────────────────────────────────
-
-router.get('/state', async (_req, res) => {
-  try {
-    const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, scheduleTemplates, rssFeeds] = await Promise.all([
-      readJSON('cache.json'),
-      readJSON('settings.json'),
-      readJSON('slides.json'),
-      readJSON('messages.json'),
-      readJSON('pinned.json'),
-      readJSON('custom-days.json'),
-      readJSON('google-albums.json'),
-      readJSON('schedule.json'),
-      readJSON('schedule-templates.json'),
-      readJSON('rss-feeds.json'),
-    ]);
-
-    res.json({
-      cache:      cache      ?? {},
-      settings:   settings   ?? {},
-      slides:     slides     ?? [],
-      messages:   messages   ?? [],
-      pinned:     pinned     ?? [],
-      customDays: customDays ?? [],
-      googleAlbums: googleAlbums ?? [],
-      schedule:   schedule   ?? { entries: [], categories: [] },
-      scheduleTemplates: scheduleTemplates ?? [],
-      rssFeeds:   rssFeeds   ?? [],
-    });
-  } catch (err) {
-    console.error('[api] GET /state error:', err.message, err.stack);
-    res.status(500).json({ error: 'Failed to load screen state. The data files may be corrupted.' });
-  }
-});
+// GET /api/state lives in src/server/app.js (route 6c, localhostOrAuth +
+// csrfProtection), registered before this router. A second copy used to live
+// here but was unreachable (shadowed), so it was removed — add new state keys
+// to app.js.
 
 // ── Settings ───────────────────────────────────────────────────────────────
 
@@ -113,10 +84,12 @@ router.get('/settings', async (_req, res) => {
 
 router.put('/settings', async (req, res) => {
   try {
-    const settings = req.body;
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
       return res.status(400).json({ error: 'Invalid settings data.' });
     }
+    // An admin tab still running an older build may send the stray top-level
+    // zipCode/trackA/... keys; fold them into location/scheduler (audit bug 6).
+    const { settings } = normalizeSettingsKeys(req.body);
     await writeJSON('settings.json', settings);
     broadcast('settings-update', settings);
 
