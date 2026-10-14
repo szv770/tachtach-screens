@@ -89,7 +89,7 @@ export default function SlideCarousel({
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
       case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
-      case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} />;
+      case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} onRequestDuration={onRequestDuration} />;
       default: return null;
     }
   }
