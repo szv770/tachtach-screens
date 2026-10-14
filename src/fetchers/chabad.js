@@ -35,7 +35,7 @@ export function parseZmanimRSS(xml) {
     const cat = (item.category || "").trim();
     const m = title.match(/^(.+?) - \d+:/);
     if (m && cat && !cat.includes("min.")) {
-      const key = RSS_MAP[m[1].trim()];
+      const key = RSS_MAP[m[1].trim()] || (/candle/i.test(m[1]) ? "candleLighting" : null);
       if (key) res[key] = cat;
     }
   }

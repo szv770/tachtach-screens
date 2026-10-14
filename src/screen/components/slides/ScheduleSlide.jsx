@@ -1,596 +1,320 @@
-import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
-import { fonts } from '../../styles/tokens.js';
+import React, { useMemo } from 'react';
+import { Panel, PageTitle, TimeText, F, he } from '../../design/ui.jsx';
+import { Fit, useGroupFit } from '../../design/fit.jsx';
+import { useDesign } from '../../design/DesignRoot.jsx';
+import { useNow } from '../../design/hooks.js';
+import { toMinutes, fmt12, nowMinutes, durationText, isHebrew } from '../../design/time.js';
 import { ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
+import { CandleIcon } from '../../design/graphics.jsx';
 import { isEntryActiveOn } from '../../../shared/scheduleDays.js';
 
-// ── Keyframes ─────────────────────────────────────────────────────────────
-const SCHEDULE_KEYFRAMES = `
-@keyframes scheduleNextGlow {
-  0%, 100% { box-shadow: 0 0 18px var(--glow-color), inset 0 0 6px var(--glow-color); }
-  50%      { box-shadow: 0 0 28px var(--glow-color), inset 0 0 12px var(--glow-color); }
+/**
+ * Schedule page — the flagship (R2 README §6 "Schedule").
+ * settings.scheduleLayout:
+ *   'timeline' (default) — zoom levels on one subject, top to bottom:
+ *       1. spotlight  Now | Next  (or Next | Then when nothing is running)
+ *       2. day ribbon  every item as a segment at its true time and length
+ *       3. later today  the remaining items as a ruled strip
+ *   'list' — the same Now | Next spotlight over a ruled list of the day.
+ * Each item appears once at full size. State logic: a range is "now" until
+ * its end; a point event is "now" for 5 minutes.
+ */
+
+const DEFAULT_HUE = '#9AA3AE';
+
+function useEntries(schedule) {
+  return useMemo(() => {
+    const cats = Object.fromEntries((schedule?.categories || []).map((c) => [c.id, c]));
+    const today = new Date();
+    return (schedule?.entries || [])
+      .filter((e) => (schedule?.resolvedFor ? e.enabled !== false : isEntryActiveOn(e, today)))
+      .map((e) => {
+        const v = toMinutes(e.time);
+        let end = e.endTime ? toMinutes(e.endTime) : null;
+        if (end != null && v != null && end <= v) end = null;
+        const cat = cats[e.category];
+        return {
+          id: e.id, he: e.nameHe || '', en: e.name || '', v, end,
+          hue: cat?.color || DEFAULT_HUE, icon: e.icon || null, catIcon: cat?.icon || null,
+          candle: /candle|הדלקת נרות/i.test(`${e.name} ${e.nameHe}`),
+        };
+      })
+      .filter((e) => e.v != null)
+      .sort((a, b) => a.v - b.v);
+  }, [schedule?.entries, schedule?.categories, schedule?.resolvedFor]);
 }
-.schedule-scroll::-webkit-scrollbar { display: none; }
-@keyframes scheduleTickerScroll {
-  0%   { transform: translateY(0); }
-  100% { transform: translateY(-50%); }
+
+/** Per-item state: 'past' | 'now' | 'next' | ''. */
+export function scheduleStates(items, now) {
+  const ni = items.findIndex((s) => s.v > now);
+  const st = items.map((s, k) => {
+    if (k === ni) return 'next';
+    if (s.v > now) return '';
+    const running = s.end != null ? now < s.end : now <= s.v + 5;
+    return running ? 'now' : 'past';
+  });
+  let nowIdx = -1;
+  st.forEach((x, k) => { if (x === 'now') nowIdx = k; });
+  return { ni, nowIdx, st };
 }
-`;
 
-// ── Speed lookup ──────────────────────────────────────────────────────────
-const SPEED_MAP = { slow: 15, medium: 30, fast: 50 };
+function catVars(s, light) {
+  return {
+    '--cat': `color-mix(in srgb, ${s.hue} ${light ? 45 : 40}%, var(--panel))`,
+    '--catDot': `color-mix(in srgb, ${s.hue} 85%, var(--panel))`,
+  };
+}
 
-// ── Time helpers ──────────────────────────────────────────────────────────
-
-function parseTimeToMinutes(timeStr) {
-  if (!timeStr) return null;
-  const m12 = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (m12) {
-    let h = parseInt(m12[1]);
-    const m = parseInt(m12[2]);
-    const ap = m12[3].toUpperCase();
-    if (ap === 'PM' && h !== 12) h += 12;
-    if (ap === 'AM' && h === 12) h = 0;
-    return h * 60 + m;
+function Lead({ s, size = 12, past = false }) {
+  const { graphics } = useDesign();
+  const color = past ? 'var(--past)' : 'var(--catDot)';
+  if (s.candle && graphics !== 'off') return <span style={{ color: past ? 'var(--past)' : 'currentColor', display: 'flex', flex: 'none', margin: '0 -.15em 0 -.2em' }}><CandleIcon size={Math.round(size * 2.4)} /></span>;
+  const key = s.icon || (graphics === 'rich' ? s.catIcon : null);
+  if (key && graphics !== 'off') {
+    return <span style={{ display: 'flex', flex: 'none', margin: '0 -.1em 0 -.15em' }}><ScheduleIcon iconKey={key} size={Math.round(size * 2.1)} color={color} /></span>;
   }
-  const m24 = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-  if (m24) return parseInt(m24[1]) * 60 + parseInt(m24[2]);
-  return null;
+  return <i style={{ width: size, height: size, borderRadius: '50%', background: color, flex: 'none', display: 'inline-block' }} />;
 }
 
-function formatTime12(timeStr) {
-  if (!timeStr) return '';
-  const mins = parseTimeToMinutes(timeStr);
-  if (mins === null) return timeStr;
-  let h = Math.floor(mins / 60);
-  const m = mins % 60;
-  const ap = h >= 12 ? 'PM' : 'AM';
-  if (h === 0) h = 12;
-  else if (h > 12) h -= 12;
-  return `${h}:${String(m).padStart(2, '0')} ${ap}`;
-}
-
-function getEntryState(entry, now) {
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  const startMins = parseTimeToMinutes(entry.time);
-  const endMins = entry.endTime ? parseTimeToMinutes(entry.endTime) : null;
-  if (startMins === null) return 'upcoming';
-  if (endMins !== null && currentMinutes >= startMins && currentMinutes < endMins) return 'current';
-  if (endMins !== null && currentMinutes >= endMins) return 'past';
-  if (endMins === null && currentMinutes > startMins + 5) return 'past';
-  return 'upcoming';
-}
-
-function findNextEntryIndex(entries, now) {
-  // Prefer currently-running entry over upcoming
-  for (let i = 0; i < entries.length; i++) {
-    if (getEntryState(entries[i], now) === 'current') return i;
-  }
-  // Nothing running — find soonest upcoming
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
-  let bestIdx = -1;
-  let bestDiff = Infinity;
-  for (let i = 0; i < entries.length; i++) {
-    const mins = parseTimeToMinutes(entries[i].time);
-    if (mins === null) continue;
-    const diff = mins - currentMinutes;
-    if (diff > 0 && diff < bestDiff) { bestDiff = diff; bestIdx = i; }
-  }
-  return bestIdx;
-}
-
-function buildCategoryMap(categories) {
-  const map = {};
-  if (!categories) return map;
-  for (const c of categories) map[c.id] = c;
-  return map;
-}
-
-// ── Entry Row ─────────────────────────────────────────────────────────────
-
-function EntryRow({ entry, state, isNext, categoryData, tokens, lang, compact, scale = 1.0 }) {
-  const isPast = state === 'past';
-  const isCurrent = state === 'current';
-  const isHighlighted = isNext || isCurrent;
-  const catColor = categoryData?.color || tokens.dim;
-
-  const hebrewPrimary = lang !== 'en';
-  const primaryName = hebrewPrimary ? (entry.nameHe || entry.name) : (entry.name || entry.nameHe);
-  const secondaryName = hebrewPrimary
-    ? (entry.nameHe && entry.name ? entry.name : null)
-    : (entry.name && entry.nameHe ? entry.nameHe : null);
-
-  const icon = entry.icon || categoryData?.icon || null;
-
-  // Sizing — compact mode uses slightly smaller text for two-column layout
-  // scale multiplier applied for shrink-to-fit full-day mode
-  const timeSize = compact ? (isHighlighted ? `${Math.round(22 * scale)}px` : `${Math.round(19 * scale)}px`) : (isHighlighted ? `${Math.round(28 * scale)}px` : `${Math.round(24 * scale)}px`);
-  const nameSize = compact ? (isHighlighted ? `${Math.round(20 * scale)}px` : `${Math.round(18 * scale)}px`) : (isHighlighted ? `${Math.round(26 * scale)}px` : `${Math.round(23 * scale)}px`);
-  const subSize = compact ? `${Math.round(12 * scale)}px` : `${Math.round(14 * scale)}px`;
-  const iconSize = compact ? (isHighlighted ? Math.round(18 * scale) : Math.round(16 * scale)) : (isHighlighted ? Math.round(22 * scale) : Math.round(20 * scale));
-  const timeColWidth = compact ? `${Math.round(100 * scale)}px` : `${Math.round(130 * scale)}px`;
-  const vPadN = compact
-    ? (isHighlighted ? Math.round(10 * scale) : Math.round(8 * scale))
-    : (isHighlighted ? Math.round(14 * scale) : Math.round(11 * scale));
-  const hPadR = compact ? Math.round(14 * scale) : Math.round(24 * scale);
-  const hPadL = compact ? Math.round(11 * scale) : Math.round(21 * scale);
-
+function Big({ mins, size, color, small, children }) {
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        padding: `${vPadN}px ${hPadR}px ${vPadN}px ${hPadL}px`,
-        borderRadius: isHighlighted ? '6px' : '0',
-        position: 'relative',
-        opacity: isPast ? 0.55 : 1,
-        transition: 'opacity 0.6s ease, background 0.6s ease',
-        borderLeft: `3px solid ${isHighlighted ? tokens.gold : catColor}`,
-        ...(isHighlighted ? {
-          background: tokens.goldBg,
-          border: `1px solid ${tokens.goldBd}`,
-          borderLeft: `4px solid ${tokens.gold}`,
-          '--glow-color': tokens.goldBg,
-          animation: 'scheduleNextGlow 4s ease-in-out infinite',
-        } : {}),
-      }}
-    >
-      {/* Time column */}
-      <div style={{
-        width: timeColWidth,
-        flexShrink: 0,
-        textAlign: 'right',
-        paddingRight: compact ? `${Math.round(12 * scale)}px` : `${Math.round(20 * scale)}px`,
-      }}>
-        <div style={{
-          fontFamily: fonts.englishDisplay,
-          fontWeight: 300,
-          fontSize: timeSize,
-          color: isHighlighted ? tokens.gold : (isPast ? tokens.dim : tokens.text),
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-          letterSpacing: '0.02em',
-          lineHeight: 1.2,
-          transition: 'color 0.5s ease',
-        }}>
-          {formatTime12(entry.time)}
-        </div>
-        {entry.endTime && (
-          <div style={{
-            fontFamily: fonts.englishDisplay,
-            fontSize: compact ? `${Math.round(11 * scale)}px` : `${Math.round(13 * scale)}px`,
-            fontWeight: 300,
-            color: isHighlighted ? `${tokens.gold}88` : tokens.muted,
-            direction: 'ltr',
-            unicodeBidi: 'isolate',
-            marginTop: '1px',
-            letterSpacing: '0.01em',
-          }}>
-            {'\u2013'} {formatTime12(entry.endTime)}
-          </div>
-        )}
-      </div>
+    <div className="tt-num" style={{ marginTop: 18, fontSize: size, fontWeight: 650, letterSpacing: '-.04em', lineHeight: 1, whiteSpace: 'nowrap', color }}>
+      {children}
+      {mins != null && (
+        <>
+          {fmt12(mins).t}
+          <small style={{ fontSize: '.36em', fontWeight: 600, letterSpacing: '.01em', marginLeft: '.22em', color: color || 'var(--inkDim)' }}>{fmt12(mins).ap}</small>
+        </>
+      )}
+      {small}
+    </div>
+  );
+}
 
-      {/* Icon column */}
-      {icon && (
-        <div style={{
-          width: compact ? `${Math.round(24 * scale)}px` : `${Math.round(30 * scale)}px`,
-          flexShrink: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: compact ? `${Math.round(6 * scale)}px` : `${Math.round(10 * scale)}px`,
-          opacity: isPast ? 0.55 : 0.9,
-          transition: 'opacity 0.5s ease',
-        }}>
-          <ScheduleIcon
-            iconKey={icon}
-            size={iconSize}
-            color={isHighlighted ? tokens.gold : (isPast ? tokens.dim : catColor)}
-          />
+function SpotCard({ s, role, now, nextItem, sh, stt, light, i, second }) {
+  if (!s) return <div />;
+  const name = s.he || s.en;
+  const nameIsHe = !!s.he || isHebrew(s.en);
+  let k, big, sub = null;
+  if (role === 'now') {
+    k = 'Now';
+    const endAt = s.end ?? s.v + 5;
+    const p = Math.min(1, Math.max(0, (now - s.v) / (endAt - s.v)));
+    const seamless = nextItem && s.end != null && s.end === nextItem.v;
+    big = s.end != null
+      ? <Big mins={s.end} size={stt}><span>{fmt12(s.v).t}</span><span style={{ fontWeight: 400, color: 'var(--inkDim)', margin: '0 .12em' }}>–</span></Big>
+      : <Big mins={s.v} size={stt} />;
+    sub = s.end != null ? (
+      <>
+        <span style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
+          <b style={{ display: 'block', height: '100%', width: `${(p * 100).toFixed(0)}%`, background: 'var(--ink)', borderRadius: 4 }} />
+        </span>
+        {!seamless && <span style={{ whiteSpace: 'nowrap' }}>{durationText(s.end - now)} left</span>}
+      </>
+    ) : null;
+  } else {
+    k = role === 'next' ? 'Next' : 'Then';
+    const color = role === 'next' ? 'var(--accentText)' : 'var(--ink)';
+    big = (
+      <Big mins={s.v} size={stt} color={color}
+        small={s.end != null ? <small style={{ fontSize: '.36em', fontWeight: 600, letterSpacing: '.01em', marginLeft: '.5em', color: role === 'next' ? 'var(--accentText)' : 'var(--inkDim)' }}>to {fmt12(s.end).t}</small> : null} />
+    );
+    if (role === 'next') sub = <span>in {durationText(s.v - now)}</span>;
+  }
+  return (
+    <div data-s="" style={{
+      '--i': i, ...catVars(s, light), display: 'flex', flexDirection: 'column', minWidth: 0,
+      ...(second ? { borderLeft: '2px solid var(--line)', paddingLeft: 56, marginLeft: -28 } : null),
+    }}>
+      <div style={{ fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', fontWeight: 500 }}>{k}</div>
+      <Fit max={sh} dir={nameIsHe ? 'rtl' : 'ltr'} style={{ height: Math.round(sh * 1.2), fontFamily: nameIsHe ? F.heD : F.enD, fontWeight: 600, textAlign: 'left', marginTop: 8, lineHeight: 1.15, width: '100%' }}>
+        {name}
+      </Fit>
+      {s.he && s.en && (
+        <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap', marginTop: 2, overflow: 'hidden' }}>
+          <Lead s={s} size={12} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.en}</span>
         </div>
       )}
-
-      {/* Name column */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontFamily: hebrewPrimary ? fonts.hebrewPrimary : fonts.englishBody,
-          fontSize: nameSize,
-          fontWeight: isHighlighted ? 600 : 500,
-          color: isHighlighted ? tokens.gold : (isPast ? tokens.dim : tokens.text),
-          lineHeight: 1.35,
-          transition: 'color 0.5s ease',
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          direction: hebrewPrimary ? 'rtl' : 'ltr',
-        }}>
-          {primaryName}
-        </div>
-        {secondaryName && (
-          <div style={{
-            fontFamily: hebrewPrimary ? fonts.englishBody : fonts.hebrewPrimary,
-            fontSize: subSize,
-            color: isHighlighted ? `${tokens.gold}BB` : tokens.dim,
-            textTransform: hebrewPrimary ? 'uppercase' : 'none',
-            letterSpacing: hebrewPrimary ? '0.06em' : '0',
-            direction: hebrewPrimary ? 'ltr' : 'rtl',
-            unicodeBidi: 'isolate',
-            marginTop: '3px',
-            lineHeight: 1.25,
-          }}>
-            {secondaryName}
-          </div>
-        )}
+      {big}
+      <div style={{ marginTop: 14, fontFamily: F.en, fontSize: 26, fontWeight: 600, color: role === 'next' ? 'var(--accentText)' : 'var(--inkDim)', display: 'flex', alignItems: 'center', gap: 18, height: 30 }}>
+        {sub}
       </div>
     </div>
   );
 }
 
-// ── Header ────────────────────────────────────────────────────────────────
-
-function SlideHeader({ tokens, isHebrew, title, label }) {
+function Spotlight({ items, st, ni, nowIdx, now, sh, stt, light }) {
+  const pair = nowIdx >= 0 ? [nowIdx, ni] : [ni, ni + 1];
+  const roles = nowIdx >= 0 ? ['now', 'next'] : ['next', 'then'];
   return (
-    <div style={{
-      textAlign: 'center',
-      padding: '8px 0 14px',
-      flexShrink: 0,
-    }}>
-      <span style={{
-        fontFamily: isHebrew ? fonts.hebrewDisplay : fonts.englishDisplay,
-        fontSize: '26px',
-        fontWeight: 500,
-        color: tokens.gold,
-        letterSpacing: isHebrew ? '0' : '0.08em',
-        textTransform: isHebrew ? 'none' : 'uppercase',
-      }}>
-        {title}
-      </span>
-      {label ? (
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '17px',
-          color: tokens.dim,
-          marginTop: '4px',
-          unicodeBidi: 'plaintext',
-        }}>
-          {label}
-        </div>
-      ) : null}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginTop: '10px',
-        padding: '0 24px',
-      }}>
-        <div style={{
-          flex: 1, height: '1px',
-          background: `linear-gradient(to right, transparent, ${tokens.muted})`,
-        }} />
-        <div style={{
-          width: '5px', height: '5px', borderRadius: '50%',
-          background: tokens.gold, opacity: 0.5,
-        }} />
-        <div style={{
-          flex: 1, height: '1px',
-          background: `linear-gradient(to left, transparent, ${tokens.muted})`,
-        }} />
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', columnGap: 56 }}>
+      <SpotCard s={items[pair[0]]} role={roles[0]} now={now} nextItem={items[ni]} sh={sh} stt={stt} light={light} i={1} />
+      <SpotCard s={pair[1] >= 0 ? items[pair[1]] : null} role={roles[1]} now={now} nextItem={items[ni]} sh={sh} stt={stt} light={light} i={2} second />
     </div>
   );
 }
 
-// ── Empty state ───────────────────────────────────────────────────────────
+function hourLabel(h) { const hh = h / 60; return `${((hh + 11) % 12) + 1} ${hh < 12 || hh === 24 ? (hh === 24 ? 'AM' : 'AM') : 'PM'}`; }
 
-function EmptyState({ tokens, isHebrew }) {
+function Ribbon({ items, st, now, light }) {
+  if (!items.length) return null;
+  const last = items[items.length - 1];
+  const t0 = Math.floor(items[0].v / 60) * 60;
+  const t1 = Math.max(t0 + 120, Math.ceil(Math.max(...items.map((s) => s.end ?? s.v + 30)) / 60) * 60);
+  const X = (v) => ((v - t0) / (t1 - t0)) * 100;
+  const step = (t1 - t0) / 60 > 12 ? 180 : 120;
+  const hrs = [];
+  for (let h = Math.ceil(t0 / step) * step; h <= t1; h += step) if (h !== t0 && h !== t1) hrs.push(h);
+  void last;
   return (
-    <div style={{
-      textAlign: 'center',
-      padding: '60px 20px',
-      fontFamily: isHebrew ? fonts.hebrewPrimary : fonts.englishBody,
-      fontSize: '22px',
-      color: tokens.dim,
-      lineHeight: 1.6,
-    }}>
-      {isHebrew
-        ? '\u05D0\u05D9\u05DF \u05E4\u05E8\u05D9\u05D8\u05D9\u05DD \u05D1\u05E1\u05D3\u05E8 \u05D4\u05D9\u05D5\u05DD'
-        : 'No schedule entries today'}
-    </div>
-  );
-}
-
-// ── Mode: Full Day ────────────────────────────────────────────────────────
-
-function FullDayMode({ entries, now, nextIdx, categoryMap, tokens, lang }) {
-  const containerRef = useRef(null);
-  const [containerHeight, setContainerHeight] = useState(0);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver(obs => {
-      const h = obs[0]?.contentRect?.height ?? 0;
-      if (h > 0) setContainerHeight(h);
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
-
-  const NATURAL_ROW_HEIGHT = 54;
-  const MIN_SCALE = 0.45;
-  const scale = containerHeight > 0
-    ? Math.max(MIN_SCALE, Math.min(1.0, containerHeight / (entries.length * NATURAL_ROW_HEIGHT + 8)))
-    : 1.0;
-  const gap = Math.round(3 * scale);
-
-  return (
-    <div
-      ref={containerRef}
-      style={{ flex: 1, overflow: 'hidden', padding: '4px 0' }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: `${gap}px` }}>
-        {entries.map((entry, i) => {
-          const state = getEntryState(entry, now);
-          const isNext = i === nextIdx;
-          const catData = categoryMap[entry.category] || null;
-          return (
-            <EntryRow
-              key={entry.id || i}
-              entry={entry}
-              state={isNext ? 'next' : state}
-              isNext={isNext}
-              categoryData={catData}
-              tokens={tokens}
-              lang={lang}
-              scale={scale}
-            />
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Mode: Auto-scroll (ticker) ────────────────────────────────────────────
-
-function AutoScrollMode({ entries, now, nextIdx, categoryMap, tokens, lang, scrollSpeed, scrollStart = 'beginning' }) {
-  const containerRef = useRef(null);
-  const innerRef = useRef(null);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-
-  // If scrollStart === 'current' and we have a highlighted entry, reorder to start there
-  const displayEntries = useMemo(() => {
-    if (scrollStart !== 'current' || nextIdx <= 0) return entries;
-    // Start 1 before the current/next entry for context
-    const start = Math.max(0, nextIdx - 1);
-    return [...entries.slice(start), ...entries.slice(0, start)];
-  }, [entries, nextIdx, scrollStart]);
-
-  // Two-pass approach: first render without duplication to measure real content,
-  // then enable scrolling once we know it overflows.
-  const [measured, setMeasured] = useState(false);
-
-  // Locked pre-duplication height — set once when measured transitions to true,
-  // never updated again so animDuration stays stable and the CSS animation
-  // doesn't restart on subsequent ResizeObserver firings.
-  const lockedHeightRef = useRef(0);
-
-  useEffect(() => {
-    const inner = innerRef.current;
-    const container = containerRef.current;
-    if (!inner || !container) return;
-    const measure = () => {
-      const ch = container.clientHeight;
-      setContainerHeight(ch);
-      // Only update contentHeight (and potentially lock) before duplication.
-      // Once measured===true the inner div contains two copies + a gap spacer,
-      // so scrollHeight / 2 would include the gap — don't use it to drive state.
-      if (!measured) {
-        const realHeight = inner.scrollHeight;
-        setContentHeight(realHeight);
-        if (realHeight > ch) {
-          lockedHeightRef.current = realHeight;
-          setMeasured(true);
+    <div data-s="" style={{ '--i': 3, position: 'relative', height: 66, flex: 'none' }}>
+      <i style={{ position: 'absolute', left: 0, right: 0, top: 13, height: 2, background: 'var(--line)' }} />
+      {items.map((s, i) => {
+        const nx = items[i + 1];
+        const e = s.end ?? Math.min(s.v + 25, nx ? Math.max(nx.v, s.v + 8) : s.v + 25);
+        const cls = st[i];
+        let bg = 'var(--cat)';
+        if (cls === 'past') bg = 'color-mix(in srgb, var(--ink) 22%, transparent)';
+        else if (cls === 'next') bg = 'var(--accentText)';
+        else if (cls === 'now') {
+          const p = Math.min(100, Math.max(0, ((now - s.v) / (e - s.v)) * 100)).toFixed(1);
+          bg = `linear-gradient(90deg, var(--ink) 0 ${p}%, var(--cat) ${p}% 100%)`;
         }
-      }
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(inner);
-    ro.observe(container);
-    return () => ro.disconnect();
-  }, [displayEntries.length, measured]);
-
-  const needsScroll = measured && contentHeight > containerHeight;
-  // Use the locked pre-duplication height so animDuration never changes after
-  // the ticker starts, preventing the CSS animation from restarting.
-  const animDuration = needsScroll ? lockedHeightRef.current / scrollSpeed : 0;
-
-  const renderEntries = (keyPrefix) =>
-    displayEntries.map((entry, i) => {
-      const state = getEntryState(entry, now);
-      const isNext = i === nextIdx;
-      const catData = categoryMap[entry.category] || null;
-      return (
-        <div key={`${keyPrefix}${entry.id || i}`}>
-          <EntryRow
-            entry={entry}
-            state={isNext ? 'next' : state}
-            isNext={isNext}
-            categoryData={catData}
-            tokens={tokens}
-            lang={lang}
-          />
-        </div>
-      );
-    });
-
-  return (
-    <div
-      ref={containerRef}
-      className="schedule-scroll"
-      style={{
-        flex: 1,
-        overflowY: 'hidden',
-        overflowX: 'hidden',
-        position: 'relative',
-        padding: '4px 0',
-      }}
-    >
-      <div
-        ref={innerRef}
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '3px',
-          ...(needsScroll ? {
-            animation: `scheduleTickerScroll ${animDuration}s linear infinite`,
-          } : {}),
-        }}
-      >
-        {renderEntries('')}
-        {needsScroll && (
-          <>
-            <div style={{ height: '48px' }} />
-            {renderEntries('dup-')}
-          </>
-        )}
-      </div>
+        return <i key={s.id || i} style={{ ...catVars(s, light), position: 'absolute', top: 8, height: 12, borderRadius: 6, background: bg, left: `${X(s.v)}%`, width: `max(10px, calc(${X(e) - X(s.v)}% - 4px))` }} />;
+      })}
+      {now > t0 && now < t1 && <i style={{ position: 'absolute', top: -4, width: 4, height: 36, borderRadius: 2, background: 'var(--ink)', boxShadow: '0 0 0 4px var(--panel)', left: `calc(${X(now)}% - 2px)` }} />}
+      {hrs.map((h) => (
+        <span key={h} style={{ position: 'absolute', top: 34, left: `${X(h)}%`, transform: 'translateX(-50%)', fontFamily: F.en, fontSize: 20, color: 'var(--inkDim)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+          <i style={{ position: 'absolute', left: '50%', top: -12, width: 2, height: 7, marginLeft: -1, background: 'var(--line)' }} />
+          {hourLabel(h)}
+        </span>
+      ))}
     </div>
   );
 }
 
-// ── Mode: Two-column ──────────────────────────────────────────────────────
-
-function TwoColumnMode({ entries, now, nextIdx, categoryMap, tokens, lang }) {
-  const mid = Math.ceil(entries.length / 2);
-  const leftEntries = entries.slice(0, mid);
-  const rightEntries = entries.slice(mid);
-
-  const renderColumn = (colEntries, offsetIdx) =>
-    colEntries.map((entry, i) => {
-      const globalIdx = offsetIdx + i;
-      const state = getEntryState(entry, now);
-      const isNext = globalIdx === nextIdx;
-      const catData = categoryMap[entry.category] || null;
-      return (
-        <div key={entry.id || globalIdx}>
-          <EntryRow
-            entry={entry}
-            state={isNext ? 'next' : state}
-            isNext={isNext}
-            categoryData={catData}
-            tokens={tokens}
-            lang={lang}
-            compact
-          />
-        </div>
-      );
-    });
-
+function LaterStrip({ entries, light }) {
+  const { portrait } = useDesign();
+  if (portrait && entries.length > 6) entries = entries.slice(0, 6);
+  const dense = entries.length > 6 || portrait;
+  const cols = portrait ? 3 : Math.max(entries.length, 4);
+  const lt = dense ? 34 : 44, lh = dense ? 26 : 32, le = dense ? 18 : 21;
+  const { boxRef, register, size, wraps } = useGroupFit({ max: lh, floor: Math.round(lh * 0.8), deps: [entries.map((e) => e.s.id + e.s.he).join('|'), dense] });
+  if (!entries.length) return <div />;
   return (
-    <div style={{
-      flex: 1,
-      display: 'flex',
-      gap: '2px',
-      overflowY: 'auto',
-      overflowX: 'hidden',
-      scrollbarWidth: 'none',
-      msOverflowStyle: 'none',
-      padding: '4px 0',
-    }}>
-      {/* Left column */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '3px',
-        borderRight: `1px solid ${tokens.muted}`,
-        paddingRight: '4px',
-      }}>
-        {renderColumn(leftEntries, 0)}
-      </div>
-      {/* Right column */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '3px',
-        paddingLeft: '4px',
-      }}>
-        {renderColumn(rightEntries, mid)}
-      </div>
+    <div ref={boxRef} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: 28, rowGap: 22 }}>
+      {entries.map(({ s, i, past }) => {
+        const c = past ? 'var(--past)' : undefined;
+        const t = fmt12(s.v), te = s.end != null ? fmt12(s.end) : null;
+        const name = s.he || s.en;
+        const nameHe = !!s.he || isHebrew(s.en);
+        return (
+          <div key={s.id || i} data-s="" style={{ '--i': i + 5, ...catVars(s, light), minWidth: 0, paddingTop: 16, borderTop: '2px solid var(--line)' }}>
+            <div className="tt-num" style={{ fontSize: lt, letterSpacing: '-.035em', fontWeight: 650, lineHeight: 1, whiteSpace: 'nowrap', color: c }}>
+              {t.t}
+              {te && !dense && <span style={{ fontSize: '.48em', color: c || 'var(--inkDim)', fontWeight: 600, letterSpacing: '-.01em', marginLeft: '.12em' }}>–{te.t}</span>}
+              <small style={{ fontSize: '.4em', marginLeft: '.2em', fontWeight: 600, letterSpacing: '.01em', color: c || 'var(--inkDim)' }}>{te && !dense ? te.ap : t.ap}</small>
+            </div>
+            <div ref={register(s.id || i)} dir={nameHe ? 'rtl' : 'ltr'} style={{
+              fontFamily: nameHe ? F.heD : F.enD, fontWeight: 600, textAlign: 'left', whiteSpace: wraps.has(s.id || i) ? 'normal' : 'nowrap',
+              marginTop: 10, lineHeight: 1.15, fontSize: size, color: c, overflow: 'hidden',
+            }}>{name}</div>
+            {s.he && s.en && (
+              <div style={{ fontFamily: F.en, fontSize: le, color: c || 'var(--inkDim)', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'flex-start', gap: 9, lineHeight: 1.2 }}>
+                <span style={{ marginTop: '.42em', display: 'flex' }}><Lead s={s} size={10} past={past} /></span><span>{s.en}</span>
+              </div>
+            )}
+            {te && dense && (
+              <div style={{ fontFamily: F.en, fontSize: le, color: c || 'var(--inkDim)', fontWeight: 500, marginTop: 2, paddingLeft: 19 }}>to <span className="tt-num">{te.t}</span></div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-// ── Main slide ────────────────────────────────────────────────────────────
-
-export default function ScheduleSlide({ schedule, tokens, settings }) {
-  const [now, setNow] = useState(() => new Date());
-
-  // Only today's entries: `enabled !== false` and `days` includes today's
-  // day code (missing/empty `days` = every day). Previously every entry
-  // showed every day, so weekday seder showed on Shabbos (audit bug 11).
-  // Recomputed when the weekday changes (the 30 s `now` tick crosses midnight).
-  // A schedule resolved by App.jsx (getEffectiveSchedule: the date's own
-  // schedule or the weekly one, for today or ?previewDate=) is already
-  // filtered — re-filtering by the real weekday would break date previews.
-  const todayDow = now.getDay();
-  const entries = useMemo(
-    () => (schedule?.entries || [])
-      .filter(e => (schedule?.resolvedFor ? e.enabled !== false : isEntryActiveOn(e, now)))
-      .sort((a, b) => (parseTimeToMinutes(a.time) ?? 9999) - (parseTimeToMinutes(b.time) ?? 9999)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [schedule?.entries, schedule?.resolvedFor, todayDow]
+function DayList({ entries, light }) {
+  const perCol = Math.max(5, Math.ceil(entries.length / 2));
+  const cols = entries.length > 6 ? [entries.slice(0, perCol), entries.slice(perCol)] : [entries];
+  return (
+    <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`, columnGap: 40, minHeight: 0, marginTop: 26 }}>
+      {cols.map((col, c) => (
+        <div key={c} style={{ display: 'grid', gridTemplateRows: `repeat(${cols.length > 1 ? perCol : Math.max(col.length, 4)}, minmax(0, 1fr))`, minHeight: 0 }}>
+          {col.map(({ s, i, past }) => {
+            const color = past ? 'var(--past)' : 'var(--ink)';
+            return (
+              <div key={s.id || i} data-s="" style={{ '--i': i + 3, ...catVars(s, light), display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', columnGap: 20, borderTop: '2px solid var(--line)', minHeight: 0, color }}>
+                <TimeText mins={s.v} size={36} width="2.72em" weight={650} ampmSize={17} ampmColor={past ? 'var(--past)' : 'var(--inkDim)'} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.en, fontSize: 22, color: past ? 'var(--past)' : 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', fontWeight: 500 }}>
+                  <Lead s={s} size={10} past={past} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.en}{s.end != null ? ` · to ${fmt12(s.end).t}` : ''}</span>
+                </span>
+                {s.he && <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(32), fontWeight: 600, whiteSpace: 'nowrap' }}>{s.he}</span>}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
   );
-  const categories = schedule?.categories || [];
-  const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);
+}
 
-  const lang = settings?.language || 'he';
-  const isHebrew = lang !== 'en';
-  const title = isHebrew ? '\u05E1\u05D3\u05E8 \u05D4\u05D9\u05D5\u05DD' : 'Schedule';
+export default function ScheduleSlide({ schedule, settings }) {
+  const { light, portrait } = useDesign();
+  const nowD = useNow(15000);
+  const now = nowMinutes(nowD);
+  const items = useEntries(schedule);
+  const { ni, nowIdx, st } = scheduleStates(items, now);
+  const label = String(schedule?.label || '').trim();
+  const sh = portrait ? 50 : label ? 58 : 68;
+  const stt = portrait ? 50 : label ? 66 : 76;
+  const layout = settings?.scheduleLayout === 'list' ? 'list' : 'timeline';
 
-  // Display mode: 'full' | 'scroll' | 'two-column'
-  const displayMode = settings?.scheduleDisplayMode || 'full';
-  // Scroll speed for ticker mode
-  const speedKey = settings?.scheduleScrollSpeed || 'medium';
-  const scrollSpeed = SPEED_MAP[speedKey] || SPEED_MAP.medium;
-  // Scroll start position for ticker mode
-  const scrollStart = settings?.scheduleScrollStart || 'beginning';
-
-  // Update clock every 30 seconds
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  const nextIdx = useMemo(() => findNextEntryIndex(entries, now), [entries, now]);
-
-  const sharedProps = { entries, now, nextIdx, categoryMap, tokens, lang };
+  const done = items.length > 0 && ni < 0 && nowIdx < 0;
+  const pair = nowIdx >= 0 ? [nowIdx, ni] : [ni, ni + 1];
+  const top = Math.max(...pair);
+  let after = items.map((s, i) => ({ s, i, past: st[i] === 'past' })).filter((o) => o.i > top);
+  if (after.length < 3) after = items.map((s, i) => ({ s, i, past: st[i] === 'past' })).filter((o) => !pair.includes(o.i));
+  if (after.length > 8) after = after.filter((o) => !o.past).slice(0, 8);
+  const listEntries = items.map((s, i) => ({ s, i, past: st[i] === 'past' })).filter((o) => !pair.includes(o.i));
 
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: displayMode === 'two-column' ? '960px' : '720px',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '0 16px',
-    }}>
-      <style>{SCHEDULE_KEYFRAMES}</style>
-
-      <SlideHeader tokens={tokens} isHebrew={isHebrew} title={title} label={schedule?.label} />
-
-      {entries.length === 0 ? (
-        <EmptyState tokens={tokens} isHebrew={isHebrew} />
-      ) : displayMode === 'scroll' ? (
-        <AutoScrollMode {...sharedProps} scrollSpeed={scrollSpeed} scrollStart={scrollStart} />
-      ) : displayMode === 'two-column' ? (
-        <TwoColumnMode {...sharedProps} />
-      ) : (
-        <FullDayMode {...sharedProps} />
+    <Panel pad="30px 44px 34px">
+      <PageTitle en="Today’s schedule" heText="סדר היום" />
+      {label && (
+        <div data-s="" style={{ '--i': 0, display: 'flex', alignItems: 'baseline', justifyContent: isHebrew(label) ? 'flex-end' : 'flex-start', marginTop: -4 }}>
+          {isHebrew(label)
+            ? <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600 }}>{label}</span>
+            : <span style={{ fontFamily: F.enD, fontSize: 38, fontWeight: 600, letterSpacing: '-.015em' }}>{label}</span>}
+        </div>
       )}
-    </div>
+      {items.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(48), fontWeight: 600 }}>אין סדר היום להיום</div>
+          <div style={{ fontFamily: F.en, fontSize: 28, color: 'var(--inkDim)' }}>No schedule for today</div>
+        </div>
+      ) : done ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, paddingTop: 22 }}>
+          <div data-s="" style={{ '--i': 1 }}>
+            <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(62), fontWeight: 600, textAlign: 'left' }}>סדר היום הסתיים</div>
+            <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', marginTop: 8 }}>That’s all for today. Good night!</div>
+          </div>
+          <Ribbon items={items} st={st} now={now} light={light} />
+          <LaterStrip entries={items.slice(-8).map((s, k) => ({ s, i: items.length - Math.min(8, items.length) + k, past: true }))} light={light} />
+        </div>
+      ) : layout === 'list' ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, paddingTop: 22 }}>
+          <Spotlight items={items} st={st} ni={ni} nowIdx={nowIdx} now={now} sh={sh} stt={stt} light={light} />
+          <DayList entries={listEntries} light={light} />
+        </div>
+      ) : (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 0, paddingTop: 22 }}>
+          <Spotlight items={items} st={st} ni={ni} nowIdx={nowIdx} now={now} sh={sh} stt={stt} light={light} />
+          <Ribbon items={items} st={st} now={now} light={light} />
+          <LaterStrip entries={after} light={light} />
+        </div>
+      )}
+    </Panel>
   );
 }

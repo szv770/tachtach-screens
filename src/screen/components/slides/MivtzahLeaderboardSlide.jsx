@@ -1,220 +1,50 @@
 import React from 'react';
-import { fonts } from '../../styles/tokens.js';
+import { Panel, PageTitle, Empty, F } from '../../design/ui.jsx';
 
-const MAX_ROWS = 15;
+const MAX_ROWS = 16;
 
-function formatRelativeTime(isoString) {
-  if (!isoString) return null;
-  try {
-    const diff = Math.floor((Date.now() - new Date(isoString).getTime()) / 1000);
-    if (diff < 60) return 'just now';
-    if (diff < 3600) {
-      const m = Math.floor(diff / 60);
-      return `${m} min ago`;
-    }
-    const h = Math.floor(diff / 3600);
-    return `${h} hr ago`;
-  } catch {
-    return null;
-  }
+function relative(iso) {
+  if (!iso) return null;
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (!Number.isFinite(diff)) return null;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+  return `${Math.floor(diff / 3600)} hr ago`;
 }
 
-function rankMedal(rank) {
-  if (rank === 1) return { color: '#D4A84B', label: '1' }; // gold
-  if (rank === 2) return { color: '#A8A9AD', label: '2' }; // silver
-  if (rank === 3) return { color: '#CD7F32', label: '3' }; // bronze
-  return { color: null, label: String(rank) };
-}
-
-export default function MivtzahLeaderboardSlide({ cache, tokens }) {
-  const mivtzah = cache?.mivtzah;
-  const leaderboard = mivtzah?.leaderboard;
-  const fetchedAt = mivtzah?.fetchedAt;
-  const relativeTime = formatRelativeTime(fetchedAt);
-
-  // Not yet configured or no data
-  if (!mivtzah) {
-    return (
-      <div style={{
-        width: '100%',
-        maxWidth: '560px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        gap: '12px',
-      }}>
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '18px',
-          color: tokens.dim,
-          direction: 'ltr',
-        }}>
-          Mivtzah Leaderboard
-        </div>
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '13px',
-          color: tokens.muted,
-          direction: 'ltr',
-        }}>
-          Leaderboard data not yet available
-        </div>
-      </div>
-    );
-  }
-
-  const rows = Array.isArray(leaderboard) ? leaderboard.slice(0, MAX_ROWS) : [];
-
-  if (rows.length === 0) {
-    return (
-      <div style={{
-        width: '100%',
-        maxWidth: '560px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        gap: '12px',
-      }}>
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '18px',
-          color: tokens.dim,
-          direction: 'ltr',
-        }}>
-          Mivtzah Leaderboard
-        </div>
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '13px',
-          color: tokens.muted,
-          direction: 'ltr',
-        }}>
-          No entries yet
-        </div>
-      </div>
-    );
-  }
-
+/** Mivtzah leaderboard: ruled two-column board, the leader carries the accent. */
+export default function MivtzahLeaderboardSlide({ cache }) {
+  const mv = cache?.mivtzah;
+  const rows = Array.isArray(mv?.leaderboard) ? mv.leaderboard.slice(0, MAX_ROWS) : [];
+  const upd = relative(mv?.fetchedAt);
+  const title = <PageTitle en={`Mivtzah leaderboard${upd ? ` · updated ${upd}` : ''}`} heText="מבצעים" />;
+  if (!rows.length) return <Panel>{title}<Empty en={mv ? 'No entries yet' : 'Leaderboard data not yet available'} /></Panel>;
+  const per = Math.ceil(rows.length / (rows.length > 8 ? 2 : 1));
+  const cols = [rows.slice(0, per), rows.slice(per)].filter((c) => c.length);
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: '640px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '0',
-      direction: 'ltr',
-    }}>
-      {/* Title */}
-      <div style={{
-        fontFamily: fonts.englishBody,
-        fontSize: '13px',
-        fontWeight: 700,
-        color: tokens.gold,
-        textTransform: 'uppercase',
-        letterSpacing: '0.14em',
-        textAlign: 'center',
-        marginBottom: '14px',
-      }}>
-        Mivtzah Leaderboard
-      </div>
-
-      {/* Table header */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '36px 1fr auto',
-        alignItems: 'center',
-        gap: '0 12px',
-        padding: '5px 14px',
-        borderBottom: `1px solid ${tokens.goldBd || tokens.border || 'rgba(212,168,75,0.25)'}`,
-        marginBottom: '4px',
-      }}>
-        <span style={{ fontFamily: fonts.englishBody, fontSize: '10px', fontWeight: 600, color: tokens.dim, textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'center' }}>#</span>
-        <span style={{ fontFamily: fonts.englishBody, fontSize: '10px', fontWeight: 600, color: tokens.dim, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Name</span>
-        <span style={{ fontFamily: fonts.englishBody, fontSize: '10px', fontWeight: 600, color: tokens.dim, textTransform: 'uppercase', letterSpacing: '0.1em', textAlign: 'right' }}>Points</span>
-      </div>
-
-      {/* Rows */}
-      {rows.map((bochur, idx) => {
-        const rank = idx + 1;
-        const medal = rankMedal(rank);
-        const isTop3 = rank <= 3;
-        const rowBg = isTop3
-          ? (rank === 1 ? 'rgba(212,168,75,0.10)' : 'rgba(212,168,75,0.05)')
-          : 'transparent';
-
-        return (
-          <div
-            key={bochur.short_code || idx}
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '36px 1fr auto',
-              alignItems: 'center',
-              gap: '0 12px',
-              padding: isTop3 ? '9px 14px' : '6px 14px',
-              background: rowBg,
-              borderRadius: isTop3 ? '4px' : '0',
-              marginBottom: '2px',
-              borderLeft: isTop3 ? `2px solid ${medal.color}` : '2px solid transparent',
-            }}
-          >
-            {/* Rank */}
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: isTop3 ? '15px' : '13px',
-              fontWeight: isTop3 ? 700 : 400,
-              color: medal.color || tokens.dim,
-              textAlign: 'center',
-            }}>
-              {medal.label}
-            </div>
-
-            {/* Name */}
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: isTop3 ? '16px' : '14px',
-              fontWeight: isTop3 ? 600 : 400,
-              color: isTop3 ? tokens.text : tokens.dim,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}>
-              {bochur.full_name || bochur.short_code || 'Unknown'}
-            </div>
-
-            {/* Points */}
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: isTop3 ? '15px' : '13px',
-              fontWeight: isTop3 ? 700 : 500,
-              color: isTop3 ? medal.color || tokens.gold : tokens.dim,
-              textAlign: 'right',
-              letterSpacing: '0.02em',
-            }}>
-              {typeof bochur.total_points === 'number'
-                ? bochur.total_points.toLocaleString()
-                : bochur.total_points ?? '—'}
-            </div>
+    <Panel pad="30px 48px 34px">
+      {title}
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`, columnGap: 48, minHeight: 0 }}>
+        {cols.map((col, c) => (
+          <div key={c} style={{ display: 'grid', gridTemplateRows: `repeat(${per}, minmax(0, 1fr))`, minHeight: 0 }}>
+            {col.map((b, k) => {
+              const rank = c * per + k + 1;
+              const lead = rank === 1;
+              return (
+                <div key={b.short_code || rank} data-s="" style={{
+                  '--i': rank, display: 'grid', gridTemplateColumns: '64px minmax(0, 1fr) auto', alignItems: 'center', columnGap: 12,
+                  borderTop: '2px solid var(--line)', padding: lead ? '0 18px' : 0, borderRadius: lead ? 18 : 0,
+                  background: lead ? 'var(--fill)' : 'transparent', color: lead ? 'var(--fillInk)' : 'var(--ink)',
+                }}>
+                  <span className="tt-num" style={{ fontSize: 34, fontWeight: 700, color: lead ? 'var(--fillInk)' : 'var(--inkDim)' }}>{rank}</span>
+                  <span style={{ fontFamily: F.en, fontSize: 34, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.full_name || b.short_code || 'Unknown'}</span>
+                  <span className="tt-num" style={{ fontSize: 38, fontWeight: 700 }}>{typeof b.total_points === 'number' ? b.total_points.toLocaleString() : (b.total_points ?? '—')}</span>
+                </div>
+              );
+            })}
           </div>
-        );
-      })}
-
-      {/* Last updated */}
-      {relativeTime && (
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '10px',
-          color: tokens.muted,
-          textAlign: 'right',
-          marginTop: '10px',
-          letterSpacing: '0.04em',
-        }}>
-          Updated {relativeTime}
-        </div>
-      )}
-    </div>
+        ))}
+      </div>
+    </Panel>
   );
 }

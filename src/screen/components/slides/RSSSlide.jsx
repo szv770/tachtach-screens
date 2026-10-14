@@ -1,170 +1,59 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { fonts } from '../../styles/tokens.js';
+import { Panel, Empty, F } from '../../design/ui.jsx';
+import { Fit } from '../../design/fit.jsx';
+import { isHebrew } from '../../design/time.js';
 
-/**
- * Pick which RSS item to display based on the display mode.
- * - 'latest' => first item in the list (most recent)
- * - 'random' => deterministic random based on the current date (changes daily)
- */
-function pickItem(items, displayMode) {
+/** 'latest' = first item; 'random' = deterministic per day. */
+function pickItem(items, mode) {
   if (!items || items.length === 0) return null;
-  if (displayMode === 'random') {
-    // Use the date string as a seed for deterministic daily selection
+  if (mode === 'random') {
     const today = new Date().toISOString().slice(0, 10);
     let hash = 0;
-    for (let i = 0; i < today.length; i++) {
-      hash = ((hash << 5) - hash) + today.charCodeAt(i);
-      hash |= 0;
-    }
+    for (let i = 0; i < today.length; i++) { hash = ((hash << 5) - hash) + today.charCodeAt(i); hash |= 0; }
     return items[Math.abs(hash) % items.length];
   }
-  // 'latest' — first item
   return items[0];
 }
 
-export default function RSSSlide({ slide, tokens, rssCache, rssFeeds }) {
+/** RSS page in the quote look: Torah-text face, one accent rule, the source. */
+export default function RSSSlide({ slide, rssCache, rssFeeds }) {
   const feedId = slide?.rssFeedId;
-  const displayMode = slide?.rssDisplayMode || 'latest';
-
-  // Local cache state — fetched client-side as a fallback if rssCache isn't provided
   const [localCache, setLocalCache] = useState(null);
-
   useEffect(() => {
     if (!feedId || rssCache?.[feedId]) return;
-    fetch(`/api/rss/cache/${feedId}`)
-      .then(r => r.json())
-      .then(data => setLocalCache(data))
-      .catch(() => {});
+    fetch(`/api/rss/cache/${feedId}`).then((r) => r.json()).then(setLocalCache).catch(() => {});
   }, [feedId, rssCache]);
 
-  const cacheData = rssCache?.[feedId] || localCache;
-  const items = cacheData?.items || [];
+  const items = (rssCache?.[feedId] || localCache)?.items || [];
+  const item = useMemo(() => pickItem(items, slide?.rssDisplayMode || 'latest'), [items, slide?.rssDisplayMode]);
+  if (!item) return <Panel><Empty en="Waiting for feed content…" /></Panel>;
 
-  const item = useMemo(() => pickItem(items, displayMode), [items, displayMode]);
-
-  if (!item) {
-    return (
-      <div style={{
-        width: '100%',
-        textAlign: 'center',
-        color: tokens.dim,
-        fontFamily: fonts.englishBody,
-        fontSize: '16px',
-      }}>
-        Waiting for feed content...
-      </div>
-    );
-  }
-
-  // Look up the feed config from rssFeeds to get the mapping
-  const feedConfig = (rssFeeds || []).find(f => f.id === feedId);
-  const mapping = feedConfig?.mapping || {
-    primary: 'title',
-    secondary: 'author',
-    body: 'description',
-    attribution: 'author',
-  };
-
-  const primary = item[mapping.primary] || '';
-  const secondary = item[mapping.secondary] || '';
-  const body = item[mapping.body] || '';
-  const attribution = item[mapping.attribution] || '';
+  const m = (rssFeeds || []).find((f) => f.id === feedId)?.mapping || { primary: 'title', secondary: 'author', body: 'description', attribution: 'author' };
+  const primary = String(item[m.primary] || '').trim();
+  const body = String(item[m.body] || '').trim();
+  const attribution = String(item[m.attribution] || '').trim();
+  const secondary = String(item[m.secondary] || '').trim();
+  const lead = primary || body;
+  const hb = isHebrew(lead);
+  const showBody = primary && body;
 
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: '700px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      textAlign: 'center',
-      gap: '12px',
-    }}>
-      {/* Decorative quote mark for body-heavy content */}
-      {body && !primary && (
-        <div style={{
-          fontFamily: 'Georgia, serif',
-          fontSize: '72px',
-          color: tokens.gold,
-          lineHeight: 0.6,
-          opacity: 0.5,
-        }}>
-          {'\u201C'}
-        </div>
-      )}
-
-      {/* Primary text */}
-      {primary && (
-        <div style={{
-          fontFamily: fonts.englishDisplay,
-          fontSize: body ? '32px' : '40px',
-          fontWeight: 500,
-          color: tokens.text,
-          lineHeight: 1.3,
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-        }}>
-          {primary}
-        </div>
-      )}
-
-      {/* Secondary text */}
-      {secondary && secondary !== attribution && (
-        <div style={{
-          fontFamily: fonts.englishDisplay,
-          fontSize: '18px',
-          fontWeight: 300,
-          fontStyle: 'italic',
-          color: tokens.dim,
-          lineHeight: 1.4,
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-        }}>
-          {secondary}
-        </div>
-      )}
-
-      {/* Divider */}
-      {primary && body && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '60%', margin: '4px 0' }}>
-          <div style={{ flex: 1, height: '1px', background: `linear-gradient(to right, transparent, ${tokens.muted})` }} />
-          <span style={{ color: tokens.gold, fontSize: '10px' }}>{'\u2726'}</span>
-          <div style={{ flex: 1, height: '1px', background: `linear-gradient(to left, transparent, ${tokens.muted})` }} />
-        </div>
-      )}
-
-      {/* Body text */}
-      {body && (
-        <div style={{
-          fontFamily: fonts.englishDisplay,
-          fontSize: primary ? '18px' : '24px',
-          fontWeight: primary ? 300 : 400,
-          fontStyle: primary ? 'normal' : 'italic',
-          color: primary ? tokens.dim : tokens.text,
-          lineHeight: 1.6,
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-          maxHeight: '200px',
-          overflow: 'hidden',
-        }}>
-          {body}
-        </div>
-      )}
-
-      {/* Attribution */}
-      {attribution && (
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '14px',
-          color: tokens.gold,
-          letterSpacing: '0.06em',
-          marginTop: '8px',
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-        }}>
-          — {attribution}
-        </div>
-      )}
-    </div>
+    <Panel pad="56px 72px 48px">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', minHeight: 0, gap: 22 }}>
+        <Fit data-s="" vcenter wrap max={showBody ? 92 : 120} dir={hb ? 'rtl' : 'ltr'} style={{
+          '--i': 1, width: '92%', flex: showBody ? 1.3 : 1, minHeight: 0, textAlign: 'center', lineHeight: 1.2,
+          fontFamily: hb ? 'var(--f-th)' : 'var(--f-te)', fontWeight: 500, fontStyle: !primary && !hb ? 'italic' : 'normal',
+        }}>{lead}</Fit>
+        {showBody && (
+          <Fit data-s="" vcenter wrap max={44} dir={isHebrew(body) ? 'rtl' : 'ltr'} style={{ '--i': 2, width: '84%', flex: 1, minHeight: 0, textAlign: 'center', lineHeight: 1.4, color: 'var(--inkDim)', fontFamily: F.en, fontWeight: 500 }}>{body}</Fit>
+        )}
+        {(attribution || secondary) && (
+          <>
+            <div data-s="" style={{ '--i': 3, width: 72, height: 3, borderRadius: 2, background: 'var(--accentText)', flex: 'none' }} />
+            <div data-s="" style={{ '--i': 4, fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, flex: 'none' }}>{attribution || secondary}</div>
+          </>
+        )}
+      </div>
+    </Panel>
   );
 }

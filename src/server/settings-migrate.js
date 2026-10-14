@@ -1,4 +1,5 @@
 import { readJSON, writeJSON } from './storage.js';
+import { migrateThemeSettings } from '../shared/themes.js';
 
 /**
  * Settings key normalization (audit bug 6, 2026-10-14).
@@ -52,15 +53,27 @@ export function normalizeSettingsKeys(settings) {
 }
 
 /**
+ * All settings normalizations: the stray-key fold above plus the one-time
+ * screen-redesign migration (sepia → walnut, global Hebrew scale, rail side;
+ * src/shared/themes.js migrateThemeSettings, guarded by themeVersion).
+ * Used at startup and on every PUT /api/settings. Pure and idempotent.
+ */
+export function normalizeSettings(settings) {
+  const a = normalizeSettingsKeys(settings);
+  const b = migrateThemeSettings(a.settings);
+  return { settings: b.settings, changed: a.changed || b.changed };
+}
+
+/**
  * Startup migration: normalize data/settings.json in place, once. Safe to run
  * on every boot (no write when nothing to change).
  */
 export async function migrateSettingsKeys() {
   const settings = await readJSON('settings.json');
-  const { settings: next, changed } = normalizeSettingsKeys(settings);
+  const { settings: next, changed } = normalizeSettings(settings);
   if (changed) {
     await writeJSON('settings.json', next);
-    console.log('[settings] Migrated stray top-level location/scheduler keys into settings.location / settings.scheduler');
+    console.log('[settings] Normalized settings (stray location/scheduler keys and/or screen-redesign theme migration)');
   }
   return next;
 }

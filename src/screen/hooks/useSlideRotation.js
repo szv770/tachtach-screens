@@ -66,16 +66,6 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
 
     timerRef.current = setTimeout(advance, duration);
 
-    // Progress bar animation
-    const animate = () => {
-      if (startTimeRef.current) {
-        const elapsed = Date.now() - startTimeRef.current;
-        setProgress(Math.min(elapsed / duration, 1));
-      }
-      progressRef.current = requestAnimationFrame(animate);
-    };
-    progressRef.current = requestAnimationFrame(animate);
-
     return () => {
       clearTimeout(timerRef.current);
       cancelAnimationFrame(progressRef.current);

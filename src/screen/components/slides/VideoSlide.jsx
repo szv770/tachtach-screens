@@ -14,7 +14,7 @@ export default function VideoSlide({ slide, tokens, onEnded }) {
   if (!videoUrl) return null;
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', background: '#000', borderRadius: 32, overflow: 'hidden' }}>
       <video
         ref={videoRef}
         src={videoUrl}

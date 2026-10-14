@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
+import { apiFetch, notify } from '../hooks/useAdminState.js';
 
 const MAPPING_SLOTS = [
   { key: 'primary', label: 'Main Text' },
@@ -21,6 +22,8 @@ const DISPLAY_MODES = [
   { value: 'random', label: 'Random Daily' },
 ];
 
+const editLabel = { display: 'block', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginBottom: '4px' };
+
 const SLIDE_STYLES = [
   { value: '', label: 'None' },
   { value: 'classic', label: 'Classic' },
@@ -28,27 +31,6 @@ const SLIDE_STYLES = [
   { value: 'sleek', label: 'Sleek' },
 ];
 
-function getCsrfToken() {
-  const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
-
-async function apiFetch(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
-  const method = (options.method || 'GET').toUpperCase();
-  if (method !== 'GET') {
-    headers['X-CSRF-Token'] = getCsrfToken();
-  }
-  const res = await fetch(path, { ...options, headers, credentials: 'same-origin' });
-  if (!res.ok) {
-    const body = await res.text();
-    let msg;
-    try { msg = JSON.parse(body).error; } catch { msg = body; }
-    throw new Error(msg || `${res.status}`);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
 
 function MiniPreview({ item, mapping }) {
   const primary = item[mapping.primary] || '';
@@ -116,7 +98,7 @@ function MiniPreview({ item, mapping }) {
   );
 }
 
-export default function RSSManager({ onSlideCreated }) {
+export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides, onDeleteSlide }) {
   const isMobile = useIsMobile();
   const [feeds, setFeeds] = useState([]);
   const [loadingFeeds, setLoadingFeeds] = useState(true);
@@ -228,6 +210,51 @@ export default function RSSManager({ onSlideCreated }) {
     }
   };
 
+  // Edit an existing feed (name / refresh) and the slide(s) that show it
+  // (display mode / style). Previously a feed could only be synced or deleted.
+  const [editing, setEditing] = useState(null); // { id, name, refreshInterval, rssDisplayMode, style }
+  const [savingEdit, setSavingEdit] = useState(false);
+  const slidesFor = (feedId) => slides.filter(s => s.type === 'RSS_SLIDE' && s.rssFeedId === feedId);
+
+  const startEdit = (feed) => {
+    const slide = slidesFor(feed.id)[0];
+    setEditing({
+      id: feed.id,
+      name: feed.name || '',
+      refreshInterval: feed.refreshInterval || 'daily',
+      rssDisplayMode: slide?.rssDisplayMode || 'latest',
+      style: slide?.style || '',
+    });
+  };
+
+  const saveEdit = async () => {
+    if (!editing || !editing.name.trim()) return;
+    setSavingEdit(true);
+    try {
+      const updated = await apiFetch(`/api/rss/feeds/${editing.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: editing.name.trim(), refreshInterval: editing.refreshInterval }),
+      });
+      setFeeds(prev => prev.map(f => f.id === editing.id ? { ...f, ...(updated || {}) } : f));
+      const linked = slidesFor(editing.id);
+      const oldName = feeds.find(f => f.id === editing.id)?.name;
+      let slidesOk = true;
+      if (linked.length && onUpdateSlides) {
+        slidesOk = await onUpdateSlides(slides.map(s => (s.type === 'RSS_SLIDE' && s.rssFeedId === editing.id)
+          ? { ...s, rssDisplayMode: editing.rssDisplayMode, style: editing.style || undefined, label: s.label === oldName ? editing.name.trim() : s.label }
+          : s));
+      }
+      if (slidesOk !== false) {
+        notify('Feed saved');
+        setEditing(null);
+      }
+    } catch (err) {
+      notify(`Save feed: ${err.message || 'failed'}`, 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   // Per-feed action feedback — previously Sync/Delete gave no visual
   // feedback at all and errors only went to the console.
   const [syncingId, setSyncingId] = useState(null);
@@ -256,6 +283,11 @@ export default function RSSManager({ onSlideCreated }) {
     try {
       await apiFetch(`/api/rss/feeds/${id}`, { method: 'DELETE' });
       setFeeds(prev => prev.filter(f => f.id !== id));
+      // Its slide(s) would show nothing without the feed — remove them too.
+      if (onDeleteSlide) {
+        for (const s of slidesFor(id)) await onDeleteSlide(s.id);
+      }
+      notify('Feed deleted');
     } catch (err) {
       setFeedError({ id, message: err.message || 'Delete failed' });
     } finally {
@@ -536,7 +568,8 @@ export default function RSSManager({ onSlideCreated }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {feeds.map(feed => (
-            <div key={feed.id} style={{
+            <React.Fragment key={feed.id}>
+            <div style={{
               padding: isMobile ? '12px' : '12px 16px',
               background: colors.surface,
               borderRadius: '4px',
@@ -580,7 +613,14 @@ export default function RSSManager({ onSlideCreated }) {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0, alignItems: 'flex-end' }}>
-                <div style={{ display: 'flex', gap: '6px' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => (editing?.id === feed.id ? setEditing(null) : startEdit(feed))}
+                    aria-expanded={editing?.id === feed.id}
+                    style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px' }}
+                  >
+                    {editing?.id === feed.id ? 'Close' : 'Edit'}
+                  </button>
                   <button
                     onClick={() => handleSync(feed.id)}
                     disabled={syncingId === feed.id}
@@ -589,7 +629,7 @@ export default function RSSManager({ onSlideCreated }) {
                       ...buttonSecondary,
                       padding: '6px 12px',
                       fontSize: '12px',
-                      minHeight: '32px',
+                      minHeight: '44px',
                       opacity: syncingId === feed.id ? 0.6 : 1,
                     }}
                   >
@@ -607,7 +647,7 @@ export default function RSSManager({ onSlideCreated }) {
                       fontSize: '12px',
                       cursor: 'pointer',
                       fontFamily: adminFonts.englishBody,
-                      minHeight: '32px',
+                      minHeight: '44px',
                       opacity: deletingId === feed.id ? 0.6 : 1,
                     }}
                   >
@@ -625,6 +665,53 @@ export default function RSSManager({ onSlideCreated }) {
                 )}
               </div>
             </div>
+            {editing?.id === feed.id && (
+              <div style={{ padding: isMobile ? '12px' : '14px 16px', background: colors.bg, border: `1px solid ${colors.muted}`, borderRadius: '4px', marginBottom: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
+                  <label style={{ display: 'block' }}>
+                    <span style={editLabel}>Name</span>
+                    <input type="text" value={editing.name} onChange={(e) => setEditing(ed => ({ ...ed, name: e.target.value }))} style={inputStyle} />
+                  </label>
+                  <label style={{ display: 'block' }}>
+                    <span style={editLabel}>Check for new items</span>
+                    <select value={editing.refreshInterval} onChange={(e) => setEditing(ed => ({ ...ed, refreshInterval: e.target.value }))} style={inputStyle}>
+                      {REFRESH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </label>
+                  {slidesFor(feed.id).length > 0 ? (
+                    <>
+                      <label style={{ display: 'block' }}>
+                        <span style={editLabel}>Slide shows</span>
+                        <select value={editing.rssDisplayMode} onChange={(e) => setEditing(ed => ({ ...ed, rssDisplayMode: e.target.value }))} style={inputStyle}>
+                          {DISPLAY_MODES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                      <label style={{ display: 'block' }}>
+                        <span style={editLabel}>Slide style</span>
+                        <select value={editing.style} onChange={(e) => setEditing(ed => ({ ...ed, style: e.target.value }))} style={inputStyle}>
+                          {SLIDE_STYLES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </label>
+                    </>
+                  ) : (
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>This feed has no slide in the rotation.</span>
+                      <button type="button" style={{ ...buttonSecondary, minHeight: '44px' }} onClick={async () => {
+                        const created = await onSlideCreated?.({ type: 'RSS_SLIDE', rssFeedId: feed.id, rssDisplayMode: editing.rssDisplayMode, label: feed.name, duration: 15, enabled: true });
+                        if (created) setEditing(null);
+                      }}>Add a slide for it</button>
+                    </div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '14px', justifyContent: 'flex-end' }}>
+                  <button type="button" style={{ ...buttonSecondary, minHeight: '44px' }} onClick={() => setEditing(null)} disabled={savingEdit}>Cancel</button>
+                  <button type="button" style={{ ...buttonPrimary, minHeight: '44px', opacity: savingEdit || !editing.name.trim() ? 0.6 : 1 }} onClick={saveEdit} disabled={savingEdit || !editing.name.trim()}>
+                    {savingEdit ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            )}
+            </React.Fragment>
           ))}
         </div>
       )}
@@ -633,7 +720,7 @@ export default function RSSManager({ onSlideCreated }) {
       {confirmDelete && (
         <ConfirmDialog
           title="Delete RSS feed?"
-          message={`"${confirmDelete.name}" will stop updating. Any slide using this feed will no longer show content.`}
+          message={`"${confirmDelete.name}" will stop updating and its slide will be removed from the rotation.`}
           confirmLabel="Delete Feed"
           onConfirm={() => handleDelete(confirmDelete.id)}
           onCancel={() => setConfirmDelete(null)}

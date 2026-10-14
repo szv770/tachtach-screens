@@ -1,436 +1,106 @@
 import React from 'react';
-import defaultTokens, { fonts, getTokens } from '../styles/tokens.js';
+import { EnsureDesignRoot } from '../design/DesignRoot.jsx';
+import { BackgroundArt } from '../design/graphics.jsx';
+import { themeIdForTokens } from '../../shared/themes.js';
+import { F } from '../design/ui.jsx';
 
-function getLogoBlendFilter(blend, tokens) {
-  if (!blend || blend === 'original') return {};
-  if (blend === 'subtle') return { filter: 'none', opacity: 0.2 };
-  if (blend === 'mono-gold') return { filter: 'sepia(1) saturate(3) brightness(0.8) hue-rotate(15deg)' };
-  if (blend === 'match-theme') {
-    // Detect dark vs light theme from background color
-    const bg = (tokens.bg || '').trim();
-    const isDark = /^#[0-3]/i.test(bg) || bg.startsWith('rgb(0') || bg.startsWith('rgb(1') || bg.startsWith('rgb(2') || bg.startsWith('rgb(3');
-    return { filter: isDark ? 'brightness(0) invert(1)' : 'brightness(0)' };
-  }
-  return {};
-}
+/**
+ * Screen layout (R2 README §4).
+ *
+ * Landscape: 40 px margin · 400 px rail · 40 px gutter · page column.
+ * The page column holds ONE rounded page panel, plus a 76 px banner row only
+ * while a banner is active (otherwise the panel takes the full height; the
+ * rail is unaffected, so the clock never moves). `clockSide`/railSide
+ * 'right' mirrors the columns. Portrait (900 × 1600): the rail becomes a top
+ * band above the page. Fullscreen slides hide the rail.
+ *
+ * The canvas is the logical size ScreenScaler provides (≥ 1600 × 900, wider
+ * or taller on non-16:9 screens); the grid is fr-based so extra room flows
+ * into the page.
+ */
 
-function creditOpacity(size) {
-  if (size === 'large') return 1.0;
-  if (size === 'medium') return 0.8;
-  return 0.55; // small (default)
-}
-
-function CreditContent({ credit, tokens }) {
-  const logo = credit.logo;
-  const logoSizePx = logo?.size === 'large' ? 64 : logo?.size === 'small' ? 28 : 44;
-  const logoPosition = logo?.position || 'above';
-  const textFontSize = credit.size === 'large' ? '20px' : credit.size === 'medium' ? '15px' : '11px';
-  const blendStyle = getLogoBlendFilter(logo?.blend, tokens);
-
-  const textEl = credit.text ? (
-    <span style={{ fontFamily: fonts.englishBody, fontSize: textFontSize, color: tokens.dim }}>
-      {credit.text}
-    </span>
-  ) : null;
-
+function CreditContent({ credit }) {
+  const logo = credit?.logo;
+  const size = credit?.size === 'large' ? 22 : credit?.size === 'medium' ? 19 : 17;
+  const logoPx = logo?.size === 'large' ? 56 : logo?.size === 'small' ? 26 : 38;
+  const blend = logo?.blend;
+  const filter = blend === 'match-theme'
+    ? 'var(--logoFilter, none)'
+    : blend === 'mono-gold' ? 'sepia(1) saturate(3) brightness(0.8) hue-rotate(15deg)' : undefined;
+  const textEl = credit?.text ? <span style={{ fontFamily: F.en, fontSize: size, fontWeight: 500, color: 'var(--dim)' }}>{credit.text}</span> : null;
   const logoEl = logo?.url ? (
-    <img
-      src={logo.url}
-      alt=""
-      style={{
-        height: `${logoSizePx}px`,
-        width: 'auto',
-        objectFit: 'contain',
-        opacity: blendStyle.opacity !== undefined ? blendStyle.opacity : 1,
-        display: 'block',
-        ...(blendStyle.filter ? { filter: blendStyle.filter } : {}),
-      }}
-    />
+    <img src={logo.url} alt="" style={{ height: logoPx, width: 'auto', objectFit: 'contain', display: 'block', opacity: blend === 'subtle' ? 0.3 : 1, filter }} />
   ) : null;
-
-  if (!logoEl && !textEl) return null;
-  if (!logoEl) return textEl;
-  if (!textEl) return logoEl;
-
-  if (logoPosition === 'above') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-        {logoEl}
-        {textEl}
-      </div>
-    );
-  }
-
-  const isLeft = logoPosition === 'left';
+  if (!textEl && !logoEl) return null;
+  const pos = logo?.position || 'left';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isLeft ? 'row' : 'row-reverse' }}>
-      {logoEl}
-      {textEl}
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: pos === 'above' ? 'column' : pos === 'right' ? 'row-reverse' : 'row' }}>
+      {logoEl}{textEl}
     </div>
   );
 }
+export { CreditContent };
 
-export default function Layout({ leftColumn, rightColumn, progressDots, banner, theme = 'dark', tokens: tokensProp, fullscreen = false, credit, clockSide = 'left', portrait = false, portraitTopBar, bannerHeight = 36 }) {
-  // bannerHeight: the banner's actual rendered height (Banner.jsx
-  // bannerHeightFor). The slot was a fixed 36px, clipping the 48px "Large"
-  // banner (audit bug 10).
-  const bannerSlotHeight = Math.max(36, bannerHeight || 0);
-  const tokens = tokensProp || getTokens(theme) || defaultTokens;
-  // In LTR grid, column 1 renders on the left, column 2 on the right.
-  // clockFirst=true → clock in column 1 → visual left (default).
-  // clockFirst=false → clock in column 2 → visual right.
-  const clockFirst = !clockSide || clockSide === 'left';
+export default function Layout({
+  leftColumn, rightColumn, banner, theme, tokens, fullscreen = false, credit,
+  clockSide = 'left', portrait = false, portraitTopBar, canvasWidth, canvasHeight,
+}) {
+  const right = clockSide === 'right';
+  const showCredit = credit?.enabled && (credit?.text || credit?.logo?.url) && (credit?.position === 'bottom' || !credit?.position);
+  const themeId = theme || themeIdForTokens(tokens);
 
-  // ── Portrait layout ──────────────────────────────────────────────────────────
-  if (portrait && !fullscreen) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          margin: 0,
-          padding: 0,
-          overflow: 'hidden',
-          fontFamily: fonts.hebrewPrimary,
-          direction: 'ltr',
-          background: `
-            radial-gradient(ellipse at 22% 22%, rgba(212,168,75,0.04) 0%, transparent 60%),
-            radial-gradient(ellipse at 78% 78%, rgba(212,168,75,0.03) 0%, transparent 60%),
-            ${tokens.bg}
-          `,
-        }}
-      >
-        {/* Grain overlay — static tiled texture, not a live SVG filter (see
-            scripts/generate-grain-texture.js for why: a live feTurbulence
-            filter recomposites on every repaint, which is expensive at
-            native 4K and contributed to observed GPU-compositor
-            degradation over long kiosk uptimes) */}
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            pointerEvents: 'none',
-            opacity: 0.06,
-            mixBlendMode: 'overlay',
-            zIndex: 1,
-            backgroundImage: 'url(/grain.png)',
-            backgroundRepeat: 'repeat',
-            backgroundSize: '256px 256px',
-          }}
-        />
+  const pageCol = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, minHeight: 0, gridArea: 'page', position: 'relative' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', position: 'relative' }}>{rightColumn}</div>
+      {banner}
+    </div>
+  );
 
-        {/* Outer hairline frame */}
-        <div
-          style={{
-            position: 'fixed',
-            inset: '12px',
-            border: `1px solid ${tokens.framePrimary}`,
-            pointerEvents: 'none',
-            zIndex: 2,
-          }}
-        />
+  const rail = portrait ? (portraitTopBar || leftColumn) : leftColumn;
 
-        {/* Inner hairline frame */}
-        <div
-          style={{
-            position: 'fixed',
-            inset: '15px',
-            border: `1px solid ${tokens.frameSecondary}`,
-            pointerEvents: 'none',
-            zIndex: 2,
-          }}
-        />
-
-        {/* Portrait flex column */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 3,
-            height: '100%',
-            width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            padding: '18px',
-            boxSizing: 'border-box',
-          }}
-        >
-          {/* Top info bar: clock + date */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              padding: '0 8px 16px',
-              flexShrink: 0,
-              borderBottom: `1px solid ${tokens.framePrimary}`,
-              marginBottom: '16px',
-            }}
-          >
-            {portraitTopBar}
-          </div>
-
-          {/* Slide area fills remaining height */}
-          <div
-            style={{
-              flex: 1,
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              {rightColumn}
-            </div>
-            {progressDots && (
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  padding: '8px 0 4px',
-                  flexShrink: 0,
-                }}
-              >
-                {progressDots}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Banner at bottom */}
-        {banner && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: 0,
-              left: '15px',
-              right: '15px',
-              height: `${bannerSlotHeight}px`,
-              zIndex: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {banner}
-          </div>
-        )}
-
-        {/* Credit line */}
-        {credit?.enabled && (credit?.text || credit?.logo?.url) && (credit?.position === 'bottom' || !credit?.position) && (
-          <div
-            style={{
-              position: 'fixed',
-              bottom: banner ? `${bannerSlotHeight + 2}px` : '4px',
-              right: '20px',
-              opacity: creditOpacity(credit?.size),
-              zIndex: 5,
-              direction: 'ltr',
-              pointerEvents: 'none',
-            }}
-          >
-            <CreditContent credit={credit} tokens={tokens} />
-          </div>
-        )}
-      </div>
-    );
+  let grid;
+  if (fullscreen) {
+    grid = { gridTemplateColumns: '1fr', gridTemplateAreas: '"page"' };
+  } else if (portrait) {
+    grid = { gridTemplateColumns: '1fr', gridTemplateRows: 'auto minmax(0, 1fr)', gridTemplateAreas: '"rail" "page"', rowGap: 32 };
+  } else {
+    grid = {
+      gridTemplateColumns: right ? 'minmax(0, 1fr) 400px' : '400px minmax(0, 1fr)',
+      gridTemplateRows: 'minmax(0, 1fr)',
+      gridTemplateAreas: right ? '"page rail"' : '"rail page"',
+      columnGap: 40,
+    };
   }
-  // ── End portrait layout ──────────────────────────────────────────────────────
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        margin: 0,
-        padding: 0,
-        overflow: 'hidden',
-        fontFamily: fonts.hebrewPrimary,
-        direction: 'ltr',
-        background: `
-          radial-gradient(ellipse at 22% 22%, rgba(212,168,75,0.04) 0%, transparent 60%),
-          radial-gradient(ellipse at 78% 78%, rgba(212,168,75,0.03) 0%, transparent 60%),
-          ${tokens.bg}
-        `,
-      }}
-    >
-      {/* Grain overlay — static tiled texture, see comment in the portrait
-          branch above for why this replaced a live SVG feTurbulence filter */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          width: '100%',
-          height: '100%',
-          pointerEvents: 'none',
-          opacity: 0.06,
-          mixBlendMode: 'overlay',
-          zIndex: 1,
-          backgroundImage: 'url(/grain.png)',
-          backgroundRepeat: 'repeat',
-          backgroundSize: '256px 256px',
-        }}
-      />
-
-      {/* Outer hairline frame */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: '12px',
-          border: `1px solid ${tokens.framePrimary}`,
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
-      />
-
-      {/* Inner hairline frame */}
-      <div
-        style={{
-          position: 'fixed',
-          inset: '15px',
-          border: `1px solid ${tokens.frameSecondary}`,
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
-      />
-
-      {/* Main grid layout */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: fullscreen
-            ? '1fr'
-            : clockFirst
-              ? 'minmax(0, min(28%, 380px)) 1fr'
-              : '1fr minmax(0, min(28%, 380px))',
-          gap: 0,
-          height: '100%',
-          width: '100%',
-          position: 'relative',
-          zIndex: 3,
-          padding: '16px',
-          boxSizing: 'border-box',
-        }}
-      >
-        {/* Clock column on left (default, clockFirst=true) */}
-        {!fullscreen && clockFirst && (
-          <div
-            style={{
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRight: `1px solid ${tokens.framePrimary}`,
-              paddingLeft: '20px',
-              paddingRight: '20px',
-              position: 'relative',
-            }}
-          >
-            {leftColumn}
-            {credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'under-clock' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '8px',
-                left: '20px',
-                right: 0,
-                opacity: creditOpacity(credit?.size),
-                textAlign: 'center',
-                direction: 'ltr',
-                display: 'flex',
-                justifyContent: 'center',
-              }}>
-                <CreditContent credit={credit} tokens={tokens} />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Slides column */}
-        <div
-          style={{
-            overflow: 'hidden',
-            display: 'grid',
-            gridTemplateRows: '1fr auto',
-          }}
-        >
-          <div style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            {rightColumn}
-          </div>
-          {progressDots && (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '8px 0 4px' }}>
-              {progressDots}
-            </div>
+    <EnsureDesignRoot themeId={themeId}>
+      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', direction: 'ltr', background: 'var(--bg)' }}>
+        <BackgroundArt width={canvasWidth || (portrait ? 900 : 1600)} height={canvasHeight || (portrait ? 1600 : 900)} />
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 1, display: 'grid',
+          padding: portrait ? 36 : 40,
+          ...grid,
+        }}>
+          {!fullscreen && (
+            <aside
+              data-rail-side={right ? 'right' : 'left'}
+              style={{
+                gridArea: 'rail', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column',
+                alignItems: right && !portrait ? 'flex-end' : 'stretch', textAlign: right && !portrait ? 'right' : 'left',
+                position: 'relative',
+              }}
+            >
+              {rail}
+            </aside>
           )}
+          {pageCol}
         </div>
-
-        {/* Clock column on right (clockSide='right', clockFirst=false) */}
-        {!fullscreen && !clockFirst && (
-          <div
-            style={{
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              borderLeft: `1px solid ${tokens.framePrimary}`,
-              paddingRight: '20px',
-              paddingLeft: '20px',
-              position: 'relative',
-            }}
-          >
-            {leftColumn}
-            {credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'under-clock' && (
-              <div style={{
-                position: 'absolute',
-                bottom: '8px',
-                left: 0,
-                right: '20px',
-                opacity: creditOpacity(credit?.size),
-                textAlign: 'center',
-                direction: 'ltr',
-                display: 'flex',
-                justifyContent: 'center',
-              }}>
-                <CreditContent credit={credit} tokens={tokens} />
-              </div>
-            )}
+        {showCredit && (
+          <div style={{ position: 'absolute', bottom: 8, right: right && !portrait ? 'auto' : 44, left: right && !portrait ? 44 : 'auto', zIndex: 2, pointerEvents: 'none', direction: 'ltr' }}>
+            <CreditContent credit={credit} />
           </div>
         )}
       </div>
-
-      {/* Banner slot — inside frame, at bottom */}
-      {banner && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: 0,
-            left: '15px',
-            right: '15px',
-            height: `${bannerSlotHeight}px`,
-            zIndex: 4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {banner}
-        </div>
-      )}
-
-      {/* Credit line — bottom of screen */}
-      {credit?.enabled && (credit?.text || credit?.logo?.url) && (credit?.position === 'bottom' || !credit?.position) && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: banner ? `${bannerSlotHeight + 2}px` : '4px',
-            right: '20px',
-            opacity: creditOpacity(credit?.size),
-            zIndex: 5,
-            direction: 'ltr',
-            pointerEvents: 'none',
-          }}
-        >
-          <CreditContent credit={credit} tokens={tokens} />
-        </div>
-      )}
-    </div>
+    </EnsureDesignRoot>
   );
 }

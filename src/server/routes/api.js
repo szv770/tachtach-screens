@@ -16,7 +16,8 @@ import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
-import { normalizeSettingsKeys } from '../settings-migrate.js';
+import { normalizeSettings } from '../settings-migrate.js';
+import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 import { getStateExtras } from '../announcements-store.js';
 
@@ -58,7 +59,11 @@ function pick(obj, allowedFields) {
   return result;
 }
 
-const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'announcementId'];
+// videoUrl / blurUrl / edgeTreatment / isGif are what the admin's Media upload
+// sends and what VideoSlide/ImageSlide read. They were missing here, so every
+// new video slide was saved without its URL (blank on screen) and image edge
+// treatment / blurred backdrop were silently dropped.
+const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'announcementId'];
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
@@ -97,6 +102,37 @@ router.get('/settings', async (_req, res) => {
   }
 });
 
+// One settings read-modify-write at a time (PATCH and PUT), so two saves
+// landing together can't both read the old file and drop each other's change.
+let settingsQueue = Promise.resolve();
+function withSettingsLock(fn) {
+  const run = settingsQueue.then(fn, fn);
+  settingsQueue = run.catch(() => {});
+  return run;
+}
+
+/** Write settings, broadcast, and restart scheduler tracks when asked. */
+async function saveSettings(settings, { restartScheduler = true } = {}) {
+  await writeJSON('settings.json', settings);
+  broadcast('settings-update', settings);
+  if (!restartScheduler) return;
+  try {
+    const config = settings.location || { zip: '33139', locationId: '33139' };
+    if (settings.scheduler?.trackA !== false) {
+      await setupTrackA(config);
+    }
+    if (settings.scheduler?.trackBTime) {
+      setupTrackB(config, settings.scheduler.trackBTime);
+    }
+  } catch (schedErr) {
+    console.error('[api] Scheduler restart error:', schedErr.message);
+    // Don't fail the whole save — settings were written successfully
+  }
+}
+
+// Legacy whole-object replace, kept for admin tabs still running an older
+// build. The current admin uses PATCH (below), so one panel's stale copy
+// can't revert keys another panel saved (audit bug 14).
 router.put('/settings', async (req, res) => {
   try {
     if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
@@ -104,27 +140,32 @@ router.put('/settings', async (req, res) => {
     }
     // An admin tab still running an older build may send the stray top-level
     // zipCode/trackA/... keys; fold them into location/scheduler (audit bug 6).
-    const { settings } = normalizeSettingsKeys(req.body);
-    await writeJSON('settings.json', settings);
-    broadcast('settings-update', settings);
-
-    // Restart scheduler tracks if relevant settings changed
-    try {
-      const config = settings.location || { zip: '33139', locationId: '33139' };
-      if (settings.scheduler?.trackA !== false) {
-        await setupTrackA(config);
-      }
-      if (settings.scheduler?.trackBTime) {
-        setupTrackB(config, settings.scheduler.trackBTime);
-      }
-    } catch (schedErr) {
-      console.error('[api] Scheduler restart error:', schedErr.message);
-      // Don't fail the whole save — settings were written successfully
-    }
-
+    const { settings } = normalizeSettings(req.body);
+    await withSettingsLock(() => saveSettings(settings));
     res.json(settings);
   } catch (err) {
     console.error('[api] PUT /settings error:', err.message);
+    res.status(500).json({ error: 'Failed to save settings. Check server disk space and permissions.' });
+  }
+});
+
+// Partial update: deep-merges only the keys sent into settings.json and
+// returns the full result. Top-level keys must be listed in SETTINGS_KEYS
+// (src/shared/settingsMerge.js) — unknown keys are a 400 naming them.
+const SCHEDULER_KEYS = ['location', 'scheduler', 'zipCode', 'chabadLocationId', 'trackA', 'trackBTime'];
+router.patch('/settings', async (req, res) => {
+  const check = validateSettingsPatch(req.body);
+  if (!check.ok) return res.status(400).json({ error: check.error });
+  try {
+    const merged = await withSettingsLock(async () => {
+      const current = (await readJSON('settings.json')) ?? {};
+      const { settings } = normalizeSettings(deepMerge(current, req.body));
+      await saveSettings(settings, { restartScheduler: SCHEDULER_KEYS.some((k) => k in req.body) });
+      return settings;
+    });
+    res.json(merged);
+  } catch (err) {
+    console.error('[api] PATCH /settings error:', err.message);
     res.status(500).json({ error: 'Failed to save settings. Check server disk space and permissions.' });
   }
 });
@@ -235,6 +276,31 @@ router.post('/custom-days', async (req, res) => {
   } catch (err) {
     console.error('[api] POST /custom-days error:', err.message);
     res.status(500).json({ error: 'Failed to add custom day.' });
+  }
+});
+
+// Edit in place (same id). Switching between a Hebrew and a Gregorian date
+// clears the other kind's fields so the badge can't match on both.
+router.put('/custom-days/:id', async (req, res) => {
+  try {
+    const customDays = (await readJSON('custom-days.json')) ?? [];
+    const idx = customDays.findIndex((d) => d.id === req.params.id);
+    if (idx === -1) return res.status(404).json({ error: 'Custom day not found.' });
+    const updates = pick(req.body, CUSTOM_DAY_FIELDS);
+    if ('title' in updates && !String(updates.title || '').trim()) {
+      return res.status(400).json({ error: 'Custom day title is required.' });
+    }
+    const next = { ...customDays[idx], ...updates, id: req.params.id };
+    if (updates.hebrewMonth) { delete next.gregorianMonth; delete next.gregorianDay; }
+    if (updates.gregorianMonth) { delete next.hebrewMonth; delete next.hebrewDay; }
+    for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === null) delete next[k];
+    customDays[idx] = next;
+    await writeJSON('custom-days.json', customDays);
+    broadcast('custom-days-update', customDays);
+    res.json(next);
+  } catch (err) {
+    console.error('[api] PUT /custom-days error:', err.message);
+    res.status(500).json({ error: 'Failed to update custom day.' });
   }
 });
 
@@ -790,8 +856,18 @@ router.put('/google-album/:id', async (req, res) => {
     if (idx === -1) {
       return res.status(404).json({ error: 'Album not found.' });
     }
-    albums[idx] = { ...albums[idx], ...pick(req.body, GOOGLE_ALBUM_FIELDS), id: req.params.id };
+    const prevMax = albums[idx].maxPhotos;
+    const updates = pick(req.body, GOOGLE_ALBUM_FIELDS);
+    delete updates.url; // the album link itself can't change (cache dirs are keyed by it)
+    albums[idx] = { ...albums[idx], ...updates, id: req.params.id };
     await writeJSON('google-albums.json', albums);
+
+    // A new photo cap takes effect now, not at the next timed sync.
+    if ('maxPhotos' in updates && updates.maxPhotos !== prevMax && albums[idx].enabled !== false) {
+      syncAlbum(albums[idx]).catch(err => {
+        console.error('[api] Re-sync after maxPhotos change failed:', err.message);
+      });
+    }
 
     // Restart sync timer with new interval
     const albumId = extractAlbumId(albums[idx].url);

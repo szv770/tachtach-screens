@@ -1,100 +1,25 @@
 import React from 'react';
-import { fonts } from '../../styles/tokens.js';
+import { Panel, F, he } from '../../design/ui.jsx';
 import { getCurrentPerek } from '../../../shared/pirkeiAvos.js';
 
-export default function PirkeiAvosSlide({ cache, tokens }) {
-  const hebrewDate = cache?.hebrewDate;
-  const perekInfo = getCurrentPerek(hebrewDate);
-
+/** Pirkei Avos (Shabbos, Pesach → Rosh Hashana): the title and today's perek. */
+export default function PirkeiAvosSlide({ cache }) {
+  const perek = getCurrentPerek(cache?.hebrewDate);
   return (
-    <div style={{
-      width: '100%',
-      maxWidth: '700px',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      textAlign: 'center',
-    }}>
-      {/* Title */}
-      <div style={{
-        fontFamily: fonts.hebrewDisplay,
-        fontSize: '48px',
-        fontWeight: 700,
-        color: tokens.text,
-        lineHeight: 1.2,
-        marginBottom: '8px',
-      }}>
-        {'\u05E4\u05E8\u05E7\u05D9 \u05D0\u05D1\u05D5\u05EA'}
-      </div>
-
-      {/* Subtitle */}
-      <div style={{
-        fontFamily: fonts.englishDisplay,
-        fontSize: '20px',
-        fontWeight: 400,
-        fontStyle: 'italic',
-        color: tokens.dim,
-        direction: 'ltr',
-        unicodeBidi: 'isolate',
-        marginBottom: '24px',
-      }}>
-        Ethics of the Fathers
-      </div>
-
-      {/* Ornamental divider */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        margin: '0 0 28px',
-        width: '60%',
-      }}>
-        <div style={{ flex: 1, height: '1px', background: `linear-gradient(to right, transparent, ${tokens.muted})` }} />
-        <span style={{ color: tokens.gold, fontSize: '10px', letterSpacing: '0.3em' }}>{'\u2726 \u25C7 \u2726'}</span>
-        <div style={{ flex: 1, height: '1px', background: `linear-gradient(to left, transparent, ${tokens.muted})` }} />
-      </div>
-
-      {/* Chapter chip */}
-      {perekInfo ? (
-        <div style={{
-          display: 'inline-block',
-          padding: '6px 24px',
-          background: tokens.goldBg,
-          border: `1px solid ${tokens.goldBd}`,
-          borderRadius: '4px',
-        }}>
-          <span style={{
-            fontFamily: fonts.hebrewDisplay,
-            fontSize: '28px',
-            fontWeight: 600,
-            color: tokens.gold,
-          }}>
-            {perekInfo.hebrewName}
-          </span>
-          <div style={{
-            fontFamily: fonts.englishDisplay,
-            fontSize: '14px',
-            fontWeight: 400,
-            color: tokens.dim,
-            direction: 'ltr',
-            unicodeBidi: 'isolate',
-            marginTop: '2px',
-          }}>
-            {perekInfo.englishName}
+    <Panel pad="56px 72px">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', gap: 18 }}>
+        <div data-s="" className="tt-he" style={{ '--i': 1, fontFamily: 'var(--f-th)', fontSize: he(150), fontWeight: 600, lineHeight: 1.1 }}>פרקי אבות</div>
+        <div data-s="" style={{ '--i': 2, fontFamily: 'var(--f-te)', fontStyle: 'italic', fontSize: 48, color: 'var(--inkDim)' }}>Ethics of the Fathers</div>
+        <div data-s="" style={{ '--i': 3, width: 72, height: 3, borderRadius: 2, background: 'var(--accentText)', margin: '18px 0 6px' }} />
+        {perek ? (
+          <div data-s="" style={{ '--i': 4 }}>
+            <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(72), fontWeight: 600, color: 'var(--accentText)' }}>{perek.hebrewName}</div>
+            <div style={{ fontFamily: F.en, fontSize: 34, color: 'var(--inkDim)', fontWeight: 500, marginTop: 4 }}>{perek.englishName}</div>
           </div>
-        </div>
-      ) : (
-        <div style={{
-          fontFamily: fonts.englishBody,
-          fontSize: '16px',
-          color: tokens.dim,
-          fontStyle: 'italic',
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-        }}>
-          Not in season
-        </div>
-      )}
-    </div>
+        ) : (
+          <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)' }}>Not in season</div>
+        )}
+      </div>
+    </Panel>
   );
 }

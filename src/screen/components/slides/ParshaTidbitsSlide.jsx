@@ -1,110 +1,28 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { fonts } from '../../styles/tokens.js';
+import React from 'react';
+import { Panel, PageTitle, Empty, F } from '../../design/ui.jsx';
+import { isHebrew } from '../../design/time.js';
+import { parshaEnglish } from '../Rail.jsx';
 
-export default function ParshaTidbitsSlide({ cache, tokens }) {
-  const tidbits = cache?.parshaTidbits?.items;
-  const scrollRef = useRef(null);
-  const [offset, setOffset] = useState(0);
-  const animRef = useRef(null);
-
-  // Filter to items that have descriptions (meaningful content)
-  const items = (tidbits || []).filter(t => t.description);
-
-  // Slow auto-scroll animation
-  useEffect(() => {
-    if (!scrollRef.current || items.length === 0) return;
-
-    let start = null;
-    const speed = 30; // pixels per second
-
-    const tick = (timestamp) => {
-      if (!start) start = timestamp;
-      const elapsed = (timestamp - start) / 1000;
-      const el = scrollRef.current;
-      if (!el) return;
-
-      const maxScroll = el.scrollHeight - el.clientHeight;
-      const newOffset = (elapsed * speed) % (maxScroll + 200);
-
-      if (newOffset <= maxScroll) {
-        el.scrollTop = newOffset;
-      } else {
-        // Pause at the bottom briefly, then reset
-        if (newOffset > maxScroll + 180) {
-          start = timestamp;
-          el.scrollTop = 0;
-        }
-      }
-
-      animRef.current = requestAnimationFrame(tick);
-    };
-
-    animRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animRef.current);
-  }, [items.length]);
-
-  if (items.length === 0) {
-    return (
-      <div style={{
-        fontFamily: fonts.englishBody,
-        fontSize: '16px',
-        color: tokens.dim,
-        fontStyle: 'italic',
-        direction: 'ltr', unicodeBidi: 'isolate',
-      }}>
-        No parsha tidbits available
-      </div>
-    );
-  }
-
+/** Parsha tidbits: the first few articles as ruled rows (static — no scroll loop). */
+export default function ParshaTidbitsSlide({ cache }) {
+  const items = (cache?.parshaTidbits?.items || []).filter((t) => t.description).slice(0, 4);
+  const parsha = cache?.parsha;
   return (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      <div
-        ref={scrollRef}
-        style={{
-          flex: 1,
-          overflow: 'hidden',
-          paddingRight: '8px',
-        }}
-      >
-        {items.map((item, i) => (
-          <div
-            key={i}
-            style={{
-              marginBottom: '20px',
-              paddingBottom: '20px',
-              borderBottom: i < items.length - 1 ? `1px solid ${tokens.muted}` : 'none',
-            }}
-          >
-            <div style={{
-              fontFamily: fonts.englishDisplay,
-              fontSize: '20px',
-              fontWeight: 600,
-              color: tokens.text,
-              direction: 'ltr', unicodeBidi: 'isolate',
-              marginBottom: '8px',
-              lineHeight: 1.3,
-            }}>
-              {item.title}
-            </div>
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: '15px',
-              color: tokens.dim,
-              direction: 'ltr', unicodeBidi: 'isolate',
-              lineHeight: 1.6,
-            }}>
-              {item.description}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <Panel pad="30px 48px 34px">
+      <PageTitle en={parsha?.name ? parshaEnglish(parsha.name) : 'This week’s parsha'} heText={parsha?.hebrew || 'פרשת השבוע'} />
+      {items.length === 0 ? <Empty en="No parsha articles available" /> : (
+        <div style={{ flex: 1, display: 'grid', gridAutoRows: 'minmax(0, 1fr)', minHeight: 0, marginTop: 8 }}>
+          {items.map((t, i) => {
+            const hb = isHebrew(t.title);
+            return (
+              <div key={i} data-s="" style={{ '--i': i + 1, borderTop: '2px solid var(--line)', padding: '18px 0 10px', minHeight: 0, overflow: 'hidden' }}>
+                <div dir={hb ? 'rtl' : 'ltr'} style={{ fontFamily: hb ? 'var(--f-he-d)' : F.enD, fontSize: hb ? 'calc(40px * var(--he-scale))' : 40, fontWeight: 600, lineHeight: 1.15, textAlign: 'start' }}>{t.title}</div>
+                <div className="tt-clamp3" style={{ fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', lineHeight: 1.4, marginTop: 8, fontWeight: 500 }}>{t.description}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Panel>
   );
 }

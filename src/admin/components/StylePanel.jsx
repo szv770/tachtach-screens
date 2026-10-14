@@ -1,24 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
-
-const BUILTIN_HEBREW = [
-  'Frank Ruhl Libre',
-  'Noto Serif Hebrew',
-  'David Libre',
-  'Heebo',
-  'Rubik',
-  'Assistant',
-];
-
-const BUILTIN_ENGLISH = [
-  'EB Garamond',
-  'Cormorant Garamond',
-  'Playfair Display',
-  'Lora',
-  'Inter',
-  'Roboto',
-];
+import { FontRoles } from './ScreenLookControls.jsx';
+import { resolveFontRoles, fontStack } from '../../shared/fontRoles.js';
+import '../../screen/design/fonts.js';
+import { notify } from '../hooks/useAdminState.js';
 
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
@@ -29,13 +15,8 @@ export default function StylePanel({ settings, onSave }) {
   const isMobile = useIsMobile();
   const fileRef = useRef(null);
 
-  // Font settings from current settings
-  const fontSettings = settings?.fonts || {};
-  const [hebrewFont, setHebrewFont] = useState(fontSettings.hebrewBody || fontSettings.hebrew || 'Frank Ruhl Libre');
-  const [hebrewHeadingFont, setHebrewHeadingFont] = useState(fontSettings.hebrewHeading || fontSettings.hebrew || 'Frank Ruhl Libre');
-  const [englishFont, setEnglishFont] = useState(fontSettings.english || 'EB Garamond');
   const [hebrewFontScale, setHebrewFontScale] = useState(settings?.hebrewFontScale ?? 1.0);
-  const [hebrewHeadingScale, setHebrewHeadingScale] = useState(settings?.hebrewHeadingScale ?? settings?.hebrewFontScale ?? 1.0);
+  const [fontRoles, setFontRoles] = useState(settings?.fontRoles || {});
   const [uploadedFonts, setUploadedFonts] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
@@ -44,13 +25,9 @@ export default function StylePanel({ settings, onSave }) {
 
   // Sync from settings prop when it changes externally
   useEffect(() => {
-    const fs = settings?.fonts || {};
-    setHebrewFont(fs.hebrewBody || fs.hebrew || 'Frank Ruhl Libre');
-    setHebrewHeadingFont(fs.hebrewHeading || fs.hebrew || 'Frank Ruhl Libre');
-    setEnglishFont(fs.english || 'EB Garamond');
     setHebrewFontScale(settings?.hebrewFontScale ?? 1.0);
-    setHebrewHeadingScale(settings?.hebrewHeadingScale ?? settings?.hebrewFontScale ?? 1.0);
-  }, [settings?.fonts, settings?.hebrewFontScale, settings?.hebrewHeadingScale]);
+    setFontRoles(settings?.fontRoles || {});
+  }, [settings?.fonts, settings?.hebrewFontScale, settings?.fontRoles]);
 
   // Fetch uploaded fonts list
   useEffect(() => {
@@ -106,6 +83,7 @@ export default function StylePanel({ settings, onSave }) {
 
       const entry = await res.json();
       setUploadedFonts(prev => [...prev, entry]);
+      notify(`Font "${entry.name}" uploaded — pick it below`);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -116,55 +94,39 @@ export default function StylePanel({ settings, onSave }) {
 
   const handleDeleteFont = async (id) => {
     try {
-      await fetch(`/api/fonts/${id}`, {
+      const res = await fetch(`/api/fonts/${id}`, {
         method: 'DELETE',
         headers: { 'X-CSRF-Token': getCsrfToken() },
       });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      notify('Font removed');
       setUploadedFonts(prev => prev.filter(f => f.id !== id));
 
-      // If the deleted font was selected, reset to default
+      // Roles that used the deleted font fall back to their defaults
       const deleted = uploadedFonts.find(f => f.id === id);
       if (deleted) {
-        if (hebrewFont === deleted.name) {
-          setHebrewFont('Frank Ruhl Libre');
-        }
-        if (hebrewHeadingFont === deleted.name) {
-          setHebrewHeadingFont('Frank Ruhl Libre');
-        }
-        if (englishFont === deleted.name) {
-          setEnglishFont('EB Garamond');
-        }
+        setFontRoles(prev => Object.fromEntries(Object.entries(prev).filter(([, v]) => v !== deleted.name)));
       }
       setDirty(true);
-    } catch {
-      // ignore
+    } catch (err) {
+      notify(`Remove font: ${err.message}`, 'error');
     }
   };
 
   const handleSave = async () => {
     setSaving(true);
+    // Only the keys this panel owns — onSave is a PATCH (deep-merged on the
+    // server), so this can't revert theme/credit/etc. saved elsewhere.
     const newSettings = {
-      ...settings,
-      fonts: {
-        hebrew: hebrewFont,          // keep for backwards compat
-        hebrewBody: hebrewFont,
-        hebrewHeading: hebrewHeadingFont,
-        english: englishFont,
-      },
+      fontRoles,
       hebrewFontScale,
-      hebrewHeadingScale,
     };
     const ok = await onSave(newSettings);
     if (ok) setDirty(false);
     setSaving(false);
   };
 
-  const allHebrewOptions = [...BUILTIN_HEBREW, ...uploadedFonts.map(f => f.name)];
-  const allEnglishOptions = [...BUILTIN_ENGLISH, ...uploadedFonts.map(f => f.name)];
-
-  // Deduplicate
-  const hebrewOptions = [...new Set(allHebrewOptions)];
-  const englishOptions = [...new Set(allEnglishOptions)];
+  const roleFonts = resolveFontRoles({ fontRoles });
 
   const sectionStyle = {
     background: colors.surface,
@@ -215,147 +177,27 @@ export default function StylePanel({ settings, onSave }) {
           Typography
         </h3>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
-          gap: '16px',
-          marginBottom: '20px',
-        }}>
-          {/* Hebrew Heading Font */}
-          <div>
-            <label style={labelStyle}>Hebrew Heading Font</label>
-            <select
-              style={selectStyle}
-              value={hebrewHeadingFont}
-              onChange={(e) => { setHebrewHeadingFont(e.target.value); setDirty(true); }}
-            >
-              <optgroup label="Built-in">
-                {BUILTIN_HEBREW.map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </optgroup>
-              {uploadedFonts.length > 0 && (
-                <optgroup label="Custom Uploaded">
-                  {uploadedFonts.map(f => (
-                    <option key={f.id} value={f.name}>{f.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </div>
+        <FontRoles
+          local={{ ...settings, fontRoles }}
+          uploadedFonts={uploadedFonts}
+          setRoles={(r) => { setFontRoles(r); setDirty(true); }}
+        />
 
-          {/* Hebrew Body Font */}
-          <div>
-            <label style={labelStyle}>Hebrew Body Font</label>
-            <select
-              style={selectStyle}
-              value={hebrewFont}
-              onChange={(e) => { setHebrewFont(e.target.value); setDirty(true); }}
-            >
-              <optgroup label="Built-in">
-                {BUILTIN_HEBREW.map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </optgroup>
-              {uploadedFonts.length > 0 && (
-                <optgroup label="Custom Uploaded">
-                  {uploadedFonts.map(f => (
-                    <option key={f.id} value={f.name}>{f.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </div>
-
-          {/* English Font */}
-          <div>
-            <label style={labelStyle}>English Font</label>
-            <select
-              style={selectStyle}
-              value={englishFont}
-              onChange={(e) => { setEnglishFont(e.target.value); setDirty(true); }}
-            >
-              <optgroup label="Built-in">
-                {BUILTIN_ENGLISH.map(f => (
-                  <option key={f} value={f}>{f}</option>
-                ))}
-              </optgroup>
-              {uploadedFonts.length > 0 && (
-                <optgroup label="Custom Uploaded">
-                  {uploadedFonts.map(f => (
-                    <option key={f.id} value={f.name}>{f.name}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </div>
-        </div>
-
-        {/* Hebrew Heading Scale */}
-        <div style={{ marginBottom: '16px' }}>
+        {/* Hebrew size: one global multiplier for every Hebrew size on the screen */}
+        <div style={{ margin: '20px 0' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <label style={labelStyle}>Hebrew Heading Scale</label>
-            <span style={{
-              fontFamily: adminFonts.englishBody,
-              fontSize: '14px',
-              fontWeight: 600,
-              color: colors.gold,
-              minWidth: '36px',
-              textAlign: 'right',
-            }}>
-              {hebrewHeadingScale.toFixed(2)}×
-            </span>
-          </div>
-          <input
-            type="range"
-            min="0.7"
-            max="2.0"
-            step="0.05"
-            value={hebrewHeadingScale}
-            onChange={(e) => { setHebrewHeadingScale(parseFloat(e.target.value)); setDirty(true); }}
-            style={{ width: '100%', accentColor: colors.gold, cursor: 'pointer' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>0.7× (smaller)</span>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>1.0× (default)</span>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>2.0× (larger)</span>
-          </div>
-          <p style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginTop: '6px', lineHeight: 1.5 }}>
-            Scales the Hebrew heading font (section labels like חומש, תניא).
-          </p>
-        </div>
-
-        {/* Hebrew Body Scale */}
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <label style={labelStyle}>Hebrew Body Scale</label>
-            <span style={{
-              fontFamily: adminFonts.englishBody,
-              fontSize: '14px',
-              fontWeight: 600,
-              color: colors.gold,
-              minWidth: '36px',
-              textAlign: 'right',
-            }}>
+            <label style={labelStyle}>Hebrew Size</label>
+            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600, color: colors.gold, minWidth: '36px', textAlign: 'right' }}>
               {hebrewFontScale.toFixed(2)}×
             </span>
           </div>
           <input
-            type="range"
-            min="0.7"
-            max="2.0"
-            step="0.05"
-            value={hebrewFontScale}
+            type="range" min="0.8" max="1.4" step="0.05" value={hebrewFontScale}
             onChange={(e) => { setHebrewFontScale(parseFloat(e.target.value)); setDirty(true); }}
             style={{ width: '100%', accentColor: colors.gold, cursor: 'pointer' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>0.7× (smaller)</span>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>1.0× (default)</span>
-            <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim }}>2.0× (larger)</span>
-          </div>
           <p style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginTop: '6px', lineHeight: 1.5 }}>
-            Scales the Hebrew body font (study content text). Does not affect English text.
+            Scales every Hebrew size on the screen together (1.00 = designed size). Some Hebrew fonts run small: FbMazal looks right around 1.10.
           </p>
         </div>
 
@@ -378,41 +220,26 @@ export default function StylePanel({ settings, onSave }) {
             Preview
           </div>
 
-          <div style={{
-            fontFamily: `'${hebrewHeadingFont}', serif`,
-            fontSize: `${Math.round(34 * hebrewHeadingScale)}px`,
-            color: colors.text,
-            direction: 'rtl',
-            marginBottom: '8px',
-            lineHeight: 1.3,
-          }}>
+          <div style={{ fontFamily: fontStack(roleFonts.hebrewDisplay, 'hebrewDisplay'), fontSize: `${Math.round(40 * hebrewFontScale)}px`, fontWeight: 600, color: colors.text, direction: 'rtl', marginBottom: '8px', lineHeight: 1.3 }}>
             {previewHebrew}
           </div>
-          <div style={{
-            fontFamily: adminFonts.englishBody,
-            fontSize: '10px',
-            color: colors.dim,
-            textAlign: 'center',
-            marginBottom: '16px',
-          }}>Heading font above · Body font below</div>
-          <div style={{
-            fontFamily: `'${hebrewFont}', Georgia, serif`,
-            fontSize: `${Math.round(28 * hebrewFontScale)}px`,
-            color: colors.text,
-            direction: 'rtl',
-            marginBottom: '12px',
-            lineHeight: 1.4,
-          }}>
+          <div style={{ fontFamily: fontStack(roleFonts.hebrewBody, 'hebrewBody'), fontSize: `${Math.round(26 * hebrewFontScale)}px`, color: colors.text, direction: 'rtl', marginBottom: '12px', lineHeight: 1.4 }}>
             {previewHebrew}
           </div>
-
-          <div style={{
-            fontFamily: `'${englishFont}', Georgia, serif`,
-            fontSize: '22px',
-            color: colors.text,
-            lineHeight: 1.4,
-          }}>
+          <div style={{ fontFamily: fontStack(roleFonts.englishDisplay, 'englishDisplay'), fontSize: '30px', fontWeight: 600, color: colors.text, lineHeight: 1.3, marginBottom: '6px' }}>
+            Tuesday, October 13
+          </div>
+          <div style={{ fontFamily: fontStack(roleFonts.englishBody, 'englishBody'), fontSize: '20px', color: colors.dim, lineHeight: 1.4, marginBottom: '8px' }}>
             {previewEnglish}
+          </div>
+          <div style={{ fontFamily: fontStack(roleFonts.numerals, 'numerals'), fontVariantNumeric: 'lining-nums tabular-nums', fontSize: '34px', fontWeight: 700, color: colors.text }}>
+            12:41 <span style={{ fontSize: '16px', color: colors.dim }}>PM</span> &nbsp; 6:01 &nbsp; 10:08
+          </div>
+          <div style={{ fontFamily: fontStack(roleFonts.torahHebrew, 'torahHebrew'), fontSize: `${Math.round(26 * hebrewFontScale)}px`, color: colors.text, direction: 'rtl', marginTop: '12px', lineHeight: 1.5 }}>
+            מעט מן האור דוחה הרבה מן החושך
+          </div>
+          <div style={{ fontFamily: fontStack(roleFonts.torahEnglish, 'torahEnglish'), fontStyle: 'italic', fontSize: '22px', color: colors.text, lineHeight: 1.4 }}>
+            A little light dispels a great deal of darkness.
           </div>
         </div>
 
@@ -423,6 +250,9 @@ export default function StylePanel({ settings, onSave }) {
             opacity: saving || !dirty ? 0.6 : 1,
             padding: '10px 28px',
             fontSize: '15px',
+            minHeight: '44px',
+            // Unsaved changes on a phone: keep Save in reach while scrolling.
+            ...(isMobile && dirty ? { position: 'sticky', bottom: 'calc(12px + env(safe-area-inset-bottom))', zIndex: 20, width: '100%', boxShadow: '0 6px 24px rgba(0,0,0,.45)' } : {}),
           }}
           onClick={handleSave}
           disabled={saving || !dirty}

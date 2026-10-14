@@ -2,6 +2,7 @@ import { fetchZmanim, fetchHayomYom, fetchDailyStudyRSS, fetchDailyStudyHebrewRS
 import { fetchHebrewDate, fetchParsha, fetchOmer } from "./hebcal.js";
 import { hNum } from "../shared/constants.js";
 import { fetchTorahCalc } from "./torahcalc.js";
+import { fetchWeather } from "./weather.js";
 import { readJSON, writeJSON } from "../server/storage.js";
 
 const CACHE_FILE = "cache.json";
@@ -28,6 +29,21 @@ export async function fetchAll(config) {
   // Load existing cache so we can preserve values on partial failure
   const existing = (await readJSON(CACHE_FILE)) || {};
 
+  // Weather (screen rail + Weather page) rides along with every full refresh.
+  // settings.weather: { enabled (default true), units 'F'|'C', zip (default
+  // settings.location.zip) }. Disabled → the key is kept as is (not fetched).
+  const settings = (await readJSON("settings.json").catch(() => null)) || {};
+  const weatherCfg = settings.weather || {};
+  const weatherEnabled = weatherCfg.enabled !== false;
+  const weatherJob = weatherEnabled
+    ? fetchWeather({
+        zip: weatherCfg.zip || zip,
+        units: weatherCfg.units === "C" ? "C" : "F",
+        timezone: settings.location?.timezone,
+        previous: existing.weather,
+      })
+    : Promise.resolve(null);
+
   // Fire all fetches in parallel
   const [
     zmanimResult,
@@ -41,6 +57,7 @@ export async function fetchAll(config) {
     dailyQuoteResult,
     parshaTidbitsResult,
     tanyaExcerptResult,
+    weatherResult,
   ] = await Promise.allSettled([
     fetchZmanim(locationId),
     fetchHayomYom(),
@@ -53,6 +70,7 @@ export async function fetchAll(config) {
     fetchDailyQuote(),
     fetchParshaTidbits(),
     fetchTanyaExcerpt(),
+    weatherJob,
   ]);
 
   const val = (result) => result.status === "fulfilled" ? result.value : null;
@@ -68,6 +86,7 @@ export async function fetchAll(config) {
   const dailyQuote = val(dailyQuoteResult);
   const parshaTidbits = val(parshaTidbitsResult);
   const tanyaExcerpt = val(tanyaExcerptResult);
+  const weather = val(weatherResult);
 
   // Extract parsha from Chabad chumash as fallback when Hebcal fails
   const chabadParsha = (() => {
@@ -143,7 +162,7 @@ export async function fetchAll(config) {
       : existing.tanyaYomi || { ref: '', heRef: '', description: '', fetchedAt: null },
 
     hebrewDate: hebrewDate
-      ? { hebrew: hebrewDate.hebrew, hebrewYear: hebrewDate.hebrewYear, hebrewMonth: hebrewDate.hebrewMonth, hebrewDay: hebrewDate.hebrewDay, fetchedAt: now }
+      ? { hebrew: hebrewDate.hebrew, hebrewYear: hebrewDate.hebrewYear, hebrewMonth: hebrewDate.hebrewMonth, hebrewDay: hebrewDate.hebrewDay, events: Array.isArray(hebrewDate.events) ? hebrewDate.events : [], forDate: localDate, fetchedAt: now }
       : existing.hebrewDate || { hebrew: "", hebrewYear: 0, hebrewMonth: "", hebrewDay: 0, fetchedAt: null },
 
     parsha: parsha
@@ -170,6 +189,9 @@ export async function fetchAll(config) {
       : existing.parshaTidbits || null,
 
     events: existing.events || [],
+
+    // Open-Meteo weather (src/fetchers/weather.js); last good value on failure.
+    weather: weather || existing.weather || null,
   };
 
   // Log warnings for failed fetches
@@ -184,6 +206,7 @@ export async function fetchAll(config) {
   if (!hebrewDate) console.warn("[fetchAll] hebrewDate fetch failed, using cached value");
   if (!parsha) console.warn("[fetchAll] parsha fetch failed, using cached value");
   if (!torahCalc) console.warn("[fetchAll] torahCalc fetch failed, using cached value");
+  if (weatherEnabled && !weather) console.warn("[fetchAll] weather fetch failed, using cached value");
 
   await writeJSON(CACHE_FILE, cache);
   return cache;

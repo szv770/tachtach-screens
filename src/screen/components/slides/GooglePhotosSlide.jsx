@@ -154,14 +154,6 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
           backgroundImage: `url(${photoUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          filter: 'blur(30px) brightness(0.4)',
-        }} />
-        {/* Radial gradient vignette */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          background: `radial-gradient(ellipse at center, transparent 40%, ${tokens.bg} 100%)`,
-          zIndex: 0,
-          pointerEvents: 'none',
         }} />
       </>
     );
@@ -171,7 +163,7 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
   if (displayMode === 'single' || displayMode === 'fullscreen') {
     const photo = photos[photoIndex % photos.length];
     const kenBurnsStyle = kenBurns ? {
-      animation: `kenBurns ${photoInterval || 8}s ease-in-out infinite`,
+      animation: 'none',
     } : {};
 
     // For fullscreen mode, always use cover regardless of imageDisplayMode
@@ -209,7 +201,7 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
           </motion.div>
         </AnimatePresence>
 
-        {counter}
+        
 
         {kenBurns && (
           <style>{`
@@ -281,7 +273,7 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
           <img src={next.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
 
-        {counter}
+        
       </div>
     );
   }
@@ -321,17 +313,16 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
               <div key={`${photo.id}-${i}`} style={{
                 overflow: 'hidden',
                 position: 'relative',
-                borderRight: i % gridConfig.columns < gridConfig.columns - 1 ? `1px solid ${tokens.framePrimary}` : 'none',
-                borderBottom: Math.floor(i / gridConfig.columns) < gridConfig.rows - 1 ? `1px solid ${tokens.framePrimary}` : 'none',
+                borderRight: i % gridConfig.columns < gridConfig.columns - 1 ? '1px solid var(--line, transparent)' : 'none',
+                borderBottom: Math.floor(i / gridConfig.columns) < gridConfig.rows - 1 ? '1px solid var(--line, transparent)' : 'none',
               }}>
                 {/* Blur background per cell for fit mode */}
                 {imageDisplayMode === 'fit' && (
                   <div style={{
                     position: 'absolute', inset: 0,
-                    backgroundImage: `url(${photo.url})`,
+                    backgroundImage: `url(${photo.blurUrl || photo.url})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center',
-                    filter: 'blur(20px) brightness(0.4)',
                   }} />
                 )}
                 <img
@@ -350,7 +341,7 @@ export default function GooglePhotosSlide({ slide, tokens, googleAlbums }) {
           </motion.div>
         </AnimatePresence>
 
-        {counter}
+        
       </div>
     );
   }

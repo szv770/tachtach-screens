@@ -1,147 +1,76 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { fonts, slideTransition } from '../styles/tokens.js';
-
-function getLogoBlendFilter(blend, tokens) {
-  if (!blend || blend === 'original') return {};
-  if (blend === 'subtle') return { filter: 'none', opacity: 0.2 };
-  if (blend === 'mono-gold') return { filter: 'sepia(1) saturate(3) brightness(0.8) hue-rotate(15deg)' };
-  if (blend === 'match-theme') {
-    const bg = (tokens.bg || '').trim();
-    const isDark = /^#[0-3]/i.test(bg) || bg.startsWith('rgb(0') || bg.startsWith('rgb(1') || bg.startsWith('rgb(2') || bg.startsWith('rgb(3');
-    return { filter: isDark ? 'brightness(0) invert(1)' : 'brightness(0)' };
-  }
-  return {};
-}
-
-// Opacity for the "On a specific slide" credit line. Module-level so the
-// SlideCarousel render can use it — it used to be a local const inside
-// SlideCreditContent, so referencing it from SlideCarousel threw a
-// ReferenceError and white-screened the kiosk (audit bug 8). Same scale as
-// Layout.jsx's creditOpacity().
-function creditOpacityFor(size) {
-  return size === 'large' ? 1.0 : size === 'medium' ? 0.8 : 0.55;
-}
-
-function SlideCreditContent({ credit, tokens }) {
-  const logo = credit.logo;
-  const logoSizePx = logo?.size === 'large' ? 64 : logo?.size === 'small' ? 28 : 44;
-  const logoPosition = logo?.position || 'above';
-  const textFontSize = credit.size === 'large' ? '20px' : credit.size === 'medium' ? '15px' : '11px';
-  const blendStyle = getLogoBlendFilter(logo?.blend, tokens);
-
-  const textEl = credit.text ? (
-    <span style={{ fontFamily: fonts.englishBody, fontSize: textFontSize, color: tokens.dim }}>
-      {credit.text}
-    </span>
-  ) : null;
-
-  const logoEl = logo?.url ? (
-    <img
-      src={logo.url}
-      alt=""
-      style={{
-        height: `${logoSizePx}px`,
-        width: 'auto',
-        objectFit: 'contain',
-        opacity: blendStyle.opacity !== undefined ? blendStyle.opacity : 1,
-        display: 'block',
-        ...(blendStyle.filter ? { filter: blendStyle.filter } : {}),
-      }}
-    />
-  ) : null;
-
-  if (!logoEl && !textEl) return null;
-  if (!logoEl) return textEl;
-  if (!textEl) return logoEl;
-
-  if (logoPosition === 'above') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-        {logoEl}
-        {textEl}
-      </div>
-    );
-  }
-
-  const isLeft = logoPosition === 'left';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexDirection: isLeft ? 'row' : 'row-reverse' }}>
-      {logoEl}
-      {textEl}
-    </div>
-  );
-}
+import { Panel } from '../design/ui.jsx';
+import { useDesign } from '../design/DesignRoot.jsx';
 import ZmanimSlide from './slides/ZmanimSlide.jsx';
 import LimudimSlide from './slides/LimudimSlide.jsx';
 import HayomYomSlide from './slides/HayomYomSlide.jsx';
-import TextSlide from './slides/TextSlide.jsx';
-import StyledSlide from './slides/StyledSlide.jsx';
 import ImageSlide from './slides/ImageSlide.jsx';
 import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
-import PinnedSlide from './slides/PinnedSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
 import ScheduleSlide from './slides/ScheduleSlide.jsx';
 import RSSSlide from './slides/RSSSlide.jsx';
+import WeatherSlide from './slides/WeatherSlide.jsx';
 import MivtzahLeaderboardSlide from './slides/MivtzahLeaderboardSlide.jsx';
 import MivtzahLiveEmbedSlide from './slides/MivtzahLiveEmbedSlide.jsx';
 import CountdownOverlay from './CountdownOverlay.jsx';
-import BoardDisplay from './slides/BoardSlide.jsx';
 import AnnouncementSlide from './slides/AnnouncementSlide.jsx';
 
-const SLIDE_LABELS = {
-  ZMANIM: 'זמנים',
-  LIMUDIM: 'לימודים',
-  HAYOM_YOM: 'היום יום',
-  PIRKEI_AVOS: 'פרקי אבות',
-  DAILY_QUOTE: 'ציטוט היום',
-  PARSHA_TIDBITS: 'פרשת השבוע',
-  IMAGE_SLIDE: 'תמונה',
-  VIDEO_SLIDE: 'סרטון',
-  TEXT_SLIDE: 'הודעה',
-  ANNOUNCEMENT: 'הודעה',
-  PINNED_SLIDE: 'הצמדה',
-  GOOGLE_PHOTOS_SLIDE: 'תמונות',
-  SCHEDULE: 'סדר הישיבה',
-  COUNTDOWN: 'ספירה לאחור',
-  RSS_SLIDE: 'RSS',
-  MIVTZAH_LEADERBOARD: 'Mivtzah',
-  MIVTZAH_LIVE_EMBED: 'Mivtzah Live',
+/**
+ * The page area: ONE page at a time, inside the rounded panel (R2 §4/§8).
+ * Page transitions are the only motion (settings.motion): smooth = fade +
+ * 14 px rise, minimal = crossfade, lively = fade + staggered children
+ * ([data-s], CSS). Only opacity/transform; nothing loops. No category chip,
+ * no slide index or progress (rotation is ambient).
+ *
+ * Pages that draw their own <Panel> (zmanim, schedule, limudim, …) are
+ * rendered as is; media pages are framed in a full-bleed panel here.
+ */
+
+// Raw legacy rows (migrated at startup, kept for old servers) render as Big words.
+function legacyItem(slide) {
+  const b = slide._board || {};
+  return {
+    id: slide.id,
+    content: {
+      headlineHe: slide.titleHe ?? slide.textHe ?? b.textHe, headlineEn: slide.titleEn ?? slide.textEn ?? b.textEn ?? b.text,
+      bodyHe: slide.bodyHe, bodyEn: slide.bodyEn, attribution: slide.attribution, subtitle: slide.subtitle ?? b.subtitle, target: b.target,
+    },
+    look: { layout: 'bigwords', style: slide.style || null },
+  };
+}
+
+const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED']);
+
+const VARIANTS = {
+  smooth: { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.48, ease: [0.22, 0.7, 0.2, 1] } }, exit: { opacity: 0, transition: { duration: 0.26, ease: 'easeIn' } } },
+  minimal: { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.5, ease: 'linear' } }, exit: { opacity: 0, transition: { duration: 0.3, ease: 'linear' } } },
+  lively: { initial: { opacity: 0 }, animate: { opacity: 1, transition: { duration: 0.22 } }, exit: { opacity: 0, y: -10, transition: { duration: 0.3, ease: 'easeIn' } } },
 };
 
-export default function SlideCarousel({ currentSlide, currentIndex, enabledSlides, progress, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums, schedule, countdown, onCountdownComplete, credit, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact' }) {
-  // An announcement posted with "pause everything else" (hold) replaces the
-  // slide area while it is active; App also pauses the rotation timer, so
-  // the rotation resumes on the same slide afterwards. Checked before the
-  // countdown and the empty-rotation bail-out, like the old blocking board.
+export default function SlideCarousel({
+  currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
+  schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
+}) {
+  const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
 
-  // Slide-mode schedule countdown: shown in the slide area (like a board)
-  // for as long as it runs, then the normal rotation reappears. It used to
-  // render only when the current slide had type COUNTDOWN, which nothing
-  // ever puts into rotation, so it never showed (audit bug 4). Sidebar,
-  // banner and pinned notes stay visible; rotation is not paused.
+  // Slide-mode schedule countdown shows in the page area (rotation not paused).
   if (countdown && !hold) {
     return (
-      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', padding: portrait ? '44px 14px 12px' : '48px 40px 32px', boxSizing: 'border-box' }}>
-        <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} />
-      </div>
+      <Panel>
+        <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />
+      </Panel>
     );
   }
-
   if (!currentSlide) return null;
-
-  // Announcement slides carry their exact legacy chip text ('' for old custom slides).
-  const label = currentSlide.type === 'ANNOUNCEMENT'
-    ? (currentSlide.label ?? '')
-    : (currentSlide.label || currentSlide.title || SLIDE_LABELS[currentSlide.type] || '');
 
   function renderSlide(slide) {
     switch (slide.type) {
-      case 'ZMANIM': return <ZmanimSlide cache={cache} tokens={tokens} settings={settings} portrait={portrait} portraitLayout={portraitLayout} />;
+      case 'ZMANIM': return <ZmanimSlide cache={cache} tokens={tokens} settings={settings} />;
       case 'LIMUDIM': return <LimudimSlide cache={cache} tokens={tokens} settings={settings} portrait={portrait} portraitLayout={portraitLayout} />;
       case 'HAYOM_YOM': return <HayomYomSlide cache={cache} tokens={tokens} settings={settings} onRequestDuration={onRequestDuration} />;
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
@@ -150,85 +79,43 @@ export default function SlideCarousel({ currentSlide, currentIndex, enabledSlide
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'VIDEO_SLIDE': return <VideoSlide slide={slide} tokens={tokens} onEnded={onVideoEnded} />;
       case 'TEXT_SLIDE':
-      case 'custom': return slide.style ? <StyledSlide slide={slide} tokens={tokens} /> : <TextSlide slide={slide} tokens={tokens} />;
-      case 'PINNED_SLIDE': return <PinnedSlide slide={slide} tokens={tokens} />;
+      case 'custom':
+      case 'PINNED_SLIDE':
+      case 'BOARD_SLIDE': return <AnnouncementSlide item={legacyItem(slide)} />;
       case 'GOOGLE_PHOTOS_SLIDE': return <GooglePhotosSlide slide={slide} tokens={tokens} googleAlbums={googleAlbums} />;
       case 'RSS_SLIDE': return <RSSSlide slide={slide} tokens={tokens} rssCache={rssCache} rssFeeds={rssFeeds} />;
+      case 'WEATHER': return <WeatherSlide cache={cache} settings={settings} />;
       case 'MIVTZAH_LEADERBOARD': return <MivtzahLeaderboardSlide cache={cache} tokens={tokens} />;
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
       case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} />;
-      case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} />;
-      case 'BOARD_SLIDE': return <BoardDisplay boards={[slide._board]} tokens={tokens} />;
-      case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} tokens={tokens} />;
+      case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
+      case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} />;
       default: return null;
     }
   }
 
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-      {/* Category chip -- top right */}
-      <div style={{
-        position: 'absolute',
-        top: '16px',
-        left: '16px',
-        zIndex: 5,
-        padding: '3px 12px',
-        background: tokens.goldBg,
-        border: `1px solid ${tokens.goldBd}`,
-        borderRadius: '3px',
-      }}>
-        <span style={{
-          fontFamily: fonts.hebrewPrimary,
-          fontSize: '13px',
-          fontWeight: 500,
-          color: tokens.gold,
-          letterSpacing: '0.04em',
-        }}>
-          {label}
-        </span>
-      </div>
+  const v = VARIANTS[mode] || VARIANTS.smooth;
+  const body = MEDIA.has(currentSlide.type)
+    ? <Panel fullBleed style={{ borderRadius: 32 }}>{renderSlide(currentSlide)}</Panel>
+    : renderSlide(currentSlide);
 
-      {/* Slide content with AnimatePresence */}
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: 0 }}>
       <AnimatePresence mode="wait">
         <motion.div
           key={`${currentSlide.id}-${currentIndex}`}
-          initial={slideTransition.initial}
-          animate={slideTransition.animate}
-          exit={slideTransition.exit}
-          transition={slideTransition.transition}
+          className={mode === 'lively' ? 'tt-page tt-enter' : 'tt-page'}
+          initial={v.initial}
+          animate={v.animate}
+          exit={v.exit}
           style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: portrait && portraitLayout === 'scroll' ? 'flex-start' : 'center',
-            justifyContent: 'center',
+            position: 'absolute', inset: 0, display: 'flex', minHeight: 0,
             overflowY: portrait && portraitLayout === 'scroll' ? 'auto' : 'hidden',
-            padding: (() => {
-              if (currentSlide.type === 'IMAGE_SLIDE' || currentSlide.type === 'VIDEO_SLIDE' || currentSlide.type === 'GOOGLE_PHOTOS_SLIDE' || currentSlide.type === 'MIVTZAH_LIVE_EMBED') return '8px';
-              if (portrait) return portraitLayout === 'scroll' ? '48px 14px 16px' : '44px 14px 12px';
-              return '48px 40px 32px';
-            })(),
           }}
         >
-          {renderSlide(currentSlide)}
+          {body}
         </motion.div>
       </AnimatePresence>
-
-      {/* Credit line — on specific slide */}
-      {credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'slide' && credit?.slideId === currentSlide.id && (
-        <div style={{
-          position: 'absolute',
-          bottom: '8px',
-          right: '16px',
-          opacity: creditOpacityFor(credit?.size),
-          zIndex: 6,
-          direction: 'ltr',
-          pointerEvents: 'none',
-        }}>
-          <SlideCreditContent credit={credit} tokens={tokens} />
-        </div>
-      )}
-
     </div>
   );
 }
