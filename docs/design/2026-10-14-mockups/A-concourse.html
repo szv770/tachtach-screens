@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction A · Concourse</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@500;600&family=Rubik:wght@400;500;600;700&family=Frank+Ruhl+Libre:wght@500;700;900&family=EB+Garamond:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* Owner's custom font — only used by the ?fonts=serif preview */
+@font-face { font-family: 'FbMazalMedium'; src: url('fonts/FbMazalMedium.ttf') format('truetype'); }
+
+/*
+  Direction A — "Concourse"  (airport FIDS / transit board)
+  Every color is a token role (same keys as src/screen/styles/tokens.js + 2 additive roles:
+  surface2, onAccent). Every font is a font role (fonts.hebrewDisplay / hebrewPrimary /
+  englishDisplay / englishBody + additive `numeric`). Values are injected by the script below.
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; }
+body { color: var(--text); font-family: var(--f-en); -webkit-font-smoothing: antialiased; }
+
+.canvas { position: fixed; inset: 0; padding: 28px 28px 0; display: grid;
+  grid-template-columns: minmax(440px, 31.5%) 1fr; grid-template-rows: 1fr 64px; gap: 20px 20px; }
+
+.he { direction: rtl; font-family: var(--f-he); }
+.hed { direction: rtl; font-family: var(--f-he-display); font-weight: 700; }
+.num { font-family: var(--f-num); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
+.caps { font-family: var(--f-en-display); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+
+/* ── Rail ───────────────────────────────────────────── */
+.rail { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.nz { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 14px; padding: 12px 20px 14px; }
+.nz .lbl { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 17px; color: var(--dim); }
+.nz .lbl .he { font-family: var(--f-he); letter-spacing: 0; text-transform: none; font-size: 20px; }
+.nz .time { font-size: 46px; font-weight: 600; line-height: 1; }
+.nz .time small { font-size: 20px; color: var(--dim); margin-left: 4px; }
+.nz .en { font-size: 22px; color: var(--dim); font-weight: 500; }
+.nz .he.nm { font-size: 36px; text-align: right; }
+.nz .eta { font-size: 18px; color: var(--copper); }
+.clock { display: flex; align-items: flex-start; gap: 10px; line-height: .8; padding-top: 6px; }
+.clock .t { font-size: 176px; font-weight: 600; letter-spacing: -.02em; }
+.clock .ap { font-size: 40px; font-weight: 600; color: var(--dim); margin-top: 6px; }
+.dayline { display: flex; justify-content: space-between; align-items: baseline; border-top: 2px solid var(--text); padding-top: 12px; }
+.dayline .en { font-size: 24px; color: var(--dim); }
+.hebdate { font-size: 50px; line-height: 1.05; text-align: right; }
+.parsha { display: flex; justify-content: space-between; align-items: baseline; }
+.parsha .en { font-size: 24px; color: var(--dim); }
+.parsha .he { font-size: 34px; font-weight: 500; }
+
+.tile { background: var(--surface); border: 1px solid var(--frame1); border-radius: 6px; }
+.weather { display: flex; align-items: center; gap: 18px; padding: 14px 20px; }
+.weather svg { width: 54px; height: 54px; flex: none; }
+.weather .deg { font-size: 60px; font-weight: 600; line-height: 1; }
+.weather .meta { display: flex; flex-direction: column; gap: 4px; }
+.weather .meta .a { font-size: 22px; font-family: var(--f-en); font-weight: 500; }
+.weather .meta .b { font-size: 20px; color: var(--dim); }
+.weather .he { margin-left: auto; font-size: 26px; color: var(--dim); }
+.weather .meta { white-space: nowrap; }
+@media (max-width: 1500px) { .weather .he { display: none; } }  /* narrower aspect: drop the duplicate-language weather label first */
+
+.nextcard { padding: 14px 20px 16px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto auto; column-gap: 12px; }
+.nextcard .lbl { grid-column: 1 / -1; display: flex; justify-content: space-between; font-size: 17px; color: var(--dim); margin-bottom: 4px; }
+.nextcard .lbl .he { font-family: var(--f-he); letter-spacing: 0; text-transform: none; font-size: 20px; }
+.nextcard .name-he { grid-column: 1 / -1; font-size: 44px; line-height: 1.1; text-align: right; }
+.nextcard .name-en { font-size: 26px; color: var(--dim); align-self: end; font-family: var(--f-en); font-weight: 500; }
+.nextcard .time { font-size: 60px; font-weight: 600; line-height: .95; text-align: right; }
+.nextcard .time small { font-size: 26px; color: var(--dim); margin-left: 4px; }
+.nextcard .eta { grid-column: 1 / -1; margin-top: 10px; display: flex; align-items: center; justify-content: space-between; padding: 8px 14px; border-radius: 4px;
+  background: var(--accent); color: var(--onAccent); font-size: 24px; }
+.nextcard.alt .eta { background: var(--surface2); color: var(--text); }
+.nextcard.alt .eta .caps { color: var(--copper); }
+
+/* ── Slide panel ─────────────────────────────────────── */
+.panel { position: relative; display: flex; flex-direction: column; min-height: 0; background: var(--surface); border: 1px solid var(--frame1); border-radius: 6px; overflow: hidden; }
+.phead { display: flex; align-items: center; gap: 18px; padding: 16px 26px 14px; border-bottom: 1px solid var(--frame1); }
+.phead .caps { font-size: 22px; }
+.phead .he { margin-left: auto; font-size: 32px; font-family: var(--f-he-display); font-weight: 600; }
+.segs { display: flex; gap: 4px; padding: 0 26px; height: 4px; margin-top: -2px; }
+.segs i { flex: 1; background: var(--frame2); border-radius: 2px; }
+.segs i.done { background: var(--dim); }
+.segs i.cur { background: linear-gradient(90deg, var(--accent) 62%, var(--frame2) 62%); }
+.pbody { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 26px 18px; }
+
+/* board rows (zmanim + schedule) */
+.board { flex: 1; min-height: 0; display: grid; grid-auto-rows: minmax(0, 1fr); }
+.row { display: grid; grid-template-columns: 210px 1fr 210px 1fr; align-items: center; gap: 18px; padding: 0 18px; border-bottom: 1px solid var(--frame1); }
+.row:last-child { border-bottom: 0; }
+.row .time { font-size: 56px; font-weight: 600; line-height: 1; }
+.row .time small { font-size: 24px; color: var(--dim); margin-left: 6px; font-weight: 500; }
+.row .en { font-size: 26px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .st { justify-self: center; }
+.row .he { font-size: 44px; text-align: right; font-weight: 500; white-space: nowrap; }
+.pill { display: inline-block; font-size: 17px; padding: 6px 12px; border-radius: 3px; border: 1px solid var(--frame2); color: var(--dim); white-space: nowrap; }
+.row.past { color: var(--muted); }
+.row.past .en, .row.past .time small { color: var(--muted); }
+.row.past .pill { color: var(--muted); border-color: var(--frame1); }
+.row.next { background: var(--accent); color: var(--onAccent); border-radius: 4px; border-bottom-color: transparent; }
+.row.next .en, .row.next .time small { color: var(--onAccent); opacity: .78; }
+.row.next .pill { background: var(--onAccent); color: var(--accent); border-color: transparent; font-size: 20px; }
+.row.now { box-shadow: inset 6px 0 0 var(--copper); background: var(--surface2); }
+.row.now .pill { background: var(--copper); color: var(--onAccent); border-color: transparent; }
+.pfoot { display: flex; gap: 20px; white-space: nowrap; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--frame1); font-size: 20px; color: var(--dim); }
+.pfoot b { color: var(--text); font-weight: 600; }
+.colhead { display: grid; grid-template-columns: 210px 1fr 210px 1fr; gap: 18px; padding: 8px 18px; font-size: 16px; color: var(--muted); }
+.colhead .r { text-align: right; }
+
+/* announcement */
+.ann { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 10px 14px; min-height: 0; }
+.fit { white-space: nowrap; overflow: hidden; line-height: 1.05; }
+.ann .h1 { height: 210px; font-family: var(--f-he-display); font-weight: 700; direction: rtl; text-align: right; }
+.ann .h2 { height: 128px; font-family: var(--f-en-display); font-weight: 700; text-transform: uppercase; letter-spacing: .01em; }
+.flaps { display: flex; gap: 8px; margin-top: 18px; align-items: stretch; }
+.flap { position: relative; width: 94px; height: 132px; background: var(--surface2); border: 1px solid var(--frame2); border-radius: 6px; display: grid; place-items: center;
+  font-family: var(--f-num); font-weight: 700; font-size: 104px; line-height: 1; color: var(--text); }
+.flap::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--bg); }
+.flap.acc { background: var(--accent); color: var(--onAccent); border-color: transparent; }
+.flap.gap { width: 34px; background: none; border: 0; }
+.flap.gap::after { display: none; }
+.ann .sub { display: flex; justify-content: space-between; align-items: baseline; margin-top: 18px; border-top: 1px solid var(--frame2); padding-top: 14px; }
+.ann .sub .he { font-size: 44px; font-family: var(--f-he); }
+.ann .sub .en { font-size: 28px; white-space: nowrap; color: var(--dim); }
+
+/* ── Banner (reserved row, never overlays the slide) ───── */
+.banner { grid-column: 1 / -1; display: flex; align-items: stretch; margin: 0 -28px; background: var(--surface2); border-top: 1px solid var(--frame2); }
+.banner .tag { display: flex; align-items: center; gap: 12px; padding: 0 28px; background: var(--accent); color: var(--onAccent); font-size: 22px; }
+.banner .tag .he { font-size: 24px; font-family: var(--f-he-display); text-transform: none; letter-spacing: 0; }
+.banner .msg { flex: 1; display: flex; align-items: center; gap: 28px; padding: 0 28px; font-size: 27px; white-space: nowrap; overflow: hidden; }
+.banner .msg .he { font-size: 30px; }
+.banner .msg .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
+.banner .clk { display: flex; align-items: center; padding: 0 28px; font-size: 20px; color: var(--dim); }
+</style>
+</head>
+<body>
+<div class="canvas" id="app"></div>
+<script>
+// ── Token sets (same role names as tokens.js; gold = accent) ─────────────
+const THEMES = {
+  dark:  { bg:'#090E18', surface:'#111A2A', surface2:'#1A2539', text:'#EEF3FA', dim:'rgba(238,243,250,.66)', muted:'rgba(238,243,250,.34)',
+           gold:'#F4B63F', goldBg:'rgba(244,182,63,.14)', goldBd:'rgba(244,182,63,.5)', copper:'#5CC6A0', onAccent:'#121006',
+           framePrimary:'rgba(238,243,250,.09)', frameSecondary:'rgba(238,243,250,.18)' },
+  light: { bg:'#E9EEF3', surface:'#FFFFFF', surface2:'#F2F5F8', text:'#0B1426', dim:'rgba(11,20,38,.64)', muted:'rgba(11,20,38,.34)',
+           gold:'#F0A81C', goldBg:'rgba(240,168,28,.14)', goldBd:'rgba(240,168,28,.5)', copper:'#0E8F66', onAccent:'#121006',
+           framePrimary:'rgba(11,20,38,.10)', frameSecondary:'rgba(11,20,38,.20)' },
+};
+const FONTS = {
+  default: { hebrewDisplay:"'Rubik', sans-serif", hebrewPrimary:"'Rubik', sans-serif", englishDisplay:"'Barlow Condensed', sans-serif", englishBody:"'Barlow', sans-serif", numeric:"'Barlow Condensed', sans-serif" },
+  serif:   { hebrewDisplay:"'FbMazalMedium','Frank Ruhl Libre', serif", hebrewPrimary:"'FbMazalMedium','Frank Ruhl Libre', serif", englishDisplay:"'EB Garamond', serif", englishBody:"'EB Garamond', serif", numeric:"'EB Garamond', serif" },
+};
+const q = new URLSearchParams(location.search);
+const screen = q.get('screen') || 'main', theme = THEMES[q.get('theme') || 'dark'], fonts = FONTS[q.get('fonts') || 'default'];
+const r = document.documentElement.style;
+const map = { bg:'bg', surface:'surface', surface2:'surface2', text:'text', dim:'dim', muted:'muted', gold:'accent', goldBg:'accentBg', goldBd:'accentBd', copper:'copper', onAccent:'onAccent', framePrimary:'frame1', frameSecondary:'frame2' };
+for (const k in map) r.setProperty('--' + map[k], theme[k]);
+r.setProperty('--f-he-display', fonts.hebrewDisplay); r.setProperty('--f-he', fonts.hebrewPrimary);
+r.setProperty('--f-en-display', fonts.englishDisplay); r.setProperty('--f-en', fonts.englishBody); r.setProperty('--f-num', fonts.numeric);
+
+// ── Content (Tue Oct 13 2026, 12:41 PM, Miami Beach) ─────────────────────
+const ZMANIM = [
+  { he:'עלות השחר', en:'Alos Hashachar', t:'6:01', ap:'AM', s:'past' },
+  { he:'הנץ החמה', en:'Netz Hachamah', t:'7:19', ap:'AM', s:'past' },
+  { he:'סוף זמן ק״ש', en:'Sof Zman Shema', t:'10:08', ap:'AM', s:'past' },
+  { he:'חצות היום', en:'Chatzos', t:'12:57', ap:'PM', s:'next', eta:'IN 16 MIN' },
+  { he:'מנחה גדולה', en:'Mincha Gedolah', t:'1:25', ap:'PM' },
+  { he:'פלג המנחה', en:'Plag Hamincha', t:'5:24', ap:'PM' },
+  { he:'שקיעה', en:'Shkiah', t:'6:35', ap:'PM' },
+  { he:'צאת הכוכבים', en:'Tzeis Hakochavim', t:'7:01', ap:'PM' },
+];
+const SCHEDULE = [
+  { he:'שחרית', en:'Shacharis', t:'7:30', ap:'AM', s:'past', st:'DONE' },
+  { he:'ארוחת בוקר', en:'Breakfast', t:'8:45', ap:'AM', s:'past', st:'DONE' },
+  { he:'סדר בוקר', en:'Seder', t:'9:30', ap:'AM', s:'now', st:'NOW · TILL 1:00' },
+  { he:'ארוחת צהריים', en:'Lunch', t:'1:00', ap:'PM', s:'next', st:'IN 19 MIN' },
+  { he:'מנחה', en:'Mincha', t:'1:45', ap:'PM', st:'LATER' },
+  { he:'סדר ערב', en:'Night Seder', t:'7:30', ap:'PM', st:'LATER' },
+  { he:'מעריב', en:'Maariv', t:'9:00', ap:'PM', st:'LATER' },
+];
+const SUN = `<svg viewBox="0 0 64 64" fill="none"><circle cx="24" cy="24" r="10" fill="var(--accent)"/><g stroke="var(--accent)" stroke-width="3.5" stroke-linecap="round"><path d="M24 4v5M24 39v5M4 24h5M39 24h5M10 10l3.5 3.5M34.5 34.5L38 38M38 10l-3.5 3.5M10 38l3.5-3.5"/></g><path d="M22 52h28a9 9 0 0 0 0-18 13 13 0 0 0-25 4 7 7 0 0 0-3 14z" fill="var(--text)" opacity=".92"/></svg>`;
+
+const rail = `
+<div class="rail">
+  <div class="clock num"><span class="t">12:41</span><span class="ap caps">PM</span></div>
+  <div class="dayline"><span class="en caps">Tuesday · Oct 13, 2026</span><span class="he" style="font-size:26px;color:var(--dim)">יום שלישי</span></div>
+  <div class="hebdate hed">ב׳ חשון תשפ״ז</div>
+  <div class="parsha"><span class="en caps">Parshas Noach</span><span class="he">פרשת נח</span></div>
+  <div class="tile weather">${SUN}<span class="deg num">84°</span><div class="meta"><span class="a">Partly cloudy</span><span class="b num">H 88° · L 77°</span></div><span class="he">מעונן חלקית</span></div>
+  <div class="tile nextcard">
+    <div class="lbl caps"><span>Next up · Schedule</span><span class="he">הבא בסדר היום</span></div>
+    <div class="name-he hed">ארוחת צהריים</div>
+    <div class="name-en">Lunch</div><div class="time num">1:00<small>PM</small></div>
+    <div class="eta caps"><span>Starts in</span><span class="num" style="font-size:30px">19 min</span></div>
+  </div>
+  <div class="tile nz">
+    <div class="lbl caps"><span>Next zman · <span style="color:var(--copper)">in 16 min</span></span><span class="he">הזמן הבא</span></div>
+    <span class="time num">12:57<small>PM</small></span><span class="en">Chatzos</span><span class="he nm hed">חצות היום</span>
+  </div>
+</div>`;
+
+function panel(capsTitle, heTitle, body, idx = 1) {
+  const segs = Array.from({ length: 7 }, (_, i) => `<i class="${i < idx ? 'done' : i === idx ? 'cur' : ''}"></i>`).join('');
+  return `<div class="panel"><div class="phead"><span class="caps">${capsTitle}</span><span class="caps" style="font-size:18px;color:var(--muted)">${idx + 1} / 7 · Miami Beach</span><span class="he">${heTitle}</span></div><div class="segs">${segs}</div><div class="pbody">${body}</div></div>`;
+}
+
+const zmanimBody = `
+  <div class="colhead caps"><span>Time</span><span>Zman</span><span style="text-align:center">Status</span><span class="r">זמן</span></div>
+  <div class="board">${ZMANIM.map(z => `
+    <div class="row ${z.s || ''}">
+      <span class="time num">${z.t}<small>${z.ap}</small></span>
+      <span class="en caps">${z.en}</span>
+      <span class="st">${z.s === 'past' ? '<span class="pill caps">Passed</span>' : z.s === 'next' ? `<span class="pill caps">${z.eta}</span>` : ''}</span>
+      <span class="he hed">${z.he}</span>
+    </div>`).join('')}</div>
+  <div class="pfoot"><span>Misheyakir <b class="num">6:25</b></span><span>Sof Zman Tefillah <b class="num">11:04</b></span><span>Mincha Ketanah <b class="num">4:14</b></span><span>Shaah Zmanis <b class="num">56 min</b></span></div>`;
+
+const scheduleBody = `
+  <div class="colhead caps"><span>Time</span><span>Activity</span><span style="text-align:center">Status</span><span class="r">סדר היום</span></div>
+  <div class="board">${SCHEDULE.map(z => `
+    <div class="row ${z.s || ''}">
+      <span class="time num">${z.t}<small>${z.ap}</small></span>
+      <span class="en caps" style="font-size:30px">${z.en}</span>
+      <span class="st"><span class="pill caps">${z.st}</span></span>
+      <span class="he hed">${z.he}</span>
+    </div>`).join('')}</div>`;
+
+const annBody = `
+  <div class="ann">
+    <div class="fit h1" data-max="230">מבצע תפילין</div>
+    <div class="fit h2" data-max="140">Mivtza Tefillin</div>
+    <div class="flaps">
+      ${'THU'.split('').map(c => `<div class="flap">${c}</div>`).join('')}
+      <div class="flap gap"></div>
+      ${'2:00'.split('').map(c => c === ':' ? `<div class="flap gap" style="font-size:104px;display:grid;place-items:center;font-family:var(--f-num);font-weight:700">:</div>` : `<div class="flap acc">${c}</div>`).join('')}
+      <div class="flap acc" style="width:150px;font-size:64px">PM</div>
+    </div>
+    <div class="sub"><span class="en caps">Thursday, Oct 15 · Front lobby</span><span class="he">יום חמישי · ד׳ חשון</span></div>
+  </div>`;
+
+const banner = `<div class="banner"><div class="tag caps">Notice <span class="he">הודעה</span></div><div class="msg"><span>Farbrengen tonight after Maariv in the zal</span><span class="dot"></span><span class="he">התוועדות הערב אחרי מעריב בזאל</span><span class="dot"></span><span>Bring your siddur</span></div></div>`;
+
+const bodies = {
+  main: panel('Zmanim · Halachic Times', 'זמני היום', zmanimBody, 1),
+  announce: panel('Announcement', 'הודעה', annBody, 3),
+  schedule: panel('Today’s Schedule', 'סדר היום', scheduleBody, 2),
+};
+document.getElementById('app').innerHTML = rail + bodies[screen] + banner;
+
+// ── Auto-fit: largest font-size that fits the box (runs once per slide) ──
+function fitAll() {
+  document.querySelectorAll('.fit').forEach(el => {
+    let lo = 20, hi = +el.dataset.max || 200;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; el.style.fontSize = mid + 'px';
+      (el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight + 2) ? lo = mid : hi = mid; }
+    el.style.fontSize = lo + 'px';
+  });
+}
+document.fonts.ready.then(() => { fitAll(); window.__ready = true; });
+</script>
+</body>
+</html>
