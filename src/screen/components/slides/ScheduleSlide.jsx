@@ -194,13 +194,15 @@ function Ribbon({ items, st, now, light }) {
 }
 
 function LaterStrip({ entries, light }) {
-  const dense = entries.length > 6;
-  const cols = Math.max(entries.length, 4);
+  const { portrait } = useDesign();
+  if (portrait && entries.length > 6) entries = entries.slice(0, 6);
+  const dense = entries.length > 6 || portrait;
+  const cols = portrait ? 3 : Math.max(entries.length, 4);
   const lt = dense ? 34 : 44, lh = dense ? 26 : 32, le = dense ? 18 : 21;
   const { boxRef, register, size, wraps } = useGroupFit({ max: lh, floor: Math.round(lh * 0.8), deps: [entries.map((e) => e.s.id + e.s.he).join('|'), dense] });
   if (!entries.length) return <div />;
   return (
-    <div ref={boxRef} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: 28 }}>
+    <div ref={boxRef} style={{ display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: 28, rowGap: 22 }}>
       {entries.map(({ s, i, past }) => {
         const c = past ? 'var(--past)' : undefined;
         const t = fmt12(s.v), te = s.end != null ? fmt12(s.end) : null;
@@ -259,14 +261,14 @@ function DayList({ entries, light }) {
 }
 
 export default function ScheduleSlide({ schedule, settings }) {
-  const { light } = useDesign();
+  const { light, portrait } = useDesign();
   const nowD = useNow(15000);
   const now = nowMinutes(nowD);
   const items = useEntries(schedule);
   const { ni, nowIdx, st } = scheduleStates(items, now);
   const label = String(schedule?.label || '').trim();
-  const sh = label ? 58 : 68;
-  const stt = label ? 66 : 76;
+  const sh = portrait ? 50 : label ? 58 : 68;
+  const stt = portrait ? 50 : label ? 66 : 76;
   const layout = settings?.scheduleLayout === 'list' ? 'list' : 'timeline';
 
   const done = items.length > 0 && ni < 0 && nowIdx < 0;

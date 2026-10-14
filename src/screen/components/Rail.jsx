@@ -77,10 +77,11 @@ export function UpNextCard({ item, align = 'left' }) {
   const nameEn = item.name;
   const t = fmt12(item.startMins);
   const ring = graphics === 'rich';
+  const R = 108;
   const eta = (
-    <div className="tt-num" style={{ textAlign: 'center', lineHeight: 0.85, position: 'relative', width: ring ? 124 : 'auto', height: ring ? 124 : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-      {ring && <ProgressRing size={124} stroke={6} fraction={item.fraction} />}
-      <b style={{ fontSize: ring ? 66 : 84, fontWeight: 700, letterSpacing: '-.045em', display: 'block' }}>{item.minsLeft}</b>
+    <div className="tt-num" style={{ textAlign: 'center', lineHeight: 0.85, position: 'relative', width: ring ? R : 'auto', height: ring ? R : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      {ring && <ProgressRing size={R} stroke={6} fraction={item.fraction} />}
+      <b style={{ fontSize: ring ? 58 : 84, fontWeight: 700, letterSpacing: '-.045em', display: 'block' }}>{item.minsLeft}</b>
       <span style={{ fontSize: ring ? 20 : 22, fontWeight: 600, marginTop: ring ? 2 : 0 }}>min</span>
     </div>
   );
