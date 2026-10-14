@@ -16,7 +16,7 @@ import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
-import { normalizeSettingsKeys } from '../settings-migrate.js';
+import { normalizeSettings } from '../settings-migrate.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 import { getStateExtras } from '../announcements-store.js';
 
@@ -104,7 +104,7 @@ router.put('/settings', async (req, res) => {
     }
     // An admin tab still running an older build may send the stray top-level
     // zipCode/trackA/... keys; fold them into location/scheduler (audit bug 6).
-    const { settings } = normalizeSettingsKeys(req.body);
+    const { settings } = normalizeSettings(req.body);
     await writeJSON('settings.json', settings);
     broadcast('settings-update', settings);
 
