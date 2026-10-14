@@ -203,3 +203,13 @@ For editing without Claude, the per-date **day editor** (§ "Ways to set a date'
 - Changing one detail is 2 taps plus typing, compared with about 4 clicks and 2 scrolls today.
 - A **Text mode** toggle on the same screen shows that day as editable text in the same format, for anyone who prefers typing lines.
 - **Save day as block** turns it into a reusable template.
+
+## Phase 2b — Inspiration slides (owner request, 2026-10-14)
+
+The owner wants an easy way to make **inspirational slides**: quotes, excerpts from a sicha, and letters from the Rebbe. These are built as more **layouts** in the same composer, under **Show as: Slide**. They use the same timing and repeat rules, and can be combined with styles.
+
+- **Quote:** short text, auto-fit large, plus attribution (e.g. "— The Rebbe, Hayom Yom 15 Cheshvan"). Hebrew, English, or both.
+- **Sicha excerpt:** title (e.g. "From a Sicha of Parshas Noach 5751"), body text, and source line (e.g. "Likkutei Sichos vol. 5 p. 23"). Long text is handled gracefully: it's set at a readable size, never shrunk to tiny. If it doesn't fit, it splits into **pages** that the slide steps through (1/3, 2/3…), and the slide's time grows to match.
+- **Letter (Igros Kodesh):** letter look, with an optional header date (Hebrew and/or English), body, and signature line or source (e.g. "Igros Kodesh vol. 12 letter 4,123"). Long letters page the same way.
+- **Collections (optional, later in 2b):** group many quotes or excerpts into a collection, e.g. "Rebbe quotes". The slide then shows **one per rotation** or **one per day**, so the screen stays fresh without posting each one. Collections can be filled by pasting many entries at once, one per block, in a simple text format like the schedule paste, which also lets Claude chat prepare a batch.
+- Fonts: these layouts use the Hebrew/English font roles, including the owner's FbMazal. A per-layout "Torah text" font option, such as a classic serif or Frank Ruhl, is worth having for sichos and letters.
