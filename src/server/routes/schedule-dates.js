@@ -19,6 +19,7 @@ import { initCountdowns } from '../countdown.js';
 import {
   parseScheduleText, parseScheduleJSON, normalizeEntryInput, storableEntry,
 } from '../../shared/schedulePaste.js';
+import { planWeeklyReplace, pruneAutoBackups } from '../../shared/scheduleWeekly.js';
 import {
   isISODate, toISODate, hasDateOverride, weeklyEntriesFor, sortEntriesByTime, addDaysISO,
 } from '../../shared/scheduleResolution.js';
@@ -30,7 +31,7 @@ import {
 export const SCHEDULE_DATES_BODY_LIMIT = '256kb';
 
 const router = Router();
-router.use(['/dates', '/blocks'], express.json({ limit: SCHEDULE_DATES_BODY_LIMIT }));
+router.use(['/dates', '/blocks', '/weekly'], express.json({ limit: SCHEDULE_DATES_BODY_LIMIT }));
 
 const MAX_DATES_PER_APPLY = 120;
 const MAX_ENTRIES_PER_DAY = 200;
@@ -56,6 +57,9 @@ function parseBody(body, categories) {
 /** Extra checks the parser can't know about (sizes). */
 function sizeErrors(parsed) {
   const errors = [];
+  if (parsed.mode === 'weekly') {
+    errors.push({ line: parsed.weekly?.rules?.[0]?.line ?? null, message: 'This is a WEEKLY schedule (@ every Sun-Thu, @ Fri …). Paste it under Schedule → Weekly → Paste weekly schedule. Here, each day needs a date like "@ 2026-10-16".' });
+  }
   if (parsed.days.length > MAX_DATES_PER_APPLY) {
     errors.push({ line: null, message: `Too many dates at once (${parsed.days.length}); the limit is ${MAX_DATES_PER_APPLY}.` });
   }
@@ -237,6 +241,81 @@ router.post('/dates/:date/apply-block', async (req, res) => {
   } catch (err) {
     console.error('[api] POST /schedule/dates/:date/apply-block error:', err.message);
     res.status(500).json({ error: 'Failed to apply the block.' });
+  }
+});
+
+// ── Weekly schedule paste ──────────────────────────────────────────────────
+// Applying REPLACES the whole weekly schedule (after an automatic backup into
+// schedule-templates.json). Per-date overrides are untouched and still win.
+
+const MAX_WEEKLY_ENTRIES = 300;
+
+function weeklyErrors(parsed) {
+  const errors = [...parsed.errors];
+  if (parsed.format === 'json') {
+    errors.push({ line: null, message: 'Weekly paste takes the text format ("@ every Sun-Thu" …), not JSON.' });
+  } else if (!errors.length && parsed.mode !== 'weekly') {
+    errors.push({ line: parsed.days?.[0]?.line ?? null, message: 'This has dated headers (@ 2026-10-16). For a weekly schedule use headers like "@ every Sun-Thu", "@ Fri", "@ Shabbos" or "@ daily". Dated schedules go under Schedule → Paste / Import.' });
+  }
+  if ((parsed.weekly?.entries?.length || 0) > MAX_WEEKLY_ENTRIES) {
+    errors.push({ line: null, message: `Too many items (${parsed.weekly.entries.length}); the limit is ${MAX_WEEKLY_ENTRIES}.` });
+  }
+  if (!errors.length && !(parsed.weekly?.entries?.length)) {
+    errors.push({ line: null, message: 'No items found — a weekly schedule needs at least one item.' });
+  }
+  return errors;
+}
+
+router.post('/weekly/preview', async (req, res) => {
+  try {
+    const schedule = await readSchedule();
+    if (typeof req.body?.text !== 'string') return res.status(400).json({ error: 'Send { text }.' });
+    const parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today: toISODate(new Date()) });
+    const errors = weeklyErrors(parsed);
+    res.json({
+      ...parsed,
+      errors,
+      canApply: errors.length === 0,
+      replaces: (schedule.entries || []).length,
+      overrideCount: Object.keys(await readScheduleDates()).length,
+    });
+  } catch (err) {
+    console.error('[api] POST /schedule/weekly/preview error:', err.message);
+    res.status(500).json({ error: 'Failed to preview the weekly schedule.' });
+  }
+});
+
+router.put('/weekly', async (req, res) => {
+  try {
+    const result = await withScheduleLock(async () => {
+      const schedule = await readSchedule();
+      if (typeof req.body?.text !== 'string') return { status: 400, body: { error: 'Send { text }.' } };
+      const today = toISODate(new Date());
+      const parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today });
+      const errors = weeklyErrors(parsed);
+      if (errors.length) {
+        return { status: 400, body: { error: `Nothing was saved — fix ${errors.length} error${errors.length === 1 ? '' : 's'} first.`, errors } };
+      }
+      const now = new Date();
+      const plan = planWeeklyReplace(schedule, parsed, { today, time: now.toTimeString().slice(0, 5) });
+      let backupName = null;
+      if (plan.backup) {
+        const templates = (await readJSON('schedule-templates.json')) ?? [];
+        templates.push({ id: uuidv4(), ...plan.backup, auto: true, createdAt: now.toISOString() });
+        await writeJSON('schedule-templates.json', pruneAutoBackups(templates));
+        backupName = plan.backup.name;
+      }
+      const createdCategories = addCategories(schedule, parsed.newCategories);
+      schedule.entries = withIds(plan.entries);
+      await writeJSON('schedule.json', schedule);
+      broadcast('schedule-update', schedule);
+      initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
+      return { status: 200, body: { schedule, replaced: plan.replaces, count: plan.entries.length, backupName, createdCategories, warnings: parsed.warnings } };
+    });
+    res.status(result.status).json(result.body);
+  } catch (err) {
+    console.error('[api] PUT /schedule/weekly error:', err.message);
+    res.status(500).json({ error: 'Failed to save the weekly schedule. Nothing was changed.' });
   }
 });
 

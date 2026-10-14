@@ -20,6 +20,8 @@ import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 import { getStateExtras } from '../announcements-store.js';
+import { fetchWeather } from '../../fetchers/weather.js';
+import { describeWeather } from '../../shared/weatherCodes.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -82,7 +84,18 @@ function pickScheduleEntry(e) {
   }
   return picked;
 }
-const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon'];
+const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert'];
+// defaultAlert = minutes of countdown reminder given to pasted entries of this
+// category that have no explicit "alert N" (0/absent = none).
+function pickCategory(c) {
+  const out = pick(c, SCHEDULE_CATEGORY_FIELDS);
+  if ('defaultAlert' in out) {
+    const n = Math.round(Number(out.defaultAlert));
+    if (Number.isFinite(n) && n > 0) out.defaultAlert = Math.min(120, n);
+    else delete out.defaultAlert;
+  }
+  return out;
+}
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];
 
 // GET /api/state lives in src/server/app.js (route 6c, localhostOrAuth +
@@ -423,7 +436,7 @@ router.put('/schedule/categories', async (req, res) => {
       return res.status(400).json({ error: 'Invalid categories data — expected an array.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.categories = categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+    schedule.categories = categories.map(pickCategory);
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     res.json(schedule.categories);
@@ -443,7 +456,7 @@ router.post('/schedule/template', async (req, res) => {
     }
     const schedule = {
       entries: entries.map((e) => ({ id: uuidv4(), ...pickScheduleEntry(e), enabled: e.enabled !== false })),
-      categories: Array.isArray(categories) ? categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS)) : [],
+      categories: Array.isArray(categories) ? categories.map(pickCategory) : [],
     };
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
@@ -479,7 +492,7 @@ router.post('/schedule/templates', async (req, res) => {
     // Sanitize entries and categories within the template
     picked.entries = picked.entries.map((e) => pickScheduleEntry(e));
     if (Array.isArray(picked.categories)) {
-      picked.categories = picked.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+      picked.categories = picked.categories.map(pickCategory);
     } else {
       picked.categories = [];
     }
@@ -511,7 +524,7 @@ router.put('/schedule/templates/:id', async (req, res) => {
       updates.entries = updates.entries.map((e) => pickScheduleEntry(e));
     }
     if (Array.isArray(updates.categories)) {
-      updates.categories = updates.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+      updates.categories = updates.categories.map(pickCategory);
     }
     templates[idx] = { ...templates[idx], ...updates, id: req.params.id, updatedAt: new Date().toISOString() };
     await writeJSON('schedule-templates.json', templates);
@@ -535,6 +548,28 @@ router.delete('/schedule/templates/:id', async (req, res) => {
   } catch (err) {
     console.error('[api] DELETE /schedule/templates error:', err.message);
     res.status(500).json({ error: 'Failed to delete schedule template.' });
+  }
+});
+
+// ── Weather test (admin Settings → Weather → Test) ─────────────────────────
+// Fetches live weather for the SAVED zip and reports what the screen would
+// show, or a plain-English reason it can't. Writes nothing (cache untouched).
+router.get('/weather/preview', async (req, res) => {
+  const settings = (await readJSON('settings.json').catch(() => null)) ?? {};
+  const zip = String(settings.location?.zip || '').trim();
+  const units = req.query.units === 'C' ? 'C' : req.query.units === 'F' ? 'F' : (settings.weather?.units === 'C' ? 'C' : 'F');
+  if (!zip) return res.json({ ok: false, error: 'No zip code is set. Add one under Settings → Location and save.' });
+  if (!/^\d{5}$/.test(zip)) return res.json({ ok: false, zip, error: `"${zip}" is not a 5-digit US zip code, so the weather can't be looked up. Fix it under Settings → Location.` });
+  try {
+    const w = await fetchWeather({ zip, units, timezone: settings.location?.timezone, strict: true });
+    const d = describeWeather(w.current.code, w.current.isDay);
+    res.json({
+      ok: true, zip, units, place: w.location?.name || '',
+      temp: w.current.temp, feels: w.current.feels, condition: d.en, conditionHe: d.he,
+      hi: w.today?.hi ?? null, lo: w.today?.lo ?? null, fetchedAt: w.fetchedAt,
+    });
+  } catch (err) {
+    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${err.message}. Check the zip code and that the Pi is online.` });
   }
 });
 

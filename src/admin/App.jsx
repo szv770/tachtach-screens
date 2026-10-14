@@ -207,6 +207,8 @@ export default function App() {
             settings={state?.settings || {}}
             onSave={updateSettings}
             slides={state?.slides || []}
+            onUpdateSlides={updateSlides}
+            onCreateSlide={createSlide}
           />
         );
       default:

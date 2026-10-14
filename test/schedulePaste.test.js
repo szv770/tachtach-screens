@@ -6,7 +6,9 @@ import {
   formatEntryLine, parseDateHeader, findCategory, ICON_NAMES, normalizeEntryInput,
   storableEntry, addMinutesToTime, newCategoryId,
 } from '../src/shared/schedulePaste.js';
-import { buildClaudePrompt, buildFormatGuide, keyTimesForDate } from '../src/shared/scheduleClaudePrompt.js';
+import { buildClaudePrompt, buildFormatGuide, keyTimesForDate, PROMPT_TYPES, buildPromptOfType, buildWeeklyPrompt } from '../src/shared/scheduleClaudePrompt.js';
+import { parseWeeklyHeader, weeklyHeaderFor, formatWeeklyText } from '../src/shared/schedulePaste.js';
+import { planWeeklyReplace, pruneAutoBackups } from '../src/shared/scheduleWeekly.js';
 
 const categories = [
   { id: 'davening', name: 'Davening' },
@@ -355,4 +357,193 @@ test('the example inside the prompt parses cleanly', () => {
   const r = parseScheduleText(example, { categories, today: TODAY });
   assert.deepEqual(r.errors, []);
   assert.equal(r.days.length, 2);
+});
+
+// ── Category default alerts (backlog: admin pass 2) ──────────────────────
+
+const catsWithAlerts = [
+  { id: 'davening', name: 'Davening', defaultAlert: 5 },
+  { id: 'seder', name: 'Seder', defaultAlert: 5 },
+  { id: 'meals', name: 'Meals' },
+  { id: 'events', name: 'Events' },
+];
+const parseA = (text) => parseScheduleText(text, { categories: catsWithAlerts, today: TODAY });
+
+test('category defaultAlert applies when a line has no alert option; explicit alert wins; alert 0 = none', () => {
+  const r = parseA(`@ 2026-10-16
+7:05 AM | Shacharis | שחרית | Davening
+9:00 AM | Seder | סדר | Seder | alert 10
+12:30 PM | Lunch | | Meals
+1:30 PM | Mincha | מנחה | Davening | alert 0
+6:28 PM | Candles | | Events | alert 15 takeover`);
+  assert.deepEqual(r.errors, []);
+  const e = r.days[0].entries;
+  assert.equal(e[0].alertBefore, 5);
+  assert.equal(e[0].alertFromDefault, true);
+  assert.equal(e[1].alertBefore, 10);
+  assert.equal(e[1].alertFromDefault, undefined);
+  assert.equal(e[2].alertBefore, 0);
+  assert.equal(e[3].alertBefore, 0);
+  assert.equal(e[3].alertFromDefault, undefined);
+  assert.equal(e[4].alertBefore, 15);
+  assert.equal('alertFromDefault' in storableEntry(e[0]), false);
+});
+
+test('without defaultAlert on the category nothing changes (old behaviour)', () => {
+  const r = parse('@ 2026-10-16\n7:05 AM | Shacharis | שחרית | Davening');
+  assert.equal(r.days[0].entries[0].alertBefore, 0);
+});
+
+// ── English name optional ────────────────────────────────────────────────
+
+test('Hebrew-only lines parse in every column layout', () => {
+  const r = parseA(`@ 2026-10-16
+7:05 AM | | שחרית | Davening
+8:00 AM | שחרית | Davening
+9:00 AM | שיעור`);
+  assert.deepEqual(r.errors, []);
+  for (const e of r.days[0].entries.slice(0, 2)) {
+    assert.equal(e.name, '');
+    assert.equal(e.nameHe, 'שחרית');
+    assert.equal(e.category, 'davening');
+  }
+  assert.equal(r.days[0].entries[2].nameHe, 'שיעור');
+  assert.equal(r.days[0].entries[2].name, '');
+});
+
+// ── Weekly headers ───────────────────────────────────────────────────────
+
+test('weekly headers: daily, weekdays (= Sun-Thu), ranges, lists, single days', () => {
+  const codes = (s) => parseWeeklyHeader(s)?.codes.join(',');
+  assert.equal(codes('daily'), 'Sun,Mon,Tue,Wed,Thu,Fri,Shabbos');
+  assert.equal(codes('weekdays'), 'Sun,Mon,Tue,Wed,Thu');
+  assert.equal(codes('every Sun-Thu'), 'Sun,Mon,Tue,Wed,Thu');
+  assert.equal(codes(' Sun - Thu '), 'Sun,Mon,Tue,Wed,Thu');
+  assert.equal(codes('Fri'), 'Fri');
+  assert.equal(codes('Shabbos'), 'Shabbos');
+  assert.equal(codes('Saturday'), 'Shabbos');
+  assert.equal(codes('Mon, Wed'), 'Mon,Wed');
+  assert.equal(codes('every Fridays'), 'Fri');
+  assert.equal(codes('Thu-Sun'), 'Sun,Thu,Fri,Shabbos'); // wraps
+  assert.equal(codes('Sunday to Thursday'), 'Sun,Mon,Tue,Wed,Thu');
+});
+
+test('weekly header is null for dates and relative dates (those stay date headers)', () => {
+  assert.equal(parseWeeklyHeader('2026-10-16 Fri'), null);
+  assert.equal(parseWeeklyHeader('Fri 10/16'), null);
+  assert.equal(parseWeeklyHeader('this Friday'), null);
+  assert.equal(parseWeeklyHeader('next Shabbos'), null);
+  assert.equal(parseWeeklyHeader('tomorrow'), null);
+  assert.equal(parseWeeklyHeader(''), null);
+  assert.equal(parseWeeklyHeader('Mon, Blursday').errors.length, 1);
+});
+
+const WEEKLY = `# TachTach schedule v1
+@ every Sun-Thu
+7:00 AM | Shacharis | שחרית | Davening
+8:15 AM | Breakfast | | Meals
+9:00 AM - 12:30 PM | First Seder | סדר א' | Seder
+
+@ Fri
+7:30 AM | | שחרית | Davening
+
+@ daily
+1:30 PM | Mincha | מנחה | Davening | alert 0
+`;
+
+test('weekly paste: entries carry days, sorted by time, default alerts applied', () => {
+  const r = parseA(WEEKLY);
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.mode, 'weekly');
+  assert.equal(r.days.length, 0);
+  assert.equal(r.weekly.rules.length, 3);
+  const e = r.weekly.entries;
+  assert.equal(e.length, 5);
+  assert.deepEqual(e.map((x) => x.time), ['07:00', '07:30', '08:15', '09:00', '13:30']);
+  assert.deepEqual(e[0].days, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu']);
+  assert.deepEqual(e[1].days, ['Fri']);
+  assert.equal(e[1].name, '');
+  assert.equal(e[4].days.length, 7);
+  assert.equal(e[0].alertBefore, 5);
+  assert.equal(e[2].alertBefore, 0);
+  assert.equal(e[4].alertBefore, 0); // explicit alert 0
+});
+
+test('weekly paste errors are line-numbered and block; mixing dated + weekly is an error', () => {
+  const bad = parseA('@ every Sun-Thu\n7:00 AM | Shacharis | | Davening\nnot an item\n@ Mon, Wibble\n8:00 | x');
+  assert.ok(bad.errors.length >= 2);
+  assert.ok(bad.errors.every((x) => x.line));
+  const mixed = parseA('@ 2026-10-16\n7:00 AM | A | | Meals\n@ Fri\n8:00 AM | B | | Meals');
+  assert.ok(mixed.errors.some((x) => /mixed/.test(x.message) && x.line === 3));
+  const mixed2 = parseA('@ Fri\n8:00 AM | B | | Meals\n@ 2026-10-16\n7:00 AM | A | | Meals');
+  assert.ok(mixed2.errors.some((x) => /mixed/.test(x.message) && x.line === 3));
+  const empty = parseA('# TachTach schedule v1\n');
+  assert.ok(empty.errors.length);
+});
+
+test('formatWeeklyText round-trips through the parser', () => {
+  const r = parseA(WEEKLY);
+  const text = formatWeeklyText(r.weekly.entries, { categories: catsWithAlerts });
+  assert.match(text, /@ daily/);
+  assert.match(text, /@ every Sun-Thu/);
+  assert.match(text, /@ Fri/);
+  const r2 = parseA(text);
+  assert.deepEqual(r2.errors, []);
+  const strip = (e) => ({ n: e.name, h: e.nameHe, t: e.time, et: e.endTime, c: e.category, a: e.alertBefore, d: e.days.join() });
+  const key = (a, b) => (a.t + a.d).localeCompare(b.t + b.d);
+  assert.deepEqual(r2.weekly.entries.map(strip).sort(key), r.weekly.entries.map(strip).sort(key));
+  assert.equal(weeklyHeaderFor([1, 3]), 'Mon, Wed');
+  assert.equal(weeklyHeaderFor([0, 1, 2, 3, 4, 5, 6]), 'daily');
+});
+
+test('formatWeeklyText: entries without days are daily', () => {
+  assert.match(formatWeeklyText([{ name: 'X', time: '07:00' }]), /@ daily\n7:00 AM \| X/);
+});
+
+test('planWeeklyReplace replaces everything and backs up the old schedule', () => {
+  const r = parseA(WEEKLY);
+  const current = { entries: [{ id: 'a', name: 'Old', time: '06:00', days: ['Mon'] }, { id: 'b', name: 'Old2', time: '07:00' }], categories: catsWithAlerts };
+  const plan = planWeeklyReplace(current, r, { today: '2026-10-14' });
+  assert.equal(plan.replaces, 2);
+  assert.equal(plan.entries.length, 5);
+  assert.ok(plan.entries.every((e) => !('line' in e) && !('alertFromDefault' in e)));
+  assert.equal(plan.backup.name, 'Auto-backup 2026-10-14');
+  assert.equal(plan.backup.entries.length, 2);
+  assert.equal(plan.backup.categories.length, catsWithAlerts.length);
+  assert.equal(planWeeklyReplace({ entries: [] }, r, { today: '2026-10-14' }).backup, null);
+});
+
+test('pruneAutoBackups keeps the newest 10 and never touches owner templates', () => {
+  const tpl = [{ id: 'mine', name: 'Auto-backup lookalike?', createdAt: '2020' }, { id: 'real', name: 'Summer' }];
+  for (let i = 0; i < 12; i++) tpl.push({ id: `a${i}`, name: `Auto-backup 2026-10-${10 + i}`, auto: true, createdAt: `2026-10-${String(10 + i).padStart(2, '0')}` });
+  const out = pruneAutoBackups(tpl, 10);
+  assert.ok(out.find((t) => t.id === 'real'));
+  assert.equal(out.filter((t) => t.auto).length, 10);
+  assert.equal(out.find((t) => t.id === 'a0'), undefined);
+  assert.ok(out.find((t) => t.id === 'a11'));
+});
+
+// ── Prompt registry ──────────────────────────────────────────────────────
+
+test('prompt registry: day + weekly types; prompts frame schedules as one content type and omit alert by default', () => {
+  assert.deepEqual(PROMPT_TYPES.map((t) => t.id), ['day', 'weekly']);
+  const day = buildPromptOfType('day', { dates: ['2026-10-16'], categories: catsWithAlerts });
+  assert.match(day, /prepare content for our yeshiva/);
+  assert.match(day, /OMIT "alert"/);
+  assert.match(day, /Davening, Seder get a 5-minute reminder; Meals, Events get none/);
+  assert.match(day, /OPTIONAL/);
+  assert.doesNotMatch(day, /Give every item an English name and a Hebrew name/);
+  const wk = buildPromptOfType('weekly', { categories: catsWithAlerts });
+  assert.match(wk, /@ every Sun-Thu/);
+  assert.match(wk, /WEEKLY schedule/);
+  assert.match(buildWeeklyPrompt({ categories: catsWithAlerts, currentText: '@ daily\n7:00 AM | x' }), /current weekly schedule/);
+  assert.throws(() => buildPromptOfType('nope'));
+});
+
+test('the weekly example inside the weekly prompt parses cleanly with defaults', () => {
+  const wk = buildPromptOfType('weekly', { categories: catsWithAlerts });
+  const example = wk.split('Example:\n```\n')[1].split('\n```')[0];
+  const r = parseA(example);
+  assert.deepEqual(r.errors, []);
+  assert.equal(r.mode, 'weekly');
 });

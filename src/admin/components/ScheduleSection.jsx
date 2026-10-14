@@ -8,9 +8,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
-import ScheduleEditor from './ScheduleEditor.jsx';
 import ScheduleByDate from './schedule/ScheduleByDate.jsx';
 import ScheduleImport from './schedule/ScheduleImport.jsx';
+import ScheduleWeekly from './schedule/ScheduleWeekly.jsx';
 import { scheduleApi, useCopy, useSnackbar, chipButton } from './schedule/scheduleShared.jsx';
 import { toISODate } from '../../shared/scheduleResolution.js';
 import { findCategory, newCategoryId } from '../../shared/schedulePaste.js';
@@ -113,7 +113,9 @@ export default function ScheduleSection(props) {
           isMobile={isMobile}
         />
       )}
-      {tab === 'weekly' && <ScheduleEditor {...props} />}
+      {tab === 'weekly' && (
+        <ScheduleWeekly {...props} scheduleDates={scheduleDates} notify={notify} copy={copy} isMobile={isMobile} />
+      )}
 
       {modal}
       {snack.node}

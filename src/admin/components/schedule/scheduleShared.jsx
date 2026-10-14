@@ -24,6 +24,8 @@ export const scheduleApi = {
   createBlock: (name, entries, label) => apiFetch('/api/schedule/blocks', json('POST', { name, entries, label })),
   updateBlock: (id, data) => apiFetch(`/api/schedule/blocks/${id}`, json('PUT', data)),
   deleteBlock: (id) => apiFetch(`/api/schedule/blocks/${id}`, { method: 'DELETE' }),
+  weeklyPreview: (text) => apiFetch('/api/schedule/weekly/preview', json('POST', { text })),
+  weeklyApply: (text) => apiFetch('/api/schedule/weekly', json('PUT', { text })),
   zmanim: (dates) => apiFetch(`/api/schedule/zmanim?dates=${dates.join(',')}`),
 };
 

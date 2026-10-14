@@ -238,9 +238,6 @@ function parseOptions(fields, warn, err) {
       warn(`Unknown option "${tokens[i]}" — ignored.`);
     }
   }
-  if (opts.countdownDisplay === 'takeover' && !opts.alertBefore) {
-    warn('"takeover" only matters with an alert (e.g. "alert 10 takeover").');
-  }
   return opts;
 }
 
@@ -305,10 +302,12 @@ export function parseEntryLine(line, ctx) {
 
   let category = '';
   let categoryIsNew = false;
+  let categoryDefaultAlert = 0;
   if (catText) {
     const hit = findCategory(ctx.categories, catText);
     if (hit) {
       category = hit.id;
+      categoryDefaultAlert = Number(hit.defaultAlert) > 0 ? Math.min(120, Math.round(Number(hit.defaultAlert))) : 0;
     } else {
       const key = catText.trim().toLowerCase();
       let nc = ctx.newCats.get(key);
@@ -324,10 +323,18 @@ export function parseEntryLine(line, ctx) {
 
   const opts = parseOptions(optFields, (w) => warnings.push(w), (e) => errors.push(e));
   if (errors.length) return { errors, warnings };
+  // No explicit "alert N": use the category's default reminder. An explicit
+  // "alert 0" means none.
+  const alertFromDefault = opts.alertBefore === undefined && categoryDefaultAlert > 0;
+  const alertBefore = opts.alertBefore ?? (alertFromDefault ? categoryDefaultAlert : 0);
+  if (opts.countdownDisplay === 'takeover' && !alertBefore) {
+    warnings.push('"takeover" only matters with an alert (e.g. "alert 10 takeover").');
+  }
   return {
     entry: {
       name, nameHe, time: tr.time, endTime: tr.endTime, category,
-      alertBefore: opts.alertBefore ?? 0,
+      alertBefore,
+      ...(alertFromDefault ? { alertFromDefault: true } : {}),
       countdownDisplay: opts.countdownDisplay || 'slide',
       enabled: opts.enabled !== false,
       icon: opts.icon || '',
@@ -411,6 +418,80 @@ export function parseDateHeader(rest, todayISO) {
   return { date: date || undefined, label, clear, errors, warnings };
 }
 
+// ── Weekly headers ─────────────────────────────────────────────────────────
+
+/** Header forms shown to Claude / in docs. `weekdays` means Sun–Thu (the yeshiva school days). */
+export const WEEKLY_EXAMPLE_HEADERS = ['"@ daily"', '"@ weekdays" (= Sun-Thu)', '"@ every Sun-Thu"', '"@ Fri"', '"@ Shabbos"', '"@ Mon, Wed"'];
+
+const RANGE_SPLIT = /\s*(?:-|–|—|\bto\b|\bthrough\b|\bthru\b|\buntil\b)\s*/i;
+
+/** weekdayWord that also accepts plurals ("Fridays", "Sundays"). */
+function weekdayWordLoose(word) {
+  const direct = weekdayWord(word);
+  if (direct >= 0) return direct;
+  const w = String(word || '').toLowerCase();
+  return w.endsWith('s') ? weekdayWord(w.slice(0, -1)) : -1;
+}
+
+/**
+ * Parse the text after "@" as a WEEKLY rule header: which weekdays the lines
+ * below repeat on. Accepts `daily`, `weekdays` (= Sun–Thu), `every Sun-Thu`,
+ * `Fri`, `Shabbos`, `Mon, Wed`, `Mon-Wed`, `Thu-Sun` (wraps), `Fridays`.
+ *
+ * @returns {null | { days: number[], codes: string[], errors: string[] }}
+ *   null = this isn't a weekly header (it's a date header or garbage).
+ */
+export function parseWeeklyHeader(rest) {
+  let s = String(rest || '').trim().toLowerCase().replace(/[:.]+$/, '').trim();
+  if (!s || /\d/.test(s) || /^(this|next|coming|upcoming|today|tomorrow)\b/.test(s)) return null;
+  const done = (days, errors = []) => {
+    const set = [...new Set(days)].sort((a, b) => a - b);
+    return { days: set, codes: set.map((d) => DAY_CODES[d]), errors };
+  };
+  if (/^(daily|every ?day|each day|all week|every day|7 days)$/.test(s)) return done([0, 1, 2, 3, 4, 5, 6]);
+  if (/^(every |each )?weekdays?$/.test(s)) return done([0, 1, 2, 3, 4]);
+  s = s.replace(/^(every|each|on)\s+/, '');
+  const items = s.split(/\s*(?:,|&|\+|\band\b)\s*/).filter(Boolean);
+  const days = [];
+  let recognized = 0;
+  const bad = [];
+  for (const item of items) {
+    const parts = item.split(RANGE_SPLIT).filter(Boolean);
+    if (parts.length === 1) {
+      const d = weekdayWordLoose(parts[0]);
+      if (d >= 0) { days.push(d); recognized++; } else bad.push(item);
+    } else if (parts.length === 2) {
+      const a = weekdayWordLoose(parts[0]);
+      const b = weekdayWordLoose(parts[1]);
+      if (a >= 0 && b >= 0) {
+        recognized++;
+        for (let d = a; ; d = (d + 1) % 7) { days.push(d); if (d === b) break; }
+      } else bad.push(item);
+    } else bad.push(item);
+  }
+  if (!recognized) return null;
+  if (bad.length) {
+    return done(days, [`Couldn't read the days "${bad.join(', ')}". Use e.g. @ every Sun-Thu, @ Fri, @ Shabbos, @ weekdays or @ daily.`]);
+  }
+  return done(days);
+}
+
+/** Header text for a set of day indexes: daily / every Sun-Thu / Fri / Mon, Wed. */
+export function weeklyHeaderFor(dayIdx) {
+  const set = [...new Set(dayIdx)].sort((a, b) => a - b);
+  if (set.length === 7) return 'daily';
+  if (set.length === 1) return DAY_CODES[set[0]];
+  const contiguous = set.every((d, i) => i === 0 || d === set[i - 1] + 1);
+  if (contiguous && set.length >= 3) return `every ${DAY_CODES[set[0]]}-${DAY_CODES[set[set.length - 1]]}`;
+  return set.map((d) => DAY_CODES[d]).join(', ');
+}
+
+function entryDayIdx(e) {
+  const list = Array.isArray(e?.days) ? e.days : [];
+  const idx = list.map((d) => weekdayWordLoose(String(d))).filter((d) => d >= 0);
+  return idx.length ? [...new Set(idx)].sort((a, b) => a - b) : [0, 1, 2, 3, 4, 5, 6];
+}
+
 // ── Whole text ─────────────────────────────────────────────────────────────
 
 /**
@@ -418,8 +499,14 @@ export function parseDateHeader(rest, todayISO) {
  *
  * @param {string} text
  * @param {{ categories?: object[], today?: string }} opts  today = YYYY-MM-DD (for "this Friday")
+ * A text is EITHER dated ("@ 2026-10-16 …") OR weekly ("@ every Sun-Thu …",
+ * "@ Fri", "@ daily") — never both. Weekly texts return `mode: 'weekly'`,
+ * `days: []` and `weekly: { rules, entries }` (entries carry `days` codes).
+ *
  * @returns {{
  *   format: 'text'|'json',
+ *   mode: 'dates'|'weekly',
+ *   weekly: null | { rules: Array<{ codes: string[], line: number, count: number }>, entries: object[] },
  *   days: Array<{ date: string, label: string, clear: boolean, entries: object[], line: number|null }>,
  *   errors: Array<{ line: number|null, date?: string, message: string }>,
  *   warnings: Array<{ line: number|null, date?: string, message: string }>,
@@ -435,7 +522,8 @@ export function parseScheduleText(text, opts = {}) {
   const errors = [];
   const warnings = [];
   const seen = new Map();
-  let current = null; // day being filled (null before the first header, or a broken header)
+  const rules = []; // weekly rule headers
+  let current = null; // day/rule being filled (null before the first header, or a broken header)
   let broken = false;
 
   const lines = src.split(/\r?\n/);
@@ -444,6 +532,23 @@ export function parseScheduleText(text, opts = {}) {
     let line = rawLine.replace(/‏|‎/g, '').trim();
     if (!line || line.startsWith('#') || line.startsWith('```') || line.startsWith('//')) return;
     if (line.startsWith('@')) {
+      const wk = parseWeeklyHeader(line.slice(1));
+      if (wk) {
+        wk.errors.forEach((message) => errors.push({ line: lineNo, message }));
+        if (days.length) {
+          errors.push({ line: lineNo, message: 'A weekly header (@ every Sun-Thu, @ Fri, @ daily …) can\'t be mixed with dated headers (@ 2026-10-16). Paste weekly and dated schedules separately.' });
+          current = null; broken = true; return;
+        }
+        if (wk.errors.length || !wk.days.length) { current = null; broken = true; return; }
+        current = { weekly: true, codes: wk.codes, entries: [], line: lineNo, header: line.slice(1).trim() };
+        broken = false;
+        rules.push(current);
+        return;
+      }
+      if (rules.length) {
+        errors.push({ line: lineNo, message: 'A date header (@ 2026-10-16) can\'t be mixed with weekly headers (@ every Sun-Thu, @ Fri …). Paste them separately.' });
+        current = null; broken = true; return;
+      }
       const h = parseDateHeader(line.slice(1), opts.today);
       h.errors.forEach((message) => errors.push({ line: lineNo, message }));
       if (!h.date) { current = null; broken = true; return; }
@@ -472,16 +577,28 @@ export function parseScheduleText(text, opts = {}) {
       return;
     }
     const r = parseEntryLine(line, ctx);
-    r.errors.forEach((message) => errors.push({ line: lineNo, date: current.date, message }));
-    r.warnings.forEach((message) => warnings.push({ line: lineNo, date: current.date, message }));
+    const where = current.weekly ? {} : { date: current.date };
+    r.errors.forEach((message) => errors.push({ line: lineNo, ...where, message }));
+    r.warnings.forEach((message) => warnings.push({ line: lineNo, ...where, message }));
     if (r.entry) current.entries.push({ ...r.entry, line: lineNo });
   });
 
-  if (!days.length && !errors.length) {
-    errors.push({ line: null, message: 'No "@ date" headers found. Each day starts with a line like "@ 2026-10-16 Fri".' });
+  if (!days.length && !rules.length && !errors.length) {
+    errors.push({ line: null, message: 'No "@ date" headers found. Each day starts with a line like "@ 2026-10-16 Fri" (or, for a weekly schedule, "@ every Sun-Thu").' });
   }
   for (const d of days) d.entries = sortEntriesByTime(d.entries);
-  return { format: 'text', days, errors, warnings, newCategories: [...ctx.newCats.values()] };
+  let weekly = null;
+  if (rules.length) {
+    for (const r of rules) {
+      if (!r.entries.length) warnings.push({ line: r.line, message: `"@ ${r.header}" has no items.` });
+    }
+    const flat = rules.flatMap((r) => r.entries.map((e) => ({ ...e, days: [...r.codes] })));
+    weekly = {
+      rules: rules.map((r) => ({ codes: r.codes, header: r.header, line: r.line, count: r.entries.length })),
+      entries: sortEntriesByTime(flat),
+    };
+  }
+  return { format: 'text', mode: weekly ? 'weekly' : 'dates', weekly, days, errors, warnings, newCategories: [...ctx.newCats.values()] };
 }
 
 /** JSON flavour (schedule-dates.json shape, optionally wrapped in {dates:{…}}). */
@@ -494,11 +611,11 @@ export function parseScheduleJSON(text, opts = {}) {
   try {
     obj = JSON.parse(text);
   } catch (e) {
-    return { format: 'json', days, errors: [{ line: null, message: `Not valid JSON: ${e.message}` }], warnings, newCategories: [] };
+    return { format: 'json', mode: 'dates', weekly: null, days, errors: [{ line: null, message: `Not valid JSON: ${e.message}` }], warnings, newCategories: [] };
   }
   if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj.dates && typeof obj.dates === 'object') obj = obj.dates;
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-    return { format: 'json', days, errors: [{ line: null, message: 'JSON must be an object keyed by date: { "2026-10-17": { "entries": [...] } }' }], warnings, newCategories: [] };
+    return { format: 'json', mode: 'dates', weekly: null, days, errors: [{ line: null, message: 'JSON must be an object keyed by date: { "2026-10-17": { "entries": [...] } }' }], warnings, newCategories: [] };
   }
   for (const [date, value] of Object.entries(obj)) {
     if (!isISODate(date)) { errors.push({ line: null, message: `"${date}" isn't a YYYY-MM-DD date.` }); continue; }
@@ -517,7 +634,7 @@ export function parseScheduleJSON(text, opts = {}) {
     days.push(day);
   }
   if (!days.length && !errors.length) errors.push({ line: null, message: 'No dates found in the JSON.' });
-  return { format: 'json', days, errors, warnings, newCategories: [...ctx.newCats.values()] };
+  return { format: 'json', mode: 'dates', weekly: null, days, errors, warnings, newCategories: [...ctx.newCats.values()] };
 }
 
 /**
@@ -571,7 +688,7 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
 
 /** Strip parser-only fields (line numbers, flags) before storing an entry. */
 export function storableEntry(e) {
-  const { line, categoryIsNew, ...rest } = e || {}; // eslint-disable-line no-unused-vars
+  const { line, categoryIsNew, alertFromDefault, ...rest } = e || {}; // eslint-disable-line no-unused-vars
   return rest;
 }
 
@@ -583,6 +700,7 @@ export function formatEntryLine(e, categories) {
   const cat = categoryLabel(categories, e.category);
   const opts = [];
   if (e.alertBefore > 0) opts.push(`alert ${e.alertBefore}${(e.countdownDisplay || e.alertDisplay) === 'takeover' ? ' takeover' : ''}`);
+  else if (Number(findCategory(categories, e.category)?.defaultAlert) > 0) opts.push('alert 0'); // keep an explicit "no alert" through a round trip
   if (e.icon) opts.push(`icon ${e.icon}`);
   if (e.enabled === false) opts.push('off');
   const fields = [time, e.name || '', e.nameHe || '', cat, ...opts];
@@ -604,6 +722,30 @@ export function formatScheduleText(days, { categories = [], header = true } = {}
     if (d.clear) { out.push(`@ ${d.date} ${wd} clear`.replace(/\s+/g, ' ')); return; }
     out.push(`@ ${d.date}${wd ? ` ${wd}` : ''}${d.label ? `  ${d.label}` : ''}`);
     for (const e of sortEntriesByTime(d.entries || [])) out.push(formatEntryLine(e, categories));
+  });
+  return out.join('\n') + '\n';
+}
+
+/**
+ * Format weekly entries ("Copy weekly schedule as text"): one `@` header per
+ * distinct set of days (daily first, then by first day), items in time order.
+ * Round-trips through parseScheduleText.
+ */
+export function formatWeeklyText(entries, { categories = [], header = true } = {}) {
+  const groups = new Map();
+  for (const e of entries || []) {
+    const idx = entryDayIdx(e);
+    const key = idx.join(',');
+    if (!groups.has(key)) groups.set(key, { idx, entries: [] });
+    groups.get(key).entries.push(e);
+  }
+  const ordered = [...groups.values()].sort((a, b) => (b.idx.length === 7) - (a.idx.length === 7) || a.idx[0] - b.idx[0] || b.idx.length - a.idx.length);
+  const out = [];
+  if (header) out.push(FORMAT_HEADER);
+  ordered.forEach((g, i) => {
+    if (i > 0 || header) out.push('');
+    out.push(`@ ${weeklyHeaderFor(g.idx)}`);
+    for (const e of sortEntriesByTime(g.entries)) out.push(formatEntryLine(e, categories));
   });
   return out.join('\n') + '\n';
 }

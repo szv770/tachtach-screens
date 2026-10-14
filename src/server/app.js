@@ -10,7 +10,7 @@ import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
-import { ensureDefaultCategories, readScheduleDates } from './scheduleStore.js';
+import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
@@ -106,6 +106,13 @@ export function createApp() {
         if (added.length) console.log(`[schedule] Added default categories: ${added.map(c => c.name).join(', ')}`);
       } catch (catErr) {
         console.error('[schedule] Default categories error:', catErr.message);
+      }
+      // 5-minute default reminder on learning/davening categories (once, keeps owner values)
+      try {
+        const upd = await ensureCategoryDefaultAlerts();
+        if (upd.length) console.log(`[schedule] Default 5-minute alert set on: ${upd.join(', ')}`);
+      } catch (alErr) {
+        console.error('[schedule] Default alerts error:', alErr.message);
       }
       // Initialize countdown alert system
       try {

@@ -1,5 +1,7 @@
 import React from 'react';
-import { colors, adminFonts, inputStyle } from '../styles/admin-tokens.js';
+import { colors, adminFonts, inputStyle, buttonSecondary } from '../styles/admin-tokens.js';
+import { ToggleSwitch } from './ui.jsx';
+import { apiFetch } from '../hooks/useAdminState.js';
 import { themeFamilies, THEME_BY_ID, DEFAULT_THEME, DEFAULT_DAY_THEME, DEFAULT_NIGHT_THEME } from '../../shared/themes.js';
 import { LIGHT_AT, DARK_AT, DEFAULT_LIGHT_AT, DEFAULT_DARK_AT } from '../../shared/dayNight.js';
 import { FONT_ROLES, BUILTIN_FONTS, DEFAULT_FONT_ROLES, resolveFontRoles, legacyFontRoles } from '../../shared/fontRoles.js';
@@ -174,23 +176,122 @@ export function ScreenLook({ local, update, updateNested }) {
   );
 }
 
-/** Weather (rail readout + optional Weather page). */
-export function WeatherSettings({ local, updateNested }) {
-  const w = local.weather || {};
+/** One labelled block inside the Weather section. */
+function WBlock({ title, children, first }) {
   return (
-    <div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '6px' }}>
-        <input type="checkbox" checked={w.enabled !== false} onChange={(e) => updateNested('weather', 'enabled', e.target.checked)} style={{ accentColor: colors.gold, width: '16px', height: '16px' }} />
-        <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>Show weather (small readout in the rail)</span>
-      </label>
-      <Row title="Units">
-        <Choice label="°F (default)" active={(w.units || 'F') === 'F'} onClick={() => updateNested('weather', 'units', 'F')} />
-        <Choice label="°C" active={w.units === 'C'} onClick={() => updateNested('weather', 'units', 'C')} />
-      </Row>
-      <p style={hint}>
-        Weather comes from Open-Meteo using the zip code in Location, and refreshes every 30 minutes. To also show a full Weather page,
-        enable the &ldquo;Weather&rdquo; slide in the Slides tab.
-      </p>
+    <div style={{ borderTop: first ? 'none' : `1px solid ${colors.border}`, paddingTop: first ? 0 : '14px', marginTop: first ? 0 : '14px' }}>
+      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function SwitchRow({ on, onChange, label, note, testId }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <span style={{ paddingTop: '2px', display: 'flex' }}>
+        <ToggleSwitch on={on} onChange={onChange} label={label} />
+      </span>
+      <div style={{ minWidth: 0 }} data-testid={testId}>
+        <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>{label}</div>
+        {note && <div style={hint}>{note}</div>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Weather: what shows on the screen and where it comes from.
+ *   Rail readout   — small temperature in the side rail (settings.weather.enabled)
+ *   Units          — F/C (settings.weather.units)
+ *   Location       — read-only; the zip lives in Settings > Location
+ *   Weather page   — the WEATHER slide in the rotation (a slide, not a setting)
+ *   Test           — GET /api/weather/preview with the SAVED zip
+ */
+export function WeatherSettings({ local, updateNested, zip = '', slides = [], onUpdateSlides, onCreateSlide }) {
+  const w = local.weather || {};
+  const [test, setTest] = React.useState(null); // null | 'loading' | result
+  const pageSlide = slides.find((s) => s.type === 'WEATHER');
+  const pageOn = !!pageSlide && pageSlide.enabled !== false;
+  const units = (w.units || 'F') === 'C' ? 'C' : 'F';
+
+  const togglePage = async () => {
+    if (pageSlide) await onUpdateSlides?.(slides.map((s) => (s === pageSlide ? { ...s, enabled: !pageOn } : s)));
+    else await onCreateSlide?.({ type: 'WEATHER', label: 'Weather', duration: 12, enabled: true });
+  };
+
+  const runTest = async () => {
+    setTest('loading');
+    try {
+      setTest(await apiFetch(`/api/weather/preview?units=${units}`));
+    } catch (err) {
+      setTest({ ok: false, error: err.message || 'The request failed.' });
+    }
+  };
+
+  const goToLocation = () => document.getElementById('settings-location')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  return (
+    <div data-testid="weather-settings">
+      <WBlock title="In the side rail" first>
+        <SwitchRow
+          on={w.enabled !== false}
+          onChange={() => updateNested('weather', 'enabled', w.enabled === false)}
+          label="Show the temperature in the rail"
+          note="A small readout under the clock: current temperature and conditions."
+          testId="weather-rail-toggle"
+        />
+        <Row title="Units">
+          <Choice label="°F (default)" active={units === 'F'} onClick={() => updateNested('weather', 'units', 'F')} />
+          <Choice label="°C" active={units === 'C'} onClick={() => updateNested('weather', 'units', 'C')} />
+        </Row>
+      </WBlock>
+
+      <WBlock title="Where the weather is for">
+        <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }} data-testid="weather-location">
+          {zip ? <>Zip code <b style={{ color: colors.gold }}>{zip}</b></> : <span style={{ color: colors.danger }}>No zip code set</span>}
+        </div>
+        <p style={hint}>
+          The weather uses the same zip code as the zmanim. To change it, edit Zip Code under{' '}
+          <button type="button" onClick={goToLocation} style={{ background: 'none', border: 'none', padding: 0, color: colors.gold, textDecoration: 'underline', cursor: 'pointer', font: 'inherit', minHeight: 0 }}>
+            Location
+          </button>{' '}
+          (above) and save. Data is from Open-Meteo and refreshes every 30 minutes.
+        </p>
+      </WBlock>
+
+      <WBlock title="Weather page">
+        <SwitchRow
+          on={pageOn}
+          onChange={togglePage}
+          label="Show the Weather page in the rotation"
+          note="A full page with the 24-hour and week forecast. This turns the Weather slide on or off (you can also reorder it or change its length in the Slides tab)."
+          testId="weather-page-toggle"
+        />
+      </WBlock>
+
+      <WBlock title="Check it works">
+        <button type="button" style={{ ...buttonSecondary, minHeight: '40px' }} onClick={runTest} disabled={test === 'loading'} data-testid="weather-test">
+          {test === 'loading' ? 'Checking…' : 'Test weather now'}
+        </button>
+        {test && test !== 'loading' && (
+          <div data-testid="weather-test-result" role="status" style={{
+            marginTop: '10px', fontFamily: adminFonts.englishBody, fontSize: '14px', lineHeight: 1.5, padding: '10px 12px', borderRadius: '8px',
+            border: `1px solid ${test.ok ? colors.goldBd : `${colors.danger}88`}`, color: test.ok ? colors.text : colors.danger,
+          }}>
+            {test.ok ? (
+              <>
+                <div style={{ fontSize: '18px', color: colors.gold }}>{test.temp}°{test.units} · {test.condition}</div>
+                <div style={{ color: colors.dim }}>
+                  {test.hi != null && test.lo != null ? `High ${test.hi}° / Low ${test.lo}°` : ''}{test.feels != null ? ` · feels like ${test.feels}°` : ''}
+                </div>
+                <div style={{ color: colors.dim, fontSize: '12px' }}>{test.place ? `${test.place} · ` : ''}zip {test.zip} (saved)</div>
+              </>
+            ) : test.error}
+          </div>
+        )}
+        <p style={hint}>The test uses the saved zip code. If you just changed it, press Save Settings first.</p>
+      </WBlock>
     </div>
   );
 }
