@@ -237,7 +237,7 @@ export default function AnnouncementsPanel({
             min={1}
             max={365}
             ariaLabel="Days to keep archived announcements"
-            onCommit={(n) => onSaveSettings({ ...settings, announcements: { ...(settings.announcements || {}), archiveDays: n } })}
+            onCommit={(n) => onSaveSettings({ announcements: { archiveDays: n } })}
             style={{ width: '60px', textAlign: 'center', minHeight: '38px' }}
           />
           days.
@@ -260,7 +260,7 @@ export default function AnnouncementsPanel({
                 <span style={{ width: '120px', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>{row.label}</span>
                 {row.opts.map(([v, l]) => (
                   <button key={v} type="button" aria-pressed={cur === v}
-                    onClick={() => onSaveSettings({ ...settings, banner: { ...(settings.banner || {}), [row.key]: v } })}
+                    onClick={() => onSaveSettings({ banner: { [row.key]: v } })}
                     style={{ ...buttonSecondary, minHeight: '38px', padding: '6px 14px', borderColor: cur === v ? colors.gold : colors.border, color: cur === v ? colors.gold : colors.text, background: cur === v ? colors.goldBg : 'transparent' }}>
                     {l}
                   </button>

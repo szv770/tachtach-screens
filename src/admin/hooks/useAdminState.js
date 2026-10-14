@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { deepMerge } from '../../shared/settingsMerge.js';
 
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
@@ -67,6 +68,17 @@ export async function apiFetch(path, options = {}, _retried = false) {
  */
 let toastIdCounter = 0;
 
+/**
+ * Show a toast from any component (Media, Photos, RSS, Fonts, ... manage their
+ * own fetches and don't get addToast as a prop). No-op before the admin mounts.
+ * @param {string} message
+ * @param {'success'|'error'} [type]
+ */
+let toastSink = null;
+export function notify(message, type = 'success') {
+  if (toastSink) toastSink(message, type);
+}
+
 export default function useAdminState() {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -95,7 +107,9 @@ export default function useAdminState() {
 
   // Cleanup timers on unmount
   useEffect(() => {
+    toastSink = addToast;
     return () => {
+      if (toastSink === addToast) toastSink = null;
       Object.values(toastTimers.current).forEach(clearTimeout);
     };
   }, []);
@@ -146,18 +160,28 @@ export default function useAdminState() {
   const seqRef = useRef({ slides: 0, settings: 0, scheduleEntries: 0 });
 
   // --- Settings ---
-  const updateSettings = useCallback(async (settings) => {
+  /**
+   * Save settings as a PATCH: pass ONLY the keys you changed, e.g.
+   * `updateSettings({ banner: { size: 'large' } })`. The server deep-merges
+   * them into settings.json (src/shared/settingsMerge.js), so panels can't
+   * revert each other's keys with a stale copy (audit bug 14). Never spread
+   * the whole `settings` object into the patch. A panel that edits a local
+   * copy should send `diffSettings(original, local)`. New top-level keys must
+   * be added to SETTINGS_KEYS or the server answers 400.
+   */
+  const updateSettings = useCallback(async (patch, successMsg = 'Settings saved') => {
+    if (!patch || typeof patch !== 'object' || Object.keys(patch).length === 0) return true;
     const seq = ++seqRef.current.settings;
-    setState(prev => ({ ...prev, settings })); // optimistic
+    setState(prev => ({ ...prev, settings: deepMerge(prev.settings || {}, patch) })); // optimistic
     const ok = await withErrorHandling('Save settings', async () => {
       const result = await apiFetch('/api/settings', {
-        method: 'PUT',
-        body: JSON.stringify(settings),
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       });
       if (result && seq === seqRef.current.settings) {
         setState(prev => ({ ...prev, settings: result }));
       }
-    }, 'Settings saved');
+    }, successMsg);
     if (!ok && seq === seqRef.current.settings) fetchState({ silent: true }); // resync after failure
     return ok;
   }, [withErrorHandling, fetchState]);
@@ -198,7 +222,7 @@ export default function useAdminState() {
         ...prev,
         slides: (prev.slides || []).filter(s => s.id !== id),
       }));
-    });
+    }, 'Slide deleted');
   }, [withErrorHandling]);
 
   // --- Announcements (unified slides / banners / side notes / takeovers) ---
@@ -435,6 +459,21 @@ export default function useAdminState() {
     return ok ? created : null;
   }, [withErrorHandling]);
 
+  const updateCustomDay = useCallback(async (id, data) => {
+    let updated;
+    const ok = await withErrorHandling('Save custom day', async () => {
+      updated = await apiFetch(`/api/custom-days/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      });
+      setState(prev => ({
+        ...prev,
+        customDays: (prev.customDays || []).map(d => d.id === id ? updated : d),
+      }));
+    }, 'Custom day saved');
+    return ok ? updated : null;
+  }, [withErrorHandling]);
+
   const deleteCustomDay = useCallback(async (id) => {
     return withErrorHandling('Delete custom day', async () => {
       await apiFetch(`/api/custom-days/${id}`, { method: 'DELETE' });
@@ -442,7 +481,7 @@ export default function useAdminState() {
         ...prev,
         customDays: (prev.customDays || []).filter(d => d.id !== id),
       }));
-    });
+    }, 'Custom day removed');
   }, [withErrorHandling]);
 
   // --- Refresh & Screen Commands ---
@@ -477,6 +516,7 @@ export default function useAdminState() {
     deleteAnnouncement,
     fetchShabbosEnd,
     createCustomDay,
+    updateCustomDay,
     deleteCustomDay,
     fetchSchedule,
     updateScheduleEntries,
