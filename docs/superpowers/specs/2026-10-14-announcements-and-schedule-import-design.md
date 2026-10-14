@@ -214,7 +214,7 @@ The owner wants an easy way to make **inspirational slides**: quotes, excerpts f
 - **Collections (optional, later in 2b):** group many quotes or excerpts into a collection, e.g. "Rebbe quotes". The slide then shows **one per rotation** or **one per day**, so the screen stays fresh without posting each one. Collections can be filled by pasting many entries at once, one per block, in a simple text format like the schedule paste, which also lets Claude chat prepare a batch.
 - Fonts: these layouts use the Hebrew/English font roles, including the owner's FbMazal. A per-layout "Torah text" font option, such as a classic serif or Frank Ruhl, is worth having for sichos and letters.
 
-## Phase 2c — Schedule-triggered announcements (owner request, 2026-10-14)
+## Phase 2c — Schedule-triggered announcements (owner request, 2026-10-14) — **DEFERRED: owner said "save that for later, no need to do now"**; don't build with the takeover work
 
 Example from the owner: a "Shacharis now" takeover that appears by itself **while Shacharis is in session on the schedule** (or for a fixed 45 minutes), instead of being posted by hand.
 
