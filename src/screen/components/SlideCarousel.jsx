@@ -19,6 +19,7 @@ function BoardDisplay({ boards, tokens }) {
           borderRadius: '6px',
           marginBottom: '16px',
           textAlign: 'center',
+          whiteSpace: 'pre-line', // keep admin-typed line breaks
         }}>
           {board.target && (
             <div style={{

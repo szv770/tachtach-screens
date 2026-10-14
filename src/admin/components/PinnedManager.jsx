@@ -104,12 +104,14 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
       <div style={{ marginBottom: '20px' }}>
         <div style={{ marginBottom: '10px' }}>
           <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Note Text</label>
-          <input
-            type="text"
+          {/* textarea, not <input>: Enter must insert a line break, which the
+              kiosk now preserves (PinnedNotes / PinnedSlide use pre-line). */}
+          <textarea
             value={textEn}
             onChange={(e) => setTextEn(e.target.value)}
+            rows={2}
             placeholder="Type your note..."
-            style={{ ...inputStyle, marginTop: '4px' }}
+            style={{ ...inputStyle, marginTop: '4px', resize: 'vertical' }}
           />
         </div>
 
@@ -129,12 +131,12 @@ export default function PinnedManager({ pinned = [], onCreate, onUpdate, onDelet
             <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
               Hebrew Text <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
             </label>
-            <input
-              type="text"
+            <textarea
               value={textHe}
               onChange={(e) => setTextHe(e.target.value)}
+              rows={2}
               placeholder="Optional Hebrew text"
-              style={{ ...inputStyle, marginTop: '4px', direction: 'rtl' }}
+              style={{ ...inputStyle, marginTop: '4px', direction: 'rtl', resize: 'vertical' }}
             />
           </div>
         )}

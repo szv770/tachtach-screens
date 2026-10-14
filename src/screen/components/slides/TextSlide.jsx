@@ -7,10 +7,16 @@ export default function TextSlide({ slide, tokens }) {
   // When only English is provided (no Hebrew), promote English to primary styling
   const hasHebrew = !!(titleHe || bodyHe);
 
+  // Line breaks typed in the admin (Enter) must show on the kiosk. Each
+  // template's root sets `white-space: pre-line` (inherited by title and body;
+  // collapses runs of spaces as before, keeps newlines). Only the Info
+  // template's body used to preserve them.
+  const keepLines = { whiteSpace: 'pre-line' };
+
   switch (template) {
     case 'headline':
       return (
-        <div style={{ textAlign: 'center', width: '100%' }}>
+        <div style={{ textAlign: 'center', width: '100%', ...keepLines }}>
           {titleHe && <div style={{ fontFamily: fonts.hebrewDisplay, fontSize: '72px', fontWeight: 700, color: tokens.text, lineHeight: 1.2 }}>{titleHe}</div>}
           {titleEn && (
             <div style={{
@@ -25,12 +31,36 @@ export default function TextSlide({ slide, tokens }) {
               {titleEn}
             </div>
           )}
+          {/* Body under the headline. The headline template used to silently
+              drop bodyHe/bodyEn even though the admin form offers them. */}
+          {(bodyHe || bodyEn) && (
+            <div style={{ marginTop: '28px' }}>
+              {bodyHe && (
+                <div style={{ fontFamily: fonts.hebrewPrimary, fontSize: '30px', fontWeight: 500, color: tokens.text, lineHeight: 1.6 }}>
+                  {bodyHe}
+                </div>
+              )}
+              {bodyEn && (
+                <div style={{
+                  fontFamily: hasHebrew ? fonts.englishBody : fonts.englishDisplay,
+                  fontSize: hasHebrew ? '20px' : '30px',
+                  color: hasHebrew ? tokens.dim : tokens.text,
+                  direction: 'ltr',
+                  unicodeBidi: 'isolate',
+                  lineHeight: 1.5,
+                  marginTop: bodyHe ? '12px' : 0,
+                }}>
+                  {bodyEn}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       );
 
     case 'quote':
       return (
-        <div style={{ textAlign: 'center', width: '100%', maxWidth: '650px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <div style={{ textAlign: 'center', width: '100%', maxWidth: '650px', display: 'flex', flexDirection: 'column', alignItems: 'center', ...keepLines }}>
           {/* Decorative opening quote mark */}
           <div style={{
             fontFamily: 'Georgia, serif',
@@ -109,7 +139,7 @@ export default function TextSlide({ slide, tokens }) {
 
     case 'info':
       return (
-        <div style={{ width: '100%', maxWidth: '600px' }}>
+        <div style={{ width: '100%', maxWidth: '600px', ...keepLines }}>
           {titleHe && <div style={{ fontFamily: fonts.hebrewDisplay, fontSize: '36px', fontWeight: 500, color: tokens.gold, marginBottom: '20px' }}>{titleHe}</div>}
           {titleEn && !titleHe && <div style={{ fontFamily: fonts.englishDisplay, fontSize: '36px', fontWeight: 500, color: tokens.gold, marginBottom: '20px', direction: 'ltr' }}>{titleEn}</div>}
           {titleEn && titleHe && <div style={{ fontFamily: fonts.englishBody, fontSize: '18px', color: tokens.dim, marginBottom: '12px', direction: 'ltr', unicodeBidi: 'isolate' }}>{titleEn}</div>}
@@ -138,7 +168,7 @@ export default function TextSlide({ slide, tokens }) {
     case 'announcement':
     default:
       return (
-        <div style={{ width: '100%', maxWidth: '600px', textAlign: 'center' }}>
+        <div style={{ width: '100%', maxWidth: '600px', textAlign: 'center', ...keepLines }}>
           {titleHe && <div style={{ fontFamily: fonts.hebrewDisplay, fontSize: '42px', fontWeight: 500, color: tokens.gold, marginBottom: '16px' }}>{titleHe}</div>}
           {titleEn && (
             <div style={{

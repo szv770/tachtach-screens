@@ -76,6 +76,7 @@ export default function PinnedNotes({ pinned, tokens, visibility }) {
                 alignItems: 'center',
                 padding: '6px 0',
                 textAlign: 'center',
+                whiteSpace: 'pre-line', // keep admin-typed line breaks
               }}
             >
               {primaryEn && (

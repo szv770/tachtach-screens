@@ -1956,6 +1956,8 @@ export default function Takeover({ takeover, tokens }) {
               position: 'fixed',
               inset: 0,
               zIndex: 100,
+              // Keep admin-typed line breaks in every style (inherited by all text).
+              whiteSpace: 'pre-line',
               ...config.getContainer(tokens),
             }}
           >
