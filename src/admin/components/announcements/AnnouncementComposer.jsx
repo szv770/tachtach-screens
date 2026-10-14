@@ -2,8 +2,10 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../../styles/admin-tokens.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
 import AnnouncementPreview from './AnnouncementPreview.jsx';
+import StylePicker from './StylePicker.jsx';
+import { SOFT_LIMITS } from '../../../shared/takeoverStyles.js';
 import {
-  DISPLAY_OPTIONS, LAYOUT_OPTIONS, STYLE_OPTIONS, TEMPLATE_OPTIONS, DAY_CHIPS,
+  DISPLAY_OPTIONS, LAYOUT_OPTIONS, ANIMATION_OPTIONS, TEMPLATE_OPTIONS, DAY_CHIPS,
   isoToLocalInput, localInputToIso, parseTimeInput, timeToDisplay, minutesLabel, endOfDay,
   emptyItem, withDefaults, LAYOUT_LABEL,
 } from './helpers.js';
@@ -23,6 +25,8 @@ function Section({ title, children, hint }) {
     </section>
   );
 }
+
+const isHeb = (v) => /[\u0590-\u05FF]/.test(String(v || ''));
 
 function Chip({ active, onClick, children, disabled, title, ariaPressed = true }) {
   return (
@@ -54,33 +58,55 @@ function Field({ title, children, style }) {
   );
 }
 
-function TextArea({ value, onChange, rtl, rows = 2, placeholder, ariaLabel }) {
+/**
+ * Soft length hint (README "Composer limits that the audit proves"): never
+ * blocks, only tells the writer the text will be set smaller beyond ~limit.
+ */
+function LimitHint({ value, limit }) {
+  if (!limit) return null;
+  const n = String(value || '').length;
+  if (n < limit * 0.7) return null;
+  const over = n > limit;
   return (
-    <textarea
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      rows={rows}
-      dir={rtl ? 'rtl' : 'ltr'}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.45, fontFamily: rtl ? adminFonts.hebrewPrimary : adminFonts.englishBody, fontSize: '15px' }}
-    />
+    <span aria-live="polite" style={{ display: 'block', textAlign: 'right', fontFamily: adminFonts.englishBody, fontSize: '12px', marginTop: '3px', color: over ? colors.warning || colors.gold : colors.muted }}>
+      {n}/{limit}{over ? ' · long, it will show smaller' : ''}
+    </span>
   );
 }
 
-function TextInput({ value, onChange, rtl, placeholder, ariaLabel, onBlur, inputMode }) {
+function TextArea({ value, onChange, rtl, rows = 2, placeholder, ariaLabel, limit }) {
   return (
-    <input
-      type="text"
-      value={value || ''}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onBlur}
-      dir={rtl ? 'rtl' : 'ltr'}
-      placeholder={placeholder}
-      aria-label={ariaLabel}
-      inputMode={inputMode}
-      style={{ ...inputStyle, minHeight: '40px', fontFamily: rtl ? adminFonts.hebrewPrimary : adminFonts.englishBody, fontSize: '15px' }}
-    />
+    <>
+      <textarea
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        dir={rtl ? 'rtl' : 'ltr'}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.45, fontFamily: rtl ? adminFonts.hebrewPrimary : adminFonts.englishBody, fontSize: '15px' }}
+      />
+      <LimitHint value={value} limit={limit} />
+    </>
+  );
+}
+
+function TextInput({ value, onChange, rtl, placeholder, ariaLabel, onBlur, inputMode, limit }) {
+  return (
+    <>
+      <input
+        type="text"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        dir={rtl ? 'rtl' : 'ltr'}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        inputMode={inputMode}
+        style={{ ...inputStyle, minHeight: '40px', fontFamily: rtl ? adminFonts.hebrewPrimary : adminFonts.englishBody, fontSize: '15px' }}
+      />
+      <LimitHint value={value} limit={limit} />
+    </>
   );
 }
 
@@ -144,6 +170,9 @@ function LayoutThumb({ layout }) {
       </div>
     );
     case 'quicktime': return <div style={box}>{bar('50%', 6, colors.text)}<div style={{ fontFamily: adminFonts.englishDisplay, fontWeight: 700, fontSize: 18, color: colors.gold, lineHeight: 1 }}>1:45</div></div>;
+    case 'quote': return <div style={box}>{bar('82%', 9, colors.text)}{bar('52%', 5)}<div style={{ width: 14, height: 2, background: colors.gold }} />{bar('34%', 3)}</div>;
+    case 'sicha': return <div style={{ ...box, alignItems: 'stretch', padding: '0 14%' }}>{bar('60%', 5, colors.gold)}{bar('100%', 3)}{bar('100%', 3)}{bar('100%', 3)}{bar('70%', 3)}</div>;
+    case 'letter': return <div style={{ ...box, alignItems: 'flex-end', padding: '0 14%' }}>{bar('30%', 3)}{bar('40%', 5, colors.gold)}{bar('100%', 3)}{bar('100%', 3)}{bar('60%', 3)}</div>;
     default: return <div style={box}><div style={{ width: '86%', height: '80%', background: 'linear-gradient(135deg,#1a1000,#7a5a10)', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{bar('50%', 6, '#FFD700')}</div></div>;
   }
 }
@@ -255,7 +284,7 @@ export default function AnnouncementComposer({
   // ── Payload
   const buildPayload = (status) => {
     const content = { ...item.content };
-    content.list = { ...content.list, items: (content.list.items || []).map((s) => s).filter((s) => String(s).trim()) };
+    content.list = { ...content.list, items: (content.list.items || []).filter((x) => String(x?.text || '').trim() || String(x?.textHe || '').trim()) };
     const recurrence = repeatOn ? {
       days: rec.days || [], monthDays: rec.monthDays || [],
       windows: (rec.windows || []).filter((w) => w.start && w.end), from: rec.from || null, until: rec.until || null,
@@ -282,7 +311,7 @@ export default function AnnouncementComposer({
   const submit = async (status, resolve) => {
     const payload = buildPayload(status);
     if (status !== 'draft' && !hasText(payload)) {
-      setError(layout === 'quicktime' && usesLayout ? 'Fill in a name and a time.' : 'Type some text first (English or Hebrew).');
+      setError(layout === 'quicktime' && usesLayout ? 'Fill in a name and a time (or a big number).' : layout === 'sicha' || layout === 'letter' ? 'Type the text first.' : 'Type some text first (English or Hebrew).');
       return;
     }
     if (payload.when.startsAt && payload.when.expiresAt && payload.when.expiresAt <= payload.when.startsAt) {
@@ -361,16 +390,23 @@ export default function AnnouncementComposer({
     </Section>
   );
 
-  const pair = (titleEn, keyEn, titleHe, keyHe, multi = true, rows = 2) => (
+  const getPath = (path) => path.split('.').reduce((o, k) => o?.[k], item);
+  const pair = (titleEn, keyEn, titleHe, keyHe, multi = true, rows = 2, limits = []) => (
     <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
       <Field title={titleEn}>
-        {multi ? <TextArea value={keyEn.split('.').reduce((o, k) => o?.[k], item)} onChange={(v) => set(keyEn, v)} rows={rows} ariaLabel={titleEn} />
-          : <TextInput value={keyEn.split('.').reduce((o, k) => o?.[k], item)} onChange={(v) => set(keyEn, v)} ariaLabel={titleEn} />}
+        {multi ? <TextArea value={getPath(keyEn)} onChange={(v) => set(keyEn, v)} rows={rows} ariaLabel={titleEn} limit={limits[0]} />
+          : <TextInput value={getPath(keyEn)} onChange={(v) => set(keyEn, v)} ariaLabel={titleEn} limit={limits[0]} />}
       </Field>
       <Field title={titleHe}>
-        {multi ? <TextArea rtl value={keyHe.split('.').reduce((o, k) => o?.[k], item)} onChange={(v) => set(keyHe, v)} rows={rows} ariaLabel={titleHe} />
-          : <TextInput rtl value={keyHe.split('.').reduce((o, k) => o?.[k], item)} onChange={(v) => set(keyHe, v)} ariaLabel={titleHe} />}
+        {multi ? <TextArea rtl value={getPath(keyHe)} onChange={(v) => set(keyHe, v)} rows={rows} ariaLabel={titleHe} limit={limits[1]} />
+          : <TextInput rtl value={getPath(keyHe)} onChange={(v) => set(keyHe, v)} ariaLabel={titleHe} limit={limits[1]} />}
       </Field>
+    </div>
+  );
+  const kickerFields = (
+    <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
+      <Field title="Small line on top (optional)"><TextInput value={c.target} onChange={(v) => set('content.target', v)} placeholder="Important / Shiur Gimmel" ariaLabel="Small line on top" limit={SOFT_LIMITS.kicker} /></Field>
+      <Field title="Same, in Hebrew (optional)"><TextInput rtl value={c.targetHe} onChange={(v) => set('content.targetHe', v)} placeholder="חשוב" ariaLabel="Small line on top in Hebrew" limit={SOFT_LIMITS.kicker} /></Field>
     </div>
   );
 
@@ -385,52 +421,116 @@ export default function AnnouncementComposer({
   } else if (layout === 'event') {
     textFields = (
       <>
-        {pair('Event (English)', 'content.event.title', 'Event (Hebrew)', 'content.event.titleHe', false)}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+        {kickerFields}
+        {pair('Event (English)', 'content.event.title', 'Event (Hebrew)', 'content.event.titleHe', false, 2, [SOFT_LIMITS.titleEn, SOFT_LIMITS.titleHe])}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: '0 12px' }}>
           <Field title="Day">
             <TextInput value={c.event.day} onChange={(v) => set('content.event.day', v)} placeholder="Thursday / Tonight / Oct 22" ariaLabel="Day" />
           </Field>
+          <Field title="Day (Hebrew, optional)">
+            <TextInput rtl value={c.event.dayHe} onChange={(v) => set('content.event.dayHe', v)} placeholder="הערב / יום חמישי" ariaLabel="Day in Hebrew" />
+          </Field>
           <Field title="Time"><TimeInput value={c.event.time} onChange={(v) => set('content.event.time', v)} ariaLabel="Event time" /></Field>
         </div>
-        {pair('Place (English)', 'content.event.place', 'Place (Hebrew)', 'content.event.placeHe', false)}
+        {pair('Place (English)', 'content.event.place', 'Place (Hebrew)', 'content.event.placeHe', false, 2, [SOFT_LIMITS.place, SOFT_LIMITS.place])}
+        <Field title="Second place line (optional)">
+          <TextInput value={c.event.place2} onChange={(v) => set('content.event.place2', v)} placeholder="Light refreshments / after Maariv" ariaLabel="Second place line" limit={SOFT_LIMITS.place} />
+        </Field>
       </>
     );
   } else if (layout === 'list') {
     const items = c.list.items || [];
+    const upd = (i, k, v) => set('content.list.items', items.map((x, j) => (j === i ? { ...x, [k]: v } : x)));
     textFields = (
       <>
-        {pair('Heading (English)', 'content.list.heading', 'Heading (Hebrew)', 'content.list.headingHe', false)}
-        <span style={label}>Items (up to 8; Enter = new line inside an item)</span>
+        {pair('Heading (English)', 'content.list.heading', 'Heading (Hebrew)', 'content.list.headingHe', false, 2, [SOFT_LIMITS.listHeading, SOFT_LIMITS.listHeading])}
+        <span style={label}>Items (up to 8; day and time are optional; {SOFT_LIMITS.listItems} fit comfortably)</span>
         {items.map((t, i) => (
-          <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1 }}>
-              <TextArea value={t} rows={1} onChange={(v) => set('content.list.items', items.map((x, j) => (j === i ? v : x)))} rtl={/[֐-׿]/.test(t)} ariaLabel={`Item ${i + 1}`} />
-            </div>
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr 40px' : '1.3fr 1.3fr 0.8fr 0.9fr 40px', gap: '6px', marginBottom: '10px', alignItems: 'start' }}>
+            <div style={isMobile ? { gridColumn: '1 / 4' } : undefined}><TextInput value={t.text} onChange={(v) => upd(i, 'text', v)} placeholder="Farbrengen in the zal" ariaLabel={`Item ${i + 1}`} /></div>
+            <div style={isMobile ? { gridColumn: '1 / 4' } : undefined}><TextInput rtl value={t.textHe} onChange={(v) => upd(i, 'textHe', v)} placeholder="Hebrew (optional)" ariaLabel={`Item ${i + 1} in Hebrew`} /></div>
+            <TextInput value={t.day} onChange={(v) => upd(i, 'day', v)} placeholder="Day" ariaLabel={`Item ${i + 1} day`} />
+            <TimeInput value={t.time} onChange={(v) => upd(i, 'time', v)} ariaLabel={`Item ${i + 1} time`} placeholder="Time" />
             <button type="button" aria-label={`Remove item ${i + 1}`} onClick={() => set('content.list.items', items.filter((_, j) => j !== i))} style={{ ...buttonSecondary, minWidth: '40px', minHeight: '40px', padding: 0, color: colors.danger }}>×</button>
           </div>
         ))}
-        {items.length < 8 && <button type="button" onClick={() => set('content.list.items', [...items, ''])} style={{ ...buttonSecondary, minHeight: '40px' }}>+ Add item</button>}
+        {items.length < 8 && <button type="button" onClick={() => set('content.list.items', [...items, { text: '', textHe: '', day: '', time: '' }])} style={{ ...buttonSecondary, minHeight: '40px' }}>+ Add item</button>}
+        {items.length > SOFT_LIMITS.listItems && <p style={{ ...label, marginTop: '6px', color: colors.gold }}>More than {SOFT_LIMITS.listItems} items: the text will show smaller.</p>}
       </>
     );
   } else if (layout === 'quicktime') {
+    const q = c.quicktime;
+    const qs = (k, v) => set(`content.quicktime.${k}`, v);
     textFields = (
       <>
-        {pair('What (English)', 'content.quicktime.name', 'What (Hebrew)', 'content.quicktime.nameHe', false)}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-          <Field title="Time"><TimeInput value={c.quicktime.time} onChange={(v) => set('content.quicktime.time', v)} ariaLabel="Time" placeholder="e.g. 1:45 PM" /></Field>
-          <Field title="Where (optional)"><TextInput value={c.quicktime.place} onChange={(v) => set('content.quicktime.place', v)} placeholder="in the zal" ariaLabel="Where" /></Field>
+        {kickerFields}
+        {pair('What (English)', 'content.quicktime.name', 'What (Hebrew)', 'content.quicktime.nameHe', false, 2, [SOFT_LIMITS.quickName, SOFT_LIMITS.quickName])}
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
+          <Field title="Time"><TimeInput value={q.time} onChange={(v) => qs('time', v)} ariaLabel="Time" placeholder="e.g. 1:45 PM" /></Field>
+          <Field title="Where (optional)"><TextInput value={q.place} onChange={(v) => qs('place', v)} placeholder="in the zal" ariaLabel="Where" limit={SOFT_LIMITS.place} /></Field>
         </div>
+        <Field title="Where, in Hebrew (optional)"><TextInput rtl value={q.placeHe} onChange={(v) => qs('placeHe', v)} ariaLabel="Where in Hebrew" /></Field>
+        <details style={{ marginTop: '4px' }}>
+          <summary style={{ ...label, cursor: 'pointer', color: colors.gold }}>More options: second time, old time, countdown number</summary>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px', marginTop: '10px' }}>
+            <Field title="Label for the first time (e.g. Candle lighting)"><TextInput value={q.label} onChange={(v) => qs('label', v)} ariaLabel="First time label" /></Field>
+            <Field title="Same label in Hebrew"><TextInput rtl value={q.labelHe} onChange={(v) => qs('labelHe', v)} ariaLabel="First time label in Hebrew" /></Field>
+            <Field title="Second time (shows two times side by side)"><TimeInput value={q.time2} onChange={(v) => qs('time2', v)} ariaLabel="Second time" placeholder="e.g. 7:21 PM" /></Field>
+            <Field title="Label for the second time"><TextInput value={q.label2} onChange={(v) => qs('label2', v)} ariaLabel="Second time label" /></Field>
+            <Field title="Second label in Hebrew"><TextInput rtl value={q.label2He} onChange={(v) => qs('label2He', v)} ariaLabel="Second time label in Hebrew" /></Field>
+            <Field title="Old time (shown as “was 1:45 PM”)"><TimeInput value={q.was} onChange={(v) => qs('was', v)} ariaLabel="Old time" placeholder="e.g. 1:45 PM" /></Field>
+            <Field title="Word before the time (e.g. by)"><TextInput value={q.pre} onChange={(v) => qs('pre', v)} ariaLabel="Word before the time" /></Field>
+            <Field title="Big number instead of a time (e.g. 3)"><TextInput value={q.big} onChange={(v) => qs('big', v)} ariaLabel="Big number" inputMode="numeric" /></Field>
+            <Field title="Words after the number (e.g. days to go)"><TextInput value={q.bigLabel} onChange={(v) => qs('bigLabel', v)} ariaLabel="Words after the number" /></Field>
+          </div>
+        </details>
+      </>
+    );
+  } else if (layout === 'quote') {
+    textFields = (
+      <>
+        {pair('Quote (English)', 'content.quote.text', 'Quote (Hebrew)', 'content.quote.textHe', true, 3, [SOFT_LIMITS.quoteEn, SOFT_LIMITS.quoteHe])}
+        {pair('Source (English)', 'content.quote.source', 'Source (Hebrew)', 'content.quote.sourceHe', false, 2, [SOFT_LIMITS.attribution, SOFT_LIMITS.attribution])}
+        <p style={{ ...label, color: colors.muted }}>For example: “Tanya, chapter 12” or “The Rebbe, Hayom Yom 15 Cheshvan”.</p>
+      </>
+    );
+  } else if (layout === 'sicha') {
+    textFields = (
+      <>
+        {pair('Title (English)', 'content.sicha.title', 'Title (Hebrew)', 'content.sicha.titleHe', false, 2, [SOFT_LIMITS.attribution, SOFT_LIMITS.attribution])}
+        <Field title="Text (a blank line starts a new paragraph)">
+          <TextArea value={c.sicha.body} onChange={(v) => set('content.sicha.body', v)} rows={8} rtl={isHeb(c.sicha.body)} ariaLabel="Sicha text" />
+        </Field>
+        <Field title="Source line"><TextInput value={c.sicha.source} onChange={(v) => set('content.sicha.source', v)} placeholder="Likkutei Sichos, vol. 5, p. 23" ariaLabel="Source" /></Field>
+        <p style={{ ...label, color: colors.muted }}>Shown at a fixed readable size. If it does not fit, it splits into pages that step every 12 seconds, and a slide stays on screen long enough for all of them.</p>
+      </>
+    );
+  } else if (layout === 'letter') {
+    textFields = (
+      <>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
+          <Field title="Date (English, optional)"><TextInput value={c.letter.date} onChange={(v) => set('content.letter.date', v)} placeholder="Brooklyn, N.Y." ariaLabel="Letter date" /></Field>
+          <Field title="Date (Hebrew, optional)"><TextInput rtl value={c.letter.dateHe} onChange={(v) => set('content.letter.dateHe', v)} placeholder="ט״ו מרחשון, ה׳תשט״ז" ariaLabel="Letter date in Hebrew" /></Field>
+          <Field title="Greeting"><TextInput rtl={isHeb(c.letter.salutation)} value={c.letter.salutation} onChange={(v) => set('content.letter.salutation', v)} placeholder="שלום וברכה!" ariaLabel="Greeting" /></Field>
+          <Field title="Signature (optional)"><TextInput rtl={isHeb(c.letter.signature)} value={c.letter.signature} onChange={(v) => set('content.letter.signature', v)} ariaLabel="Signature" /></Field>
+        </div>
+        <Field title="Letter text (a blank line starts a new paragraph)">
+          <TextArea value={c.letter.body} onChange={(v) => set('content.letter.body', v)} rows={8} rtl={isHeb(c.letter.body)} ariaLabel="Letter text" />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
+          <Field title="Source (English)"><TextInput value={c.letter.source} onChange={(v) => set('content.letter.source', v)} placeholder="Igros Kodesh vol. 12, letter 4,123" ariaLabel="Letter source" /></Field>
+          <Field title="Source (Hebrew)"><TextInput rtl value={c.letter.sourceHe} onChange={(v) => set('content.letter.sourceHe', v)} placeholder="אגרות קודש" ariaLabel="Letter source in Hebrew" /></Field>
+        </div>
+        <p style={{ ...label, color: colors.muted }}>Long letters split into pages the same way as a sicha.</p>
       </>
     );
   } else {
     textFields = (
       <>
-        {pair('Main line (English)', 'content.headlineEn', 'Main line (Hebrew)', 'content.headlineHe', true, 2)}
+        {pair('Main line (English)', 'content.headlineEn', 'Main line (Hebrew)', 'content.headlineHe', true, 2, [SOFT_LIMITS.bigEn, SOFT_LIMITS.bigHe])}
         {pair('Second line (English)', 'content.bodyEn', 'Second line (Hebrew)', 'content.bodyHe', true, 2)}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
-          <Field title="Small line on top (optional)"><TextInput value={c.target} onChange={(v) => set('content.target', v)} placeholder="Shiur Gimmel / Everyone" ariaLabel="Small line on top" /></Field>
-          <Field title="Subtitle (optional)"><TextInput value={c.subtitle} onChange={(v) => set('content.subtitle', v)} ariaLabel="Subtitle" /></Field>
-        </div>
+        {kickerFields}
+        <Field title="Subtitle (optional)"><TextInput value={c.subtitle} onChange={(v) => set('content.subtitle', v)} ariaLabel="Subtitle" /></Field>
         {layout === 'classic' && !style && (item.look.template === 'quote') && (
           <Field title="Attribution"><TextInput value={c.attribution} onChange={(v) => set('content.attribution', v)} ariaLabel="Attribution" /></Field>
         )}
@@ -448,26 +548,22 @@ export default function AnnouncementComposer({
       {showStyle && (
         <>
           <span style={label}>Style</span>
-          <div role="radiogroup" aria-label="Style" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '10px', WebkitOverflowScrolling: 'touch' }}>
-            {STYLE_OPTIONS.map((o) => (
-              <button
-                key={o.value || 'theme'}
-                type="button"
-                role="radio"
-                aria-checked={style === o.value}
-                onClick={() => set('look.style', o.value || null)}
-                title={o.desc}
-                style={{
-                  flex: '0 0 auto', width: '84px', padding: '6px', borderRadius: '8px', cursor: 'pointer', textAlign: 'center',
-                  border: `1px solid ${style === o.value ? colors.gold : colors.border}`,
-                  background: style === o.value ? colors.goldBg : 'transparent',
-                }}
-              >
-                <div style={{ height: '28px', borderRadius: '4px', background: o.swatch || colors.panel, border: o.swatch ? 'none' : `1px dashed ${colors.border}` }} />
-                <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: style === o.value ? colors.gold : colors.text, marginTop: '4px' }}>{o.label}</div>
-              </button>
-            ))}
+          <div style={{ marginBottom: '12px' }}>
+            <StylePicker value={style} onChange={(v) => set('look.style', v || null)} item={item} layout={layout} settings={settings} />
           </div>
+          <Field title="Animation" style={{ maxWidth: '340px' }}>
+            <select
+              value={item.look.animation || 'full'}
+              onChange={(e) => set('look.animation', e.target.value)}
+              aria-label="Animation"
+              style={{ ...inputStyle, minHeight: '40px', fontFamily: adminFonts.englishBody, fontSize: '15px' }}
+            >
+              {ANIMATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <span style={{ ...label, marginTop: '4px', marginBottom: 0, color: colors.muted }}>
+              The screen&rsquo;s Motion setting still applies: Minimal plays the entrance only, Lively adds word-by-word reveals.
+            </span>
+          </Field>
         </>
       )}
       {showTemplate && (

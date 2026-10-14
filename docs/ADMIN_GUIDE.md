@@ -85,7 +85,7 @@ These slides display content you create or upload:
 
 ### Styled Templates
 
-Message slides can use any of the 11 takeover looks (Grand, Sleek, Torah, Trip, ...) while staying a normal slide in the rotation. Pick the style in the composer's **Look** section. Message rows in the Slides list show the message text and an **Edit** button; their switch pauses or resumes the message. Messages posted from Announcements that are not in this list play after the listed slides (they are shown at the bottom of the list).
+Message slides can use any of the 26 looks (Grand, Sleek, Torah, Trip, Chanukah, ...) while staying a normal slide in the rotation. Pick the style in the composer's **Look** section. Message rows in the Slides list show the message text and an **Edit** button; their switch pauses or resumes the message. Messages posted from Announcements that are not in this list play after the listed slides (they are shown at the bottom of the list).
 
 ---
 
@@ -242,13 +242,20 @@ Tap **+ New announcement** (or **+ New Slide → Message** in Slides). On a phon
    - **Side note** -- a small note in the side column (up to 3 show at once; more take turns).
    - **Takeover** -- covers the whole screen and pauses everything.
 2. **Layout** (Slides and Takeovers):
-   - **Big words** -- a short message, sized as big as fits. A few words become huge; longer text shrinks to fit.
-   - **Event** -- a title, the day and time in "tiles", and a place.
-   - **List** -- a heading and up to 8 short items.
-   - **Quick time** -- e.g. "Mincha 1:45": the time is the big part, the name and place are smaller.
+   - **Big words** -- a short message, sized as big as fits. A few words become huge; longer text shrinks to fit. Optional small line on top and a second line underneath.
+   - **Event** -- a title, the day and time in "tiles", and a place (with an optional second place line and Hebrew).
+   - **List** -- a heading and up to 8 short items, each with an optional Hebrew line, day and time (6 or fewer fit comfortably).
+   - **Quick time** -- e.g. "Mincha 1:45": the time is the big part, the name and place are smaller. **More options** adds a second time with labels (candle lighting + havdalah), the old time ("was 1:45 PM"), a word before the time ("by 9:00") or a big countdown number ("3 days to go").
+   - **Quote** -- a short saying set large (Hebrew and/or English) with its source, e.g. "Tanya, chapter 12".
+   - **Sicha** -- an excerpt (title, text, source line) at a readable size that never shrinks. Text that does not fit splits into pages (1/3, 2/3...) that step every 12 seconds; a slide stays on screen long enough for all of them.
+   - **Letter** -- a letter with a Hebrew and/or English date, greeting, body, signature and source. Long letters page the same way. Hebrew text sets right-to-left automatically.
    - **Classic** -- the original templates (Headline, Quote, Info, Announcement) and styled cards.
 3. **Text** -- English and/or Hebrew (Hebrew boxes type right-to-left). Enter makes a new line on the screen. Times can be typed as "9:30 pm", "21:30" or "930p".
-4. **Look** -- **Style**: Theme (screen colours) or any of Classic, Grand, Emergency, Sleek, Celebration, Notice, Torah, Trip, Phone, Memorial, Hype. Any layout can use any style. **Text size** (Classic cards and side notes): Auto fits the space, Fixed keeps the original sizes. **Full screen** hides the side column. **Seconds on screen** for slides.
+4. **Look**
+   - **Style** -- 26 styles in five groups; tap a group, then a picture. Each picture is a live miniature of *your* text in that style. **Everyday**: Classic, Grand, Sleek, Quiet, Trip, Mivtzoim, Hype. **Alerts**: Emergency, Important, Time change, Phones away. **Moments**: Celebration, Simcha, Siyum, Torah, Memorial, Welcome, Farbrengen. **Shabbos & Yom Tov**: Shabbos, Yom Tov. **Seasonal**: Chanukah, Purim, Pesach, Rosh Chodesh, Lag BaOmer, Chassidic. **Theme** means no special style (drawn like Classic). Any layout can use any style; older announcements keep the style they had. Styles follow the screen's theme (dark or light) and your font choices.
+   - **Animation** -- **Full** (an entrance, then gentle looping motion such as flames, confetti or ripples), **Entrance only**, or **Off** (completely still). The screen's own Motion setting still applies: *Minimal* plays the entrance only, *Lively* adds word-by-word reveals. Quiet never loops. Everything stops if the screen's computer asks for reduced motion.
+   - **Text size** (Classic cards and side notes): Auto fits the space, Fixed keeps the original sizes. **Full screen** hides the side column. **Seconds on screen** for slides.
+   - Text grows to fill the space, and the composer shows a soft hint (for example "52/45 - long, it will show smaller") when a line is longer than the style looks best with. It never stops you from posting.
 5. **While this is showing** (Slides): **Keep rotating other slides** (it takes its turn) or **Pause everything else** (it stays on screen until it ends, then the slideshow continues where it left off).
 6. **When**
    - **Start**: now, or at a date and time.

@@ -14,7 +14,8 @@
     "setup": "node setup.js",
     "reset-admin": "node scripts/reset-admin-credentials.js",
     "test": "node --test test/*.test.js",
-    "test:hayom-yom": "node scripts/test-hayom-yom.js"
+    "test:hayom-yom": "node scripts/test-hayom-yom.js",
+    "audit:takeovers": "node scripts/takeover-audit.mjs"
   },
   "dependencies": {
     "@fontsource-variable/eb-garamond": "^5.3.0",
