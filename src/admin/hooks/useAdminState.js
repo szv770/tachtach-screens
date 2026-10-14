@@ -26,7 +26,7 @@ function parseErrorMessage(err) {
   return raw;
 }
 
-async function apiFetch(path, options = {}, _retried = false) {
+export async function apiFetch(path, options = {}, _retried = false) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET') {

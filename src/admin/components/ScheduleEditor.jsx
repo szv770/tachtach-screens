@@ -4,6 +4,7 @@ import { ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ICON_OPTIONS, ScheduleIcon } from '../../shared/ScheduleIcons.jsx';
 import { countdownDisplayOf } from '../../shared/scheduleDays.js';
+import { TimeField } from './schedule/scheduleShared.jsx';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Shabbos'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
@@ -418,23 +419,31 @@ function EntryForm({ form, setForm, categories, onSubmit, onCancel, submitting, 
       }}>
         <div>
           <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Time</label>
-          <input
-            type="time"
+          {/* Typeable ("2:10 pm", "14:10") instead of the native time wheel. */}
+          <TimeField
             value={form.time}
-            onChange={(e) => setForm(f => ({ ...f, time: e.target.value }))}
-            style={{ ...inputStyle, marginTop: '4px' }}
+            onCommit={(t) => setForm(f => ({ ...f, time: t }))}
+            ariaLabel="Time"
+            style={{ marginTop: '4px' }}
           />
         </div>
         <div>
           <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
             End Time <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
           </label>
-          <input
-            type="time"
+          <TimeField
             value={form.endTime}
-            onChange={(e) => setForm(f => ({ ...f, endTime: e.target.value }))}
-            style={{ ...inputStyle, marginTop: '4px' }}
+            onCommit={(t) => setForm(f => ({ ...f, endTime: t }))}
+            allowEmpty
+            placeholder="optional"
+            ariaLabel="End time"
+            style={{ marginTop: '4px' }}
           />
+          {form.endTime && form.time && form.endTime < form.time && (
+            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.copper, marginTop: '4px' }}>
+              Ends before it starts — check AM/PM.
+            </div>
+          )}
         </div>
         <div style={isMobile ? { gridColumn: '1 / -1' } : {}}>
           <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Category</label>
@@ -964,11 +973,15 @@ export default function ScheduleEditor({
     await onUpdateEntry(entry.id, { ...entry, enabled: !entry.enabled });
   };
 
-  const handleDelete = async (id) => {
-    await onDeleteEntry(id);
+  const [confirmDeleteEntry, setConfirmDeleteEntry] = useState(null);
+  const formRef = useRef(null);
+  const handleDelete = (id) => {
+    setConfirmDeleteEntry(entries.find(e => e.id === id) || { id });
   };
 
   const handleEdit = (entry) => {
+    // The form renders above the list — bring it into view (audit B.3).
+    setTimeout(() => formRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }), 0);
     setEditingId(entry.id);
     setShowCreate(false);
     setForm({
@@ -1065,11 +1078,11 @@ export default function ScheduleEditor({
         marginBottom: '20px',
       }}>
         <div>
-          <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold }}>
-            Schedule
-          </h2>
+          <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '20px', fontWeight: 600, color: colors.text }}>
+            Weekly schedule
+          </h3>
           <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginTop: '4px' }}>
-            Build your daily timetable. Entries appear on the Schedule slide and can trigger alerts before they start.
+            Repeats every week on the days you pick. Used on any date that doesn't have its own schedule (see By date). Entries can trigger alerts before they start.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -1132,7 +1145,7 @@ export default function ScheduleEditor({
 
       {/* Edit form */}
       {editingId && (
-        <div style={{ marginBottom: '16px' }}>
+        <div ref={formRef} style={{ marginBottom: '16px', scrollMarginTop: '80px' }}>
           <h3 style={{
             fontFamily: adminFonts.englishBody,
             fontSize: '16px',
@@ -1335,6 +1348,14 @@ export default function ScheduleEditor({
           </div>
         )}
       </div>
+      {confirmDeleteEntry && (
+        <ConfirmDialog
+          title="Delete this entry?"
+          message={`"${confirmDeleteEntry.name || confirmDeleteEntry.nameHe || 'This entry'}" will be removed from the weekly schedule.`}
+          onConfirm={async () => { const id = confirmDeleteEntry.id; setConfirmDeleteEntry(null); await onDeleteEntry(id); }}
+          onCancel={() => setConfirmDeleteEntry(null)}
+        />
+      )}
     </div>
   );
 }
