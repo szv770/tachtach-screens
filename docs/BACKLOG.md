@@ -13,11 +13,11 @@ Not urgent individually; pick these up when touching the area (next redesign/upg
 - [x] **Easy way to make and save a WEEKLY (done 2026-10-14) schedule.** Today: the old Weekly form (one entry at a time) + whole-schedule templates (load = replace everything). Wanted: build/paste a whole week in one go, name it, save it, and swap between saved weeks. Idea: extend the paste format with `@ every Sun-Thu` / `@ weekdays` / `@ Fri` headers (weekly rules instead of dates) + a "Save as weekly template" and a clear "Active weekly schedule" picker; per-date overrides still win.
 
 ### Kiosk look (fold into the next screen polish pass)
-- [ ] **Rambam (daily study) page hierarchy.** Today it dumps a lot at once. Make the **Sefer** the most prominent line, then the **Halachos**, then the **perakim** numbers presented cleanly ("Perek 1" / "1 perek" wording; multiple perakim as a range). Rambam 1-perek vs 3-perakim tracks need consistent wording.
-- [ ] **Tanya page:** the excerpt text is liked, but needs to look sleeker (typography/size/measure/spacing, source line style).
-- [ ] **Logo:** bigger and more prominent (currently an OK spot, too small). Add a size choice (S/M/L/XL) and a better position option, keeping the rail balanced.
-- [ ] **Rail clock typography:** nicer, bolder, greater presence (weight/size/tabular numerals; AM/PM treatment).
-- [ ] **Parsha + day/date composition in the rail:** Hebrew date, English date and parsha should read as one cohesive unit that complement each other (shared alignment, rhythm and sizes), not three separate styles.
+- [x] *(done 2026-10-14: Sefer → Halachos → perakim cards, `src/shared/limudim.js`)* **Rambam (daily study) page hierarchy.** Today it dumps a lot at once. Make the **Sefer** the most prominent line, then the **Halachos**, then the **perakim** numbers presented cleanly ("Perek 1" / "1 perek" wording; multiple perakim as a range). Rambam 1-perek vs 3-perakim tracks need consistent wording.
+- [x] *(done 2026-10-14: daily-quote page + Tanya excerpt on the learning page)* **Tanya page:** the excerpt text is liked, but needs to look sleeker (typography/size/measure/spacing, source line style).
+- [x] *(done 2026-10-14: S/M/L/XL, new "Rail — middle" spot, mask-based recolour)* **Logo:** bigger and more prominent (currently an OK spot, too small). Add a size choice (S/M/L/XL) and a better position option, keeping the rail balanced.
+- [x] *(done 2026-10-14)* **Rail clock typography:** nicer, bolder, greater presence (weight/size/tabular numerals; AM/PM treatment).
+- [x] *(done 2026-10-14: parsha chip)* **Parsha + day/date composition in the rail:** Hebrew date, English date and parsha should read as one cohesive unit that complement each other (shared alignment, rhythm and sizes), not three separate styles.
 - [x] **Weather tab (admin) clarity (done 2026-10-14).** Think through what each control does and what the screen will show; rename/regroup so it's obvious (units, location source = zip, rail readout vs Weather page, test button showing the fetched result). Hebrew label: **מזג אוויר** is the correct term for "weather" (definite form on a page title: **מזג האוויר**).
 
 ### Done / decided
