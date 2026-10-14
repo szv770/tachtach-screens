@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
-import { ConfirmDialog } from './ui.jsx';
+import { ConfirmDialog, ToggleSwitch } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ICON_OPTIONS, ScheduleIcon } from '../../shared/ScheduleIcons.jsx';
 import { countdownDisplayOf } from '../../shared/scheduleDays.js';
@@ -42,39 +42,6 @@ const TEMPLATE_ENTRIES = [
   { name: 'Maariv', nameHe: '', time: '19:00', endTime: '', category: 'davening', days: [...DAYS], alertBefore: 5, countdownDisplay: 'slide', enabled: true },
   { name: 'Night Seder', nameHe: '', time: '20:00', endTime: '22:00', category: 'learning', days: [...WEEKDAYS], alertBefore: 0, countdownDisplay: 'slide', enabled: true },
 ];
-
-function ToggleSwitch({ on, onChange, label }) {
-  // A real <button> with role="switch" so it's reachable by keyboard (Tab +
-  // Space/Enter) and announced correctly by screen readers.
-  // The transparent border + background-clip enlarges the touch target to
-  // ~48x32px (comfortable for thumbs) without changing the visual size.
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
-      title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
-      onClick={onChange}
-      style={{
-        width: 48, height: 32, borderRadius: '16px',
-        border: '6px solid transparent', padding: 0,
-        margin: '-6px',
-        background: on ? colors.gold : colors.muted,
-        backgroundClip: 'padding-box',
-        position: 'relative', cursor: 'pointer',
-        transition: 'background .2s', flexShrink: 0,
-      }}
-    >
-      <span style={{
-        width: 16, height: 16, borderRadius: '8px', display: 'block',
-        background: colors.bg, position: 'absolute',
-        top: 2, left: on ? 18 : 2, transition: 'left .2s',
-        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
-      }} />
-    </button>
-  );
-}
 
 function formatTime12(time24) {
   if (!time24) return '';

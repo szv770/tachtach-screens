@@ -86,3 +86,7 @@ Messages, pinned notes and custom text slides used to have six separate expiry c
 - **Auto-fit uses one-shot binary searches** (`design/fit.jsx`, `design/Paged.jsx`), measured in layout px, re-run on resize/font load. Use `vcenter` when text must sit centred in its box. Don't call them per frame.
 - **`ensureBuiltinSlides()`** adds the WEATHER slide row at startup because `update.sh` keeps the Pi's own `slides.json`. Any future built-in slide type must be added to `LATE_BUILTINS` in `src/server/builtin-slides.js` too (and `SlideManager` BUILT_IN_TYPES).
 - **Weather**: `fetchAll()` fetches it (Tracks B/C), keeps the last good value on failure, and the geocoded zip is cached in `cache.weather.location`. The sandbox could not reach Open-Meteo; shapes are covered by fixture tests (`test/screenDesign.test.js`), so verify once on the Pi (`curl` the log for `[weather]`).
+
+## Settings saves are PATCH, not PUT (2026-10-14)
+
+Every panel used to PUT the whole settings object from its own stale copy, so the last save reverted other panels' keys. `updateSettings(patch)` now PATCHes only the keys passed; the server deep-merges (`src/shared/settingsMerge.js`). Don't spread the whole `settings` prop into a save, and add any new top-level setting to `SETTINGS_KEYS` or the server returns 400. Also: `SLIDE_FIELDS` in `api.js` is a whitelist, so a field the admin sends but isn't listed is silently dropped (this had blanked every new video slide).

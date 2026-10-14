@@ -6,7 +6,12 @@ export default function ScreenControls({ onCommand, onRefresh }) {
   const isMobile = useIsMobile();
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(null); // track which command is in-flight
-  const [previewDate, setPreviewDate] = useState(() => new Date().toISOString().slice(0, 10));
+  // Local calendar date (toISOString() is UTC, which is already "tomorrow"
+  // after ~8 PM in New York).
+  const [previewDate, setPreviewDate] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
 
   const handleRefresh = async () => {
     setRefreshing(true);

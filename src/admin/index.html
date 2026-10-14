@@ -18,6 +18,15 @@
       /* Inputs must be ≥16px or iOS Safari auto-zooms the page on focus,
          which is the single biggest "broken on my phone" feel. */
       input, textarea, select { font-size: 16px !important; }
+      /* 44px minimum tap targets (Apple HIG) without touching each component.
+         Switches keep their own enlarged hit area; checkboxes/radios sit
+         inside tappable labels. min-height is ignored by inline elements, so
+         links inside running text are unaffected. */
+      button:not([role="switch"]), select, a, summary,
+      input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"]):not([type="hidden"]) {
+        min-height: 44px !important; /* beats smaller inline minHeight values */
+      }
+      input[type="checkbox"], input[type="radio"] { min-width: 20px; min-height: 20px; }
       button, a { -webkit-tap-highlight-color: transparent; }
       /* Hide horizontal scrollbar on the tab nav (WebKit) */
       nav::-webkit-scrollbar { display: none; }

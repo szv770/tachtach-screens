@@ -3,13 +3,13 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonD
 import { NumberField } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
-const DISPLAY_MODES = [
+export const DISPLAY_MODES = [
   { value: 'fit', label: 'Fit (show full)' },
   { value: 'fill', label: 'Fill (crop to cover)' },
   { value: 'stretch', label: 'Stretch' },
 ];
 
-const EDGE_TREATMENTS = [
+export const EDGE_TREATMENTS = [
   { value: 'blur', label: 'Blur' },
   { value: 'gradient', label: 'Gradient' },
   { value: 'dark', label: 'Dark' },

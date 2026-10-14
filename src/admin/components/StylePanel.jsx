@@ -4,6 +4,7 @@ import useIsMobile from '../hooks/useIsMobile.js';
 import { FontRoles } from './ScreenLookControls.jsx';
 import { resolveFontRoles, fontStack } from '../../shared/fontRoles.js';
 import '../../screen/design/fonts.js';
+import { notify } from '../hooks/useAdminState.js';
 
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
@@ -82,6 +83,7 @@ export default function StylePanel({ settings, onSave }) {
 
       const entry = await res.json();
       setUploadedFonts(prev => [...prev, entry]);
+      notify(`Font "${entry.name}" uploaded — pick it below`);
     } catch (err) {
       setUploadError(err.message);
     } finally {
@@ -92,10 +94,12 @@ export default function StylePanel({ settings, onSave }) {
 
   const handleDeleteFont = async (id) => {
     try {
-      await fetch(`/api/fonts/${id}`, {
+      const res = await fetch(`/api/fonts/${id}`, {
         method: 'DELETE',
         headers: { 'X-CSRF-Token': getCsrfToken() },
       });
+      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      notify('Font removed');
       setUploadedFonts(prev => prev.filter(f => f.id !== id));
 
       // Roles that used the deleted font fall back to their defaults
@@ -104,15 +108,16 @@ export default function StylePanel({ settings, onSave }) {
         setFontRoles(prev => Object.fromEntries(Object.entries(prev).filter(([, v]) => v !== deleted.name)));
       }
       setDirty(true);
-    } catch {
-      // ignore
+    } catch (err) {
+      notify(`Remove font: ${err.message}`, 'error');
     }
   };
 
   const handleSave = async () => {
     setSaving(true);
+    // Only the keys this panel owns — onSave is a PATCH (deep-merged on the
+    // server), so this can't revert theme/credit/etc. saved elsewhere.
     const newSettings = {
-      ...settings,
       fontRoles,
       hebrewFontScale,
     };
@@ -245,6 +250,9 @@ export default function StylePanel({ settings, onSave }) {
             opacity: saving || !dirty ? 0.6 : 1,
             padding: '10px 28px',
             fontSize: '15px',
+            minHeight: '44px',
+            // Unsaved changes on a phone: keep Save in reach while scrolling.
+            ...(isMobile && dirty ? { position: 'sticky', bottom: 'calc(12px + env(safe-area-inset-bottom))', zIndex: 20, width: '100%', boxShadow: '0 6px 24px rgba(0,0,0,.45)' } : {}),
           }}
           onClick={handleSave}
           disabled={saving || !dirty}

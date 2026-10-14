@@ -227,3 +227,39 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', cancelL
     </div>
   );
 }
+
+/**
+ * ToggleSwitch — on/off switch used in the Slides and Weekly schedule lists.
+ * A real <button role="switch"> so it's reachable by keyboard (Tab +
+ * Space/Enter) and announced correctly by screen readers. The transparent
+ * border + background-clip gives it a 48x44 touch target while the visible
+ * track stays 36x20; the negative margin keeps it from taking that space.
+ */
+export function ToggleSwitch({ on, onChange, label }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
+      title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
+      onClick={onChange}
+      style={{
+        width: 48, height: 44, borderRadius: '16px / 22px',
+        borderStyle: 'solid', borderColor: 'transparent', borderWidth: '12px 6px', padding: 0,
+        margin: '-12px -6px',
+        background: on ? colors.gold : colors.muted,
+        backgroundClip: 'padding-box',
+        position: 'relative', cursor: 'pointer',
+        transition: 'background .2s', flexShrink: 0,
+      }}
+    >
+      <span style={{
+        width: 16, height: 16, borderRadius: '8px', display: 'block',
+        background: colors.bg, position: 'absolute',
+        top: 2, left: on ? 18 : 2, transition: 'left .2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
+      }} />
+    </button>
+  );
+}

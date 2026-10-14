@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
-import { NumberField } from './ui.jsx';
+import { NumberField, ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 
 const HEBREW_MONTHS = [
@@ -8,7 +8,7 @@ const HEBREW_MONTHS = [
   'Adar II', 'Nissan', 'Iyar', 'Sivan', 'Tammuz', 'Av', 'Elul',
 ];
 
-export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }) {
+export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, onDelete }) {
   const isMobile = useIsMobile();
   const [mode, setMode] = useState('hebrew');
   const [form, setForm] = useState({
@@ -19,9 +19,33 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
   });
 
   const [adding, setAdding] = useState(false);
+  // Editing an existing day reuses the form above the list (same id on save).
+  const [editingId, setEditingId] = useState(null);
+  const formRef = useRef(null);
+  const [confirmId, setConfirmId] = useState(null);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(f => ({ ...f, title: '', subtitle: '' }));
+  };
+
+  const startEdit = (day) => {
+    setEditingId(day.id);
+    setMode(day.hebrewMonth ? 'hebrew' : 'gregorian');
+    setForm({
+      title: day.title || '',
+      subtitle: day.subtitle || '',
+      hebrewMonth: day.hebrewMonth || 'Tishrei',
+      hebrewDay: day.hebrewDay || 1,
+      gregorianMonth: day.gregorianMonth || 1,
+      gregorianDay: day.gregorianDay || 1,
+      recurring: day.recurring !== false,
+    });
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
 
   const handleAdd = async () => {
-    if (!form.title) return;
+    if (!form.title.trim()) return;
     setAdding(true);
     try {
       const payload = {
@@ -36,10 +60,18 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
         payload.gregorianMonth = form.gregorianMonth;
         payload.gregorianDay = form.gregorianDay;
       }
-      const result = await onCreate(payload);
-      if (result) {
-        setForm(f => ({ ...f, title: '', subtitle: '' }));
+      let result;
+      if (editingId && onUpdate) {
+        // Send both kinds of date so switching Hebrew<->Gregorian clears the other.
+        result = await onUpdate(editingId, {
+          ...payload,
+          subtitle: form.subtitle || '',
+          ...(mode === 'hebrew' ? { gregorianMonth: null, gregorianDay: null } : { hebrewMonth: null, hebrewDay: null }),
+        });
+      } else {
+        result = await onCreate(payload);
       }
+      if (result) resetForm();
     } finally {
       setAdding(false);
     }
@@ -63,8 +95,13 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
         Mark special dates that appear as a highlighted badge on the clock/date display. Use Hebrew dates for Yahrzeits, holidays, or recurring Jewish events; use Gregorian for calendar-based events.
       </p>
 
+      {editingId && (
+        <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.gold, marginBottom: '10px' }}>
+          Editing “{customDays.find(d => d.id === editingId)?.title || ''}”
+        </div>
+      )}
       {/* Mode toggle */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+      <div ref={formRef} style={{ display: 'flex', gap: '8px', marginBottom: '16px', scrollMarginTop: '140px' }}>
         <button style={modeBtn('hebrew', 'Hebrew Date')} onClick={() => setMode('hebrew')}>
           Hebrew Date
         </button>
@@ -172,13 +209,20 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
             Repeat every year <span style={{ fontSize: '11px', color: colors.muted }}>(uncheck for a one-time event)</span>
           </span>
         </label>
-        <button
-          style={{ ...buttonPrimary, opacity: adding ? 0.6 : 1, minHeight: '44px' }}
-          onClick={handleAdd}
-          disabled={adding}
-        >
-          {adding ? 'Adding...' : 'Add Custom Day'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
+          <button
+            style={{ ...buttonPrimary, opacity: adding || !form.title.trim() ? 0.6 : 1, minHeight: '44px' }}
+            onClick={handleAdd}
+            disabled={adding || !form.title.trim()}
+          >
+            {editingId ? (adding ? 'Saving...' : 'Save Changes') : (adding ? 'Adding...' : 'Add Custom Day')}
+          </button>
+          {editingId && (
+            <button style={{ ...buttonSecondary, minHeight: '44px' }} onClick={resetForm} disabled={adding}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -221,7 +265,15 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
               </span>
             )}
             <button
-              onClick={() => onDelete(day.id)}
+              onClick={() => startEdit(day)}
+              aria-label={`Edit ${day.title}`}
+              style={{ ...buttonSecondary, padding: '6px 14px', fontSize: '13px', minHeight: '44px', flexShrink: 0 }}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setConfirmId(day.id)}
+              aria-label={`Delete ${day.title}`}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -229,8 +281,8 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
                 fontSize: '18px',
                 cursor: 'pointer',
                 padding: '0 4px',
-                minWidth: isMobile ? '40px' : '32px',
-                minHeight: isMobile ? '40px' : '32px',
+                minWidth: '44px',
+                minHeight: '44px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -241,6 +293,15 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onDelete }
             </button>
           </div>
         ))}
+        {confirmId && (
+          <ConfirmDialog
+            title="Delete custom day?"
+            message={`"${customDays.find(d => d.id === confirmId)?.title || ''}" will no longer show on the screen.`}
+            confirmLabel="Delete"
+            onConfirm={() => { const id = confirmId; setConfirmId(null); if (editingId === id) resetForm(); onDelete(id); }}
+            onCancel={() => setConfirmId(null)}
+          />
+        )}
         {customDays.length === 0 && (
           <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.muted, padding: '20px 0', textAlign: 'center' }}>
             No custom days configured

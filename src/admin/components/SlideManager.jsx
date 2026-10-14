@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
-import { NumberField, DraftTextInput, ConfirmDialog } from './ui.jsx';
+import { NumberField, DraftTextInput, ConfirmDialog, ToggleSwitch } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ZMANIM_DISPLAY } from '../../shared/constants.js';
+import { DISPLAY_MODES as IMAGE_DISPLAY_MODES, EDGE_TREATMENTS } from './ImageUploader.jsx';
 import { status as announcementStatus, primaryText, selectActive } from '../../shared/announcements.js';
 
 const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
@@ -21,39 +22,6 @@ const BUILT_IN_LABELS = {
   MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen (embed)',
 };
 
-function ToggleSwitch({ on, onChange, label }) {
-  // A real <button> with role="switch" so it's reachable by keyboard (Tab +
-  // Space/Enter) and announced correctly by screen readers.
-  // The transparent border + background-clip enlarges the touch target to
-  // ~48x32px (comfortable for thumbs) without changing the visual size.
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
-      title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
-      onClick={onChange}
-      style={{
-        width: 48, height: 32, borderRadius: '16px',
-        border: '6px solid transparent', padding: 0,
-        margin: '-6px',
-        background: on ? colors.gold : colors.muted,
-        backgroundClip: 'padding-box',
-        position: 'relative', cursor: 'pointer',
-        transition: 'background .2s', flexShrink: 0,
-      }}
-    >
-      <span style={{
-        width: 16, height: 16, borderRadius: '8px', display: 'block',
-        background: colors.bg, position: 'absolute',
-        top: 2, left: on ? 18 : 2, transition: 'left .2s',
-        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
-      }} />
-    </button>
-  );
-}
-
 const LIMUDIM_ITEMS = [
   { key: 'chumash',   label: 'Chumash' },
   { key: 'tehillim',  label: 'Tehillim' },
@@ -70,6 +38,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
   const [limudimExpanded, setLimudimExpanded] = useState(null); // slide index or null
   const [embedExpanded, setEmbedExpanded] = useState(null); // slide index or null
   const [embedUrlDraft, setEmbedUrlDraft] = useState('');
+  const [imageExpanded, setImageExpanded] = useState(null); // slide index or null
   const [confirmDelete, setConfirmDelete] = useState(null); // slide object or null
   // Drag state. Rows are only made draggable while the mouse is down on the
   // grab handle — otherwise HTML5 drag hijacks text selection inside the
@@ -251,7 +220,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     style={{
                       background: 'transparent', border: 'none', cursor: idx === 0 ? 'default' : 'pointer',
                       color: idx === 0 ? colors.muted : colors.dim, fontSize: '15px', padding: '0', lineHeight: 1,
-                      opacity: idx === 0 ? 0.3 : 1, minWidth: '36px', minHeight: '30px',
+                      opacity: idx === 0 ? 0.3 : 1, minWidth: '44px', minHeight: '40px',
                     }}
                   >{'\u25B2'}</button>
                   <button
@@ -261,7 +230,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     style={{
                       background: 'transparent', border: 'none', cursor: idx === slides.length - 1 ? 'default' : 'pointer',
                       color: idx === slides.length - 1 ? colors.muted : colors.dim, fontSize: '15px', padding: '0', lineHeight: 1,
-                      opacity: idx === slides.length - 1 ? 0.3 : 1, minWidth: '36px', minHeight: '30px',
+                      opacity: idx === slides.length - 1 ? 0.3 : 1, minWidth: '44px', minHeight: '40px',
                     }}
                   >{'\u25BC'}</button>
                 </div>
@@ -320,7 +289,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                         style={{
                           background: 'transparent', border: `1px solid ${colors.muted}`, borderRadius: '4px', color: colors.dim,
                           fontSize: '13px', cursor: 'pointer', padding: isMobile ? '6px 14px' : '3px 10px',
-                          minHeight: isMobile ? '38px' : '28px', fontFamily: adminFonts.englishBody,
+                          minHeight: isMobile ? '44px' : '28px', fontFamily: adminFonts.englishBody,
                         }}
                       >
                         Edit
@@ -390,11 +359,31 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '13px',
                     cursor: 'pointer',
                     padding: isMobile ? '6px 14px' : '3px 10px',
-                    minHeight: isMobile ? '38px' : '28px',
+                    minHeight: isMobile ? '44px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
                   {embedExpanded === idx ? 'Close' : 'Edit'}
+                </button>
+              )}
+              {slide.type === 'IMAGE_SLIDE' && (
+                <button
+                  onClick={() => setImageExpanded(imageExpanded === idx ? null : idx)}
+                  title="How the image fits the screen"
+                  aria-expanded={imageExpanded === idx}
+                  style={{
+                    background: imageExpanded === idx ? colors.goldBg : 'transparent',
+                    border: `1px solid ${imageExpanded === idx ? colors.gold : colors.muted}`,
+                    borderRadius: '4px',
+                    color: imageExpanded === idx ? colors.gold : colors.dim,
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '44px' : '28px',
+                    fontFamily: adminFonts.englishBody,
+                  }}
+                >
+                  {imageExpanded === idx ? 'Close' : 'Edit'}
                 </button>
               )}
               {slide.type === 'ZMANIM' && onSaveSettings && (
@@ -409,7 +398,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '13px',
                     cursor: 'pointer',
                     padding: isMobile ? '6px 14px' : '3px 10px',
-                    minHeight: isMobile ? '38px' : '28px',
+                    minHeight: isMobile ? '44px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -428,7 +417,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '13px',
                     cursor: 'pointer',
                     padding: isMobile ? '6px 14px' : '3px 10px',
-                    minHeight: isMobile ? '38px' : '28px',
+                    minHeight: isMobile ? '44px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -447,7 +436,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '13px',
                     cursor: 'pointer',
                     padding: isMobile ? '6px 14px' : '3px 10px',
-                    minHeight: isMobile ? '38px' : '28px',
+                    minHeight: isMobile ? '44px' : '28px',
                     fontFamily: adminFonts.englishBody,
                   }}
                 >
@@ -466,8 +455,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     fontSize: '18px',
                     cursor: 'pointer',
                     padding: '0 4px',
-                    minWidth: isMobile ? '40px' : '32px',
-                    minHeight: isMobile ? '40px' : '32px',
+                    minWidth: isMobile ? '44px' : '32px',
+                    minHeight: isMobile ? '44px' : '32px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -507,7 +496,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                               ? [...current, z.k]
                               : current.filter(k => k !== z.k);
                             const allKeys = ZMANIM_DISPLAY.map(x => x.k);
-                            onSaveSettings({ ...settings, zmanimVisible: next.length === allKeys.length ? [] : next });
+                            onSaveSettings({ zmanimVisible: next.length === allKeys.length ? [] : next });
                           }}
                           style={{ accentColor: colors.gold, width: '15px', height: '15px', cursor: 'pointer', flexShrink: 0 }}
                         />
@@ -546,7 +535,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                       return (
                         <button
                           key={opt.v}
-                          onClick={() => onSaveSettings({ ...settings, limudimLang: opt.v })}
+                          onClick={() => onSaveSettings({ limudimLang: opt.v })}
                           style={{
                             background: active ? colors.goldBg : 'transparent',
                             border: `1px solid ${active ? colors.gold : colors.muted}`,
@@ -577,7 +566,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                             checked={checked}
                             onChange={e => {
                               const next = { ...(settings.limudimItems || {}), [item.key]: e.target.checked };
-                              onSaveSettings({ ...settings, limudimItems: next });
+                              onSaveSettings({ limudimItems: next });
                             }}
                             style={{ accentColor: colors.gold, width: '15px', height: '15px', cursor: 'pointer', flexShrink: 0 }}
                           />
@@ -589,6 +578,34 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     })}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Image fit / edge panel */}
+            {slide.type === 'IMAGE_SLIDE' && imageExpanded === idx && (
+              <div style={{ marginTop: '12px', padding: '14px', background: colors.bg, borderRadius: '4px', border: `1px solid ${colors.muted}`, display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <label style={{ flex: '1 1 180px' }}>
+                  <span style={{ display: 'block', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '4px' }}>Display mode</span>
+                  <select
+                    value={slide.displayMode || 'fit'}
+                    onChange={(e) => onUpdate(slides.map((s, j) => j === idx ? { ...s, displayMode: e.target.value } : s))}
+                    style={{ ...inputStyle, cursor: 'pointer' }}
+                  >
+                    {IMAGE_DISPLAY_MODES.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
+                </label>
+                {(slide.displayMode || 'fit') === 'fit' && (
+                  <label style={{ flex: '1 1 180px' }}>
+                    <span style={{ display: 'block', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '4px' }}>Around the image</span>
+                    <select
+                      value={slide.edgeTreatment || 'blur'}
+                      onChange={(e) => onUpdate(slides.map((s, j) => j === idx ? { ...s, edgeTreatment: e.target.value } : s))}
+                      style={{ ...inputStyle, cursor: 'pointer' }}
+                    >
+                      {EDGE_TREATMENTS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                  </label>
+                )}
               </div>
             )}
 
