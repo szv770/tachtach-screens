@@ -229,37 +229,54 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', cancelL
 }
 
 /**
- * ToggleSwitch — on/off switch used in the Slides and Weekly schedule lists.
- * A real <button role="switch"> so it's reachable by keyboard (Tab +
- * Space/Enter) and announced correctly by screen readers. The transparent
- * border + background-clip gives it a 48x44 touch target while the visible
- * track stays 36x20; the negative margin keeps it from taking that space.
+ * ToggleSwitch — on/off switch used in the Slides, Weekly schedule and
+ * Settings lists. A real <button role="switch"> so it's reachable by keyboard
+ * (Tab + Space/Enter) and announced correctly by screen readers.
+ *
+ * Fixed geometry so it can never look stretched: the visible track is always
+ * 44x26 with a 20px knob (`flex: none`, explicit min/max sizes, so a flex or
+ * grid parent can't grow or shrink it). The <button> itself is only the
+ * transparent hit area (52x44); negative margins give the layout just the
+ * 44x26 of the track while the tap target stays >= 44px.
  */
+export const TOGGLE_TRACK = { w: 44, h: 26, knob: 20 };
+
 export function ToggleSwitch({ on, onChange, label }) {
+  const { w, h, knob } = TOGGLE_TRACK;
+  const pad = (h - knob) / 2;
   return (
     <button
       type="button"
       role="switch"
-      aria-checked={on}
+      aria-checked={!!on}
       aria-label={label || (on ? 'Enabled — click to disable' : 'Disabled — click to enable')}
       title={on ? 'Enabled — click to disable' : 'Disabled — click to enable'}
       onClick={onChange}
       style={{
-        width: 48, height: 44, borderRadius: '16px / 22px',
-        borderStyle: 'solid', borderColor: 'transparent', borderWidth: '12px 6px', padding: 0,
-        margin: '-12px -6px',
-        background: on ? colors.gold : colors.muted,
-        backgroundClip: 'padding-box',
-        position: 'relative', cursor: 'pointer',
-        transition: 'background .2s', flexShrink: 0,
+        position: 'relative', display: 'block', boxSizing: 'border-box',
+        flex: 'none', alignSelf: 'center', justifySelf: 'start',
+        width: w + 8, minWidth: w + 8, maxWidth: w + 8,
+        height: 44, minHeight: 44, maxHeight: 44,
+        margin: `${-(44 - h) / 2}px -4px`, padding: 0,
+        background: 'transparent', border: 'none',
+        cursor: 'pointer', WebkitTapHighlightColor: 'transparent',
       }}
     >
-      <span style={{
-        width: 16, height: 16, borderRadius: '8px', display: 'block',
-        background: colors.bg, position: 'absolute',
-        top: 2, left: on ? 18 : 2, transition: 'left .2s',
-        boxShadow: '0 1px 2px rgba(0,0,0,.35)',
-      }} />
+      <span aria-hidden="true" style={{
+        position: 'absolute', left: 4, top: (44 - h) / 2,
+        width: w, height: h, borderRadius: h / 2, boxSizing: 'border-box',
+        background: on ? colors.gold : colors.muted,
+        transition: 'background .2s',
+      }}>
+        <span style={{
+          position: 'absolute', top: pad, left: 0,
+          width: knob, height: knob, borderRadius: '50%',
+          background: colors.bg,
+          transform: `translateX(${on ? w - knob - pad : pad}px)`,
+          transition: 'transform .2s',
+          boxShadow: '0 1px 2px rgba(0,0,0,.35)',
+        }} />
+      </span>
     </button>
   );
 }
