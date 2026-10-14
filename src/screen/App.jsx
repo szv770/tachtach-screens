@@ -435,6 +435,7 @@ function AppContent() {
           tokens={tokens}
           fullscreen={isFullscreen}
           credit={settings.credit}
+          currentSlideId={(holdSlide || slideRotation.currentSlide)?.id ?? null}
           clockSide={railSide}
           portrait={isPortrait}
         />

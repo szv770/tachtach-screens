@@ -474,8 +474,9 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
               <label title="Where the credit line appears on the screen — under the clock panel, at the bottom corner, or pinned to a specific slide" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Position</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
                 {[
-                  { value: 'under-clock', label: 'Under Clock' },
-                  { value: 'bottom', label: 'Bottom of Screen' },
+                  { value: 'rail-center', label: 'Rail — middle (largest)' },
+                  { value: 'under-clock', label: 'Rail — bottom' },
+                  { value: 'bottom', label: 'Screen corner (small)' },
                   { value: 'slide', label: 'On Specific Slide' },
                 ].map(pos => (
                   <ThemeButton
@@ -601,7 +602,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
                 {[
                   { value: 'original', label: 'Original' },
                   { value: 'match-theme', label: 'Match Theme' },
-                  { value: 'mono-gold', label: 'Monochrome Gold' },
+                  { value: 'mono-gold', label: 'Accent Color' },
+                  { value: 'plate', label: 'On a Plate' },
                   { value: 'subtle', label: 'Subtle' },
                 ].map(bm => (
                   <ThemeButton
@@ -614,8 +616,9 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
               </div>
               <p style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim, marginTop: '6px', lineHeight: 1.5 }}>
                 <strong>Original</strong> — show as uploaded &bull;{' '}
-                <strong>Match Theme</strong> — recolor to fit dark/light theme &bull;{' '}
-                <strong>Monochrome Gold</strong> — gold tint &bull;{' '}
+                <strong>Match Theme</strong> — one-color silhouette in the theme's text color &bull;{' '}
+                <strong>Accent Color</strong> — silhouette in the theme's accent &bull;{' '}
+                <strong>On a Plate</strong> — on a soft rounded card (logos with their own background) &bull;{' '}
                 <strong>Subtle</strong> — faint watermark
               </p>
             </div>
@@ -644,14 +647,15 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
                   <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Logo Size</label>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
                     {[
-                      { value: 'small', label: 'Small (24px)' },
-                      { value: 'medium', label: 'Medium (36px)' },
-                      { value: 'large', label: 'Large (48px)' },
+                      { value: 'small', label: 'S' },
+                      { value: 'medium', label: 'M' },
+                      { value: 'large', label: 'L' },
+                      { value: 'xl', label: 'XL' },
                     ].map(sz => (
                       <ThemeButton
                         key={sz.value}
                         label={sz.label}
-                        active={((local.credit || {}).logo?.size || 'medium') === sz.value}
+                        active={((local.credit || {}).logo?.size || 'large') === sz.value}
                         onClick={() => updateNested('credit', 'logo', { ...((local.credit || {}).logo || {}), size: sz.value })}
                       />
                     ))}
