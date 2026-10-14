@@ -120,3 +120,12 @@ test('built-in WEATHER slide is added once', () => {
   assert.equal(a.slides.at(-1).enabled, false);
   assert.equal(addMissingBuiltins(a.slides).added.length, 0);
 });
+
+test('isScheduleSlideOn: schedule slide disabled/removed turns schedule updates off', async () => {
+  const { isScheduleSlideOn } = await import('../src/shared/scheduleDays.js');
+  assert.equal(isScheduleSlideOn(undefined), true);                       // not loaded → don't hide
+  assert.equal(isScheduleSlideOn([{ type: 'SCHEDULE' }]), true);          // enabled by default
+  assert.equal(isScheduleSlideOn([{ type: 'SCHEDULE', enabled: true }]), true);
+  assert.equal(isScheduleSlideOn([{ type: 'SCHEDULE', enabled: false }]), false);
+  assert.equal(isScheduleSlideOn([{ type: 'ZMANIM' }]), false);           // removed
+});

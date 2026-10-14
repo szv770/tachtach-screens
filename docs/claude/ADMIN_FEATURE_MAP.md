@@ -19,7 +19,10 @@ Every feature the server/kiosk supports, and the admin control that reaches it. 
 | Slides | Video slide URL, image blur backdrop | Media upload | Fixed (server whitelist dropped `videoUrl`/`blurUrl`/`edgeTreatment`/`isGif`, so new videos were blank) |
 | Slides | Delete custom slides | `SlideManager` (+ toast) | OK |
 | Schedule | Per-date schedules, blocks, paste/import | Schedule > By date / Paste / Weekly | OK (Phase 3) |
-| Schedule | Weekly entries, categories, templates, alerts | Schedule > Weekly | OK |
+| Schedule | Weekly entries, categories (+ per-category default alert), templates, alerts | Schedule > Weekly | OK |
+| Schedule | Whole weekly schedule by paste (`@ every Sun-Thu`), copy as text, save/switch weekly templates (auto-backup on replace) | Schedule > Weekly > Active weekly schedule (`schedule/ScheduleWeekly.jsx`; `PUT /api/schedule/weekly`) | New |
+| Schedule | Claude prompt types (day/Shabbos, weekly) | Paste / Import and Weekly > "Copy Claude prompt for…" (`PROMPT_TYPES`) | New |
+| Settings | Weather: rail readout, units, location (read-only, from Location), Weather page toggle (WEATHER slide), Test button | Settings > Weather (`WeatherSettings`; `GET /api/weather/preview`) | Regrouped |
 | Schedule | Slide language (`settings.language`) | Settings > Schedule Display | Fixed (no UI) |
 | Schedule | Display mode / scroll speed / start | Settings > Schedule Display | OK |
 | Announcements | Slide/banner/side note/takeover, drafts, recurrence, hold | Announcements tab + composer | OK |
@@ -52,7 +55,7 @@ Every feature the server/kiosk supports, and the admin control that reaches it. 
 
 ## Mobile (390x844) checks
 
-No horizontal overflow in any section; inputs are 16px; all buttons, selects, summaries and links are at least 44px tall (global rule in `src/admin/index.html`, switches get a 44px hit area via `ToggleSwitch` in `ui.jsx`). Settings' sticky Save bar now sits below the sticky admin header (`--tt-header-h`); Style's Save sticks to the bottom while dirty. Feedback goes through toasts (`notify()` from `useAdminState.js` for components that do their own fetches).
+No horizontal overflow in any section; inputs are 16px; all buttons, selects, summaries and links are at least 44px tall (global rule in `src/admin/index.html`, switches are a fixed 44x26 track with a 44px hit area via `ToggleSwitch` in `ui.jsx`). Settings' sticky Save bar now sits below the sticky admin header (`--tt-header-h`); Style's Save sticks to the bottom while dirty. Feedback goes through toasts (`notify()` from `useAdminState.js` for components that do their own fetches).
 
 ## Known remaining
 

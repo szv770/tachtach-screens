@@ -124,7 +124,7 @@ Other buttons on the day:
 You don't need to remember any format -- the admin teaches Claude:
 
 1. Go to **Schedule → Paste / Import**. Choose **This Shabbos**, **Next Shabbos** or the **Picked date**. Under the buttons you'll see the zmanim it found (candle lighting, shkia, Shabbos ends).
-2. Tap **Copy Claude prompt**. It copies the rules, the dates, your categories, the icon list and that weekend's zmanim.
+2. Tap **Copy Claude prompt for…** and choose **A day / Shabbos schedule** (or **A weekly schedule**, see below). It copies the rules, the dates, your categories, the icon list and that weekend's zmanim.
 3. Open Claude chat, paste, and add what's happening, for example: *"Shacharis 9:30, kiddush after davening, Mincha 5:45, guest speaker at shalosh seudos, Rabbi Cohen gives the shiur Friday night at 9."*
 4. Copy Claude's answer (the code block) and paste it into the big box. Tap **Check & preview**.
 5. You'll see one card per date: the weekday, whether it **replaces** an existing schedule or is **new**, every item with its time, category and alert, and any problems with their **line number**. **Apply** stays grey while there are errors -- fix the line in the box (or paste the error back to Claude), then check again.
@@ -137,6 +137,20 @@ Tips:
 - If a zman can't be found, the prompt contains a clearly marked `[… NOT AVAILABLE — please fill in]` instead of a guess.
 - You can also upload a `.txt`, `.md` or `.json` file instead of pasting. (Excel files aren't supported yet.)
 - The full format is in `docs/SCHEDULE_FORMAT.md`. In short, one line per item: `6:28 PM | Candle Lighting | הדלקת נרות | Events | alert 15 takeover | icon candle`, and `@ 2026-10-24 clear` puts a date back on the weekly schedule.
+
+### Making a whole weekly schedule at once
+
+Schedule → **Weekly** starts with the **Active weekly schedule** panel:
+
+- **Paste weekly schedule** -- choose **Copy Claude prompt for… → A weekly schedule**, tell Claude your regular week, paste the answer, **Check & preview**, **Apply**. The preview says "Replaces N weekly items". Applying **replaces the whole weekly schedule**; the old one is saved first as a template called "Auto-backup <date>", so you can switch back.
+- **Copy as text** -- the current week in the same text format (give it to Claude to change).
+- **Save as weekly template** / **Switch to a saved week** -- name and keep several weeks (summer, regular, Chol Hamoed) and swap between them.
+- Dates with their own schedule (By date) always win over the weekly one.
+- Each category (Categories box below) has a **default alert**: Davening, Shiur and Seder start at 5 minutes, Meals none. Pasted lines with no `alert` get it; `alert 0` turns it off. The English name of an item is optional.
+
+### Weather
+
+Settings → **Weather (מזג האוויר)**: show the temperature in the rail, °F/°C, which zip it uses (set in Location), a switch to put the full **Weather page** in the rotation, and **Test weather now** to see exactly what was fetched (or why it failed).
 
 ### Weekly schedule: adding entries
 

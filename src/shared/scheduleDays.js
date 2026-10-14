@@ -66,3 +66,15 @@ export function countdownDisplayOf(entry) {
   const v = entry?.countdownDisplay || entry?.alertDisplay;
   return v === 'takeover' ? 'takeover' : 'slide';
 }
+
+/**
+ * Is the Schedule page switched on? The owner's rule (2026-10-14): when the
+ * Schedule slide is off (disabled, or removed), the screen must not show ANY
+ * schedule-driven updates — no "up next" card, no countdown alerts.
+ * `slides` not being an array (not loaded yet) counts as on, so a loading
+ * glitch never hides things.
+ */
+export function isScheduleSlideOn(slides) {
+  if (!Array.isArray(slides)) return true;
+  return slides.some((s) => s && s.type === 'SCHEDULE' && s.enabled !== false);
+}

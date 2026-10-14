@@ -19,6 +19,7 @@ import ScreenScaler from './components/ScreenScaler.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
+import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 
 /**
  * Normalize a server countdown payload (SSE `countdown-start` or
@@ -353,7 +354,8 @@ function AppContent() {
   const upNextWindow = Number(settings.rail?.upNextMinutes) > 0 ? Number(settings.rail.upNextMinutes) : 5;
   const onSchedulePage = (holdSlide || slideRotation.currentSlide)?.type === 'SCHEDULE';
   let upNext = null;
-  if (!onSchedulePage && !ann.takeover) {
+  // Owner rule: with the Schedule slide switched off, no schedule-driven updates.
+  if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !ann.takeover) {
     const nowM = nowDate.getHours() * 60 + nowDate.getMinutes();
     const next = (effectiveSchedule.entries || [])
       .filter((e) => e.enabled !== false)

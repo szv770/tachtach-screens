@@ -1,5 +1,6 @@
 import schedule from 'node-schedule';
-import { readJSON } from './storage.js';
+import { readJSON, writeJSON } from './storage.js';
+import { fetchWeather } from '../fetchers/weather.js';
 import { broadcast } from './sse.js';
 
 let trackAJobs = [];
@@ -246,4 +247,76 @@ export async function manualRefresh(config) {
     throw new Error('Scheduler not initialised — call initScheduler() first.');
   }
   return _fetchAll(config);
+}
+
+/**
+ * React to a settings save. Two things used to be missing, so changing the zip
+ * (or Chabad location / weather options) in admin appeared to do nothing:
+ *   1. Track C (the 30-min full refresh, which is what fetches weather) captured
+ *      the OLD location when it was created at startup and was never recreated.
+ *   2. Nothing refreshed right away — the screen kept the old place's data until
+ *      the next scheduled run.
+ * Here: re-arm Track C with the new config, then refresh weather (fast) and, when
+ * the location itself changed, zmanim and then everything else, in the background.
+ * Never throws; never blocks the settings save.
+ *
+ * @param {object|null} prev  settings before the save
+ * @param {object} next       settings after the save
+ */
+export async function applySettingsChange(prev, next) {
+  try {
+    const config = next?.location || {};
+    const prevLoc = prev?.location || {};
+    const locChanged = prevLoc.zip !== config.zip || prevLoc.locationId !== config.locationId;
+    const wxChanged =
+      JSON.stringify(prev?.weather ?? null) !== JSON.stringify(next?.weather ?? null) ||
+      prevLoc.timezone !== config.timezone;
+    if (!locChanged && !wxChanged) return;
+
+    if (locChanged) setupTrackC(config);
+
+    // Background refresh — the save has already returned to the admin.
+    (async () => {
+      try {
+        const wx = next?.weather || {};
+        if (wx.enabled !== false) {
+          let cache = (await readJSON('cache.json')) || {};
+          // A different zip must never keep showing the OLD place's weather
+          // while (or if) the new fetch fails — clear it first.
+          const targetZip = String(wx.zip || config.zip || '').trim();
+          if (cache.weather?.location?.zip && cache.weather.location.zip !== targetZip) {
+            cache = { ...cache, weather: null };
+            await writeJSON('cache.json', cache);
+            broadcast('cache-refresh', cache);
+          }
+          const weather = await fetchWeather({
+            zip: wx.zip || config.zip,
+            units: wx.units === 'C' ? 'C' : 'F',
+            timezone: config.timezone,
+            previous: cache.weather,
+          });
+          if (weather) {
+            const fresh = (await readJSON('cache.json')) || {};
+            const updated = { ...fresh, weather };
+            await writeJSON('cache.json', updated);
+            broadcast('cache-refresh', updated);
+            console.log('[scheduler] Weather refreshed after settings change');
+          }
+        }
+        if (locChanged && config.locationId && _fetchZmanimOnly) {
+          const updated = await _fetchZmanimOnly(config);
+          broadcast('cache-refresh', updated);
+        }
+        if (locChanged && _fetchAll) {
+          const updated = await _fetchAll(config);
+          broadcast('cache-refresh', updated);
+          console.log('[scheduler] Full refresh done after location change');
+        }
+      } catch (err) {
+        console.error('[scheduler] Refresh after settings change failed:', err.message);
+      }
+    })();
+  } catch (err) {
+    console.error('[scheduler] applySettingsChange error:', err.message);
+  }
 }

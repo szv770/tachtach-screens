@@ -30,9 +30,9 @@ function InfoIcon({ tip }) {
   );
 }
 
-function Section({ title, children }) {
+function Section({ title, children, id }) {
   return (
-    <div style={{
+    <div id={id} style={{
       background: colors.surface,
       borderRadius: '4px',
       border: `1px solid ${colors.muted}`,
@@ -72,7 +72,7 @@ function ThemeButton({ label, active, onClick }) {
   );
 }
 
-export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
+export default function SettingsPanel({ settings = {}, onSave, slides = [], onUpdateSlides, onCreateSlide }) {
   const isMobile = useIsMobile();
   const [local, setLocal] = useState(settings);
   const [saving, setSaving] = useState(false);
@@ -223,7 +223,7 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
         </div>
       </div>
 
-      <Section title="Location">
+      <Section title="Location" id="settings-location">
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
           <div>
             <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Zip Code <InfoIcon tip="Used to calculate daily zmanim (Jewish prayer times) for your location" /></label>
@@ -288,8 +288,8 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
         <ScreenLook local={local} update={update} updateNested={updateNested} />
       </Section>
 
-      <Section title="Weather">
-        <WeatherSettings local={local} updateNested={updateNested} />
+      <Section title={<>Weather <span dir="rtl" lang="he" style={{ marginLeft: '8px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>מזג האוויר</span></>}>
+        <WeatherSettings local={local} updateNested={updateNested} zip={locationZip} slides={slides} onUpdateSlides={onUpdateSlides} onCreateSlide={onCreateSlide} />
       </Section>
 
       <Section title="Daily Study Slide">

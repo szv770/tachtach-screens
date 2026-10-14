@@ -19,9 +19,9 @@ const ZMANIM_FILE = 'zmanim-dates.json';
 
 /** Owner's chosen starting categories (2026-10-14). Added if missing; never removed. */
 export const DEFAULT_CATEGORIES = [
-  { name: 'Davening', color: '#D4A84B', icon: 'prayer' },
-  { name: 'Shiur', color: '#2DD4BF', icon: 'book' },
-  { name: 'Seder', color: '#38BDF8', icon: 'book' },
+  { name: 'Davening', color: '#D4A84B', icon: 'prayer', defaultAlert: 5 },
+  { name: 'Shiur', color: '#2DD4BF', icon: 'book', defaultAlert: 5 },
+  { name: 'Seder', color: '#38BDF8', icon: 'book', defaultAlert: 5 },
   { name: 'Meals', color: '#F97316', icon: 'meal' },
   { name: 'Mivtzoim', color: '#EF4444', icon: 'megaphone' },
   { name: 'Farbrengen', color: '#EAB308', icon: 'music' },
@@ -30,6 +30,10 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Breaks', color: '#A0696A', icon: 'coffee' },
 ];
 const SEED_MARKER = 'default-categories-2026-10';
+const ALERT_SEED_MARKER = 'category-default-alerts-2026-10';
+/** Categories (matched like the parser does) that start with a 5-minute reminder. */
+export const DEFAULT_ALERT_CATEGORIES = ['Davening', 'Learning', 'Shiur', 'Seder'];
+export const DEFAULT_ALERT_MINUTES = 5;
 
 /** Colors handed to categories created from a paste. */
 const NEW_CATEGORY_PALETTE = ['#38BDF8', '#F472B6', '#84CC16', '#FB7185', '#22D3EE', '#EAB308', '#C084FC', '#F59E0B'];
@@ -92,6 +96,7 @@ export function addCategories(schedule, newCats) {
       name: String(nc.name).trim().slice(0, 60),
       color: nc.color || NEW_CATEGORY_PALETTE[schedule.categories.length % NEW_CATEGORY_PALETTE.length],
       ...(nc.icon ? { icon: nc.icon } : {}),
+      ...(nc.defaultAlert > 0 ? { defaultAlert: nc.defaultAlert } : {}),
     };
     schedule.categories.push(cat);
     added.push(cat);
@@ -115,6 +120,33 @@ export async function ensureDefaultCategories() {
     blocks.seeded.push(SEED_MARKER);
     await writeBlocksFile(blocks);
     return added;
+  });
+}
+
+/**
+ * Seed the 5-minute default reminder on learning + davening categories, once.
+ * Never overrides a defaultAlert the owner already set (including 0 = none,
+ * which the category editor stores by deleting the key — so a category the
+ * owner explicitly cleared before this ran is indistinguishable; that is
+ * fine because this only ever runs once, tracked by a marker).
+ * @returns {Promise<string[]>} names of categories updated
+ */
+export async function ensureCategoryDefaultAlerts() {
+  return withScheduleLock(async () => {
+    const blocks = await readBlocksFile();
+    if (blocks.seeded.includes(ALERT_SEED_MARKER)) return [];
+    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
+    const updated = [];
+    for (const c of schedule.categories || []) {
+      if (c.defaultAlert !== undefined) continue;
+      if (!DEFAULT_ALERT_CATEGORIES.some((n) => findCategory([c], n))) continue;
+      c.defaultAlert = DEFAULT_ALERT_MINUTES;
+      updated.push(c.name);
+    }
+    if (updated.length) await writeJSON('schedule.json', schedule);
+    blocks.seeded.push(ALERT_SEED_MARKER);
+    await writeBlocksFile(blocks);
+    return updated;
   });
 }
 
