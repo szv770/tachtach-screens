@@ -1,6 +1,6 @@
 import { readJSON } from './storage.js';
 import { broadcast } from './sse.js';
-import { dayCodeFor, countdownDisplayOf } from '../shared/scheduleDays.js';
+import { dayCodeFor, countdownDisplayOf, isScheduleSlideOn } from '../shared/scheduleDays.js';
 import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
 
 /** @type {Map<string, NodeJS.Timeout>} entry id -> alert start timer */
@@ -159,10 +159,17 @@ export async function initCountdowns() {
   // Clear any existing timers
   clearAllCountdowns();
 
-  const [schedule, scheduleDates] = await Promise.all([
+  const [schedule, scheduleDates, slides] = await Promise.all([
     readJSON('schedule.json'),
     readJSON('schedule-dates.json'),
+    readJSON('slides.json'),
   ]);
+
+  // Schedule slide switched off → no schedule-driven alerts at all.
+  if (!isScheduleSlideOn(slides)) {
+    console.log('[countdown] Schedule slide is off — no schedule alerts scheduled');
+    return;
+  }
 
   const now = new Date();
   const today = dayCodeFor(now);

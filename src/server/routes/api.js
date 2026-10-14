@@ -7,7 +7,7 @@ import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { getScreenState, setScreenState } from '../screenState.js';
-import { setupTrackA, setupTrackB, manualRefresh } from '../scheduler.js';
+import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
 import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia } from '../upload.js';
 import { syncAlbum, deleteAlbumCache, getAlbumStatus, getAlbumPhotos, startSyncTimer, stopSyncTimer } from '../google-photos.js';
 import { extractAlbumId } from '../../fetchers/google-photos.js';
@@ -113,8 +113,12 @@ function withSettingsLock(fn) {
 
 /** Write settings, broadcast, and restart scheduler tracks when asked. */
 async function saveSettings(settings, { restartScheduler = true } = {}) {
+  const prev = await readJSON('settings.json').catch(() => null);
   await writeJSON('settings.json', settings);
   broadcast('settings-update', settings);
+  // Re-arm Track C and refresh weather/zmanim now if the location or weather
+  // options changed (a zip change used to have no visible effect).
+  applySettingsChange(prev, settings);
   if (!restartScheduler) return;
   try {
     const config = settings.location || { zip: '33139', locationId: '33139' };
@@ -182,6 +186,12 @@ router.get('/slides', async (_req, res) => {
   }
 });
 
+// The Schedule slide being switched on/off decides whether schedule alerts run
+// at all (isScheduleSlideOn), so any slides change re-evaluates the timers.
+function reinitCountdownsForSlides() {
+  initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
+}
+
 router.put('/slides', async (req, res) => {
   try {
     const slides = req.body;
@@ -192,6 +202,7 @@ router.put('/slides', async (req, res) => {
     const sanitized = slides.map((s) => ({ id: s?.id, ...pick(s, SLIDE_FIELDS) }));
     await writeJSON('slides.json', sanitized);
     broadcast('slides-update', sanitized);
+    reinitCountdownsForSlides();
     res.json(sanitized);
   } catch (err) {
     console.error('[api] PUT /slides error:', err.message);
@@ -209,6 +220,7 @@ router.post('/slides', async (req, res) => {
     slides.push(newSlide);
     await writeJSON('slides.json', slides);
     broadcast('slides-update', slides);
+    reinitCountdownsForSlides();
     res.status(201).json(newSlide);
   } catch (err) {
     console.error('[api] POST /slides error:', err.message);
@@ -224,6 +236,7 @@ router.delete('/slides/:id', async (req, res) => {
     slides = slides.filter((s) => s.id !== req.params.id);
     await writeJSON('slides.json', slides);
     broadcast('slides-update', slides);
+    reinitCountdownsForSlides();
 
     // Clean up uploaded media file if this was a media slide
     if (deleted?.mediaId) {
