@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
+import { ThemePicker, AutoTheme, ScreenLook, WeatherSettings } from './ScreenLookControls.jsx';
 
 function InfoIcon({ tip }) {
   return (
@@ -232,89 +233,14 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
       </Section>
 
       <Section title="Theme">
-        <div style={{ marginBottom: '12px' }}>
-          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dark Themes</span>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
-            <ThemeButton label="Dark" active={local.theme === 'dark' || !local.theme} onClick={() => update('theme', 'dark')} />
-            <ThemeButton label="Dark HC" active={local.theme === 'dark-hc'} onClick={() => update('theme', 'dark-hc')} />
-            <ThemeButton label="Midnight" active={local.theme === 'midnight'} onClick={() => update('theme', 'midnight')} />
-            <ThemeButton label="Sepia" active={local.theme === 'sepia'} onClick={() => update('theme', 'sepia')} />
-          </div>
-        </div>
-        <div>
-          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Light Themes</span>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
-            <ThemeButton label="Parchment" active={local.theme === 'parchment'} onClick={() => update('theme', 'parchment')} />
-            <ThemeButton label="Clean White" active={local.theme === 'clean-white'} onClick={() => update('theme', 'clean-white')} />
-            <ThemeButton label="Ivory" active={local.theme === 'ivory'} onClick={() => update('theme', 'ivory')} />
-            <ThemeButton label="Sky" active={local.theme === 'sky'} onClick={() => update('theme', 'sky')} />
-          </div>
-        </div>
-        <p style={{
-          fontFamily: adminFonts.englishBody,
-          fontSize: '12px',
-          color: colors.dim,
-          marginTop: '10px',
-          lineHeight: 1.6,
-        }}>
-          <strong>Dark</strong> — classic warm gold &bull;{' '}
-          <strong>Dark HC</strong> — high contrast &bull;{' '}
-          <strong>Midnight</strong> — cool blue &bull;{' '}
-          <strong>Sepia</strong> — warm brown<br />
-          <strong>Parchment</strong> — warm tan &bull;{' '}
-          <strong>Clean White</strong> — minimal modern &bull;{' '}
-          <strong>Ivory</strong> — warm cream &bull;{' '}
-          <strong>Sky</strong> — fresh blue-white
-        </p>
+        <ThemePicker local={local} update={update} />
       </Section>
 
-      <Section title="Auto Theme by Zmanim">
-        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: '14px' }}>
-          <input
-            type="checkbox"
-            checked={local.themeAuto?.enabled || false}
-            onChange={e => update('themeAuto', { ...(local.themeAuto || {}), enabled: e.target.checked })}
-            style={{ accentColor: colors.gold, width: '16px', height: '16px' }}
-          />
-          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>
-            Switch theme automatically at sunrise (Neitz) and sunset (Shkiah)
-          </span>
-        </label>
-        {local.themeAuto?.enabled && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, display: 'block', marginBottom: '6px' }}>Day Theme (after Neitz)</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {['parchment', 'clean-white', 'ivory', 'sky'].map(t => (
-                  <ThemeButton key={t} label={t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} active={(local.themeAuto?.dayTheme || 'parchment') === t} onClick={() => update('themeAuto', { ...(local.themeAuto || {}), dayTheme: t })} />
-                ))}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, display: 'block', marginBottom: '6px' }}>Night Theme (after Shkiah)</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {['dark', 'dark-hc', 'midnight', 'sepia'].map(t => (
-                  <ThemeButton key={t} label={t.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} active={(local.themeAuto?.nightTheme || 'dark') === t} onClick={() => update('themeAuto', { ...(local.themeAuto || {}), nightTheme: t })} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-        <p style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginTop: '10px' }}>
-          When enabled, the theme above is used as a fallback outside of Shabbos/Yom Tov hours.
-          Auto-theme overrides your manual theme selection while active.
-        </p>
+      <Section title="Auto Day / Night by Zmanim">
+        <AutoTheme local={local} update={update} />
       </Section>
 
       <Section title="Layout">
-        <label title="Moves the clock, date, and zmanim panel to the left or right side of the screen" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, display: 'block', marginBottom: '6px' }}>Clock Panel Side</label>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <ThemeButton label="Left (default)" active={(local.clockSide || 'left') === 'left'} onClick={() => update('clockSide', 'left')} />
-          <ThemeButton label="Right" active={local.clockSide === 'right'} onClick={() => update('clockSide', 'right')} />
-        </div>
-        <p style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginTop: '8px' }}>
-          Moves the clock, date, and pinned notes panel to the left or right side of the screen.
-        </p>
         <div style={{ marginTop: '14px' }}>
           <label title="Portrait mode stacks content vertically for screens mounted 9:16 (vertical). Landscape is the standard 16:9 horizontal layout." style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, display: 'block', marginBottom: '6px' }}>Orientation</label>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -339,6 +265,14 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [] }) {
             </p>
           </div>
         )}
+      </Section>
+
+      <Section title="Screen Look">
+        <ScreenLook local={local} update={update} updateNested={updateNested} />
+      </Section>
+
+      <Section title="Weather">
+        <WeatherSettings local={local} updateNested={updateNested} />
       </Section>
 
       <Section title="Daily Study Slide">

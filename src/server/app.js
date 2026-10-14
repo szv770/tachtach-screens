@@ -23,6 +23,7 @@ import { scheduleCleanup } from './cleanup.js';
 import { initRSSSchedulers } from './rss-scheduler.js';
 import { startMivtzahScheduler } from './mivtzah-scheduler.js';
 import { migrateSettingsKeys } from './settings-migrate.js';
+import { ensureBuiltinSlides } from './builtin-slides.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,14 @@ export function createApp() {
         settings = await readJSON('settings.json');
       }
       const config = settings?.location ?? {};
+
+      // New built-in slide types (e.g. WEATHER) for installs whose
+      // slides.json predates them (update.sh keeps the Pi's data/). Idempotent.
+      try {
+        await ensureBuiltinSlides();
+      } catch (bsErr) {
+        console.error('[slides] Built-in slide check failed:', bsErr.message);
+      }
 
       if (settings?.location) {
         if (settings.scheduler?.trackA !== false) {

@@ -143,6 +143,7 @@ if (existingSlides) {
     { id: 'schedule', type: 'SCHEDULE', label: 'Seder', enabled: false, duration: 30, order: 6 },
     { id: 'mivtzah-leaderboard', type: 'MIVTZAH_LEADERBOARD', label: 'Mivtzah Leaderboard', enabled: false, duration: 20, order: 99 },
     { id: 'mivtzah-live-embed', type: 'MIVTZAH_LIVE_EMBED', label: 'Mivtzah Live Screen', embedUrl: '', enabled: false, duration: 20, order: 100 },
+    { id: 'weather', type: 'WEATHER', label: 'Weather', enabled: false, duration: 12, order: 101 },
   ]);
   console.log('  ✓ data/slides.json');
 }

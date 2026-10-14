@@ -8,12 +8,11 @@ export default function ImageSlide({ slide, tokens }) {
   const bgStyle = (() => {
     switch (edgeTreatment) {
       case 'blur':
-        return {
-          backgroundImage: `url(${blurUrl || imageUrl})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'blur(30px) brightness(0.4)',
-        };
+        // No live blur filter on the Pi (GOTCHAS): use the server-made
+        // pre-blurred copy when there is one, else the dominant colour.
+        return blurUrl
+          ? { backgroundImage: `url(${blurUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : { background: dominantColor || tokens.bg };
       case 'gradient':
         return {
           background: `linear-gradient(135deg, ${dominantColor || tokens.bg}, ${tokens.bg})`,
@@ -38,14 +37,6 @@ export default function ImageSlide({ slide, tokens }) {
           ...bgStyle,
         }} />
       )}
-      {/* Radial gradient overlay */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        background: `radial-gradient(ellipse at center, transparent 40%, ${tokens.bg} 100%)`,
-        zIndex: 0,
-        pointerEvents: 'none',
-      }} />
       {/* Image */}
       <img
         src={imageUrl}

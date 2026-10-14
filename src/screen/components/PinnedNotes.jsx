@@ -1,137 +1,59 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { fonts } from '../styles/tokens.js';
-import { FitLine } from './FitText.jsx';
+import React, { useEffect, useState } from 'react';
+import { F, he } from '../design/ui.jsx';
+import { isHebrew } from '../design/time.js';
 
-// Announcements "Side note" with look.fit 'auto' grow to fill the column
-// width (up to ~3 lines); migrated pinned notes keep the fixed 15px.
-const noteText = (note, text) => (note.fit
-  ? <FitLine min={15} max={30} maxHeightPx={120}>{text}</FitLine>
-  : text);
+/**
+ * Rail side notes (announcements shown as "Side note"), R2 §5.3: each is a
+ * raised card holding ONE text in the language it was written in, clamped to
+ * 3 lines. At most 2 are visible; more rotate in place every 8 s (a one-shot
+ * fade, no looping animation).
+ */
+const MAX_VISIBLE = 2;
+const ROTATE_MS = 8000;
 
-export default function PinnedNotes({ pinned, tokens, visibility }) {
-  const [startIndex, setStartIndex] = useState(0);
-  const MAX_VISIBLE = 3;
+export function noteText(n) {
+  const h = String(n.textHe || '').trim();
+  const e = String(n.textEn || n.text || '').trim();
+  if (h && !e) return { text: h, he: true };
+  if (e && !h) return { text: e, he: isHebrew(e) };
+  if (h && e) return { text: h, he: true };
+  return { text: '', he: false };
+}
 
-  // Filter out pinned notes that are displayed as slides
-  const notes = pinned?.filter(p => p.displayMode !== 'slide') || [];
+export default function PinnedNotes({ pinned, visibility, align = 'left', style }) {
+  const notes = (pinned || []).filter((p) => p.displayMode !== 'slide' && noteText(p).text);
+  const [start, setStart] = useState(0);
 
-  // Auto-scroll if more than 3
   useEffect(() => {
-    if (notes.length <= MAX_VISIBLE) return;
-    const id = setInterval(() => {
-      setStartIndex(prev => (prev + 1) % notes.length);
-    }, 4000);
+    if (notes.length <= MAX_VISIBLE) { setStart(0); return undefined; }
+    const id = setInterval(() => setStart((s) => (s + MAX_VISIBLE) % notes.length), ROTATE_MS);
     return () => clearInterval(id);
   }, [notes.length]);
 
   if (visibility?.pinnedNotes === false || !notes.length) return null;
-
   const visible = [];
-  for (let i = 0; i < Math.min(MAX_VISIBLE, notes.length); i++) {
-    visible.push(notes[(startIndex + i) % notes.length]);
-  }
+  for (let i = 0; i < Math.min(MAX_VISIBLE, notes.length); i++) visible.push(notes[(start + i) % notes.length]);
 
   return (
-    <div style={{ padding: '16px', marginTop: '16px' }}>
-      {/* Ornamental divider */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginBottom: '12px',
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            height: '1px',
-            background: `linear-gradient(to right, transparent, ${tokens.muted})`,
-          }}
-        />
-        <span style={{ color: tokens.gold, fontSize: '10px' }}>{'\u2726'}</span>
-        <div
-          style={{
-            flex: 1,
-            height: '1px',
-            background: `linear-gradient(to left, transparent, ${tokens.muted})`,
-          }}
-        />
-      </div>
-
-      <AnimatePresence mode="popLayout">
-        {visible.map(note => {
-          // Determine primary (English) and secondary (Hebrew) text
-          const engText = note.textEn || (!note.textHe ? (note.text || '') : '');
-          const hebText = note.textHe || '';
-          // If only Hebrew exists with no English, treat Hebrew as primary
-          const primaryEn = engText;
-          const primaryHe = !engText ? hebText : '';
-          const subHe = engText ? hebText : '';
-
-          return (
-            <motion.div
-              key={note.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.4 }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: '6px 0',
-                textAlign: 'center',
-                whiteSpace: 'pre-line', // keep admin-typed line breaks
-              }}
-            >
-              {primaryEn && (
-                <span style={{
-                  fontFamily: fonts.englishBody,
-                  fontSize: '15px',
-                  fontWeight: 500,
-                  color: tokens.text,
-                  lineHeight: 1.4,
-                  direction: 'ltr',
-                  display: 'block',
-                }}>
-                  {noteText(note, primaryEn)}
-                </span>
-              )}
-              {primaryHe && (
-                <span style={{
-                  fontFamily: fonts.hebrewPrimary,
-                  fontSize: '15px',
-                  fontWeight: 500,
-                  color: tokens.text,
-                  lineHeight: 1.4,
-                  direction: 'rtl',
-                  unicodeBidi: 'isolate',
-                  display: 'block',
-                }}>
-                  {noteText(note, primaryHe)}
-                </span>
-              )}
-              {subHe && (
-                <span style={{
-                  fontFamily: fonts.hebrewPrimary,
-                  fontSize: '13px',
-                  fontWeight: 400,
-                  color: tokens.dim,
-                  lineHeight: 1.4,
-                  direction: 'rtl',
-                  unicodeBidi: 'isolate',
-                  display: 'block',
-                  marginTop: '2px',
-                }}>
-                  {subHe}
-                </span>
-              )}
-            </motion.div>
-          );
-        })}
-      </AnimatePresence>
+    <div style={{ width: '100%', ...style }}>
+      {visible.map((n) => {
+        const t = noteText(n);
+        return (
+          <div
+            key={`${n.id}-${start}`}
+            className={`tt-clamp3 ${notes.length > MAX_VISIBLE ? 'tt-fadein' : ''}`}
+            dir={t.he ? 'rtl' : 'ltr'}
+            style={{
+              background: 'var(--raised)', borderRadius: 24, padding: '18px 24px', width: '100%', marginBottom: 14,
+              textAlign: align, whiteSpace: 'pre-line',
+              fontFamily: t.he ? F.he : F.en,
+              fontSize: t.he ? he(28) : 25, lineHeight: t.he ? 1.25 : 1.3, fontWeight: 500,
+            }}
+          >
+            {t.text}
+          </div>
+        );
+      })}
     </div>
   );
 }

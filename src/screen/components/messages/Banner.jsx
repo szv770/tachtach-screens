@@ -1,104 +1,66 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { fonts } from '../../styles/tokens.js';
-
-const SIZE_MAP = {
-  small:  { height: 28, fontSize: 14 },
-  normal: { height: 34, fontSize: 16 },
-  large:  { height: 48, fontSize: 22 },
-};
-
-const SPEED_MAP = {
-  slow:   0.38,
-  normal: 0.22,
-  fast:   0.12,
-};
+import React, { useLayoutEffect, useRef, useState } from 'react';
+import { F, he } from '../../design/ui.jsx';
+import { isHebrew } from '../../design/time.js';
 
 /**
- * Pixel height the banner strip will render at, so Layout can size its fixed
- * banner slot to match. The slot used to be a fixed 36px, which clipped the
- * 48px "Large" banner (audit bug 10).
+ * Banner row (R2 §4): a 76 px raised strip INSIDE the page column, present
+ * only while a banner is active. Text is static when it fits; when it is too
+ * long it eases left and back as a transform-only marquee (the one continuous
+ * motion left, because a long notice must be readable). Banners never pause
+ * rotation. Text always starts at the left edge (GOTCHAS: banner start).
  */
-export function bannerHeightFor(banners, bannerSettings) {
+const SPEED = { slow: 38, normal: 60, fast: 100 }; // px per second
+
+const oneLine = (t) => String(t || '').split(/\s*(?:\r\n|\r|\n)+\s*/).filter(Boolean).join(' · ');
+
+export const BANNER_HEIGHT = 76;
+export function bannerHeightFor() { return BANNER_HEIGHT; }
+
+const Dot = () => <i style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--muted)', flex: 'none' }} />;
+
+export default function Banner({ banners, bannerSettings }) {
+  const boxRef = useRef(null);
+  const textRef = useRef(null);
+  const [over, setOver] = useState(0);
   const msg = banners?.[0];
-  return (SIZE_MAP[msg?.bannerSize || bannerSettings?.size] || SIZE_MAP.normal).height;
-}
+  const speed = SPEED[msg?.bannerSpeed || bannerSettings?.speed] || SPEED.normal;
+  const parts = (banners || []).map((b) => ({ en: oneLine(b.textEn || b.text), he: oneLine(b.textHe) })).filter((p) => p.en || p.he);
+  const key = parts.map((p) => `${p.en}|${p.he}`).join('¦');
 
-/**
- * Banner text is a one-line ticker, so line breaks typed in the admin are
- * shown as " · " separators instead of being silently collapsed.
- */
-function oneLine(text) {
-  if (!text) return text;
-  return String(text).split(/\s*(?:\r\n|\r|\n)+\s*/).filter(Boolean).join(' \u00B7 ');
-}
+  useLayoutEffect(() => {
+    const measure = () => {
+      const box = boxRef.current, t = textRef.current;
+      if (box && t) setOver(Math.max(0, t.scrollWidth - (box.clientWidth - 64) + 8));
+    };
+    measure();
+    let alive = true;
+    document.fonts?.ready?.then(() => alive && measure()).catch(() => {});
+    window.addEventListener('resize', measure);
+    return () => { alive = false; window.removeEventListener('resize', measure); };
+  }, [key]);
 
-export default function Banner({ banners, tokens, bannerSettings }) {
-  if (!banners?.length) return null;
+  if (!parts.length) return null;
 
-  // Per-message settings take precedence over global banner settings
-  const msg = banners[0];
-  const size  = SIZE_MAP[msg?.bannerSize  || bannerSettings?.size]  || SIZE_MAP.normal;
-  const speed = SPEED_MAP[msg?.bannerSpeed || bannerSettings?.speed] ?? SPEED_MAP.normal;
-  const repeat = msg?.bannerRepeat || bannerSettings?.repeat || 'loop';
-
-  const singleText = banners.map(b => oneLine(b.textHe || b.textEn || b.text)).join('  \u2003|\u2003  ');
-  const singleWithTail = singleText + '   \u2014   ';
-  const REPEATS = Math.max(3, Math.ceil(400 / (singleWithTail.length + 2)));
-  const half = Array(REPEATS).fill(singleWithTail).join('');
-  // The strip used to animate x from +100% to -100% of the (very wide,
-  // repeated) text, so a newly posted banner stayed off-screen to the right
-  // for the first ~25 s. Now the text starts visible at the left edge:
-  // 'loop' scrolls two identical halves 0 → -50% (seamless), 'wait' scrolls
-  // one copy fully out, pauses 4 s and starts again. Same speed as before.
-  const loop = repeat !== 'wait';
-  const text = loop ? half + half : half;
-  const scrollDuration = Math.max(5, (half.length * speed) / 2);
-
-  const transition = repeat === 'wait'
-    ? { duration: scrollDuration, repeat: Infinity, repeatDelay: 4, ease: 'linear' }
-    : { duration: scrollDuration, repeat: Infinity, ease: 'linear' };
+  const row = (
+    <span ref={textRef} style={{ display: 'inline-flex', alignItems: 'center', gap: 22, whiteSpace: 'nowrap' }}>
+      {parts.map((p, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <Dot />}
+          {p.en && <span style={{ fontFamily: isHebrew(p.en) ? F.he : F.en, fontSize: isHebrew(p.en) ? he(30) : 30, fontWeight: 500 }}>{p.en}</span>}
+          {p.en && p.he && <Dot />}
+          {p.he && <span className="tt-he" style={{ fontFamily: F.he, fontSize: he(30), fontWeight: 500 }}>{p.he}</span>}
+        </React.Fragment>
+      ))}
+    </span>
+  );
+  const dur = over ? Math.max(8, (over + 600) / speed) : 0;
 
   return (
-    <div style={{
-      width: '100%',
-      height: `${size.height}px`,
-      display: 'flex',
-      alignItems: 'center',
-      overflow: 'hidden',
-      background: `linear-gradient(to top, ${tokens.bg}, ${tokens.bg}e8)`,
-      borderTop: `1px solid ${tokens.framePrimary}`,
-      position: 'relative',
-    }}>
-      {/* Left gradient fade */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, width: '60px', height: '100%',
-        background: `linear-gradient(to right, ${tokens.bg}, transparent)`,
-        zIndex: 2, pointerEvents: 'none',
-      }} />
-      {/* Right gradient fade */}
-      <div style={{
-        position: 'absolute', top: 0, right: 0, width: '60px', height: '100%',
-        background: `linear-gradient(to left, ${tokens.bg}, transparent)`,
-        zIndex: 2, pointerEvents: 'none',
-      }} />
-
-      <motion.div
-        animate={{ x: loop ? ['0%', '-50%'] : ['0%', '-100%'] }}
-        transition={transition}
-        style={{
-          whiteSpace: 'nowrap',
-          fontFamily: fonts.hebrewPrimary,
-          fontSize: `${size.fontSize}px`,
-          fontWeight: 500,
-          color: tokens.gold,
-          direction: 'rtl',
-          unicodeBidi: 'plaintext',
-          zIndex: 1,
-        }}
-      >
-        {text}
-      </motion.div>
+    <div ref={boxRef} style={{ flex: 'none', height: BANNER_HEIGHT, background: 'var(--raised)', borderRadius: 24, display: 'flex', alignItems: 'center', padding: '0 32px', overflow: 'hidden', position: 'relative', color: 'var(--text)' }}>
+      {over ? (
+        <div style={{ animation: `ttMarquee ${dur}s ease-in-out infinite alternate`, '--mq': `-${over}px`, willChange: 'transform' }}>{row}</div>
+      ) : row}
+      <style>{'@keyframes ttMarquee { 0%,12% { transform: translateX(0); } 88%,100% { transform: translateX(var(--mq)); } }'}</style>
     </div>
   );
 }

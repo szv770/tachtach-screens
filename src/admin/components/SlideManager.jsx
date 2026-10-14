@@ -5,7 +5,7 @@ import useIsMobile from '../hooks/useIsMobile.js';
 import { ZMANIM_DISPLAY } from '../../shared/constants.js';
 import { status as announcementStatus, primaryText, selectActive } from '../../shared/announcements.js';
 
-const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
+const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
 
 const BUILT_IN_LABELS = {
   ZMANIM: 'Zmanim',
@@ -15,6 +15,7 @@ const BUILT_IN_LABELS = {
   DAILY_QUOTE: 'Daily Quote',
   PARSHA_TIDBITS: 'Parsha Tidbits',
   SCHEDULE: 'Schedule / Seder',
+  WEATHER: 'Weather',
   RSS_SLIDE: 'RSS Feed',
   MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard',
   MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen (embed)',
