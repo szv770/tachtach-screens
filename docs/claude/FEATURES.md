@@ -18,7 +18,7 @@ Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlid
 | Pirkei Avos | `PirkeiAvosSlide.jsx` | Seasonal — visibility computed in `src/shared/pirkeiAvos.js` (Pesach→Rosh Hashana window only) |
 | Daily Quote | `DailyQuoteSlide.jsx` | |
 | Parsha Tidbits | `ParshaTidbitsSlide.jsx` | |
-| Schedule | `ScheduleSlide.jsx` | Reads `schedule.json`; icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
+| Schedule | `ScheduleSlide.jsx` | Shows the schedule `App.jsx` resolved for today / `?previewDate=` via `getEffectiveSchedule` (`src/shared/scheduleResolution.js`): the date's own schedule from `schedule-dates.json`, else enabled weekly `schedule.json` entries for that weekday. Shows the date's label under the title. Icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
 | Google Photos | `GooglePhotosSlide.jsx` | Fetches via localhost-only `/api/google-album/:id/photos` |
 | RSS Feed | `RSSSlide.jsx` | Fetches via localhost-only `/api/rss/cache/:feedId` |
 | Image | `ImageSlide.jsx` | Fit/Fill/Stretch + edge treatment (dark/light/glassy-blur/gradient) |
@@ -37,7 +37,7 @@ Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlid
 
 ### Countdown (`src/screen/components/CountdownOverlay.jsx`)
 
-Driven server-side by `src/server/countdown.js`, which schedules today's enabled `schedule.json` entries (day filter via `src/shared/scheduleDays.js`) that have an `alertBefore` value and broadcasts SSE `countdown-start` / `countdown-tick` / `countdown-end`; the running one is also in `/api/state` as `countdown`. Display mode per entry is `countdownDisplay` (`alertDisplay` accepted as a legacy alias): `slide` replaces the slide area while it runs (SlideCarousel, like a board) or `takeover` is a full-screen overlay (App.jsx). Neither pauses the hidden rotation timer.
+Driven server-side by `src/server/countdown.js`, which schedules today's effective schedule entries (`getEffectiveSchedule`: the date's own schedule, else enabled weekly entries for today — re-init at midnight and on every schedule/date change) that have an `alertBefore` value and broadcasts SSE `countdown-start` / `countdown-tick` / `countdown-end`; the running one is also in `/api/state` as `countdown`. Display mode per entry is `countdownDisplay` (`alertDisplay` accepted as a legacy alias): `slide` replaces the slide area while it runs (SlideCarousel, like a board) or `takeover` is a full-screen overlay (App.jsx). Neither pauses the hidden rotation timer.
 
 ## Admin panel (`src/admin/`)
 
@@ -46,7 +46,7 @@ Driven server-side by `src/server/countdown.js`, which schedules today's enabled
 | Admin section | Component |
 |---|---|
 | Slides | `SlideManager.jsx` |
-| Schedule | `ScheduleEditor.jsx` |
+| Schedule | `ScheduleSection.jsx` — tabs: **By date** (`schedule/ScheduleByDate.jsx` week strip + `schedule/DayEditor.jsx` inline rows, text mode, blocks), **Paste / Import** (`schedule/ScheduleImport.jsx`: Claude prompt/format guide via `src/shared/scheduleClaudePrompt.js`, paste/upload → server preview → apply), **Weekly** (`ScheduleEditor.jsx`). Shared bits (API, clipboard + iOS fallback sheet, `TimeField`, `CategoryPicker` with "+ New category", Undo snackbar) in `schedule/scheduleShared.jsx` |
 | Messages | `MessageComposer.jsx` |
 | Pinned | `PinnedManager.jsx` |
 | Custom Days | `CustomDaysEditor.jsx` |
