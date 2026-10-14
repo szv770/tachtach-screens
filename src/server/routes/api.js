@@ -58,7 +58,10 @@ function pick(obj, allowedFields) {
 
 const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl'];
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
-const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bgColor', 'style', 'target', 'subtitle'];
+// `blocking` = board "Hold screen on this board" (replaces the slide area while
+// active); bannerSize/Speed/Repeat = per-message overrides read by Banner.jsx.
+// All four used to be stripped here, so those features were no-ops (audit bug 5).
+const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bgColor', 'style', 'target', 'subtitle', 'blocking', 'bannerSize', 'bannerSpeed', 'bannerRepeat'];
 const PINNED_FIELDS = ['textHe', 'textEn', 'priority', 'enabled', 'order', 'icon', 'expiresAt', 'displayMode', 'duration', 'fullscreen'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
@@ -230,6 +233,11 @@ router.post('/messages', async (req, res) => {
       timestamp: new Date().toISOString(),
       ...pick(req.body, MESSAGE_FIELDS),
     };
+    // Only boards can hold the screen; store a real boolean.
+    if ('blocking' in newMsg) {
+      if (newMsg.type === 'board' && newMsg.blocking === true) newMsg.blocking = true;
+      else delete newMsg.blocking;
+    }
     messages.push(newMsg);
     await writeJSON('messages.json', messages);
     broadcast('messages-update', messages);
