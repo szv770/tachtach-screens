@@ -180,7 +180,7 @@ function MitzvosCard({ i, data, lang, portrait, wide, tier, onOverflow }) {
             {showHe && (tier >= 2 && data.items.length > 1 ? (
               <span style={{ display: 'block', lineHeight: 1.1 }}>
                 <span style={{ ...lineHe(t.hilchos, 500), display: 'inline', whiteSpace: 'nowrap' }}>{it.kindHe}</span>{' '}
-                <span style={{ ...lineHe(t.hilchos + 4, 700, 'var(--ink)', F.heD), display: 'inline', whiteSpace: 'nowrap' }}>{it.numHe}</span>
+                <span style={{ ...lineHe(t.hilchos + 4, 700, 'var(--ink)', F.heD), display: 'inline-block', whiteSpace: 'nowrap', marginInlineStart: '.28em' }}>{it.numHe}</span>
               </span>
             ) : (
               <>
