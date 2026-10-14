@@ -1,7 +1,7 @@
 import React from 'react';
 import Clock from './Clock.jsx';
 import PinnedNotes from './PinnedNotes.jsx';
-import { CreditContent } from './Layout.jsx';
+import { CreditContent, creditShown, creditSpot } from './Credit.jsx';
 import { F, he } from '../design/ui.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { WeatherIcon, ShabbosMark, Ornament, ProgressRing } from '../design/graphics.jsx';
@@ -122,7 +122,11 @@ export default function Rail({
   const yomTov = (cache.hebrewDate?.events || []).find((e) => YOM_TOV.test(e));
   const mark = graphics !== 'off' && (dow === 5 || dow === 6 || yomTov);
   const showWeather = settings.weather?.enabled !== false && settings.weather?.showInRail !== false && weather?.current;
-  const railCredit = credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'under-clock';
+  const cSpot = creditShown(credit) ? creditSpot(credit) : null;
+  // rail-center: the logo owns the rail's free middle; while the up-next card
+  // or side notes need that room it steps down to a small rail foot.
+  const creditMid = cSpot === 'rail-center' && !busy;
+  const creditFoot = cSpot === 'under-clock' || (cSpot === 'rail-center' && busy);
 
   // Date unit (owner polish): Hebrew date strongest, English day/date beneath
   // on the same edge, then the parsha as a quiet chip that belongs to them.
@@ -197,10 +201,18 @@ export default function Rail({
       {clockEl}
       {dates}
       {parshaEl}
-      <div style={{ flex: 1, minHeight: 20 }} />
+      {creditMid ? (
+        <div style={{ flex: 1, minHeight: 20, display: 'flex', alignItems: 'center', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', padding: '24px 0' }}>
+          <CreditContent credit={credit} spot="rail-center" align={align} maxWidth={400} />
+        </div>
+      ) : <div style={{ flex: 1, minHeight: 20 }} />}
       {cards}
       {wx}
-      {railCredit && <div style={{ marginTop: 18, display: 'flex', justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}><CreditContent credit={credit} /></div>}
+      {creditFoot && (
+        <div style={{ marginTop: busy ? 14 : 22, display: 'flex', justifyContent: align === 'right' ? 'flex-end' : 'flex-start', flex: 'none' }}>
+          <CreditContent credit={credit} spot={busy ? 'busy' : 'under-clock'} align={align} maxWidth={400} />
+        </div>
+      )}
     </div>
   );
 }

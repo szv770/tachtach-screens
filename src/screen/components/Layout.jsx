@@ -2,7 +2,7 @@ import React from 'react';
 import { EnsureDesignRoot } from '../design/DesignRoot.jsx';
 import { BackgroundArt } from '../design/graphics.jsx';
 import { themeIdForTokens } from '../../shared/themes.js';
-import { F } from '../design/ui.jsx';
+import { CreditContent, creditShown, creditSpot } from './Credit.jsx';
 
 /**
  * Screen layout (R2 README §4).
@@ -19,34 +19,19 @@ import { F } from '../design/ui.jsx';
  * into the page.
  */
 
-function CreditContent({ credit }) {
-  const logo = credit?.logo;
-  const size = credit?.size === 'large' ? 22 : credit?.size === 'medium' ? 19 : 17;
-  const logoPx = logo?.size === 'large' ? 56 : logo?.size === 'small' ? 26 : 38;
-  const blend = logo?.blend;
-  const filter = blend === 'match-theme'
-    ? 'var(--logoFilter, none)'
-    : blend === 'mono-gold' ? 'sepia(1) saturate(3) brightness(0.8) hue-rotate(15deg)' : undefined;
-  const textEl = credit?.text ? <span style={{ fontFamily: F.en, fontSize: size, fontWeight: 500, color: 'var(--dim)' }}>{credit.text}</span> : null;
-  const logoEl = logo?.url ? (
-    <img src={logo.url} alt="" style={{ height: logoPx, width: 'auto', objectFit: 'contain', display: 'block', opacity: blend === 'subtle' ? 0.3 : 1, filter }} />
-  ) : null;
-  if (!textEl && !logoEl) return null;
-  const pos = logo?.position || 'left';
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: pos === 'above' ? 'column' : pos === 'right' ? 'row-reverse' : 'row' }}>
-      {logoEl}{textEl}
-    </div>
-  );
-}
 export { CreditContent };
 
 export default function Layout({
   leftColumn, rightColumn, banner, theme, tokens, fullscreen = false, credit,
-  clockSide = 'left', portrait = false, portraitTopBar, canvasWidth, canvasHeight,
+  clockSide = 'left', portrait = false, portraitTopBar, canvasWidth, canvasHeight, currentSlideId = null,
 }) {
   const right = clockSide === 'right';
-  const showCredit = credit?.enabled && (credit?.text || credit?.logo?.url) && (credit?.position === 'bottom' || !credit?.position);
+  // Corner credit: 'bottom', or 'slide' while that slide is up. Portrait has
+  // no rail column, so the rail spots fall back to the corner there.
+  const spot = creditSpot(credit);
+  const showCredit = creditShown(credit) && !fullscreen && (
+    spot === 'bottom' || (spot === 'slide' && credit?.slideId && credit.slideId === currentSlideId) || (portrait && (spot === 'rail-center' || spot === 'under-clock'))
+  );
   const themeId = theme || themeIdForTokens(tokens);
 
   const pageCol = (
@@ -96,8 +81,8 @@ export default function Layout({
           {pageCol}
         </div>
         {showCredit && (
-          <div style={{ position: 'absolute', bottom: 8, right: right && !portrait ? 'auto' : 44, left: right && !portrait ? 44 : 'auto', zIndex: 2, pointerEvents: 'none', direction: 'ltr' }}>
-            <CreditContent credit={credit} />
+          <div style={{ position: 'absolute', bottom: portrait ? 3 : 6, right: right && !portrait ? 'auto' : 44, left: right && !portrait ? 44 : 'auto', zIndex: 2, pointerEvents: 'none', direction: 'ltr' }}>
+            <CreditContent credit={credit} spot="corner" align={right && !portrait ? 'left' : 'right'} maxWidth={360} />
           </div>
         )}
       </div>

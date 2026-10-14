@@ -66,7 +66,7 @@ export default function DesignRoot({
         className={`tt-root m-${opts.motion} ${light ? 'tt-light' : 'tt-dark'} ${className}`}
         data-graphics={opts.graphics}
         data-theme={theme.id}
-        style={{ ...vars, ...fontVars, '--logoFilter': light ? 'brightness(0)' : 'brightness(0) invert(1)', ...style }}
+        style={{ ...vars, ...fontVars, ...style }}
       >
         {children}
       </div>
