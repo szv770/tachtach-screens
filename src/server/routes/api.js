@@ -62,6 +62,21 @@ const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bg
 const PINNED_FIELDS = ['textHe', 'textEn', 'priority', 'enabled', 'order', 'icon', 'expiresAt', 'displayMode', 'duration', 'fullscreen'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
+// `alertDisplay` is accepted only as a legacy alias (older admin builds and
+// the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
+// folds it into `countdownDisplay`, which is the only key that gets stored.
+const SCHEDULE_ENTRY_INPUT_FIELDS = [...SCHEDULE_ENTRY_FIELDS, 'alertDisplay'];
+function pickScheduleEntry(e) {
+  const picked = pick(e, SCHEDULE_ENTRY_INPUT_FIELDS);
+  if ('alertDisplay' in picked) {
+    if (!picked.countdownDisplay) picked.countdownDisplay = picked.alertDisplay;
+    delete picked.alertDisplay;
+  }
+  if ('countdownDisplay' in picked) {
+    picked.countdownDisplay = picked.countdownDisplay === 'takeover' ? 'takeover' : 'slide';
+  }
+  return picked;
+}
 const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon'];
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];
 
@@ -358,7 +373,7 @@ router.put('/schedule/entries', async (req, res) => {
       return res.status(400).json({ error: 'Invalid entries data — expected an array.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.entries = entries.map((e) => ({ id: e?.id, ...pick(e, SCHEDULE_ENTRY_FIELDS) }));
+    schedule.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e) }));
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     // Re-initialize countdown timers with new schedule
@@ -379,7 +394,7 @@ router.post('/schedule/entries', async (req, res) => {
       return res.status(400).json({ error: 'Entry time is required.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    const picked = pick(req.body, SCHEDULE_ENTRY_FIELDS);
+    const picked = pickScheduleEntry(req.body);
     if (picked.enabled === undefined) picked.enabled = true;
     const newEntry = { id: uuidv4(), ...picked };
     schedule.entries.push(newEntry);
@@ -400,7 +415,7 @@ router.put('/schedule/entries/:id', async (req, res) => {
     if (idx === -1) {
       return res.status(404).json({ error: 'Schedule entry not found.' });
     }
-    schedule.entries[idx] = { ...schedule.entries[idx], ...pick(req.body, SCHEDULE_ENTRY_FIELDS), id: req.params.id };
+    schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body), id: req.params.id };
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
@@ -451,7 +466,7 @@ router.post('/schedule/template', async (req, res) => {
       return res.status(400).json({ error: 'Template entries must be an array.' });
     }
     const schedule = {
-      entries: entries.map((e) => ({ id: uuidv4(), ...pick(e, SCHEDULE_ENTRY_FIELDS), enabled: e.enabled !== false })),
+      entries: entries.map((e) => ({ id: uuidv4(), ...pickScheduleEntry(e), enabled: e.enabled !== false })),
       categories: Array.isArray(categories) ? categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS)) : [],
     };
     await writeJSON('schedule.json', schedule);
@@ -486,7 +501,7 @@ router.post('/schedule/templates', async (req, res) => {
       return res.status(400).json({ error: 'Template entries must be an array.' });
     }
     // Sanitize entries and categories within the template
-    picked.entries = picked.entries.map((e) => pick(e, SCHEDULE_ENTRY_FIELDS));
+    picked.entries = picked.entries.map((e) => pickScheduleEntry(e));
     if (Array.isArray(picked.categories)) {
       picked.categories = picked.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
     } else {
@@ -517,7 +532,7 @@ router.put('/schedule/templates/:id', async (req, res) => {
     const updates = pick(req.body, SCHEDULE_TEMPLATE_FIELDS);
     // Sanitize entries and categories if provided
     if (Array.isArray(updates.entries)) {
-      updates.entries = updates.entries.map((e) => pick(e, SCHEDULE_ENTRY_FIELDS));
+      updates.entries = updates.entries.map((e) => pickScheduleEntry(e));
     }
     if (Array.isArray(updates.categories)) {
       updates.categories = updates.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));

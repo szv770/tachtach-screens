@@ -16,6 +16,47 @@ import HiddenAccess from './components/HiddenAccess.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
 import AnimatedText from './components/AnimatedText.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
+import { isEntryActiveOn } from '../shared/scheduleDays.js';
+
+/**
+ * Normalize a server countdown payload (SSE `countdown-start` or
+ * `/api/state`.countdown) into the shape CountdownOverlay renders:
+ * { id, eventName, eventNameHe, mode, targetTime, duration }.
+ * The server sends name/nameHe/displayMode/secondsRemaining (older builds had
+ * no `mode`/`targetTime`), which is why neither the slide nor the takeover
+ * branch ever rendered before (audit bug 3).
+ */
+function normalizeCountdown(data) {
+  if (!data) return null;
+  const mode = (data.mode || data.displayMode) === 'takeover' ? 'takeover' : 'slide';
+  let targetTime = data.targetTime;
+  if (!targetTime && typeof data.secondsRemaining === 'number') {
+    targetTime = new Date(Date.now() + data.secondsRemaining * 1000).toISOString();
+  }
+  if (!targetTime) return null;
+  return {
+    ...data,
+    mode,
+    targetTime,
+    eventName: data.eventName ?? data.name ?? '',
+    eventNameHe: data.eventNameHe ?? data.nameHe ?? '',
+    duration: data.duration ?? (data.alertBefore ? data.alertBefore * 60 : undefined),
+  };
+}
+
+/**
+ * Reconcile the locally shown countdown with the one the server reports in
+ * /api/state (initial load, SSE reconnect, 5 s poll).
+ */
+function reconcileCountdown(prev, serverCountdown) {
+  const next = normalizeCountdown(serverCountdown);
+  if (next) return prev && prev.id === next.id && prev.targetTime === next.targetTime ? prev : next;
+  // Server has none running. Keep a local one only while it is finishing its
+  // end-of-countdown flash (target already passed); otherwise it was
+  // cancelled (entry edited/deleted) and should go away.
+  if (prev && new Date(prev.targetTime).getTime() <= Date.now()) return prev;
+  return null;
+}
 
 function parseScheduleTime(timeStr) {
   if (!timeStr) return null;
@@ -126,6 +167,7 @@ function AppContent() {
         })
         .then(data => {
           setState(data);
+          setCountdown(prev => reconcileCountdown(prev, data?.countdown));
           setLoadError(null);
           setLoading(false);
         })
@@ -189,7 +231,7 @@ function AppContent() {
         setState(prev => prev ? { ...prev, fonts: data } : prev);
         break;
       case 'countdown-start':
-        setCountdown(data);
+        setCountdown(normalizeCountdown(data));
         break;
       case 'countdown-end':
         setCountdown(null);
@@ -221,6 +263,7 @@ function AppContent() {
 
   // Full state sync — called on SSE reconnect and every 30s as a fallback
   const handleFullState = useCallback((data) => {
+    setCountdown(prev => reconcileCountdown(prev, data?.countdown));
     setState(prev => {
       if (!prev) return data;
       // Merge full state but preserve local-only keys like _blank
@@ -440,7 +483,10 @@ function AppContent() {
         if (!schedEntries?.length) return null;
         const now = new Date();
         const nowMins = now.getHours() * 60 + now.getMinutes();
-        const upcoming = [...schedEntries]
+        // Only entries that are enabled and scheduled for today's weekday —
+        // weekday items used to announce themselves on Shabbos (audit bug 11).
+        const upcoming = schedEntries
+          .filter(e => isEntryActiveOn(e, now))
           .map(e => ({ ...e, _mins: parseScheduleTime(e.time) }))
           .filter(e => e._mins != null && e._mins - nowMins > 0 && e._mins - nowMins <= 10)
           .sort((a, b) => a._mins - b._mins);

@@ -14,7 +14,7 @@ import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
 import { getScreenState, setScreenState } from './screenState.js';
 import { initGooglePhotosSync } from './google-photos.js';
-import { initCountdowns, scheduleMidnightReset } from './countdown.js';
+import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
 import { initRSSSchedulers } from './rss-scheduler.js';
 import { startMivtzahScheduler } from './mivtzah-scheduler.js';
@@ -193,6 +193,9 @@ export function createApp() {
         schedule: schedule ?? { entries: [], categories: [] },
         rssFeeds: rssFeeds ?? [],
         fonts: fonts ?? [],
+        // Running schedule countdown alert (or null), so a kiosk that
+        // reconnects/reloads mid-countdown still shows it. Not persisted.
+        countdown: getActiveCountdown(),
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });

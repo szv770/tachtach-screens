@@ -1,5 +1,6 @@
 import { readJSON } from './storage.js';
 import { broadcast } from './sse.js';
+import { dayCodeFor, isEntryActiveOn, countdownDisplayOf } from '../shared/scheduleDays.js';
 
 /** @type {Map<string, NodeJS.Timeout>} entry id -> alert start timer */
 const alertTimers = new Map();
@@ -10,8 +11,28 @@ const tickIntervals = new Map();
 /** @type {Map<string, NodeJS.Timeout>} entry id -> end timer */
 const endTimers = new Map();
 
-// Day-of-week mapping: JS getDay() (0=Sunday) -> schedule day codes
-const DOW_MAP = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'shabbos'];
+/**
+ * entry id -> alert payload, for countdowns currently running (between
+ * countdown-start and countdown-end). Lets GET /api/state hand a running
+ * countdown to a kiosk that (re)connected after countdown-start was
+ * broadcast — SSE events are fire-and-forget.
+ * @type {Map<string, object>}
+ */
+const activeAlerts = new Map();
+
+/**
+ * The running countdown whose event is soonest, or null.
+ * @returns {object|null}
+ */
+export function getActiveCountdown() {
+  let best = null;
+  for (const a of activeAlerts.values()) {
+    const secondsRemaining = Math.round((new Date(a.targetTime).getTime() - Date.now()) / 1000);
+    if (secondsRemaining <= 0) continue;
+    if (!best || a.targetTime < best.targetTime) best = { ...a, secondsRemaining };
+  }
+  return best;
+}
 
 /**
  * Parse a "HH:MM" time string into a Date for today.
@@ -29,14 +50,6 @@ function parseTimeToday(timeStr) {
 }
 
 /**
- * Get the current day-of-week code.
- * @returns {string} e.g. "sun", "mon", "shabbos"
- */
-function getTodayCode() {
-  return DOW_MAP[new Date().getDay()];
-}
-
-/**
  * Clear all pending timers and intervals.
  */
 export function clearAllCountdowns() {
@@ -46,6 +59,7 @@ export function clearAllCountdowns() {
   alertTimers.clear();
   tickIntervals.clear();
   endTimers.clear();
+  activeAlerts.clear();
 }
 
 /**
@@ -73,6 +87,12 @@ function scheduleEntryAlert(entry) {
   // fire alert immediately with remaining seconds
   const startDelay = Math.max(0, alertMs - now);
 
+  // countdownDisplayOf() accepts both `countdownDisplay` and the legacy
+  // admin key `alertDisplay` (audit bug 2). `mode` duplicates `displayMode`
+  // and `targetTime` is the absolute event time — that's the shape the
+  // kiosk's CountdownOverlay renders from (audit bug 3: the client read
+  // `.mode`, the server only sent `.displayMode`).
+  const displayMode = countdownDisplayOf(entry);
   const alertData = {
     id: entry.id,
     name: entry.name,
@@ -81,7 +101,9 @@ function scheduleEntryAlert(entry) {
     endTime: entry.endTime,
     category: entry.category,
     alertBefore: alertMinutes,
-    displayMode: entry.countdownDisplay || 'slide',
+    displayMode,
+    mode: displayMode,
+    targetTime: new Date(eventMs).toISOString(),
   };
 
   const startTimer = setTimeout(() => {
@@ -91,6 +113,7 @@ function scheduleEntryAlert(entry) {
     if (secondsRemaining <= 0) return;
 
     // Broadcast countdown-start
+    activeAlerts.set(entry.id, alertData);
     broadcast('countdown-start', { ...alertData, secondsRemaining });
 
     // Tick every 10 seconds
@@ -116,6 +139,7 @@ function scheduleEntryAlert(entry) {
           tickIntervals.delete(entry.id);
         }
         endTimers.delete(entry.id);
+        activeAlerts.delete(entry.id);
 
         broadcast('countdown-end', { id: entry.id, name: entry.name, nameHe: entry.nameHe, time: entry.time });
       }, endDelay);
@@ -137,14 +161,14 @@ export async function initCountdowns() {
   const schedule = await readJSON('schedule.json');
   if (!schedule?.entries?.length) return;
 
-  const today = getTodayCode();
+  const now = new Date();
+  const today = dayCodeFor(now);
 
   for (const entry of schedule.entries) {
-    // Skip disabled entries
-    if (entry.enabled === false) continue;
-
-    // Skip entries not scheduled for today
-    if (entry.days && !entry.days.includes(today)) continue;
+    // Skip disabled entries and entries not scheduled for today. Uses the
+    // shared helper — the old local lowercase day codes never matched the
+    // stored 'Sun'…'Shabbos' codes, so no alert ever fired (audit bug 1).
+    if (!isEntryActiveOn(entry, now)) continue;
 
     // Skip entries without alertBefore
     if (!entry.alertBefore || entry.alertBefore <= 0) continue;

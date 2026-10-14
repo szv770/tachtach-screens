@@ -175,13 +175,29 @@ const SLIDE_LABELS = {
 };
 
 export default function SlideCarousel({ currentSlide, currentIndex, enabledSlides, progress, cache, tokens, settings, activeBoards, onVideoEnded, onRequestDuration, googleAlbums, schedule, countdown, onCountdownComplete, credit, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact' }) {
-  if (!currentSlide) return null;
-
-  // Blocking board messages replace all slides (opt-in via board.blocking flag)
+  // Blocking ("Hold screen on this board") boards replace the slide area
+  // while active. Checked before the empty-rotation bail-out so a hold board
+  // still shows when no slides are enabled. Rotation keeps ticking
+  // underneath (it is not paused) — only Takeovers pause rotation.
   const blockingBoards = activeBoards?.filter(b => b.blocking) || [];
   if (blockingBoards.length > 0) {
     return <BoardDisplay boards={blockingBoards} tokens={tokens} />;
   }
+
+  // Slide-mode schedule countdown: shown in the slide area (like a board)
+  // for as long as it runs, then the normal rotation reappears. It used to
+  // render only when the current slide had type COUNTDOWN, which nothing
+  // ever puts into rotation, so it never showed (audit bug 4). Sidebar,
+  // banner and pinned notes stay visible; rotation is not paused.
+  if (countdown) {
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', padding: portrait ? '44px 14px 12px' : '48px 40px 32px', boxSizing: 'border-box' }}>
+        <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} />
+      </div>
+    );
+  }
+
+  if (!currentSlide) return null;
 
   const label = currentSlide.label || currentSlide.title || SLIDE_LABELS[currentSlide.type] || '';
 
