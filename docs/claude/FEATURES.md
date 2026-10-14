@@ -4,7 +4,7 @@ Read `CLAUDE.md` first. Use this to jump straight to the component behind a slid
 
 ## Kiosk screen (`src/screen/`)
 
-`App.jsx` resolves the active theme (manual, or zmanim day/night via `src/shared/dayNight.js`), wraps everything in `design/DesignRoot.jsx` (theme + font-role CSS variables, motion/graphics context) inside `ScreenScaler.jsx` (uniform scale of the 1600x900 / 900x1600 canvas), and renders `Layout.jsx` = `components/Rail.jsx` (clock, dates, parsha, weather, up-next card, side notes; or a top band in portrait) + one rounded page panel (`SlideCarousel.jsx`) + a 76 px `messages/Banner.jsx` row only when a banner is active. Also `AnnouncementTakeover` (full canvas, pauses rotation), `CountdownOverlay.jsx`, `HiddenAccess.jsx` (5 taps top-left).
+`App.jsx` resolves the active theme (manual, or zmanim day/night via `src/shared/dayNight.js`), wraps everything in `design/DesignRoot.jsx` (theme + font-role CSS variables, motion/graphics context) inside `ScreenScaler.jsx` (uniform scale of the 1600x900 / 900x1600 canvas), and renders `Layout.jsx` = `components/Rail.jsx` (clock, Hebrew/English date + parsha chip as one unit, weather, up-next card, side notes, credit/logo via `Credit.jsx`; or a top band in portrait) + one rounded page panel (`SlideCarousel.jsx`) + a 76 px `messages/Banner.jsx` row only when a banner is active. Also `AnnouncementTakeover` (full canvas, pauses rotation), `CountdownOverlay.jsx`, `HiddenAccess.jsx` (5 taps top-left).
 
 Design system (`src/screen/design/`): `DesignRoot.jsx` (roles + context), `globalCss.js` (@property registrations, derived roles, motion keyframes), `ui.jsx` (Panel, PageTitle, TimeText, `he()`), `fit.jsx` (auto-fit text), `Paged.jsx` (fixed-size paginated text), `graphics.jsx` (weather icons, candles, ornaments, progress ring, per-theme background art + day-phase tint), `announceStyles.js` (layout metadata for the 26 takeover styles: content insets, side-graphic box, entrance personality = **the seam for new takeover/announcement styles**; the visuals are in `src/screen/takeover/`), `fonts.js` (bundled Rubik/Manrope/Frank Ruhl/EB Garamond + uploaded `@font-face`).
 
@@ -15,11 +15,11 @@ Hooks: `useSSE.js`, `useSlideRotation.js` (timer only), `useAnnouncements.js`, `
 | Slide type | Component | Notes |
 |---|---|---|
 | Zmanim | `ZmanimSlide.jsx` | `settings.zmanimLayout`: `board` (default clean board, next row filled, "in 16 min") / `board-arc` / `arc-tiles`; tomorrow's zmanim after the last one |
-| Limudim | `LimudimSlide.jsx` | Ruled board of Chumash / Tehillim / Tanya / Rambam / Sefer HaMitzvos; honors `limudimLang`, `limudimItems` |
+| Limudim | `LimudimSlide.jsx` | Chitas board (Chumash / Tehillim / Tanya + the day's opening/closing Tanya words in the Torah-text role) over one card per Rambam track + Sefer HaMitzvos: Sefer → Halachos → perakim ("פרק כ״ב / Perek 22", "פרקים א׳–ג׳ / Perakim 1–3"), parsed by `src/shared/limudim.js` (halachos→sefer table, gematria); cards share stepped type tiers; honors `limudimLang`, `limudimItems` |
 | Weather | `WeatherSlide.jsx` | Built-in `WEATHER` type (off by default, added at startup by `builtin-slides.js`); data `cache.weather` |
 | Hayom Yom (standalone) | `HayomYomSlide.jsx` | Fixed-size Torah-text reading look, paginated, duration grows with pages |
 | Pirkei Avos | `PirkeiAvosSlide.jsx` | Seasonal — visibility computed in `src/shared/pirkeiAvos.js` (Pesach→Rosh Hashana window only) |
-| Daily Quote | `DailyQuoteSlide.jsx` | |
+| Daily Quote | `DailyQuoteSlide.jsx` | The owner's "Tanya page": quote in the Torah-text role on a reading measure, rule + source centred with it, Hebrew source added for known sources (`hebrewSource()`) |
 | Parsha Tidbits | `ParshaTidbitsSlide.jsx` | |
 | Schedule | `ScheduleSlide.jsx` | `settings.scheduleLayout` `timeline` (Now\|Next spotlight, day ribbon, later strip) or `list`. Shows the schedule `App.jsx` resolved for today / `?previewDate=` via `getEffectiveSchedule` (`src/shared/scheduleResolution.js`): the date's own schedule from `schedule-dates.json`, else enabled weekly `schedule.json` entries for that weekday. Shows the date's label under the title. Icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
 | Google Photos | `GooglePhotosSlide.jsx` | Fetches via localhost-only `/api/google-album/:id/photos` |
@@ -57,7 +57,7 @@ Driven server-side by `src/server/countdown.js`, which schedules today's effecti
 | Photos | `GooglePhotosManager.jsx` |
 | RSS Feeds | `RSSManager.jsx` |
 | Style | `StylePanel.jsx` — font roles (`ScreenLookControls.jsx` FontRoles), Hebrew size, font upload |
-| Settings | `SettingsPanel.jsx` — location, theme picker + auto day/night + screen look + weather (`ScreenLookControls.jsx`), layout, study, visibility, credit |
+| Settings | `SettingsPanel.jsx` — location, theme picker + auto day/night + screen look + weather (`ScreenLookControls.jsx`), layout, study, visibility, credit (position rail-middle / rail-bottom / corner / slide, logo size S/M/L/XL, blend) |
 | Screen controls (pause/resume/blank/advance) | `ScreenControls.jsx` |
 | Live preview (iframe of `/screen`, receives `preview` SSE events only) | `LivePreview.jsx` |
 
