@@ -100,7 +100,11 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const showBh = (S.bh || 'tr') !== 'none';
 
   return (
-    <div ref={rootRef} className="tkr" style={{ width: w, height: h }} data-style={style} data-layout={layout} data-anim={anim}>
+    <div
+      ref={rootRef} className="tkr" style={{ width: w, height: h }}
+      data-style={style} data-layout={layout} data-anim={anim}
+      data-box={JSON.stringify(r.box)} data-art={JSON.stringify(r.artRects)}
+    >
       <div className={cls} style={{ width: w, height: h }}>
         <div className="art stage-in" dangerouslySetInnerHTML={{ __html: r.art }} />
         {showClock && <div className="chrome num" style={pos(S.clock || 'tl')}>{clockText(clock)}</div>}

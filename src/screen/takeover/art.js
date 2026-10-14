@@ -460,3 +460,4 @@ export function renderArt(styleId, S, w, h, light) {
   const art = ART[styleId] ? ART[styleId](G) : '';
   return { art, L, R, Tp, B, align, box: G.box, artRects: ARTRECTS, port: PORT };
 }
+export const ART_IDS = Object.keys(ART);
