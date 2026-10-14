@@ -169,10 +169,35 @@ Phase 1 makes them work at all. Phase 3 makes them resolve per date, so alerts f
 - A migration test: fixture `messages.json`/`pinned.json`/`slides.json`, then migrate, then check snapshot equality of what the screen renders before and after (Playwright screenshots).
 - An end-to-end Playwright test on a phone viewport (390×844): create, edit, expire, re-activate an announcement; paste a two-day schedule, preview it, apply it, see it on `/screen?previewDate=`.
 
-## Open questions for the owner
+## Owner decisions (2026-10-14)
 
-1. **Hold**: should a held slide also pause the rotation timer (proposed: yes)?
-2. **Expired items**: keep them forever in "Expired", or auto-delete after N days (proposed: keep 60 days)?
-3. **Takeover conflicts**: if two takeovers are live at once, show the higher priority (proposed), or rotate between them?
-4. **Schedule categories**: is "Davening, Learning, Meals, Events, Trips, Breaks" right for the yeshiva? Any others (Shiur, Mivtzoim, Farbrengen)?
-5. **"End of Shabbos" quick chip**: use tzeis from the zmanim cache (proposed), or a fixed number of minutes after shkia?
+1. **Hold pauses rotation**: yes. While a held slide is up, the rotation timer pauses and resumes where it left off.
+2. **Expired items** go to an **Archived** list and are auto-deleted 30 days after they expire. The number is a setting, default 30. Re-activating moves an item back out of Archived.
+3. **Takeover conflicts**: the newest wins by default. When posting or scheduling a takeover whose time overlaps one that's already live or scheduled, the composer **warns and asks**:
+   - **Replace**: the new one shows now and the old one is paused, not deleted.
+   - **Share**: both rotate full-screen, alternating every N seconds.
+   - **Queue after**: the new one's start is set to the old one's end. Only offered if the old one has an end time.
+
+   Data: a takeover can carry `takeover.group` (shared rotation) and the start time handles queueing; no extra engine needed. This replaces the `priority` rule above.
+4. **Categories**: start with Davening, Shiur, Seder (learning), Meals, Mivtzoim, Farbrengen, Events, Trips, Breaks. They're editable in admin as today.
+5. **"End of Shabbos" chip** uses **tzeis / Shabbos-end from the zmanim cache**, which comes from the system's configured location and zmanim source (`settings.location`, Chabad.org feed). The chip shows the actual resolved time ("until 7:36 PM") before you tap it, so it's always visible what it will do. If zmanim are unavailable, the chip is disabled rather than guessing.
+
+## How Claude chat learns the format (owner question)
+
+The app teaches it; the owner never has to remember the format:
+
+- **"Copy Claude prompt"** (Schedule → Import) copies a complete prompt containing the format rules, an example, the school's actual category and icon lists, the target dates, and that weekend's zmanim. Paste it into Claude chat, add your notes ("Shacharis 9:30, kiddush after, guest speaker at seuda shlishis"), and Claude replies in the right format.
+- **"Copy format guide for a Claude Project"** gives the same rules, without dates, as standing instructions. Paste it once into a Claude Project's instructions, and every chat in that project already knows the format. Then "make this Shabbos: …" is enough.
+- **"Copy as text"** on any existing date or saved block exports it in the format, so you can hand Claude last week's Shabbos and say "same as this but Mincha at 5:30".
+- If Claude's output has a mistake, the preview shows exactly which line and why before anything is applied. You can fix it in the text box, or paste the error back to Claude.
+
+## Manual entry (owner question)
+
+For editing without Claude, the per-date **day editor** (§ "Ways to set a date's schedule", item 4) is designed for speed on a phone:
+
+- Pick a date from a week strip (this week plus next weeks; dates with their own schedule are marked).
+- Start from: **weekly schedule**, a **saved block** ("Regular Shabbos"), **copy another date** (last Shabbos), or **blank**.
+- Rows are edited inline: tap the time to change it (a typeable field, not the iOS wheel), tap the name to type, tap the category chip to change it. "+ Add row" adds a row with the time pre-filled 30 minutes after the previous row. Swipe or ✕ to delete, with Undo.
+- Changing one detail is 2 taps plus typing, compared with about 4 clicks and 2 scrolls today.
+- A **Text mode** toggle on the same screen shows that day as editable text in the same format, for anyone who prefers typing lines.
+- **Save day as block** turns it into a reusable template.
