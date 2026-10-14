@@ -70,7 +70,11 @@ function CreditContent({ credit, tokens }) {
   );
 }
 
-export default function Layout({ leftColumn, rightColumn, progressDots, banner, theme = 'dark', tokens: tokensProp, fullscreen = false, credit, clockSide = 'left', portrait = false, portraitTopBar }) {
+export default function Layout({ leftColumn, rightColumn, progressDots, banner, theme = 'dark', tokens: tokensProp, fullscreen = false, credit, clockSide = 'left', portrait = false, portraitTopBar, bannerHeight = 36 }) {
+  // bannerHeight: the banner's actual rendered height (Banner.jsx
+  // bannerHeightFor). The slot was a fixed 36px, clipping the 48px "Large"
+  // banner (audit bug 10).
+  const bannerSlotHeight = Math.max(36, bannerHeight || 0);
   const tokens = tokensProp || getTokens(theme) || defaultTokens;
   // In LTR grid, column 1 renders on the left, column 2 on the right.
   // clockFirst=true → clock in column 1 → visual left (default).
@@ -202,7 +206,7 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
               bottom: 0,
               left: '15px',
               right: '15px',
-              height: '36px',
+              height: `${bannerSlotHeight}px`,
               zIndex: 4,
               display: 'flex',
               alignItems: 'center',
@@ -218,7 +222,7 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
           <div
             style={{
               position: 'fixed',
-              bottom: banner ? '38px' : '4px',
+              bottom: banner ? `${bannerSlotHeight + 2}px` : '4px',
               right: '20px',
               opacity: creditOpacity(credit?.size),
               zIndex: 5,
@@ -400,7 +404,7 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
             bottom: 0,
             left: '15px',
             right: '15px',
-            height: '36px',
+            height: `${bannerSlotHeight}px`,
             zIndex: 4,
             display: 'flex',
             alignItems: 'center',
@@ -416,7 +420,7 @@ export default function Layout({ leftColumn, rightColumn, progressDots, banner, 
         <div
           style={{
             position: 'fixed',
-            bottom: banner ? '38px' : '4px',
+            bottom: banner ? `${bannerSlotHeight + 2}px` : '4px',
             right: '20px',
             opacity: creditOpacity(credit?.size),
             zIndex: 5,

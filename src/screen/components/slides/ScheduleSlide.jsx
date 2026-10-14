@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { fonts } from '../../styles/tokens.js';
 import { ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
+import { isEntryActiveOn } from '../../../shared/scheduleDays.js';
 
 // ── Keyframes ─────────────────────────────────────────────────────────────
 const SCHEDULE_KEYFRAMES = `
@@ -517,11 +518,17 @@ function TwoColumnMode({ entries, now, nextIdx, categoryMap, tokens, lang }) {
 export default function ScheduleSlide({ schedule, tokens, settings }) {
   const [now, setNow] = useState(() => new Date());
 
+  // Only today's entries: `enabled !== false` and `days` includes today's
+  // day code (missing/empty `days` = every day). Previously every entry
+  // showed every day, so weekday seder showed on Shabbos (audit bug 11).
+  // Recomputed when the weekday changes (the 30 s `now` tick crosses midnight).
+  const todayDow = now.getDay();
   const entries = useMemo(
-    () => [...(schedule?.entries || [])].sort(
-      (a, b) => (parseTimeToMinutes(a.time) ?? 9999) - (parseTimeToMinutes(b.time) ?? 9999)
-    ),
-    [schedule?.entries]
+    () => (schedule?.entries || [])
+      .filter(e => isEntryActiveOn(e, now))
+      .sort((a, b) => (parseTimeToMinutes(a.time) ?? 9999) - (parseTimeToMinutes(b.time) ?? 9999)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [schedule?.entries, todayDow]
   );
   const categories = schedule?.categories || [];
   const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);

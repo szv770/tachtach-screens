@@ -14,6 +14,25 @@ const SPEED_MAP = {
   fast:   0.12,
 };
 
+/**
+ * Pixel height the banner strip will render at, so Layout can size its fixed
+ * banner slot to match. The slot used to be a fixed 36px, which clipped the
+ * 48px "Large" banner (audit bug 10).
+ */
+export function bannerHeightFor(banners, bannerSettings) {
+  const msg = banners?.[0];
+  return (SIZE_MAP[msg?.bannerSize || bannerSettings?.size] || SIZE_MAP.normal).height;
+}
+
+/**
+ * Banner text is a one-line ticker, so line breaks typed in the admin are
+ * shown as " · " separators instead of being silently collapsed.
+ */
+function oneLine(text) {
+  if (!text) return text;
+  return String(text).split(/\s*(?:\r\n|\r|\n)+\s*/).filter(Boolean).join(' \u00B7 ');
+}
+
 export default function Banner({ banners, tokens, bannerSettings }) {
   if (!banners?.length) return null;
 
@@ -23,7 +42,7 @@ export default function Banner({ banners, tokens, bannerSettings }) {
   const speed = SPEED_MAP[msg?.bannerSpeed || bannerSettings?.speed] ?? SPEED_MAP.normal;
   const repeat = msg?.bannerRepeat || bannerSettings?.repeat || 'loop';
 
-  const singleText = banners.map(b => b.textHe || b.textEn || b.text).join('  \u2003|\u2003  ');
+  const singleText = banners.map(b => oneLine(b.textHe || b.textEn || b.text)).join('  \u2003|\u2003  ');
   const singleWithTail = singleText + '   \u2014   ';
   const REPEATS = Math.max(3, Math.ceil(400 / (singleWithTail.length + 2)));
   const text = Array(REPEATS).fill(singleWithTail).join('');

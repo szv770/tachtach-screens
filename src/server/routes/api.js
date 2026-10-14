@@ -16,6 +16,7 @@ import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
+import { normalizeSettingsKeys } from '../settings-migrate.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -57,47 +58,35 @@ function pick(obj, allowedFields) {
 
 const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl'];
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
-const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bgColor', 'style', 'target', 'subtitle'];
+// `blocking` = board "Hold screen on this board" (replaces the slide area while
+// active); bannerSize/Speed/Repeat = per-message overrides read by Banner.jsx.
+// All four used to be stripped here, so those features were no-ops (audit bug 5).
+const MESSAGE_FIELDS = ['type', 'textHe', 'textEn', 'priority', 'expiresAt', 'bgColor', 'style', 'target', 'subtitle', 'blocking', 'bannerSize', 'bannerSpeed', 'bannerRepeat'];
 const PINNED_FIELDS = ['textHe', 'textEn', 'priority', 'enabled', 'order', 'icon', 'expiresAt', 'displayMode', 'duration', 'fullscreen'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
+// `alertDisplay` is accepted only as a legacy alias (older admin builds and
+// the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
+// folds it into `countdownDisplay`, which is the only key that gets stored.
+const SCHEDULE_ENTRY_INPUT_FIELDS = [...SCHEDULE_ENTRY_FIELDS, 'alertDisplay'];
+function pickScheduleEntry(e) {
+  const picked = pick(e, SCHEDULE_ENTRY_INPUT_FIELDS);
+  if ('alertDisplay' in picked) {
+    if (!picked.countdownDisplay) picked.countdownDisplay = picked.alertDisplay;
+    delete picked.alertDisplay;
+  }
+  if ('countdownDisplay' in picked) {
+    picked.countdownDisplay = picked.countdownDisplay === 'takeover' ? 'takeover' : 'slide';
+  }
+  return picked;
+}
 const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon'];
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];
 
-// ── GET /api/state — full initial payload ──────────────────────────────────
-
-router.get('/state', async (_req, res) => {
-  try {
-    const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, scheduleTemplates, rssFeeds] = await Promise.all([
-      readJSON('cache.json'),
-      readJSON('settings.json'),
-      readJSON('slides.json'),
-      readJSON('messages.json'),
-      readJSON('pinned.json'),
-      readJSON('custom-days.json'),
-      readJSON('google-albums.json'),
-      readJSON('schedule.json'),
-      readJSON('schedule-templates.json'),
-      readJSON('rss-feeds.json'),
-    ]);
-
-    res.json({
-      cache:      cache      ?? {},
-      settings:   settings   ?? {},
-      slides:     slides     ?? [],
-      messages:   messages   ?? [],
-      pinned:     pinned     ?? [],
-      customDays: customDays ?? [],
-      googleAlbums: googleAlbums ?? [],
-      schedule:   schedule   ?? { entries: [], categories: [] },
-      scheduleTemplates: scheduleTemplates ?? [],
-      rssFeeds:   rssFeeds   ?? [],
-    });
-  } catch (err) {
-    console.error('[api] GET /state error:', err.message, err.stack);
-    res.status(500).json({ error: 'Failed to load screen state. The data files may be corrupted.' });
-  }
-});
+// GET /api/state lives in src/server/app.js (route 6c, localhostOrAuth +
+// csrfProtection), registered before this router. A second copy used to live
+// here but was unreachable (shadowed), so it was removed — add new state keys
+// to app.js.
 
 // ── Settings ───────────────────────────────────────────────────────────────
 
@@ -113,10 +102,12 @@ router.get('/settings', async (_req, res) => {
 
 router.put('/settings', async (req, res) => {
   try {
-    const settings = req.body;
-    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
       return res.status(400).json({ error: 'Invalid settings data.' });
     }
+    // An admin tab still running an older build may send the stray top-level
+    // zipCode/trackA/... keys; fold them into location/scheduler (audit bug 6).
+    const { settings } = normalizeSettingsKeys(req.body);
     await writeJSON('settings.json', settings);
     broadcast('settings-update', settings);
 
@@ -242,6 +233,11 @@ router.post('/messages', async (req, res) => {
       timestamp: new Date().toISOString(),
       ...pick(req.body, MESSAGE_FIELDS),
     };
+    // Only boards can hold the screen; store a real boolean.
+    if ('blocking' in newMsg) {
+      if (newMsg.type === 'board' && newMsg.blocking === true) newMsg.blocking = true;
+      else delete newMsg.blocking;
+    }
     messages.push(newMsg);
     await writeJSON('messages.json', messages);
     broadcast('messages-update', messages);
@@ -385,7 +381,7 @@ router.put('/schedule/entries', async (req, res) => {
       return res.status(400).json({ error: 'Invalid entries data — expected an array.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.entries = entries.map((e) => ({ id: e?.id, ...pick(e, SCHEDULE_ENTRY_FIELDS) }));
+    schedule.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e) }));
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     // Re-initialize countdown timers with new schedule
@@ -406,7 +402,7 @@ router.post('/schedule/entries', async (req, res) => {
       return res.status(400).json({ error: 'Entry time is required.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    const picked = pick(req.body, SCHEDULE_ENTRY_FIELDS);
+    const picked = pickScheduleEntry(req.body);
     if (picked.enabled === undefined) picked.enabled = true;
     const newEntry = { id: uuidv4(), ...picked };
     schedule.entries.push(newEntry);
@@ -427,7 +423,7 @@ router.put('/schedule/entries/:id', async (req, res) => {
     if (idx === -1) {
       return res.status(404).json({ error: 'Schedule entry not found.' });
     }
-    schedule.entries[idx] = { ...schedule.entries[idx], ...pick(req.body, SCHEDULE_ENTRY_FIELDS), id: req.params.id };
+    schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body), id: req.params.id };
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
@@ -478,7 +474,7 @@ router.post('/schedule/template', async (req, res) => {
       return res.status(400).json({ error: 'Template entries must be an array.' });
     }
     const schedule = {
-      entries: entries.map((e) => ({ id: uuidv4(), ...pick(e, SCHEDULE_ENTRY_FIELDS), enabled: e.enabled !== false })),
+      entries: entries.map((e) => ({ id: uuidv4(), ...pickScheduleEntry(e), enabled: e.enabled !== false })),
       categories: Array.isArray(categories) ? categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS)) : [],
     };
     await writeJSON('schedule.json', schedule);
@@ -513,7 +509,7 @@ router.post('/schedule/templates', async (req, res) => {
       return res.status(400).json({ error: 'Template entries must be an array.' });
     }
     // Sanitize entries and categories within the template
-    picked.entries = picked.entries.map((e) => pick(e, SCHEDULE_ENTRY_FIELDS));
+    picked.entries = picked.entries.map((e) => pickScheduleEntry(e));
     if (Array.isArray(picked.categories)) {
       picked.categories = picked.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
     } else {
@@ -544,7 +540,7 @@ router.put('/schedule/templates/:id', async (req, res) => {
     const updates = pick(req.body, SCHEDULE_TEMPLATE_FIELDS);
     // Sanitize entries and categories if provided
     if (Array.isArray(updates.entries)) {
-      updates.entries = updates.entries.map((e) => pick(e, SCHEDULE_ENTRY_FIELDS));
+      updates.entries = updates.entries.map((e) => pickScheduleEntry(e));
     }
     if (Array.isArray(updates.categories)) {
       updates.categories = updates.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));

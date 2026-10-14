@@ -15,6 +15,7 @@ export default function PinnedSlide({ slide, tokens }) {
       flexDirection: 'column',
       alignItems: 'center',
       textAlign: 'center',
+      whiteSpace: 'pre-line', // keep admin-typed line breaks
     }}>
       {/* Decorative accent */}
       <div style={{

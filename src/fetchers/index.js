@@ -87,7 +87,11 @@ export async function fetchAll(config) {
   const r3Chapters = (r3?.chaptersArabic || []).map(n => hNum(n));
 
   // Build cache, preserving existing values on failure
+  // Start from `...existing` so keys this function doesn't build itself
+  // (e.g. `mivtzah`, written by mivtzah-scheduler.js) survive the rewrite.
+  // Without it, every Track B/C fetchAll() wiped them from cache.json.
   const cache = {
+    ...existing,
     fetchedDate: now.slice(0, 10),
 
     zmanim: zmanim
