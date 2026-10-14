@@ -20,6 +20,8 @@ import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 import { getStateExtras } from '../announcements-store.js';
+import { fetchWeather } from '../../fetchers/weather.js';
+import { describeWeather } from '../../shared/weatherCodes.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -533,6 +535,28 @@ router.delete('/schedule/templates/:id', async (req, res) => {
   } catch (err) {
     console.error('[api] DELETE /schedule/templates error:', err.message);
     res.status(500).json({ error: 'Failed to delete schedule template.' });
+  }
+});
+
+// ── Weather test (admin Settings → Weather → Test) ─────────────────────────
+// Fetches live weather for the SAVED zip and reports what the screen would
+// show, or a plain-English reason it can't. Writes nothing (cache untouched).
+router.get('/weather/preview', async (req, res) => {
+  const settings = (await readJSON('settings.json').catch(() => null)) ?? {};
+  const zip = String(settings.location?.zip || '').trim();
+  const units = req.query.units === 'C' ? 'C' : req.query.units === 'F' ? 'F' : (settings.weather?.units === 'C' ? 'C' : 'F');
+  if (!zip) return res.json({ ok: false, error: 'No zip code is set. Add one under Settings → Location and save.' });
+  if (!/^\d{5}$/.test(zip)) return res.json({ ok: false, zip, error: `"${zip}" is not a 5-digit US zip code, so the weather can't be looked up. Fix it under Settings → Location.` });
+  try {
+    const w = await fetchWeather({ zip, units, timezone: settings.location?.timezone, strict: true });
+    const d = describeWeather(w.current.code, w.current.isDay);
+    res.json({
+      ok: true, zip, units, place: w.location?.name || '',
+      temp: w.current.temp, feels: w.current.feels, condition: d.en, conditionHe: d.he,
+      hi: w.today?.hi ?? null, lo: w.today?.lo ?? null, fetchedAt: w.fetchedAt,
+    });
+  } catch (err) {
+    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${err.message}. Check the zip code and that the Pi is online.` });
   }
 });
 

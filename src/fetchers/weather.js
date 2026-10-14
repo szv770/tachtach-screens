@@ -128,9 +128,10 @@ export function normalizeOpenMeteo(json, units = "F") {
  * Fetch weather for the configured place.
  * @param {{ zip: string, units?: 'F'|'C', timezone?: string, previous?: object }} opts
  *   previous = the existing cache.weather (its geocoded location is reused)
+ *   strict = throw instead of returning null (admin "Test" button)
  * @returns {Promise<object|null>} cache.weather value, or null on failure
  */
-export async function fetchWeather({ zip, units = "F", timezone, previous } = {}) {
+export async function fetchWeather({ zip, units = "F", timezone, previous, strict = false } = {}) {
   try {
     let location = previous?.location;
     if (!location || location.zip !== String(zip || "").trim() || location.lat == null) {
@@ -143,6 +144,7 @@ export async function fetchWeather({ zip, units = "F", timezone, previous } = {}
     return { ...w, location, fetchedAt: new Date().toISOString() };
   } catch (err) {
     console.error("[weather] fetchWeather failed:", err.message);
+    if (strict) throw err; // the admin Test button wants the reason
     return null;
   }
 }
