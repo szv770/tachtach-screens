@@ -1,115 +1,66 @@
 /**
- * Announcement STYLES as panel role overrides (R2 README §7).
+ * Announcement STYLES (round 3b: 26 takeover styles) - THE SEAM for style
+ * layout metadata. Colours/graphics/motion of each style live in
+ * src/screen/takeover/ (css.js palettes, art.js SVG, one entry per style id);
+ * this file says how each style lays out its content on the canvas:
  *
- * THIS IS THE SEAM for the takeover/announcement style redesign: one entry
- * per style, each a plain object of CSS custom properties applied on the
- * page panel (ui.jsx <Panel look=…>). Layouts (BigWords, EventCard, ListCard,
- * QuickTime, …) paint only with the panel roles below, so a new style is just
- * a new entry here — no layout code changes — and a new layout works with
- * every style.
+ *   layout  best layout (informational)      box   content insets [L,R,T,B] (landscape 1600x900)
+ *   pbox    portrait insets (styles without a side graphic)
+ *   bb      bounding box of the SIDE graphic in landscape design space; vertically
+ *           centred on 16:10, moved to a top band in portrait
+ *   align   'start' | 'center'               ent   text-entrance personality
+ *   chrome  clock / bh offsets               clock / bh   corner of the clock / bh
  *
- * Panel roles: --panel (surface colour) --panelBg (optional gradient)
- * --panelRing (optional inset box-shadow) --ink --inkDim --fill --fillInk
- * --accentText --accent --onAccent --f-disp-he --f-disp-en --disp-w
- * --tile-w --qt-w --tileRing.
- *
- * All static (no infinite animation). `light` variants keep contrast on the
- * light theme family. The old Takeover.jsx keyframes (emergencyPulse,
- * hypeGlow, celebrationConfetti, …) are retired on the display.
+ * Panel-style roles for other pages (CountdownOverlay's <Panel look="urgent">)
+ * still use styleVars() below: a tiny amber tint kept for that one caller.
  */
+import { STYLE_IDS as IDS, normalizeStyleId, renderStyleId } from '../../shared/takeoverStyles.js';
 
-const SERIF_HE = "var(--f-th)";
-const SERIF_EN = "var(--f-te)";
-
-const STYLES = {
-  classic: () => ({}),
-
-  sleek: () => ({
-    '--fill': 'var(--ink)', '--fillInk': 'var(--panel)', '--accentText': 'var(--ink)',
-    '--disp-w': 500, '--tile-w': 400, '--qt-w': 200,
-  }),
-
-  grand: (light) => {
-    const accent = light ? '#8A6516' : '#D2AA55';
-    return {
-      '--f-disp-he': SERIF_HE, '--f-disp-en': SERIF_EN, '--disp-w': 600,
-      '--accent': accent, '--onAccent': light ? '#FFFFFF' : '#1A1408',
-      '--fill': accent, '--fillInk': light ? '#FFFFFF' : '#1A1408', '--accentText': accent,
-      '--panelRing': `inset 0 0 0 2px color-mix(in srgb, ${accent} 55%, transparent), inset 0 0 0 12px var(--panel), inset 0 0 0 13px color-mix(in srgb, ${accent} 30%, transparent)`,
-    };
-  },
-
-  celebration: () => ({
-    '--panel': 'var(--accent)', '--ink': 'var(--onAccent)',
-    '--inkDim': 'color-mix(in srgb, var(--onAccent) 72%, transparent)',
-    '--fill': 'var(--onAccent)', '--fillInk': 'var(--accent)', '--accentText': 'var(--onAccent)', '--disp-w': 800,
-    '--panelBg': 'linear-gradient(150deg, color-mix(in srgb, #FFFFFF 14%, var(--accent)) 0%, var(--accent) 55%, color-mix(in srgb, #000000 18%, var(--accent)) 100%)',
-  }),
-
-  urgent: (light) => {
-    const accent = light ? '#B4600A' : '#F2A33A';
-    return {
-      '--accent': accent, '--onAccent': light ? '#FFFFFF' : '#1E1405',
-      '--fill': accent, '--fillInk': light ? '#FFFFFF' : '#1E1405', '--accentText': accent,
-      '--panel': `color-mix(in srgb, ${accent} 7%, var(--raised))`,
-      '--panelRing': `inset 0 0 0 6px ${accent}`,
-    };
-  },
-
-  emergency: () => ({
-    '--panel': '#B42318', '--ink': '#FFFFFF', '--inkDim': 'rgba(255,255,255,.8)',
-    '--fill': '#FFFFFF', '--fillInk': '#B42318', '--accentText': '#FFFFFF', '--disp-w': 800,
-  }),
-
-  torah: (light) => {
-    const accent = light ? '#7A5520' : '#C99A4E';
-    return {
-      '--f-disp-he': SERIF_HE, '--f-disp-en': SERIF_EN, '--disp-w': 600,
-      '--accent': accent, '--onAccent': light ? '#FFFFFF' : '#1C1206',
-      '--fill': accent, '--fillInk': light ? '#FFFFFF' : '#1C1206', '--accentText': accent,
-      '--panel': light ? 'color-mix(in srgb, #E8D4A8 55%, var(--raised))' : 'color-mix(in srgb, #C9A46A 11%, var(--raised))',
-    };
-  },
-
-  trip: (light) => {
-    const accent = light ? '#1E7A52' : '#4CB386';
-    return {
-      '--accent': accent, '--onAccent': light ? '#FFFFFF' : '#06180F',
-      '--fill': accent, '--fillInk': light ? '#FFFFFF' : '#06180F', '--accentText': accent,
-      '--panel': `color-mix(in srgb, ${accent} 8%, var(--raised))`,
-    };
-  },
-
-  phone: () => ({
-    '--fill': 'transparent', '--fillInk': 'var(--accent)', '--accentText': 'var(--accent)', '--tile-w': 600,
-    '--tileRing': 'inset 0 0 0 4px var(--accent)',
-  }),
-
-  memorial: (light) => ({
-    '--f-disp-he': SERIF_HE, '--f-disp-en': SERIF_EN, '--disp-w': 500,
-    '--fill': 'transparent', '--fillInk': 'var(--ink)', '--accentText': 'var(--inkDim)', '--tile-w': 400, '--qt-w': 300,
-    '--tileRing': 'inset 0 0 0 2px var(--line)',
-    '--panel': light ? 'color-mix(in srgb, var(--text) 5%, var(--raised))' : 'color-mix(in srgb, #000000 22%, var(--raised))',
-  }),
-
-  hype: (light) => {
-    const accent = light ? '#D9381A' : '#FF5B3A';
-    return {
-      '--accent': accent, '--onAccent': '#FFFFFF',
-      '--fill': accent, '--fillInk': '#FFFFFF', '--accentText': accent, '--disp-w': 800,
-      '--panelBg': `linear-gradient(120deg, color-mix(in srgb, ${accent} 26%, var(--raised)) 0%, var(--raised) 58%)`,
-    };
-  },
+export const STYLES = {
+  classic:     { layout: 'event',    box: [104, 104, 112, 96],  pbox: [90, 90, 130, 120],  align: 'start',  ent: 'rise' },
+  grand:       { layout: 'event',    box: [150, 150, 124, 112], pbox: [120, 120, 150, 140], align: 'center', ent: 'calm', chrome: { top: 72, side: 100 } },
+  emergency:   { layout: 'bigwords', box: [500, 96, 100, 90],   bb: [50, 250, 450, 650], pbox: null, align: 'start',  ent: 'snap', chrome: { top: 50 } },
+  sleek:       { layout: 'quick',    box: [96, 96, 110, 130],   pbox: [80, 80, 140, 150],  align: 'start',  ent: 'rise' },
+  celebration: { layout: 'bigwords', box: [260, 260, 200, 110], pbox: [120, 120, 220, 150], align: 'center', ent: 'lively' },
+  urgent:      { layout: 'event',    box: [150, 110, 150, 100], pbox: [150, 70, 150, 110], align: 'start',  ent: 'slide', clock: 'br', chrome: { top: 58, side: 76, bottom: 58 } },
+  torah:       { layout: 'quote',    box: [220, 220, 176, 164], pbox: [190, 190, 190, 190], align: 'center', ent: 'calm', chrome: { top: 70, side: 196 } },
+  trip:        { layout: 'event',    box: [104, 104, 112, 220], pbox: [70, 70, 220, 270],  align: 'start',  ent: 'rise' },
+  phone:       { layout: 'quick',    box: [560, 96, 110, 96],   bb: [96, 266, 484, 634], align: 'start',  ent: 'rise' },
+  memorial:    { layout: 'bigwords', box: [520, 110, 130, 120], bb: [190, 300, 390, 640], align: 'center', ent: 'calm' },
+  hype:        { layout: 'quick',    box: [200, 140, 110, 100], pbox: [90, 90, 140, 130],  align: 'center', ent: 'lively', clock: 'bl', chrome: { side: 64, bottom: 44 } },
+  shabbos:     { layout: 'quick',    box: [540, 96, 110, 96],   bb: [130, 224, 430, 810], align: 'start',  ent: 'calm' },
+  yomtov:      { layout: 'event',    box: [130, 130, 200, 170], pbox: [90, 90, 210, 190],  align: 'center', ent: 'rise', chrome: { top: 128 } },
+  siyum:       { layout: 'event',    box: [560, 96, 112, 96],   bb: [60, 96, 500, 812],  align: 'start',  ent: 'rise' },
+  farbrengen:  { layout: 'event',    box: [104, 400, 112, 210], pbox: [70, 70, 230, 290],  align: 'start',  ent: 'rise', bh: 'tl', clock: 'tr' },
+  mivtzoim:    { layout: 'list',     box: [104, 430, 112, 96],  pbox: [70, 70, 150, 330],  align: 'start',  ent: 'slide' },
+  welcome:     { layout: 'bigwords', box: [456, 456, 262, 96],  pbox: [150, 150, 560, 150], align: 'center', ent: 'rise' },
+  simcha:      { layout: 'bigwords', box: [180, 180, 250, 110], pbox: [90, 90, 250, 150],  align: 'center', ent: 'lively', chrome: { top: 40 }, bh: 'none', clock: 'br' },
+  schedule:    { layout: 'quick',    box: [560, 96, 110, 96],   bb: [74, 254, 486, 646], align: 'start',  ent: 'rise' },
+  quiet:       { layout: 'bigwords', box: [220, 220, 200, 180], pbox: [90, 90, 220, 220],  align: 'center', ent: 'calm' },
+  chanukah:    { layout: 'event',    box: [540, 96, 112, 96],   bb: [130, 240, 430, 795], align: 'start',  ent: 'calm' },
+  purim:       { layout: 'event',    box: [560, 150, 120, 110], bb: [100, 300, 480, 620], align: 'start',  ent: 'lively' },
+  pesach:      { layout: 'bigwords', box: [200, 200, 110, 260], pbox: [90, 90, 150, 300], align: 'center', ent: 'calm', chrome: { top: 70 } },
+  roshchodesh: { layout: 'bigwords', box: [220, 220, 130, 220], pbox: [90, 90, 150, 240], align: 'center', ent: 'calm' },
+  lagbaomer:   { layout: 'event',    box: [600, 96, 112, 96],   bb: [140, 380, 440, 710], align: 'start',  ent: 'lively' },
+  chassidic:   { layout: 'bigwords', box: [200, 200, 290, 110], pbox: [90, 90, 330, 140],  align: 'center', ent: 'calm' },
 };
 
-/** Old style names that map onto a current one. */
-const ALIASES = { notice: 'urgent' };
+export const STYLE_IDS = IDS;
+export { normalizeStyleId, renderStyleId };
 
-export const STYLE_IDS = Object.keys(STYLES);
+/** Registry entry for a style id (unknown / null -> classic). */
+export function styleOf(id) {
+  return STYLES[renderStyleId(id)] || STYLES.classic;
+}
 
-/** CSS custom properties for a style on the given theme family. */
+/** Panel role overrides for non-announcement pages (CountdownOverlay's urgent tint). */
 export function styleVars(style, light = false) {
-  const id = ALIASES[style] || style;
-  const f = STYLES[id];
-  return f ? f(light) : {};
+  if (style !== 'urgent') return {};
+  const accent = light ? '#B4600A' : '#F2A33A';
+  return {
+    '--accent': accent, '--onAccent': light ? '#FFFFFF' : '#1E1405',
+    '--fill': accent, '--fillInk': light ? '#FFFFFF' : '#1E1405', '--accentText': accent,
+    '--panel': `color-mix(in srgb, ${accent} 7%, var(--raised))`,
+    '--panelRing': `inset 0 0 0 6px ${accent}`,
+  };
 }

@@ -9,11 +9,13 @@
  *    for an admin tab or kiosk still running the previous build).
  */
 
-import { canonicalDay, durationMinutes, isActive, hasText, DEFAULT_TZ, LAYOUTS } from '../shared/announcements.js';
+import { canonicalDay, durationMinutes, isActive, hasText, DEFAULT_TZ, LAYOUTS, listItemText } from '../shared/announcements.js';
+import { STYLE_IDS, normalizeStyleId, normalizeAnimation, DEFAULT_ANIMATION } from '../shared/takeoverStyles.js';
 
 export { LAYOUTS };
 
-export const STYLE_NAMES = ['classic', 'grand', 'emergency', 'sleek', 'celebration', 'urgent', 'torah', 'trip', 'phone', 'memorial', 'hype'];
+/** The 26 takeover styles (round 3b). Old ids keep their name; see normalizeStyleId. */
+export const STYLE_NAMES = STYLE_IDS;
 export const TEMPLATES = ['headline', 'quote', 'info', 'announcement', 'board', 'pinned'];
 export const DISPLAYS = ['slide', 'banner', 'note', 'takeover'];
 const BANNER_SIZES = ['small', 'normal', 'large'];
@@ -23,7 +25,17 @@ const MAX_TEXT = 4000;
 
 export class ValidationError extends Error {}
 
-const CONTENT_KEYS = ['headlineEn', 'headlineHe', 'bodyEn', 'bodyHe', 'subtitle', 'target', 'attribution'];
+const CONTENT_KEYS = ['headlineEn', 'headlineHe', 'bodyEn', 'bodyHe', 'subtitle', 'target', 'targetHe', 'attribution'];
+
+// Layout sub-objects: field lists (text unless noted). sicha/letter bodies are long.
+const EVENT_KEYS = ['title', 'titleHe', 'day', 'dayHe', 'place', 'place2', 'placeHe'];
+const QUICKTIME_TEXT = ['name', 'nameHe', 'place', 'placeHe', 'pre', 'big', 'bigLabel', 'label', 'labelHe', 'label2', 'label2He'];
+const QUICKTIME_TIMES = ['time', 'time2', 'was'];
+const QUOTE_KEYS = ['text', 'textHe', 'source', 'sourceHe'];
+const SICHA_KEYS = ['title', 'titleHe', 'body', 'source'];
+const LETTER_KEYS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe'];
+const LONG_KEYS = new Set(['body']);
+const MAX_LONG = 12000;
 
 export function defaultItem() {
   return {
@@ -35,11 +47,14 @@ export function defaultItem() {
     hold: false,
     content: {
       ...Object.fromEntries(CONTENT_KEYS.map((k) => [k, ''])),
-      event: { title: '', titleHe: '', day: '', time: '', place: '', placeHe: '' },
+      event: { title: '', titleHe: '', day: '', dayHe: '', time: '', place: '', place2: '', placeHe: '' },
       list: { heading: '', headingHe: '', items: [] },
       quicktime: { time: '', name: '', nameHe: '', place: '' },
+      quote: { text: '', textHe: '', source: '', sourceHe: '' },
+      sicha: { title: '', titleHe: '', body: '', source: '' },
+      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
     },
-    look: { layout: 'bigwords', style: null, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
+    look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
@@ -74,6 +89,14 @@ function hm(v) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(v ?? '').trim());
   if (!m || +m[1] > 24 || +m[2] > 59) throw new ValidationError(`Invalid time (HH:MM): ${String(v).slice(0, 10)}`);
   return `${m[1].padStart(2, '0')}:${m[2]}`;
+}
+
+/** A list item: plain text (old data) or { text, textHe, day, time }. */
+function sanitizeListItem(x) {
+  if (x && typeof x === 'object' && !Array.isArray(x)) {
+    return { text: str(x.text, 600), textHe: str(x.textHe, 600), day: str(x.day, 60), time: x.time ? hm(x.time) : '' };
+  }
+  return str(x, 600);
 }
 
 function oneOf(v, list, fallback = null) {
@@ -119,32 +142,35 @@ export function sanitizeInput(body) {
   if (body.content && typeof body.content === 'object') {
     out.content = {};
     for (const k of CONTENT_KEYS) if (k in body.content) out.content[k] = str(body.content[k], k.startsWith('body') || k.startsWith('headline') ? MAX_TEXT : 300);
+    const sub = (name, keys, extra) => {
+      const src = body.content[name];
+      if (!src || typeof src !== 'object') return;
+      out.content[name] = {};
+      for (const k of keys) if (k in src) out.content[name][k] = str(src[k], LONG_KEYS.has(k) ? MAX_LONG : 300);
+      extra?.(src, out.content[name]);
+    };
     const c = body.content;
-    if (c.event && typeof c.event === 'object') {
-      out.content.event = {};
-      for (const k of ['title', 'titleHe', 'day', 'place', 'placeHe']) if (k in c.event) out.content.event[k] = str(c.event[k], 300);
-      if ('time' in c.event) out.content.event.time = c.event.time ? hm(c.event.time) : '';
-    }
+    sub('event', EVENT_KEYS, (src, o) => { if ('time' in src) o.time = src.time ? hm(src.time) : ''; });
     if (c.list && typeof c.list === 'object') {
       out.content.list = {};
       for (const k of ['heading', 'headingHe']) if (k in c.list) out.content.list[k] = str(c.list[k], 300);
       if ('items' in c.list) {
         if (!Array.isArray(c.list.items)) throw new ValidationError('List items must be a list.');
-        const items = c.list.items.map((x) => str(x, 600));
-        if (items.filter((x) => x.trim()).length > 8) throw new ValidationError('A list can have at most 8 items.');
+        const items = c.list.items.map(sanitizeListItem);
+        if (items.filter((x) => listItemText(x).trim()).length > 8) throw new ValidationError('A list can have at most 8 items.');
         out.content.list.items = items.slice(0, 8);
       }
     }
-    if (c.quicktime && typeof c.quicktime === 'object') {
-      out.content.quicktime = {};
-      for (const k of ['name', 'nameHe', 'place']) if (k in c.quicktime) out.content.quicktime[k] = str(c.quicktime[k], 300);
-      if ('time' in c.quicktime) out.content.quicktime.time = c.quicktime.time ? hm(c.quicktime.time) : '';
-    }
+    sub('quicktime', QUICKTIME_TEXT, (src, o) => { for (const k of QUICKTIME_TIMES) if (k in src) o[k] = src[k] ? hm(src[k]) : ''; });
+    sub('quote', QUOTE_KEYS);
+    sub('sicha', SICHA_KEYS);
+    sub('letter', LETTER_KEYS);
   }
   if (body.look && typeof body.look === 'object') {
     const l = body.look; out.look = {};
     if ('layout' in l) out.look.layout = oneOf(l.layout, LAYOUTS, 'bigwords');
-    if ('style' in l) out.look.style = l.style ? oneOf(l.style, STYLE_NAMES, 'classic') : null;
+    if ('style' in l) out.look.style = l.style ? normalizeStyleId(l.style) : null;
+    if ('animation' in l) out.look.animation = normalizeAnimation(l.animation);
     if ('template' in l) out.look.template = oneOf(l.template, TEMPLATES, 'announcement');
     if ('fit' in l) out.look.fit = l.fit === 'fixed' ? 'fixed' : 'auto';
     if ('maxFontPx' in l) out.look.maxFontPx = l.maxFontPx == null || l.maxFontPx === '' ? null : intIn(l.maxFontPx, 12, 400, null);
@@ -189,7 +215,7 @@ export function mergeItem(existing, patch, nowIso = new Date().toISOString()) {
   for (const [k, v] of Object.entries(patch)) {
     if (k === 'content') {
       out.content = { ...(existing.content || {}), ...v };
-      for (const sub of ['event', 'list', 'quicktime']) {
+      for (const sub of ['event', 'list', 'quicktime', 'quote', 'sicha', 'letter']) {
         if (v[sub]) out.content[sub] = { ...(existing.content?.[sub] || {}), ...v[sub] };
       }
     } else if (SUB_OBJECTS.includes(k)) out[k] = { ...(existing[k] || {}), ...v };
@@ -257,7 +283,7 @@ export function messageToItem(m, nowIso = new Date().toISOString()) {
     item.banner = { size: oneOf(m.bannerSize, BANNER_SIZES), speed: oneOf(m.bannerSpeed, BANNER_SPEEDS), repeat: oneOf(m.bannerRepeat, BANNER_REPEATS) };
   } else if (m.type === 'takeover') {
     item.display = 'takeover';
-    item.look.style = oneOf(m.style, STYLE_NAMES, 'classic');
+    item.look.style = normalizeStyleId(m.style) || 'classic';
   } else {
     item.display = 'slide';
     item.look.template = 'board';
@@ -312,7 +338,7 @@ export function slideToItem(s, nowIso = new Date().toISOString()) {
   item.content.bodyEn = str(s.bodyEn);
   item.content.attribution = str(s.attribution, 300);
   item.content.subtitle = str(s.subtitle, 300);
-  item.look.style = s.style ? oneOf(s.style, STYLE_NAMES, 'classic') : null;
+  item.look.style = s.style ? normalizeStyleId(s.style) : null;
   // TextSlide's switch falls through to the 'announcement' layout when no
   // template is set, so that is what an unset template looked like.
   item.look.template = oneOf(s.template, TEMPLATES, 'announcement');

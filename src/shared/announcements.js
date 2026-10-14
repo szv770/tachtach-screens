@@ -453,7 +453,9 @@ export function describeTiming(item, now = new Date(), opts = {}) {
 
 // ── Content helpers ─────────────────────────────────────────────────────────
 
-export const LAYOUTS = ['bigwords', 'event', 'list', 'quicktime', 'classic'];
+export const LAYOUTS = ['bigwords', 'event', 'list', 'quicktime', 'quote', 'sicha', 'letter', 'classic'];
+/** Phase 2b inspiration layouts (quote / sicha excerpt / letter). */
+export const INSPIRATION_LAYOUTS = ['quote', 'sicha', 'letter'];
 
 /** Effective layout. Banners and side notes are always plain text. */
 export function layoutOf(item) {
@@ -472,6 +474,12 @@ export function to12h(hhmm) {
 
 const nonEmpty = (v) => !!String(v ?? '').trim();
 
+/** A list item is a plain string (old data) or { text, textHe, day, time }. */
+export function listItemText(x) {
+  if (x && typeof x === 'object') return [x.text, x.textHe].filter(nonEmpty).join(' ');
+  return String(x ?? '');
+}
+
 /** Main text for list rows / previews (layout-aware). */
 export function primaryText(item) {
   const c = item?.content || {};
@@ -484,12 +492,15 @@ export function primaryText(item) {
   }
   if (layout === 'list') {
     const l = c.list || {};
-    return [l.heading || l.headingHe, ...(l.items || []).filter(nonEmpty)].filter(nonEmpty).join(' · ');
+    return [l.heading || l.headingHe, ...(l.items || []).map(listItemText).filter(nonEmpty)].filter(nonEmpty).join(' · ');
   }
   if (layout === 'quicktime') {
     const q = c.quicktime || {};
-    return [q.name || q.nameHe, q.time ? to12h(q.time) : '', q.place].filter(nonEmpty).join(' ');
+    return [q.name || q.nameHe, q.time ? to12h(q.time) : q.big, q.place].filter(nonEmpty).join(' ');
   }
+  if (layout === 'quote') return [c.quote?.text || c.quote?.textHe, c.quote?.source].filter(nonEmpty).join(' — ');
+  if (layout === 'sicha') return c.sicha?.title || c.sicha?.titleHe || String(c.sicha?.body || '').slice(0, 80);
+  if (layout === 'letter') return [c.letter?.salutation, String(c.letter?.body || '').slice(0, 80)].filter(nonEmpty).join(' ');
   return c.headlineHe || c.headlineEn || c.bodyHe || c.bodyEn || '';
 }
 
@@ -498,8 +509,11 @@ export function hasText(item) {
   const usesLayout = item?.display === 'slide' || item?.display === 'takeover';
   const layout = usesLayout ? layoutOf(item) : 'bigwords';
   if (layout === 'event') return nonEmpty(c.event?.title) || nonEmpty(c.event?.titleHe);
-  if (layout === 'list') return nonEmpty(c.list?.heading) || nonEmpty(c.list?.headingHe) || (c.list?.items || []).some(nonEmpty);
-  if (layout === 'quicktime') return nonEmpty(c.quicktime?.time) && (nonEmpty(c.quicktime?.name) || nonEmpty(c.quicktime?.nameHe));
+  if (layout === 'list') return nonEmpty(c.list?.heading) || nonEmpty(c.list?.headingHe) || (c.list?.items || []).some((x) => nonEmpty(listItemText(x)));
+  if (layout === 'quicktime') return (nonEmpty(c.quicktime?.time) || nonEmpty(c.quicktime?.big)) && (nonEmpty(c.quicktime?.name) || nonEmpty(c.quicktime?.nameHe));
+  if (layout === 'quote') return nonEmpty(c.quote?.text) || nonEmpty(c.quote?.textHe);
+  if (layout === 'sicha') return nonEmpty(c.sicha?.body);
+  if (layout === 'letter') return nonEmpty(c.letter?.body);
   return nonEmpty(c.headlineHe) || nonEmpty(c.headlineEn) || nonEmpty(c.bodyHe) || nonEmpty(c.bodyEn);
 }
 

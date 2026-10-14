@@ -1,192 +1,157 @@
-# TachTach takeovers, round 3 (21 styles)
+# TachTach takeovers, round 3b (26 styles)
 
-One file: `takeovers.html` (1600x900 canvas, reuses R2's token derivation, fonts, auto-fit and pager). Screenshots at deviceScaleFactor 1.2 in `shots/`. Repo not modified.
+One file: `takeovers.html` (renders on 1600x900, 1600x1000 (16:10) and 900x1600 (portrait); reuses R2's token derivation, fonts, auto-fit and pager). Screenshots at deviceScaleFactor 1.2 in `shots/`. The repo was not modified.
 
-## Driving it
+## Owner decisions recorded here
 
-`takeovers.html?style=&layout=&theme=&fonts=&enter=1`
+1. **Looping animation is wanted for takeovers (all except `quiet`).** This relaxes the R2 rule "no infinite animations" **for takeovers only**; the rest of the screen keeps the R2 rules. Discipline kept: only `transform` and `opacity` are animated; no filter / blur / backdrop-filter / blend mode / box-shadow animation (audited, see below); few moving layers (max 10 per style); slow, smooth easing; every loop seamless; everything off under `prefers-reduced-motion`.
+2. **Davening family and schedule-triggered auto-takeovers: later.** Not built, not mocked. (Design notes to resume from: one calm full-screen frame for a ~45 min Davening-category window, static graphic, name auto-filled from the schedule item in Hebrew + English, a "starts in 5 min" pre-variant. It fits the stage-role system and the `quiet`-style no-flicker ambient rules below.)
+
+## How to drive it
+
+`takeovers.html?style=&layout=&theme=&fonts=&canvas=&enter=1`
 
 | Param | Values |
 |---|---|
-| `style` | classic grand emergency sleek celebration urgent torah trip phone memorial hype **shabbos yomtov siyum farbrengen mivtzoim welcome simcha schedule quiet chanukah** |
+| `style` | classic grand emergency sleek celebration urgent torah trip phone memorial hype shabbos yomtov siyum farbrengen mivtzoim welcome simcha schedule quiet chanukah **purim pesach roshchodesh lagbaomer chassidic** |
 | `layout` | `bigwords` `event` `list` `quick` `quote` `sicha` `letter` (default = the style's best layout) |
-| `theme` | the 10 R2 themes (dark, dark-hc, midnight, graphite, sepia(dark brown), parchment, clean-white, ivory, sky, stone) |
-| `fonts` | `default` (Rubik/Manrope + Frank Ruhl/EB Garamond for Torah text) · `serif` (FbMazal + EB Garamond) · `mazal` (FbMazal only in the Hebrew display and Torah roles) |
-| `hefont`, `hescale` | any uploaded family name dropped into the Hebrew display and Torah roles, e.g. `hefont=1ShefaClassic&hescale=1.1` |
-| `enter=1` | plays the entrance. `&t=400` freezes it at 400 ms (used for the filmstrip) |
-| `pg` | page for sicha/letter |
+| `theme` | the 10 R2 themes |
+| `fonts` | `default` · `serif` (FbMazal + EB Garamond) · `mazal` (FbMazal only in the Hebrew display + Torah roles); `hefont=<uploaded family>&hescale=1.1` drops any uploaded Hebrew font into those roles |
+| `canvas` | `land` (1600x900, default) · `16x10` (1600x1000) · `port` (900x1600) |
+| `len` | `s` / `m` / `l`: stress text (one word / typical / at the composer limits). Without it the style's realistic sample message is used |
+| `enter=1` | play the entrance. `&t=1200` freezes every animation at that time (used for the filmstrips) |
+| `anim` | **`full`** (default) · `entrance` · `off`: the per-takeover **Animation** setting |
+| `motion` | `smooth` (default) · `minimal` · `lively`: the global motion mode (see Motion) |
+| `ts` | loop speed multiplier for testing (`0.5` = twice as fast) |
 
-Sample messages are per style (`SAMPLES` in the file). A style with no sample for a layout falls back to a generic one.
+## Stage roles and font roles (unchanged idea)
 
-## How a style works (implementation notes)
+Every style is a block of stage roles derived from the base roles with `color-mix()`: `--s-bg --s-ink --s-dim --s-acc --s-onacc --s-accText --s-fill --s-fillInk --s-line --sheet --a1..--a4`, with a `.light` variant chosen by luminance. Fonts are roles only (`--f-he-disp --f-he --f-en-disp --f-en --f-num --f-th-he --f-th-en`, `--he-scale`); torah/grand/memorial/shabbos/yomtov/siyum/welcome/pesach/chassidic route their display type to the Torah-text roles, so they follow whatever the owner assigns there. Checked with FbMazal, 1ShefaClassic, BAWSVenezia, LiaShaharit (`shots/sheet-fonts.png`).
 
-Every style is a block of **stage roles** derived from the base roles by `color-mix()`, plus one `ART[style]()` function that returns static SVG layers. No style names a font family.
+Contrast audit (`verify.js`, computed colours): **26 styles x 10 themes = 260 combinations all pass** (ink 7:1, secondary 4.5:1, accent-as-text 3:1, tile text 4.5:1). Light themes use a 74%-ink secondary floor.
 
-- Stage roles: `--s-bg --s-ink --s-dim --s-acc --s-onacc --s-accText --s-fill --s-fillInk --s-line --sheet --a1..--a4` (art hues).
-- Light-family variants are chosen by luminance (`.light`), as in R2. The family label is not used.
-- A hard readability floor: in the light family `--s-dim` is at least 74% ink (tokens.js `dim` is about 58%, too weak across a room). A script (`verify.js`) resolves the real computed colours for **all 21 styles x all 10 themes = 210 combinations**: ink at least 7:1, secondary text at least 4.5:1, accent-as-text at least 3:1, tile text at least 4.5:1. All pass.
-- **Font roles** used: `--f-he-disp`, `--f-he`, `--f-en-disp`, `--f-en`, `--f-num`, `--f-th-he`, `--f-th-en`, plus `--he-scale`. A style only re-points its display type to a role, e.g. grand/torah/memorial/shabbos/yomtov/siyum/welcome use the Torah-text roles (`--f-th-*`) for titles and numerals, so they follow whatever the owner assigns to "Torah text". Hebrew auto-fit caps are multiplied by `--he-scale`. Checked with FbMazal, 1ShefaClassic, BAWSVenezia and LiaShaharit (`shots/more/font-*.png`, `sheet-fonts.png`).
-- **Pi rules**: no blur, backdrop-filter or blend modes anywhere (grep-verified). Glows are static `radialGradient` stops, never filters. Nothing loops.
-- **Entrance motion** is measured, not estimated: `motion.js` reads `getAnimations()` for all 21 styles x 7 layouts (147 pages). Longest end time **1160 ms**, zero infinite animations, animated properties are only `opacity` and `transform`. Art layers animate as small bbox-sized layers, and the text stagger (index capped at 5) uses one of four modes: calm (fade 720 ms), rise (16 px + fade 560 ms), lively (30 px + .98 scale, 560 ms), snap (240 ms scale-in). `prefers-reduced-motion` turns all of it off.
-- Chrome: a small 12:41 clock and a ב״ה stay on every takeover (rail hidden, rotation paused as in R2). Their corners move when art needs the corner (urgent, hype, farbrengen, simcha).
-- SVG language: one monoline vocabulary (3 px round strokes) with flat fills only where the object needs mass (flames, ribbons, tiles). Static SVG sizes are a few KB each. The only runtime SVG measurement is the trip route's bus position (one `getPointAtLength` at render).
+## Fit rules (round 3b item 1)
+
+Every text slot is a one-shot binary search between a **max** and a **min** (canvas px; x `--he-scale` for Hebrew display slots). A slot may wrap (balanced) inside its height budget; if even the min does not fit it is flagged and line-clamped (the audit treats this as a failure, and the composer should refuse that length). No text anywhere is under 20 px.
+
+| Slot | Max | Min | Rule |
+|---|---|---|---|
+| Big words, Hebrew | 300 | 64 | wraps, up to 3 lines, 44% of box height |
+| Big words, English | 84 | 34 | wraps, 26% of box height |
+| Big words, sub line | 32 | 22 | wraps, max 110 px high |
+| Kicker (small line above a title) | 34 | 22 | one line |
+| Event title, Hebrew | 230 | 44 | wraps, 54% of the titles area |
+| Event title, English | 170 | 32 | wraps, 38% of the titles area |
+| Event time tile (numerals) | 140 (narrow 112) | 72 | shrinks until the tile fits its row; if still too wide the tile stacks (day over time) |
+| Event place block | 1.0x | 0.6x | scaled down until it fits beside/under the tile (max 190 px high when stacked) |
+| List heading En / He | 64 / 58 | 28 / 28 | wraps, max 2 lines (150 px); stacked in portrait |
+| List rows | 44 | 24 | one size for **all** rows (largest that fits the tightest); Hebrew sub-line = max(20, 0.78 x row size); day column 210 (150 narrow) |
+| Quick time, name row | 90 He + 78 En | x0.75 on one line, else stacked He over En down to x0.45 | |
+| Quick time, big numerals | 330 | 110 | one line; the whole stack then shrinks together if taller than the box |
+| Quick time, two times | 170 | 60 | one shared size, fitted to the narrower column; stacked in portrait |
+| Quick time, "where" line | 36 | 24 | wraps, max 120 px high |
+| Quote, Hebrew / English | 220 / 64 | 48 / 28 | balanced wrap; Hebrew 42% of box, English 22% |
+| Quote, attribution | 30 | 22 | wraps, max 84 px |
+| Sicha body / letter body | fixed 38 / 35 | - | never shrinks; paginated (1 / 2 ...) at sentence or paragraph ends |
+| Sicha / letter headers | 44 / 40 | 28 / 24 | wrap, max 110 px |
+
+**Composer limits that the audit proves** (every style x every layout, 3 canvases): Hebrew title up to ~45 characters, English title up to ~100 characters (2-3 lines), place line up to ~40 characters + a second line + Hebrew, list heading up to ~45 characters, up to 6 list items with long text, quick-time name up to ~30 characters.
+
+**Fit audit** (`stress.js`): 26 styles x 7 layouts x 3 text lengths (one word / typical / at the limits) x 3 canvases = **1,638 renders, 0 failures**. It checks: no text under its slot's min or under 20 px; no stack taller than its box; no text outside the content box; no text touching a side graphic (declared graphic rectangles); no text touching the clock or ב״ה; no content filling less than 22% of its box. Visual sheets of the extremes: `qa/stress-*` were reviewed at 3 canvases x short/long (not shipped, regenerate with `stress.js`/`shootc.js`).
+
+What the audit found and fixed in 3b: Hebrew/English titles shrinking too early in narrow boxes (title heights now shared 54/38 between He and En, min 44/32); list headings clipping (now wrap); nested Hebrew spans that ignored the fitted size (now `em`-relative); quick-time stacks overflowing in arch/menorah styles (height-aware shrink); event tile too wide in portrait scroll (tile stacks); sicha header overflowing in portrait (stacks); a flex-shrink bug that collapsed the "where" line to one line; yom tov title/clock collision; simcha balloon placement.
+
+**16:10 and portrait.** Side graphics (emergency, phone, memorial, shabbos, siyum, schedule, chanukah, purim, lagbaomer) are vertically centred on 16:10 and become a **top band** in portrait (content below, centred). Full-bleed graphics (frames, bunting, frieze, confetti, rays, scroll, arch) regenerate from the canvas size. In portrait the scroll becomes a tall vertical scroll and mivtzoim ripples rise from the bottom. See `shots/sheet-canvases.png`.
+
+## Redesigns requested in 3b
+
+**urgent (the "!" fixed).** There is no floating corner mark any more. A 78 px amber **bar is part of the frame** (it follows the frame's rounded corners, full height, inside the 10 px ring) and the glyph, a 50 px ring with a stem and a dot cut into the bar in the dark ink, sits **on the same line as the kicker** ("Important / חשוב", or the first title line when there is no kicker). The glyph is positioned from the measured kicker after fitting, so it stays aligned at any text size. Entrance: bar grows from the top (scaleY .55 to 1, 520 ms), glyph pops with a small overshoot at 420 ms. Ambient: the ring breathes (opacity .6 to 1, 3.4 s) and the glyph pulses (scale 1 to 1.1, 2.2 s): attention without alarm.
+
+**phone (now unmistakable).** The "phone in a box" is gone. It is the universal **prohibition sign over a phone**: a 18 px ring, a phone silhouette (outline, screen, home bar) and a diagonal slash (cut with a gap through the phone). The headline carries the meaning: **"Phones away / טלפונים בצד"**, "by 9:00 AM", "Hand them in at the office door / מוסרים בדלת המשרד". Entrance: the sign scales in, then the slash drops in diagonally (520 ms). Ambient: the sign breathes (scale 1.025, 6 s) and a thin ring ripples out from it every 4.2 s.
+
+**quiet and farbrengen:** kept as they were (farbrengen now also has an ambient: the lamp swings 1.4 degrees and its glow breathes).
+
+## Motion (entrance + ambient)
+
+**Setting: Animation = full / entrance only / off** (default **full**), per takeover, with this **global motion-mode mapping**: `smooth` = full (entrance + ambient loops); `minimal` = entrance only; `lively` = full + extras (words and digits reveal one by one, tile overshoots, list rows slide in; ambient unchanged).
+
+- **Entrance (all styles, max 1200 ms):** art layers first (frame/bar/ring/graphic), then kicker (slides in from the left), headline, tile (pops: scale .9 to 1 with overshoot), place, staggered 60-90 ms. Text personality per style: calm (fade), rise (16 px), lively (30 px + overshoot), snap (240 ms), drop (from above), slide (from the left).
+- **Ambient (full only):** each moving thing is its own small layer; keyframes are shared: `kFlameA/B` (scale + tiny rotate, irregular 5-keyframe flicker), `kBreathe` (opacity), `kTwinkle`, `kPulse`, `kSway` (rotate), `kBob`, `kGlide` (alternate), `kFall` / `kDrift` / `kRise` (period translate, content duplicated one period so there is no seam), `kRipple` / `kRing` / `kPhase` / `kBus` (opacity 0 at both ends), `kSpin` (360 degrees).
+- **Audit (`motion.js`, 26 styles x 7 layouts, entrance + ambient):** longest entrance **1200 ms**; animated properties **opacity and transform only**; no filter/blur/backdrop-filter/blend/shadow/clip in any keyframes or on any element; **every loop seamless** (alternating, equal ends, opacity 0 at both ends, translation equal to the content period, or 360 degrees); no entrance over 1.2 s. Real-time clips confirm motion (`shots/motion/*.webm`, frame difference between 3 s and 6 s measured).
+
+Moving layers per style (max over layouts) and animated-layer area at 4K (area x 2.4^2 x 4 bytes):
+
+| Style | Entrance | Ambient loop | Moving layers | Layer area at 4K |
+|---|---|---|---|---|
+| classic | rise; tick fades | accent tick breathes | 1 | 0 MB |
+| grand | frame scales in (900 ms), diamonds fade in turn, calm text | six gold diamonds breathe in turn (corners + centres) | 6 | 0 MB |
+| emergency | snap: triangle pops with overshoot (320 ms), text 240 ms | hazard bands scroll (56 px period, 2.6 s) + triangle pulse (1.3 s) | 3 | 5 MB |
+| sleek | ruler draws left to right, marker fades in, rise | a small marker glides along the ruler (30 s, alternating) | 1 | 0 MB |
+| celebration | lively: confetti drops 36-80 px by region, streamers drop, words reveal one by one | confetti falls in both margins (4 strips, 46-70 s per pass, seamless), streamers sway, sparkles twinkle | 8 | 53 MB |
+| urgent | slide: bar grows, glyph pops, text slides from the left | ring breathes, glyph pulses | 2 | 32 MB |
+| torah | sheet unrolls while the rollers slide apart, calm text | warm glow on the parchment breathes (7.5 s) | 1 | 16 MB |
+| trip | rise; map fades, route fades, bus appears at the start | bus drives the whole route (24 s, fades in at the start and out at the pin), pin ring ripples, contour map breathes | 3 | 6 MB |
+| phone | rise; sign scales in, slash drops in diagonally | sign breathes, ring ripple | 2 | 6 MB |
+| memorial | calm; the flame lights last (700 ms) | flame flickers, glow breathes (5 s) | 2 | 3 MB |
+| hype | lively: sunburst rotates in (-9 degrees), digits rise one by one | one half of the sunburst breathes against the other (3.6 s) + the big number pulses | 1 | 43 MB |
+| shabbos | calm; candles, then the flames light in turn (260 ms apart) | both flames flicker (different rhythms), glow breathes, stars twinkle | 5 | 35 MB |
+| yomtov | rise; friezes slide in from top and bottom | the two Magen David friezes drift in opposite directions (16 s per period) | 2 | 6 MB |
+| siyum | rise; page rises, ribbon drops with overshoot | ribbon sways, the word box glows | 2 | 1 MB |
+| farbrengen | rise; lamp drops, table rises, glow fades in | lamp swings 1.4 degrees, glow breathes | 2 | 10 MB |
+| mivtzoim | slide; ring groups grow from the core, rows slide from the left | three ripples spread outward (9 s each, a third apart), core pulses | 4 | 19 MB |
+| welcome | rise; arch scales up from its base | warm light in the arch breathes | 1 | 14 MB |
+| simcha | lively: bunting drops with overshoot, balloons rise in | bunting sways, three balloons drift up the margins | 5 | 16 MB |
+| schedule | rise; hands sweep to the new time (minute hand from -180 degrees) | a thin second hand sweeps (60 s per turn) | 1 | 4 MB |
+| quiet | calm fade only | none by design | 0 | 0 MB |
+| chanukah | calm; shamash first, then flames light right to left (70 ms apart) | all nine flames flicker (4 rhythms), glow breathes | 10 | 4 MB |
+| purim | lively: crown drops in, triangles fall in | hamantaschen fall in the margins, the crown floats, sparkles twinkle | 6 | 55 MB |
+| pesach | calm; cups rise in turn, vine line drops | four cups bob, glow and the fourth-cup halo breathe | 5 | 11 MB |
+| roshchodesh | calm; phases fade in left to right | a slow wave of light passes along the nine moon phases (27 s) | 9 | 1 MB |
+| lagbaomer | lively: logs rise, flames kindle in turn | three flames flicker, sparks rise, glow breathes | 10 | 4 MB |
+| chassidic | calm; flame lights, halos then rays fade in | the flame flickers, three halos radiate outward, the rays breathe | 6 | 44 MB |
 
 ## Styles
 
-Palettes are given as dark / light family. "acc" is the single accent. Every style keeps the R2 rule: **one accent moment**.
+Palette lists dark / light. "acc" is the single accent. Every style supports all seven layouts; the "best for" layout is the default.
 
-### classic
-- **Purpose:** the default. Any announcement with no mood.
-- **Palette:** the theme exactly: panel = `--raised` inset 28 px, accent = theme gold. Light themes deepen the tile fill 12% so white type holds 4.5:1 on ivory.
-- **Type:** theme roles only (Hebrew display, English display, numerals).
-- **Graphics:** none except a 104 px accent tick at the top of the panel.
-- **Entrance:** rise. **Suits:** all layouts.
+| Style | Purpose | Palette (dark / light) | Typography | Graphic (static SVG) | Best for |
+|---|---|---|---|---|---|
+| classic | default | theme (light tile fill deepened 12%) | theme roles | accent tick on the panel | event, any |
+| grand | dinners, formal | gold `#D6AF5C` / `#87631A` | Torah roles, 600, square tile | engraved double keyline, notched corners, 6 diamonds, cartouches | event, quote |
+| emergency | drills, safety | red `#A3170F` / `#A91F17`, white ink | 800 display | hazard triangle (left), hazard bands | bigwords |
+| sleek | modern time notices | monochrome | 500 display, 200 numerals | hairline ruler + marker | quick |
+| celebration | mazel tov | plum + gold `#EDBE5E` + pink/teal / cream + raspberry `#A8325A` | 800, gold Hebrew | frozen confetti (static top garland + falling margins), streamers, sparkles | bigwords, event, list |
+| urgent | important, calm | amber `#F2A33A` / `#B05C08` | theme | ring + frame bar with the "!" glyph (new) | event |
+| torah | pasuk / ma'amar | parchment + gold `#CFA155` / `#7A5520` | Torah roles | open scroll with atzei chaim (vertical in portrait) | quote, sicha, letter |
+| trip | trips, buses | teal `#5BBCD0` / `#156E7E` | theme | route, driving bus, pin, contour map | event, list |
+| phone | phones away | indigo `#A3AEFF` / `#3E4CC0` | 600 numerals | prohibition sign over a phone (new) | quick |
+| memorial | yahrzeit | no accent; flame only | Torah roles, 500 | yahrzeit candle + glow | bigwords, quote |
+| hype | countdowns | red-orange `#FF6A45` / `#D23A1A` | 800 | sunburst | quick with a big number |
+| shabbos | candle lighting, havdalah | night blue + flame gold / ivory + indigo | Torah roles, thin numerals | two candlesticks, flames, 64 stars | quick (two times) |
+| yomtov | chag greetings | teal + gold / cream + teal | Torah roles | Magen David friezes | event, bigwords |
+| siyum | siyum, hadran | leather + gold + crimson / cream + oxblood | Torah roles | Gemara page, ribbon | event, list |
+| farbrengen | farbrengens | copper `#E39B60` / `#9A4B1C` | theme | lamp, table, sefer, mezonos, cups, bottle | event |
+| mivtzoim | outreach | green `#84C273` / `#2E7A3B` | theme | concentric ripples from the edge | list |
+| welcome | guests, parents | Jerusalem stone + sand | Torah roles | arched doorway, voussoirs, ashlar | bigwords |
+| simcha | birthdays | navy + 4 bunting colours / cream + terracotta | 800 | two bunting strings, balloons | bigwords |
+| schedule | time changes | blue `#7AA8EA` / `#2A5AA8` | theme | clock: old time ghosted, new time solid, second hand | quick with "was" |
+| quiet | gentle notices | no hue | 500 | none | bigwords |
+| chanukah | Chanukah | indigo + gold / ivory + royal blue | theme | straight-armed menorah | event |
+| **purim** | Purim | plum `#2B1146` + gold + magenta + teal / cream + plum `#8E2A74` | 800 | crown, hamantaschen (rounded triangle + filling dot) falling in the margins | event, bigwords |
+| **pesach** | Pesach | wine `#2A0F18` + gold + sage / ivory + burgundy `#8C2438` | Torah roles | four wine cups (the fourth with Eliyahu's halo), vine line | bigwords |
+| **roshchodesh** | Rosh Chodesh | night navy + silver-blue + pale gold / pale grey + blue | 600 | nine moon phases along an arc (the new crescent highlighted) | bigwords |
+| **lagbaomer** | Lag BaOmer | charcoal-brown + fire orange + gold / cream + burnt orange | 800 | bonfire (crossed logs, three flames, sparks) | event |
+| **chassidic** | Yud-Tes Kislev, chassidic yom tov | burgundy-brown + gold / cream + oxblood | Torah roles | a flame with three halos and fanning rays | bigwords |
 
-### grand
-- **Purpose:** dinners, honoured guests, formal evenings.
-- **Palette:** darker stage; antique gold `#D6AF5C` on dark, `#87631A` on light (stage becomes a lighter ivory tint).
-- **Type:** Torah-text roles for Hebrew and English titles and numerals (weight 600), square 6 px tile with a gold keyline.
-- **Graphics:** engraved double keyline with notched quarter-circle corners, four corner diamonds, and a cartouche (diamond + dashes + dots) top and bottom centre. Single SVG layer, strokes only.
-- **Entrance:** frame scales .985 to 1 and fades over 900 ms, then calm text. **Suits:** event, bigwords, quote, quick, sicha/letter.
+## Recommendation: styles to drop or merge
 
-### emergency
-- **Purpose:** fire drill, lockdown, safety notices. Not subtle on purpose.
-- **Palette:** solid signal red `#A91F17` (dark) / `#A91F17` (light, same, tuned so white gets at least 7:1), white ink, white accent.
-- **Type:** weight 800 display, secondary text 92% white.
-- **Graphics:** a thick-stroke hazard triangle with an exclamation mark at left; a diagonal hazard band top and bottom (26 px, 30% black dashes).
-- **Entrance:** snap. Triangle pops in at 320 ms with a small overshoot, text fades 240 ms. Fast on purpose. **Suits:** bigwords (default), quick, list.
-
-### sleek
-- **Purpose:** quiet, modern time announcements (Mincha 1:45).
-- **Palette:** monochrome: ink is the accent. Tile is an outlined ghost.
-- **Type:** weight 500 display, 200 numerals, so the time is thin and huge.
-- **Graphics:** a hairline ruler along the bottom with major/minor ticks (static).
-- **Entrance:** ruler draws left to right (scaleX .7 to 1, 800 ms) then rise. **Suits:** quick, event, bigwords.
-
-### celebration
-- **Purpose:** mazel tov, engagement, birth, sheva brachos.
-- **Palette:** a **fixed** warm palette, not the theme accent (R2 flagged pale blue on midnight). Dark: plum stage `#2A0E22`-mix, gold `#EDBE5E`, pink `#E68C9F`, teal `#6CC7B8`, cream. Light: cream stage, raspberry accent `#A8325A`, gold/pink/teal/blue confetti.
-- **Type:** weight 800 Hebrew display in the accent.
-- **Graphics:** about 60 frozen confetti pieces (rectangles, dots, squiggles, four-point sparkles) seeded and placed only at the edges, never behind text and clear of the clock and ב״ה; two curled streamers. 4 SVG layers, about 14 KB total.
-- **Entrance:** lively. Confetti layers drop 36-80 px and fade (760 ms, staggered by region), text rises with a small overshoot. **Suits:** bigwords, event, list, quick.
-
-### urgent
-- **Purpose:** important but calm: early dismissal, schedule emergency, "please read".
-- **Palette:** amber `#F2A33A` dark / burnt orange `#B05C08` light, 7-9% amber tint stage.
-- **Graphics:** 10 px rounded amber ring and a folded corner flag with an exclamation mark in the top-left; clock moves to the bottom-right.
-- **Entrance:** flag scales in from its corner (420 ms), rise. **Suits:** event, bigwords, list.
-
-### torah
-- **Purpose:** a Torah thought, pasuk, ma'amar; learning content.
-- **Palette:** parchment-tinted sheet on a darker stage, antique gold `#CFA155` / `#7A5520`; light family has a warm parchment stage with a cream sheet.
-- **Type:** Torah-text roles throughout.
-- **Graphics:** an open scroll: two atzei chaim (finial, rod, caps, handle) and a sheet with double rules. Fills use `--sheet`, strokes use `--a1`. Static SVG, about 3 KB.
-- **Entrance:** the sheet unrolls (scaleX .7 to 1) while the rollers slide apart 240 px (900 ms), then calm text. **Suits:** quote, sicha, letter (default quote). The scroll is the only style that frames inspiration layouts as a "document".
-
-### trip
-- **Purpose:** trips, buses, departures.
-- **Palette:** teal `#5BBCD0` dark / `#156E7E` light, 7-9% teal stage.
-- **Graphics:** a dotted route along the bottom (start ring, destination pin) with a side-view bus riding it, rotated to the curve; contour-map lines (7 closed noisy rings, seeded) top right as a map.
-- **Entrance:** bus drives in from the left (340 px, 1000 ms); contours fade. **Suits:** event, bigwords, list (list "stops" read as an itinerary).
-
-### phone
-- **Purpose:** phone collection ("Phones in the box by 9:00").
-- **Palette:** indigo `#A3AEFF` dark / `#3E4CC0` light.
-- **Type:** weight 600 numerals; the time sits in an outlined tile on event layouts.
-- **Graphics:** an isometric collection box with a phone slightly tilted above its slot, with three small "put it in" ticks. Strokes only, the phone is a separate layer sandwiched between back and front faces of the box so it truly goes in.
-- **Entrance:** phone drops 110 px into the slot (900 ms, ease-in-out). **Suits:** quick (default), event, bigwords.
-
-### memorial
-- **Purpose:** yahrzeit, lilui nishmas, remembrance. The deliberately accent-free style.
-- **Palette:** darkened stage (42% black), ink at 86%. No accent; the only warm colour is the candle flame (`#EDB566`, `#FFF0CC`).
-- **Type:** Torah-text roles at weight 500, normal English tracking.
-- **Graphics:** one glass yahrzeit candle with a flame and a very soft static glow gradient. A short "לעילוי נשמת" lead line above the name.
-- **Entrance:** calm. The flame lights (scale .4 to 1 + fade, 700 ms, after 450 ms). No motion otherwise. **Suits:** bigwords (default), quote, event, quick.
-
-### hype
-- **Purpose:** countdowns to events and shabbatonim (big number).
-- **Palette:** red-orange `#FF6A45` dark / `#D23A1A` light, weight 800, 6-8% tint stage.
-- **Graphics:** a static sunburst from the bottom-right corner (13 wedges at 8% accent) and three speed bars in the top-left corner.
-- **Entrance:** lively. The burst rotates in from -9 degrees (1000 ms), bars slide in. **Suits:** quick with a big number (default), event, bigwords.
-
-### shabbos (new)
-- **Purpose:** Gut Shabbos, candle lighting and havdalah times, Erev Shabbos.
-- **Palette:** night blue stage `#0A1536`-mix, warm cream ink, flame gold `#F2C46A` accent. Light: ivory stage, deep indigo `#2B4796` accent, candle gold `#E3A02E`.
-- **Type:** Torah-text roles; numerals thin (weight 300); two labelled columns (Hebrew name over English).
-- **Graphics:** two shabbos candlesticks (turned stems, candles, static flames), a soft glow, and a field of 70 faint seeded stars (dark only).
-- **Entrance:** calm. Candles are there; the two flames light in turn (360 ms each, 260 ms apart). **Suits:** quick with two times (default), quote (pasuk), event, bigwords.
-
-### yomtov (new)
-- **Purpose:** Yom Tov greetings (Sukkos, Simchas Torah, Pesach, Shavuos).
-- **Palette:** deep teal `#0B2B2A`-mix stage, gold `#DDB664`; light: warm cream, teal `#1D6B63` accent, bronze `#B58A33` ornament.
-- **Type:** Torah-text roles at weight 700, small "חג שמח" kicker.
-- **Graphics:** a Magen David frieze top and bottom: hexagram outlines every 76 px with dot spacers between two rules.
-- **Entrance:** frieze slides in from top and bottom (50 px, 800 ms), rise. **Suits:** event, bigwords, quote.
-
-### siyum (new)
-- **Purpose:** siyum on a masechta, hadran, learning milestones.
-- **Palette:** leather `#2B1512`-mix stage, parchment page, gold, with a crimson ribbon `#B8404E`. Light: cream stage, oxblood accent `#8A2A38`.
-- **Graphics:** a Gemara page: Rashi/Tosafos/Gemara columns drawn as rule lines (pattern, not text), a word-box at the top, and a hanging ribbon bookmark.
-- **Entrance:** page rises 40 px (700 ms), ribbon drops after 380 ms with a small overshoot. **Suits:** event (default), bigwords, list.
-
-### farbrengen (new)
-- **Purpose:** farbrengens, kumzitz, warm gatherings.
-- **Palette:** copper `#E39B60` dark / `#9A4B1C` light, a brown-black warm stage.
-- **Graphics:** a hanging lamp with a static glow, and a farbrengen table line with a sefer, a plate of mezonos, l'chaim cups and a bottle. Strokes only.
-- **Entrance:** lamp drops 36 px, table rises 40 px, glow fades (1000 ms). **Suits:** event (default), quick, bigwords.
-
-### mivtzoim (new)
-- **Purpose:** Mivtzoim, tefillin tank, outreach (the "ufaratzta" spread).
-- **Palette:** green `#84C273` dark / `#2E7A3B` light.
-- **Graphics:** six concentric ripples spreading from the right edge with small dots on the rings (the spread of the mivtzoim). Static.
-- **Entrance:** three ring groups grow from .94 to 1, 120 ms apart. **Suits:** list (default, the day's stops without a day column), event, bigwords.
-
-### welcome (new)
-- **Purpose:** guest, parent and visitor welcome.
-- **Palette:** Jerusalem-stone stage (warm dark / warm stone light), sand gold `#D8B983` / `#87602C`.
-- **Graphics:** an arched doorway of voussoirs with a keystone, set against faint ashlar courses. The text sits inside the arch.
-- **Entrance:** arch scales up from its base (.985 to 1, 900 ms), wall fades. **Suits:** bigwords (default), quote.
-
-### simcha (new)
-- **Purpose:** birthday and personal simcha.
-- **Palette:** navy `#0F2233`-mix, with four bunting colours (peach `#F4A869`, yellow `#EBCB6A`, teal, rose). Light: cream stage, terracotta accent `#B8492A`.
-- **Type:** weight 800 display.
-- **Graphics:** two strings of triangular bunting across the top, front string larger. Hebrew-first: no ב״ה in the top bar because bunting occupies it.
-- **Entrance:** strings drop 36-80 px with a soft overshoot. **Suits:** bigwords (default), event.
-
-### schedule (schedule change)
-- **Purpose:** "Mincha moved to 2:15", the time changed today.
-- **Palette:** blue `#7AA8EA` dark / `#2A5AA8` light.
-- **Graphics:** an analogue clock with the **old time ghosted** (dotted hands) and the **new time** in solid accent hands, with an arc and arrowhead from old to new. The old time also shows struck-through as text.
-- **Entrance:** the clock hands sweep to the new time (900 ms; minute hand from -180 degrees). **Suits:** quick with `was` (default), event.
-
-### quiet (new)
-- **Purpose:** the gentlest takeover: quiet please, a soft notice.
-- **Palette:** no hue at all: stage = bg + 3% ink, ink at 88%.
-- **Graphics:** none (by design).
-- **Entrance:** calm fade. **Suits:** bigwords (default), quick, quote.
-
-### chanukah (new)
-- **Purpose:** Chanukah and public menorah events. Seasonal, so this is the one style the owner may keep for a few weeks per year.
-- **Palette:** indigo `#0D1538`-mix, gold flame `#F7C65A`; light: ivory, royal blue `#24408E` accent.
-- **Graphics:** a menorah in the Chabad straight-armed form: eight arms at a 45 degree rise, a taller shamash, eight cups, candles and flames, with a soft glow.
-- **Entrance:** shamash first, then the flames light one by one from right to left (300 ms each, 70 ms apart; ends at 1160 ms). **Suits:** event (default), bigwords.
-
-## Layout support (every style supports all of these)
-
-- `bigwords`, `event`, `list`, `quick` (one time, two times, big number, or a changed time with "was"), and inspiration `quote`, `sicha`, `letter` (paged at a fixed reading size, "1 / 2" with page bars, Torah-text roles).
-- Styles whose art uses the left or right third narrow the content box (`narrow` class): the event tile shrinks, the footer stacks, the list day column shrinks.
-- Dark and light: each style has a dark variant and a `.light` variant, so every sub-theme in both families works.
-
-## Self-review log
-
-**Pass 1** (all 21 x 2): clock and ב״ה colliding with art on classic (accent tick under the clock), torah, farbrengen and celebration; memorial English fell back to the sans display role (the style never passed its serif role to the big-words English line); memorial name broke badly; trip bus hid behind the time tile; shabbos two-times labels wrapped sideways; too much confetti, which crowded the headline; the siyum list day column ran into item text.
-**Pass 2/3:** moved the classic tick to centre; clock/ב״ה shifted for torah and farbrengen; English line now uses `--f-disp-en` with a memorial/quiet weight of 500; memorial uses the traditional "ב״ר" so the name fits one balanced line; bus moved to the right part of the route; labels stacked in two columns; confetti reduced from 120 to 64 pieces with a keep-clear zone around text and the clock, streamers shortened; fitted boxes collapse to their content so stacks centre as one unit; narrow list day label 25 px; light-family secondary text floor; emergency light red deepened; classic tile fill deepened on light; quiet secondary text raised.
-**Remaining notes:** celebration's list layout still has a streamer tip near the heading on dark (tiny; hides under text only at its end); farbrengen's table graphic is small on the quick layout (intended: a quiet base line); sample texts for yahrzeit names and the sicha/letter bodies are placeholders; hype is the only style intended for large numerals, so on event it behaves like a normal event card.
+- **hype**: the weakest (a sunburst and a number); celebration/event cover its use. Drop or fold into celebration.
+- **sleek** overlaps **quiet** (both minimal); keep quiet (the owner likes it) and drop sleek, or keep sleek only for the large thin-numeral time notice.
+- Keep the seasonal five (**chanukah, purim, pesach, roshchodesh, lagbaomer, chassidic**) behind a "seasonal" admin group so they do not clutter the picker.
 
 ## Files
 
-- `takeovers.html`, `fonts/` (the owner's uploaded TTFs, copied from `data/fonts/`).
-- `shots/NNa-style-dark-theme.png`, `shots/NNb-style-light-theme.png` (42 PNGs, 21 styles x dark and light).
-- `shots/sheet-takeovers-dark.png`, `shots/sheet-takeovers-light.png` (contact sheets), `shots/sheet-3x3-announcement-layouts.png`, `shots/sheet-3x3-inspiration-layouts.png`, `shots/sheet-fonts.png`, `shots/sheet-entrance-filmstrip.png`, and `shots/more/` (the individual frames behind those sheets).
-- `shoot.js`, `sheet.js`, `verify.js` (contrast audit), `motion.js` (entrance audit).
+- `takeovers.html`, `fonts/` (owner's uploaded TTFs, copied from `data/fonts/`).
+- `shots/NNa-style-dark-theme.png` / `shots/NNb-style-light-theme.png` (52 PNGs, 26 styles x dark and light, 01 to 26).
+- `shots/sheet-takeovers-dark.png`, `shots/sheet-takeovers-light.png`, `shots/sheet-3x3-announcement-layouts.png`, `shots/sheet-3x3-inspiration-layouts.png`, `shots/sheet-fonts.png`, `shots/sheet-canvases.png`, `shots/sheet-motion-filmstrip.png`; `shots/motion/` (per-style filmstrips at 0 / 0.4 / 1.2 / 3 / 6 s and real-time 8 s clips `*.webm`); `shots/more/` (the frames behind the sheets).
+- Tooling: `stress.js` (fit audit), `motion.js` (motion audit), `verify.js` (contrast audit), `shootc.js`, `sheet.js`, `rec.js`.
