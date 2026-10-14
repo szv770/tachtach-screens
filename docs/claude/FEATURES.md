@@ -37,7 +37,7 @@ Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlid
 
 ### Countdown (`src/screen/components/CountdownOverlay.jsx`)
 
-Driven server-side by `src/server/countdown.js`, which watches `schedule.json` entries with an `alertBefore` value and fires an SSE `screen-command`-style event at T-minus. Display mode per entry: `slide` (overlay, carousel continues) or `takeover` (full pause).
+Driven server-side by `src/server/countdown.js`, which schedules today's enabled `schedule.json` entries (day filter via `src/shared/scheduleDays.js`) that have an `alertBefore` value and broadcasts SSE `countdown-start` / `countdown-tick` / `countdown-end`; the running one is also in `/api/state` as `countdown`. Display mode per entry is `countdownDisplay` (`alertDisplay` accepted as a legacy alias): `slide` replaces the slide area while it runs (SlideCarousel, like a board) or `takeover` is a full-screen overlay (App.jsx). Neither pauses the hidden rotation timer.
 
 ## Admin panel (`src/admin/`)
 
