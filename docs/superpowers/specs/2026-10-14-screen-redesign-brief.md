@@ -61,3 +61,14 @@ The bottom notice strip appears **only when a banner is active**. Otherwise the 
 
 ### Must keep working
 Themes (dark/light variants plus auto day/night), user fonts (Hebrew + English roles, including FbMazal), the 1600×900 logical canvas with uniform scaling, portrait, all admin customization, and the product rules (banners never pause rotation; takeovers always do).
+
+## Owner approval of round 2 (2026-10-14)
+
+- **Approved:** "this look is very good for now". Build it into the real kiosk. Reference: `docs/design/2026-10-14-mockups-r2/` (`tachtach-r2.html` and `README.md` are the source of truth for tokens, type scale and layouts).
+- **Fonts:** default to Rubik (Hebrew) and Manrope (English/numerals), but every font role must be swappable in admin for **any font the owner has uploaded or will upload** (`data/fonts.json` + `data/fonts/`, currently including FbMazal). Roles: Hebrew display, Hebrew body, English display, English body, numerals, Torah text. No font may be hard-coded in a component.
+- **Schedule page:** offer both layouts as an admin option: "Timeline" (Now|Next spotlight + day ribbon + later-today strip) and "Now & Next + list".
+- **Zmanim page:** an option for the clean board (default), board + slim sun arc, or the arc + tiles.
+- **Themes:** "make as many themes and looks as you can". Grow both families (Dark, Light) with many well-tuned sub-themes, all derived from token roles, plus the existing ones. Fix sepia: it should be a true light sepia, with the old dark-brown one renamed e.g. "Walnut" in Dark.
+- **Graphics:** "add some cool graphics to the new TV frontend". Tasteful, Pi-GPU-safe visuals: static or page-transition-only. Examples: a sun-path arc, subtle per-theme background artwork or patterns (static SVG), day-phase sky tint, weather icons, category glyphs, ornament marks for Shabbos/Yom Tov, a candle graphic for candle lighting, a progress ring on the up-next card. There must be a "graphics: rich / subtle / off" setting.
+- **Inspiration and announcement pages:** the placeholder texts were only design samples. The owner creates the real content.
+- **Takeovers:** "redo, make nicer new takeover styles and designs that fit with the new flavor". The 11 styles get redesigned in the new system, and new ones are welcome.
