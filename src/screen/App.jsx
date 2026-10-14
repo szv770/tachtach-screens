@@ -1,21 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getTokens, applyFontSettings, fonts } from './styles/tokens.js';
+import { getTokens } from './styles/tokens.js';
+import DesignRoot from './design/DesignRoot.jsx';
+import Rail from './components/Rail.jsx';
+import { resolveActiveTheme, dayPhase } from '../shared/dayNight.js';
+import { toMinutes } from './design/time.js';
 import { useSSE } from './hooks/useSSE.js';
 import { useClock } from './hooks/useClock.js';
 import { useSlideRotation } from './hooks/useSlideRotation.js';
 import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
-import Clock from './components/Clock.jsx';
-import HebrewDate from './components/HebrewDate.jsx';
-import PinnedNotes from './components/PinnedNotes.jsx';
 import SlideCarousel from './components/SlideCarousel.jsx';
-import Banner, { bannerHeightFor } from './components/messages/Banner.jsx';
+import Banner from './components/messages/Banner.jsx';
 import { AnnouncementTakeover } from './components/slides/AnnouncementSlide.jsx';
 import { buildRotation, toRotationSlide, toBannerRow, toNoteRow } from './lib/announcementView.js';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import HiddenAccess from './components/HiddenAccess.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
-import AnimatedText from './components/AnimatedText.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
@@ -306,155 +306,34 @@ function AppContent() {
       .catch(() => {});
   }, []); // mount only
 
-  // Resolve theme tokens (with optional zmanim-based auto switching)
+  // ── Design: theme (manual, or zmanim day/night), fonts, rail, layout ──────
   const settings = state?.settings || {};
   const todayZmanim = state?.cache?.zmanim?.today || {};
-
-  function parseZmanMins(str) {
-    const m = str?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    if (!m) return null;
-    let h = parseInt(m[1]);
-    const min = parseInt(m[2]);
-    const ampm = m[3].toUpperCase();
-    if (ampm === 'PM' && h !== 12) h += 12;
-    if (ampm === 'AM' && h === 12) h = 0;
-    return h * 60 + min;
-  }
-
-  let resolvedTheme = settings.theme;
-  const themeAuto = settings.themeAuto;
-  if (themeAuto?.enabled) {
-    const now = new Date();
-    const nowMins = now.getHours() * 60 + now.getMinutes();
-    const neitzMins = parseZmanMins(todayZmanim.sunrise);
-    const shkiahMins = parseZmanMins(todayZmanim.sunset);
-    const isDay = neitzMins !== null && shkiahMins !== null
-      ? nowMins >= neitzMins && nowMins < shkiahMins
-      : nowMins >= 6 * 60 && nowMins < 19 * 60; // fallback: 6am–7pm
-    resolvedTheme = isDay ? (themeAuto.dayTheme || 'parchment') : (themeAuto.nightTheme || 'dark');
-  }
-
-  const tokens = getTokens(resolvedTheme, settings.customTheme);
+  const nowDate = clock.time;
+  const active = resolveActiveTheme(settings, todayZmanim, nowDate);
+  const phase = dayPhase(todayZmanim, nowDate);
+  const tokens = getTokens(active.themeId, settings.customTheme);
   const visibility = settings.visibility || {};
-
-  // Apply dynamic font settings (mutates shared fonts object in-place)
-  applyFontSettings(settings);
-
-  // Inject @font-face for custom fonts and update Google Fonts link
-  // Custom font FILES come from state.fonts (data/fonts.json, the canonical
-  // upload list — same source the admin's dropdown and /api/fonts use), not
-  // from settings.fonts.customFonts. That was a second, easily-stale copy:
-  // it only updated when the admin clicked "Save Font Settings" right after
-  // an upload, and got silently reset by any unrelated settings-update SSE
-  // push in between — so a selected custom font's name could be saved into
-  // settings.fonts.hebrew/english while its @font-face was never injected,
-  // silently falling back to a generic font on the actual kiosk display.
-  useEffect(() => {
-    if (!settings.fonts) return;
-    const { hebrew, english } = settings.fonts;
-    const customFonts = state?.fonts;
-
-    // Built-in Google Font families that may need loading
-    const BUILTIN_HEBREW = ['Frank Ruhl Libre', 'Noto Serif Hebrew', 'David Libre', 'Heebo', 'Rubik', 'Assistant'];
-    const BUILTIN_ENGLISH = ['EB Garamond', 'Cormorant Garamond', 'Playfair Display', 'Lora', 'Inter', 'Roboto'];
-
-    // Build Google Fonts URL for selected built-in fonts
-    const googleFamilies = [];
-    if (hebrew && BUILTIN_HEBREW.includes(hebrew)) {
-      googleFamilies.push(hebrew.replace(/ /g, '+') + ':wght@400;500;700');
-    }
-    if (english && BUILTIN_ENGLISH.includes(english)) {
-      googleFamilies.push(english.replace(/ /g, '+') + ':wght@300;400;500;700');
-    }
-
-    // Always keep the defaults loaded
-    const defaultFamilies = [
-      'Frank+Ruhl+Libre:wght@400;500;700',
-      'Noto+Serif+Hebrew:wght@400;500;700',
-      'EB+Garamond:wght@400;500',
-      'Cormorant+Garamond:ital,wght@0,300;0,400;1,300',
-    ];
-    const allFamilies = [...new Set([...defaultFamilies, ...googleFamilies])];
-
-    // Update the Google Fonts <link> tag
-    let gfLink = document.querySelector('link[data-font-dynamic]');
-    if (!gfLink) {
-      gfLink = document.createElement('link');
-      gfLink.rel = 'stylesheet';
-      gfLink.setAttribute('data-font-dynamic', 'true');
-      document.head.appendChild(gfLink);
-    }
-    gfLink.href = `https://fonts.googleapis.com/css2?${allFamilies.map(f => 'family=' + f).join('&')}&display=swap`;
-
-    // Inject @font-face rules for custom uploaded fonts
-    let styleEl = document.querySelector('style[data-custom-fonts]');
-    if (!styleEl) {
-      styleEl = document.createElement('style');
-      styleEl.setAttribute('data-custom-fonts', 'true');
-      document.head.appendChild(styleEl);
-    }
-
-    const customFontList = customFonts || [];
-    const fontFaceRules = customFontList.map(cf => {
-      const formatStr = cf.format === 'truetype' ? 'truetype' : cf.format;
-      return `@font-face {
-  font-family: '${cf.name}';
-  src: url('/fonts/${cf.filename}') format('${formatStr}');
-  font-weight: 100 900;
-  font-display: swap;
-}`;
-    }).join('\n');
-
-    styleEl.textContent = fontFaceRules;
-
-    return () => {
-      // Cleanup is not strictly necessary since we reuse elements,
-      // but remove custom font-face on unmount
-      if (styleEl) styleEl.textContent = '';
-    };
-  }, [settings.fonts, state?.fonts]);
 
   // Loading / fatal error state
   if (loading || (!state && loadError)) {
     return (
       <div style={{
-        width: '100%', height: '100vh',
-        background: '#12100C',
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        gap: '12px',
-        color: '#EFE3C0',
-        fontFamily: "'Frank Ruhl Libre', Georgia, serif",
-        fontSize: '18px',
+        width: '100%', height: '100vh', background: '#111214', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '12px', color: '#ECEDEF',
+        fontFamily: "'Manrope Variable', 'Manrope', sans-serif", fontSize: '20px',
       }}>
         {loadError ? (
           <>
-            <span style={{ color: '#C4342D', fontSize: '16px' }}>{loadError}</span>
+            <span style={{ color: '#F08A7E', fontSize: '16px' }}>{loadError}</span>
             {!loading && (
-              <button
-                onClick={() => window.location.reload()}
-                style={{
-                  marginTop: '8px',
-                  padding: '8px 24px',
-                  background: '#D4A84B',
-                  color: '#12100C',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontFamily: "'Frank Ruhl Libre', Georgia, serif",
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                }}
-              >
-                Retry
-              </button>
+              <button onClick={() => window.location.reload()} style={{
+                marginTop: '8px', padding: '8px 24px', background: '#F0B44C', color: '#111214',
+                border: 'none', borderRadius: '8px', fontSize: '14px', cursor: 'pointer',
+              }}>Retry</button>
             )}
           </>
-        ) : (
-          <AnimatedText
-            text="Loading..."
-            style={{ fontSize: '20px', color: '#D4A84B', letterSpacing: '0.05em' }}
-          />
-        )}
+        ) : <span style={{ opacity: 0.7 }}>Loading…</span>}
       </div>
     );
   }
@@ -466,73 +345,41 @@ function AppContent() {
 
   const isFullscreen = (holdSlide || slideRotation.currentSlide)?.fullscreen === true;
   const isPortrait = settings.orientation === 'portrait';
+  const railSide = (settings.layout?.railSide || settings.clockSide) === 'right' ? 'right' : 'left';
 
-  const leftColumn = (
-    <>
-      {visibility.clock !== false && (
-        <Clock formatted={clock.formatted} ampm={clock.ampm} seconds={clock.seconds} tokens={tokens} />
-      )}
-      <HebrewDate
-        hebrewDate={state?.cache?.hebrewDate}
-        parsha={state?.cache?.parsha}
-        omer={state?.cache?.omer}
-        tokens={tokens}
-        visibility={visibility}
-        customDays={state?.customDays}
-      />
-      {(() => {
-        // Today's effective schedule (date schedule, else enabled weekly
-        // entries for today's weekday) — weekday items used to announce
-        // themselves on Shabbos (audit bug 11).
-        const schedEntries = effectiveSchedule.entries;
-        if (!schedEntries?.length) return null;
-        const now = new Date();
-        const nowMins = now.getHours() * 60 + now.getMinutes();
-        const upcoming = schedEntries
-          .map(e => ({ ...e, _mins: parseScheduleTime(e.time) }))
-          .filter(e => e._mins != null && e._mins - nowMins > 0 && e._mins - nowMins <= 10)
-          .sort((a, b) => a._mins - b._mins);
-        if (!upcoming.length) return null;
-        const next = upcoming[0];
-        const diff = next._mins - nowMins;
-        const name = next.nameHe || next.name || '';
-        return (
-          <div style={{
-            margin: '6px 0 2px',
-            padding: '8px 12px',
-            border: `1px solid ${tokens.goldBd}`,
-            borderRadius: '4px',
-            background: tokens.goldBg,
-            textAlign: 'center',
-          }}>
-            <div style={{
-              fontFamily: fonts.hebrewPrimary,
-              fontSize: name.length > 12 ? '18px' : '22px',
-              fontWeight: 600,
-              color: tokens.gold,
-              direction: 'rtl',
-              lineHeight: 1.3,
-            }}>
-              {name}
-            </div>
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: '15px',
-              color: tokens.dim,
-              marginTop: '4px',
-              direction: 'ltr',
-            }}>
-              starting in {diff} min
-            </div>
-          </div>
-        );
-      })()}
-      <PinnedNotes
-        pinned={ann.notes.map(toNoteRow)}
-        tokens={tokens}
-        visibility={visibility}
-      />
-    </>
+  // Up-next card: only when a schedule item starts within rail.upNextMinutes
+  // (default 5) of now, from the effective per-date schedule. Never on the
+  // schedule page, which already shows the next item.
+  const upNextWindow = Number(settings.rail?.upNextMinutes) > 0 ? Number(settings.rail.upNextMinutes) : 5;
+  const onSchedulePage = (holdSlide || slideRotation.currentSlide)?.type === 'SCHEDULE';
+  let upNext = null;
+  if (!onSchedulePage && !ann.takeover) {
+    const nowM = nowDate.getHours() * 60 + nowDate.getMinutes();
+    const next = (effectiveSchedule.entries || [])
+      .filter((e) => e.enabled !== false)
+      .map((e) => ({ e, v: toMinutes(e.time) }))
+      .filter((o) => o.v != null && o.v > nowM && o.v - nowM <= upNextWindow)
+      .sort((a, b) => a.v - b.v)[0];
+    if (next) {
+      const left = next.v - nowM;
+      upNext = { name: next.e.name, nameHe: next.e.nameHe, startMins: next.v, minsLeft: left, fraction: 1 - left / upNextWindow };
+    }
+  }
+
+  const rail = (
+    <Rail
+      clock={clock}
+      cache={state?.cache || {}}
+      settings={settings}
+      customDays={state?.customDays}
+      notes={ann.notes.map(toNoteRow)}
+      upNext={upNext}
+      weather={state?.cache?.weather}
+      credit={settings.credit}
+      portrait={isPortrait}
+      side={railSide}
+      now={nowDate}
+    />
   );
 
   const rightColumn = (
@@ -543,8 +390,6 @@ function AppContent() {
       <SlideCarousel
         currentSlide={slideRotation.currentSlide}
         currentIndex={slideRotation.currentIndex}
-        enabledSlides={slideRotation.enabledSlides}
-        progress={slideRotation.progress}
         cache={state?.cache || {}}
         tokens={tokens}
         settings={settings}
@@ -564,133 +409,58 @@ function AppContent() {
     </SlideErrorBoundary>
   );
 
-  const progressDots = slideRotation.enabledSlides.length > 1 ? (
-    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-      {slideRotation.enabledSlides.map((_, i) => (
-        <div
-          key={i}
-          onClick={() => slideRotation.goToSlide(i)}
-          style={{
-            width: i === slideRotation.currentIndex ? '18px' : '6px',
-            height: '6px',
-            borderRadius: '3px',
-            background: i === slideRotation.currentIndex ? tokens.gold : tokens.muted,
-            transition: 'width 0.3s ease, background 0.3s ease',
-            cursor: 'pointer',
-          }}
-        />
-      ))}
-    </div>
-  ) : null;
-
   const liveBanners = ann.banners.map(toBannerRow);
   const banner = liveBanners.length > 0 ? (
-    <Banner
-      banners={liveBanners}
-      tokens={tokens}
-      bannerSettings={settings.banner}
-    />
-  ) : null;
-  const bannerHeight = bannerHeightFor(liveBanners, settings.banner);
-
-  const portraitTopBar = isPortrait ? (
-    <>
-      <div style={{ flexShrink: 0, direction: 'ltr' }}>
-        {visibility.clock !== false && (
-          <Clock formatted={clock.formatted} ampm={clock.ampm} seconds={clock.seconds} tokens={tokens} compact />
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-        <HebrewDate
-          hebrewDate={state?.cache?.hebrewDate}
-          parsha={state?.cache?.parsha}
-          omer={state?.cache?.omer}
-          tokens={tokens}
-          visibility={visibility}
-          customDays={state?.customDays}
-          compact
-        />
-      </div>
-    </>
+    <Banner banners={liveBanners} bannerSettings={settings.banner} />
   ) : null;
 
   return (
     <ScreenScaler portrait={isPortrait}>
-      <Layout
-        leftColumn={leftColumn}
-        rightColumn={rightColumn}
-        progressDots={progressDots}
-        banner={banner}
-        bannerHeight={bannerHeight}
-        theme={settings.theme}
-        tokens={tokens}
-        fullscreen={isFullscreen}
-        credit={settings.credit}
-        clockSide={settings.clockSide || 'left'}
+      <DesignRoot
+        settings={settings}
+        fontsList={state?.fonts}
+        themeId={active.themeId}
+        phase={phase}
+        upNext={!!upNext}
         portrait={isPortrait}
-        portraitTopBar={portraitTopBar}
-      />
-      <AnnouncementTakeover item={ann.takeover} tokens={tokens} />
-      {countdown?.mode === 'takeover' && (
-        <CountdownOverlay
-          countdown={countdown}
+        style={{ position: 'absolute', inset: 0 }}
+      >
+        <Layout
+          leftColumn={rail}
+          rightColumn={rightColumn}
+          banner={banner}
+          theme={active.themeId}
           tokens={tokens}
-          onComplete={() => setCountdown(null)}
+          fullscreen={isFullscreen}
+          credit={settings.credit}
+          clockSide={railSide}
+          portrait={isPortrait}
         />
-      )}
-      <HiddenAccess tokens={tokens} />
+        <AnnouncementTakeover item={ann.takeover} tokens={tokens} clock={clock} />
+        {countdown?.mode === 'takeover' && (
+          <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={() => setCountdown(null)} />
+        )}
+        <HiddenAccess tokens={tokens} />
 
-      {/* Date preview banner */}
-      {_isDatePreview && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          zIndex: 9999,
-          background: 'rgba(212,168,75,0.92)',
-          color: '#12100C',
-          fontFamily: "'Frank Ruhl Libre', Georgia, serif",
-          fontSize: '13px',
-          fontWeight: 700,
-          textAlign: 'center',
-          padding: '6px 16px',
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-        }}>
-          Preview — {_previewDate}
-        </div>
-      )}
-
-      {/* Connection status — only show after 10+ seconds of disconnection */}
-      {sseStatus === 'disconnected' && (
-        <div style={{
-          position: 'fixed',
-          bottom: '8px',
-          left: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 10px',
-          borderRadius: '4px',
-          background: 'rgba(0,0,0,.7)',
-          zIndex: 9000,
-        }}>
+        {_isDatePreview && (
           <div style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: '#EF4444',
-          }} />
-          <span style={{
-            fontFamily: "'EB Garamond', Georgia, serif",
-            fontSize: '11px',
-            color: 'rgba(255,255,255,.7)',
+            position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999, background: 'var(--accent)', color: 'var(--onAccent)',
+            fontFamily: 'var(--f-en)', fontSize: 14, fontWeight: 700, textAlign: 'center', padding: '6px 16px',
           }}>
-            Disconnected
-          </span>
-        </div>
-      )}
+            Preview — {_previewDate}
+          </div>
+        )}
+
+        {sseStatus === 'disconnected' && (
+          <div style={{
+            position: 'absolute', bottom: 8, left: 8, display: 'flex', alignItems: 'center', gap: 6,
+            padding: '4px 10px', borderRadius: 8, background: 'rgba(0,0,0,.7)', zIndex: 9000,
+          }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
+            <span style={{ fontFamily: 'var(--f-en)', fontSize: 12, color: 'rgba(255,255,255,.7)' }}>Disconnected</span>
+          </div>
+        )}
+      </DesignRoot>
     </ScreenScaler>
   );
 }

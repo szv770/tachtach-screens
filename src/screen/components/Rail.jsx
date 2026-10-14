@@ -1,0 +1,198 @@
+import React from 'react';
+import Clock from './Clock.jsx';
+import PinnedNotes from './PinnedNotes.jsx';
+import { CreditContent } from './Layout.jsx';
+import { F, he } from '../design/ui.jsx';
+import { useDesign } from '../design/DesignRoot.jsx';
+import { WeatherIcon, ShabbosMark, Ornament, ProgressRing } from '../design/graphics.jsx';
+import { describeWeather } from '../../shared/weatherCodes.js';
+import { plainHebrew, fmt12 } from '../design/time.js';
+import { hNum } from '../../shared/constants.js';
+
+/**
+ * The always-on rail (R2 README §5): clock · Hebrew date · English date ·
+ * parsha · weather (anchored to the bottom). Only when relevant: the up-next
+ * card (a schedule item starts within settings.rail.upNextMinutes) and side
+ * notes. Never in the rail: next zman, schedule lists, slide index, location.
+ * Busy rail (card and/or notes): the date block tightens and the parsha goes
+ * to one line so everything fits without scrolling.
+ */
+
+const SEFIROS = ['חסד', 'גבורה', 'תפארת', 'נצח', 'הוד', 'יסוד', 'מלכות'];
+function sefira(count) {
+  if (!count || count < 1 || count > 49) return '';
+  return `${SEFIROS[(count - 1) % 7]} שב${SEFIROS[Math.floor((count - 1) / 7)]}`;
+}
+
+const MONTH_ALIASES = { Iyyar: 'Iyar', Iyar: 'Iyyar', Tevet: 'Teves', Teves: 'Tevet', Heshvan: 'Cheshvan', Cheshvan: 'Heshvan' };
+export function todaysCustomDays(customDays, hebrewDate, now = new Date()) {
+  if (!customDays?.length) return [];
+  const gm = now.getMonth() + 1, gd = now.getDate();
+  return customDays.filter((d) => {
+    if (d.hebrewMonth && hebrewDate) {
+      return (d.hebrewMonth === hebrewDate.hebrewMonth || d.hebrewMonth === MONTH_ALIASES[hebrewDate.hebrewMonth]) && d.hebrewDay === hebrewDate.hebrewDay;
+    }
+    if (d.gregorianMonth) return d.gregorianMonth === gm && d.gregorianDay === gd;
+    return false;
+  });
+}
+
+/** "Parashat Noach" (Hebcal) → "Parshas Noach". */
+export function parshaEnglish(name) {
+  return String(name || '').replace(/^Parashat\s+/i, 'Parshas ').replace(/^Parshat\s+/i, 'Parshas ');
+}
+
+const YOM_TOV = /(Rosh Hashana|Yom Kippur|Sukkot|Shmini Atzeret|Simchat Torah|Pesach|Shavuot|Chanukah|Purim)/i;
+
+/** Hebrew date with the ב prefix and niqqud removed. */
+export function hebrewDateText(hebrewDate) {
+  return plainHebrew(String(hebrewDate?.hebrew || '').replace(/\s+ב[֐-׏]*(?=[א-ת])/, ' '));
+}
+
+export function englishDateText(now = new Date()) {
+  return now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+export function WeatherReadout({ weather, busy = false, compact = false, align = 'left', iconFill = 'var(--bg)' }) {
+  if (!weather?.current) return null;
+  const d = describeWeather(weather.current.code, weather.current.isDay !== false);
+  const hi = weather.today?.hi, lo = weather.today?.lo;
+  const small = busy || compact;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexDirection: align === 'right' ? 'row-reverse' : 'row', flex: 'none' }}>
+      <WeatherIcon icon={d.icon} size={small ? 52 : 60} fill={iconFill} />
+      <span className="tt-num" style={{ fontSize: small ? 52 : 62, fontWeight: 600, letterSpacing: '-.03em', lineHeight: 1 }}>{weather.current.temp}°</span>
+      <div style={{ display: 'flex', flexDirection: 'column', fontSize: 24, fontWeight: 500, lineHeight: 1.3, alignItems: align === 'right' ? 'flex-end' : 'flex-start', fontFamily: F.en, minWidth: 0 }}>
+        <span style={{ whiteSpace: 'nowrap' }}>{d.en}</span>
+        {hi != null && lo != null && <span className="tt-num" style={{ color: 'var(--dim)', whiteSpace: 'nowrap' }}>H {hi}° · L {lo}°</span>}
+      </div>
+    </div>
+  );
+}
+
+export function UpNextCard({ item, align = 'left' }) {
+  const { graphics } = useDesign();
+  if (!item) return null;
+  const nameHe = item.nameHe;
+  const nameEn = item.name;
+  const t = fmt12(item.startMins);
+  const ring = graphics === 'rich';
+  const eta = (
+    <div className="tt-num" style={{ textAlign: 'center', lineHeight: 0.85, position: 'relative', width: ring ? 124 : 'auto', height: ring ? 124 : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      {ring && <ProgressRing size={124} stroke={6} fraction={item.fraction} />}
+      <b style={{ fontSize: ring ? 66 : 84, fontWeight: 700, letterSpacing: '-.045em', display: 'block' }}>{item.minsLeft}</b>
+      <span style={{ fontSize: ring ? 20 : 22, fontWeight: 600, marginTop: ring ? 2 : 0 }}>min</span>
+    </div>
+  );
+  return (
+    <div style={{
+      background: 'var(--accent)', color: 'var(--onAccent)', borderRadius: 24, width: '100%', marginBottom: 14,
+      display: 'grid', gridTemplateColumns: align === 'right' ? 'auto 1fr' : '1fr auto', alignItems: 'center', columnGap: 12,
+      padding: ring ? '14px 16px 14px 24px' : '20px 24px', flex: 'none',
+    }}>
+      {align === 'right' && eta}
+      <div style={{ minWidth: 0, textAlign: align }}>
+        {nameHe ? (
+          <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600, lineHeight: 1.15, textAlign: align }}>{nameHe}</div>
+        ) : (
+          <div style={{ fontFamily: F.enD, fontSize: 36, fontWeight: 700, lineHeight: 1.15 }}>{nameEn}</div>
+        )}
+        <div style={{ fontFamily: F.en, fontSize: 23, opacity: 0.8, marginTop: 2 }}>
+          {nameHe && nameEn ? `${nameEn} at ` : 'at '}<span className="tt-num">{t.t}</span>
+        </div>
+      </div>
+      {align !== 'right' && eta}
+    </div>
+  );
+}
+
+export default function Rail({
+  clock, cache = {}, settings = {}, customDays, notes = [], upNext = null, weather, credit, portrait = false, side = 'left', now = new Date(),
+}) {
+  const { graphics } = useDesign();
+  const vis = settings.visibility || {};
+  const busy = !!upNext || notes.length > 0;
+  const align = side === 'right' && !portrait ? 'right' : 'left';
+  const hd = vis.hebrewDate !== false ? hebrewDateText(cache.hebrewDate) : '';
+  const parsha = vis.parsha !== false && (cache.parsha?.hebrew || cache.parsha?.name) ? cache.parsha : null;
+  const omer = vis.omer !== false && cache.omer?.count ? cache.omer.count : null;
+  const specials = todaysCustomDays(customDays, cache.hebrewDate, now);
+  const dow = now.getDay();
+  const yomTov = (cache.hebrewDate?.events || []).find((e) => YOM_TOV.test(e));
+  const mark = graphics !== 'off' && (dow === 5 || dow === 6 || yomTov);
+  const showWeather = settings.weather?.enabled !== false && settings.weather?.showInRail !== false && weather?.current;
+  const railCredit = credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'under-clock';
+
+  const dates = (
+    <div style={{ textAlign: align }}>
+      {hd && (
+        <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(portrait ? 54 : busy ? 52 : 58), fontWeight: 600, lineHeight: 1.1, marginTop: portrait ? 0 : busy ? 30 : 42, textAlign: portrait ? 'right' : align }}>{hd}</div>
+      )}
+      <div style={{ fontFamily: F.en, fontSize: 28, color: 'var(--dim)', fontWeight: 500, marginTop: hd ? 6 : portrait ? 0 : 42, textAlign: portrait ? 'right' : align }}>{englishDateText(now)}</div>
+      {(omer || specials.length > 0) && (
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: portrait || align === 'right' ? 'flex-end' : 'flex-start' }}>
+          {omer && (
+            <div className="tt-he" style={{ fontFamily: F.he, fontSize: he(30), fontWeight: 600, color: 'var(--accent)' }}>
+              {hNum(omer)} לעומר <span style={{ fontWeight: 500, color: 'var(--dim)' }}>· {sefira(omer)}</span>
+            </div>
+          )}
+          {specials.map((d, i) => (
+            <div key={d.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
+              {graphics !== 'off' && <Ornament size={20} style={{ color: 'var(--accent)' }} />}
+              <span style={{ fontFamily: /[א-ת]/.test(d.title) ? F.he : F.en, fontSize: /[א-ת]/.test(d.title) ? he(30) : 26, fontWeight: 600 }}>{d.title}</span>
+              {d.subtitle && <span style={{ fontFamily: F.en, fontSize: 22, color: 'var(--dim)' }}>{d.subtitle}</span>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const parshaEl = parsha ? (
+    <div style={{
+      marginTop: portrait ? 0 : busy ? 18 : 30,
+      display: busy && !portrait ? 'flex' : 'block', gap: 14, alignItems: 'baseline',
+      flexDirection: busy && align === 'right' ? 'row-reverse' : 'row', textAlign: portrait ? 'right' : align,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: portrait || align === 'right' ? 'flex-end' : 'flex-start' }}>
+        {mark && align !== 'right' && !portrait && (yomTov && dow !== 5 && dow !== 6 ? <Ornament size={26} style={{ color: 'var(--dim)' }} /> : <ShabbosMark size={busy ? 30 : 36} style={{ color: 'var(--dim)' }} />)}
+        {parsha.hebrew && <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(busy && !portrait ? 34 : 42), fontWeight: 500, lineHeight: 1.1 }}>{parsha.hebrew}</div>}
+        {mark && (align === 'right' || portrait) && (yomTov && dow !== 5 && dow !== 6 ? <Ornament size={26} style={{ color: 'var(--dim)' }} /> : <ShabbosMark size={busy ? 30 : 36} style={{ color: 'var(--dim)' }} />)}
+      </div>
+      {parsha.name && <div style={{ fontFamily: F.en, fontSize: busy && !portrait ? 24 : 26, color: 'var(--dim)', fontWeight: 500, marginTop: busy && !portrait ? 0 : 4 }}>{parshaEnglish(parsha.name)}</div>}
+    </div>
+  ) : null;
+
+  const clockEl = vis.clock !== false && clock ? <Clock formatted={clock.formatted} ampm={clock.ampm} align={align} /> : null;
+  const wx = showWeather ? <WeatherReadout weather={weather} busy={busy} compact={portrait} align={align} /> : null;
+  const cards = (
+    <>
+      <UpNextCard item={upNext} align={align} />
+      <PinnedNotes pinned={notes} visibility={vis} align={align} />
+    </>
+  );
+
+  if (portrait) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)', columnGap: 24, padding: '0 6px', alignItems: 'start' }}>
+        <div style={{ gridColumn: 1, gridRow: 1 }}>{clockEl}</div>
+        <div style={{ gridColumn: 2, gridRow: 1, textAlign: 'right' }}>{dates}</div>
+        <div style={{ gridColumn: 1, gridRow: 2, marginTop: 28, alignSelf: 'center' }}>{wx}</div>
+        <div style={{ gridColumn: 2, gridRow: 2, marginTop: 28, alignSelf: 'center' }}>{parshaEl}</div>
+        {(upNext || notes.length > 0) && <div style={{ gridColumn: '1 / -1', marginTop: 22 }}>{cards}</div>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: align === 'right' ? 'flex-end' : 'stretch', flex: 1, minHeight: 0, width: '100%', padding: '4px 0 2px' }}>
+      {clockEl}
+      {dates}
+      {parshaEl}
+      <div style={{ flex: 1, minHeight: 20 }} />
+      {cards}
+      {wx}
+      {railCredit && <div style={{ marginTop: 18, display: 'flex', justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}><CreditContent credit={credit} /></div>}
+    </div>
+  );
+}

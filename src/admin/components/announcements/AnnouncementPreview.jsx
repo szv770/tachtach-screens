@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getTokens, applyFontSettings, fonts } from '../../../screen/styles/tokens.js';
+import { getTokens } from '../../../screen/styles/tokens.js';
+import DesignRoot from '../../../screen/design/DesignRoot.jsx';
+import { resolveActiveTheme } from '../../../shared/dayNight.js';
 import Layout from '../../../screen/components/Layout.jsx';
-import Clock from '../../../screen/components/Clock.jsx';
-import PinnedNotes from '../../../screen/components/PinnedNotes.jsx';
+import Rail from '../../../screen/components/Rail.jsx';
 import SlideCarousel from '../../../screen/components/SlideCarousel.jsx';
-import Banner, { bannerHeightFor } from '../../../screen/components/messages/Banner.jsx';
+import Banner from '../../../screen/components/messages/Banner.jsx';
 import { AnnouncementTakeover } from '../../../screen/components/slides/AnnouncementSlide.jsx';
 import { toRotationSlide, toBannerRow, toNoteRow } from '../../../screen/lib/announcementView.js';
 import { colors } from '../../styles/admin-tokens.js';
@@ -23,9 +24,9 @@ function clockNow() {
 }
 
 /** Placeholder slide shown behind a banner / side note preview. */
-function PlaceholderSlide({ tokens }) {
+function PlaceholderSlide() {
   return (
-    <div style={{ fontFamily: fonts.englishDisplay, fontSize: '34px', color: tokens.muted, fontStyle: 'italic', textAlign: 'center' }}>
+    <div style={{ fontFamily: 'var(--f-en)', fontSize: '34px', color: 'var(--muted)', textAlign: 'center' }}>
       (your slides keep playing here)
     </div>
   );
@@ -54,8 +55,8 @@ export default function AnnouncementPreview({ item, settings = {}, maxHeight }) 
     return () => ro?.disconnect();
   }, [maxHeight]);
 
-  applyFontSettings(settings);
-  const tokens = getTokens(settings.theme, settings.customTheme);
+  const themeId = resolveActiveTheme(settings, {}, new Date()).themeId;
+  const tokens = getTokens(themeId, settings.customTheme);
   const clock = clockNow();
   const display = item?.display || 'slide';
   const previewItem = item ? { ...item, id: item.id || 'preview', createdAt: item.createdAt || new Date().toISOString() } : null;
@@ -66,17 +67,12 @@ export default function AnnouncementPreview({ item, settings = {}, maxHeight }) 
   const fullscreen = !!slide?.fullscreen;
 
   const leftColumn = (
-    <>
-      <Clock formatted={clock.formatted} ampm={clock.ampm} seconds={clock.seconds} tokens={tokens} />
-      <PinnedNotes pinned={notes} tokens={tokens} visibility={settings.visibility} />
-    </>
+    <Rail clock={clock} cache={{}} settings={settings} notes={notes} side={settings.layout?.railSide || settings.clockSide || 'left'} />
   );
   const rightColumn = slide ? (
     <SlideCarousel
       currentSlide={slide}
       currentIndex={0}
-      enabledSlides={[slide]}
-      progress={0}
       cache={{}}
       tokens={tokens}
       settings={settings}
@@ -87,7 +83,7 @@ export default function AnnouncementPreview({ item, settings = {}, maxHeight }) 
     />
   ) : (
     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <PlaceholderSlide tokens={tokens} />
+      <PlaceholderSlide />
     </div>
   );
 
@@ -111,20 +107,20 @@ export default function AnnouncementPreview({ item, settings = {}, maxHeight }) 
         position: 'absolute', top: 0, left: 0, width: `${W}px`, height: `${H}px`,
         transform: `scale(${scale})`, transformOrigin: 'top left', direction: 'ltr', pointerEvents: 'none',
       }}>
+        <DesignRoot settings={settings} themeId={themeId} style={{ position: 'absolute', inset: 0 }}>
         <Layout
           leftColumn={leftColumn}
           rightColumn={rightColumn}
-          progressDots={null}
-          banner={banners.length ? <Banner banners={banners} tokens={tokens} bannerSettings={settings.banner} /> : null}
-          bannerHeight={bannerHeightFor(banners, settings.banner)}
+          banner={banners.length ? <Banner banners={banners} bannerSettings={settings.banner} /> : null}
           theme={settings.theme}
           tokens={tokens}
           fullscreen={fullscreen}
           credit={null}
-          clockSide={settings.clockSide || 'left'}
+          clockSide={settings.layout?.railSide || settings.clockSide || 'left'}
           portrait={false}
         />
-        {display === 'takeover' && previewItem && <AnnouncementTakeover item={previewItem} tokens={tokens} />}
+        {display === 'takeover' && previewItem && <AnnouncementTakeover item={previewItem} clock={clock} />}
+        </DesignRoot>
       </div>
     </div>
   );

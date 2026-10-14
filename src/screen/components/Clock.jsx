@@ -1,60 +1,17 @@
 import React from 'react';
-import { motion } from 'framer-motion';
-import { fonts } from '../styles/tokens.js';
+import { F } from '../design/ui.jsx';
 
-export default function Clock({ formatted, ampm, seconds, tokens, compact }) {
-  const parts = formatted.split(':');
-  const hours = parts[0] || '';
-  const minutes = parts[1] || '';
-
+/**
+ * Rail clock (R2 §3): 136 px, weight 700, small dim AM/PM. The digits fade in
+ * softly on each minute change (motion smooth/lively; CSS one-shot, keyed on
+ * the minute — no infinite blinking colon any more).
+ */
+export default function Clock({ formatted, ampm, compact = false, size, align }) {
+  const px = size || (compact ? 96 : 136);
   return (
-    <div style={{ textAlign: 'center', padding: compact ? '8px 0 4px' : '32px 0 16px' }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'center',
-          direction: 'ltr',
-          unicodeBidi: 'isolate',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'baseline',
-            fontFamily: fonts.englishDisplay,
-            fontWeight: 300,
-            fontSize: compact ? '48px' : 'clamp(80px, 10vw, 128px)',
-            lineHeight: 1,
-            color: tokens.text,
-            letterSpacing: '-0.02em',
-          }}
-        >
-          <span>{hours}</span>
-          <motion.span
-            animate={{ opacity: [1, 0.2, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ margin: '0 2px' }}
-          >
-            :
-          </motion.span>
-          <span>{minutes}</span>
-        </div>
-        <div
-          style={{
-            fontFamily: fonts.englishDisplay,
-            fontWeight: 300,
-            fontSize: compact ? '14px' : '22px',
-            color: tokens.dim,
-            letterSpacing: '0.1em',
-            marginLeft: '8px',
-            marginTop: compact ? '4px' : '8px',
-            flexShrink: 0,
-          }}
-        >
-          {ampm}
-        </div>
-      </div>
+    <div className="tt-num" style={{ display: 'flex', alignItems: 'flex-start', lineHeight: 0.8, justifyContent: align === 'right' ? 'flex-end' : 'flex-start', direction: 'ltr', flex: 'none' }}>
+      <span key={formatted} className="tt-tick" style={{ fontSize: px, fontWeight: 700, letterSpacing: '-.045em', fontFamily: F.num }}>{formatted}</span>
+      <span style={{ fontSize: Math.round(px * 0.206), fontWeight: 600, color: 'var(--dim)', margin: `${Math.round(px * 0.03)}px 0 0 12px`, fontFamily: F.num }}>{ampm}</span>
     </div>
   );
 }

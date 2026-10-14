@@ -1,184 +1,100 @@
-import React, { useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { fonts } from '../../styles/tokens.js';
-import FitText, { useFitSize } from '../FitText.jsx';
-import TextSlide from './TextSlide.jsx';
-import StyledSlide from './StyledSlide.jsx';
-import PinnedSlide from './PinnedSlide.jsx';
-import BoardDisplay from './BoardSlide.jsx';
-import Takeover, { TakeoverCard } from '../messages/Takeover.jsx';
-import { styledTokens } from '../../styles/announcementStyles.js';
+import React from 'react';
+import { Panel, TimeText, F, he } from '../../design/ui.jsx';
+import { Fit } from '../../design/fit.jsx';
+import { has, isHebrew } from '../../design/time.js';
 import { layoutOf, to12h } from '../../../shared/announcements.js';
-import { toLegacyTextSlide, toLegacyBoard, toLegacyTakeover } from '../../lib/announcementView.js';
 
-/*
- * Announcement renderers. Layouts (look.layout):
- *   bigwords  — headline/body auto-sized to fill the area (default for new)
- *   event     — title + day/time "tiles" + place
- *   list      — heading + up to 8 items
- *   quicktime — "Mincha 1:45": name, a big distinct time, optional place
- *   classic   — the pre-announcements renderers (TextSlide / StyledSlide /
- *               board / pinned), used for migrated items so they look the same
- * Visuals use the current tokens; the Phase 4 redesign restyles these.
+/**
+ * Announcement renderers — ONE component per LAYOUT, painting only with the
+ * panel roles (--panel --ink --inkDim --fill --fillInk --accentText
+ * --f-disp-he/en --disp-w …) defined by <Panel look=…>. Styles live in
+ * src/screen/design/announceStyles.js (the seam: a new takeover/announcement
+ * style is a new entry there; a new layout is a new component here).
+ *
+ * Layouts (look.layout): bigwords · event · list · quicktime · classic.
+ * `classic` (migrated pre-announcements items) renders as Big words with an
+ * optional body/attribution line (R2 README "text templates fold in as
+ * presets"). R2 §6 Announcements has the specs.
  */
 
-const isHebrew = (s) => /[֐-׿]/.test(String(s || ''));
-const has = (s) => !!String(s ?? '').trim();
-
-function Divider({ tokens, width = '40%' }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width, margin: '0 auto', flexShrink: 0 }}>
-      <div style={{ flex: 1, height: '1px', background: `linear-gradient(to right, transparent, ${tokens.muted})` }} />
-      <span style={{ color: tokens.gold, fontSize: '12px' }}>{'✦'}</span>
-      <div style={{ flex: 1, height: '1px', background: `linear-gradient(to left, transparent, ${tokens.muted})` }} />
-    </div>
-  );
-}
-
-function Eyebrow({ text, tokens, size = 18 }) {
-  if (!has(text)) return null;
-  return (
-    <div style={{
-      fontFamily: isHebrew(text) ? fonts.hebrewPrimary : fonts.englishBody,
-      fontSize: `${size}px`, color: tokens.gold, letterSpacing: '0.08em',
-      textAlign: 'center', flexShrink: 0, unicodeBidi: 'plaintext',
-    }}>{text}</div>
-  );
-}
+const dispHe = { fontFamily: F.heD, fontWeight: 'var(--disp-w)', direction: 'rtl' };
+const dispEn = { fontFamily: F.enD, fontWeight: 'var(--disp-w)', letterSpacing: '-.03em' };
 
 // ── Big words ───────────────────────────────────────────────────────────────
 
-export function BigWords({ item, tokens, scale = 1 }) {
+export function BigWords({ item, scale = 1 }) {
   const c = item.content || {};
-  const capMax = item.look?.maxFontPx || null;
-  const [headPx, setHeadPx] = useState(null);
-  const heads = [
-    has(c.headlineHe) && { key: 'hh', text: c.headlineHe, he: true },
-    has(c.headlineEn) && { key: 'he', text: c.headlineEn, he: false },
-  ].filter(Boolean);
-  const bodies = [
-    has(c.bodyHe) && { key: 'bh', text: c.bodyHe, he: true },
-    has(c.bodyEn) && { key: 'be', text: c.bodyEn, he: false },
-  ].filter(Boolean);
-  // A lone body (no headline) is promoted to headline size.
-  const primary = heads.length ? heads : bodies;
-  const secondary = heads.length ? bodies : [];
-  const headMax = Math.round((capMax || 260) * scale);
-  const bodyMax = Math.max(18, Math.round(Math.min(110 * scale, (headPx || headMax) * 0.62)));
-
+  const cap = item.look?.maxFontPx || null;
+  const hePrim = has(c.headlineHe) ? c.headlineHe : (!has(c.headlineEn) && has(c.bodyHe) ? c.bodyHe : '');
+  const enPrim = has(c.headlineEn) ? c.headlineEn : (!has(c.headlineHe) && !hePrim && has(c.bodyEn) ? c.bodyEn : '');
+  // remaining body lines (when a headline exists)
+  const bodyHe = has(c.headlineHe) || has(c.headlineEn) ? (has(c.bodyHe) ? c.bodyHe : '') : '';
+  const bodyEn = has(c.headlineHe) || has(c.headlineEn) ? (has(c.bodyEn) ? c.bodyEn : '') : '';
+  const only = !!hePrim !== !!enPrim; // exactly one headline language
+  const hMax = Math.round((cap || 330) * scale);
+  const foot = [c.subtitle, has(c.attribution) ? `— ${c.attribution}` : ''].filter(has).join('\n');
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${14 * scale}px` }}>
-      <Eyebrow text={c.target} tokens={tokens} size={20 * scale} />
-      {primary.map((p, i) => (
-        <div key={p.key} style={{ flex: primary.length > 1 && i > 0 ? 2 : 3, minHeight: 0 }}>
-          <FitText
-            text={p.text}
-            dir={p.he ? 'rtl' : 'ltr'}
-            min={18}
-            max={i === 0 ? headMax : Math.round(headMax * 0.6)}
-            lineHeight={1.12}
-            onFit={i === 0 ? setHeadPx : undefined}
-            style={{
-              fontFamily: p.he ? fonts.hebrewDisplay : fonts.englishDisplay,
-              fontWeight: i === 0 ? 700 : 400,
-              color: i === 0 ? tokens.text : tokens.dim,
-            }}
-          />
-        </div>
-      ))}
-      {secondary.length > 0 && <Divider tokens={tokens} />}
-      {secondary.map((b) => (
-        <div key={b.key} style={{ flex: 2, minHeight: 0 }}>
-          <FitText
-            text={b.text}
-            dir={b.he ? 'rtl' : 'ltr'}
-            min={14}
-            max={bodyMax}
-            lineHeight={1.3}
-            style={{ fontFamily: b.he ? fonts.hebrewPrimary : fonts.englishBody, fontWeight: 500, color: tokens.text }}
-          />
-        </div>
-      ))}
-      {(has(c.subtitle) || has(c.attribution)) && (
-        <div style={{
-          flexShrink: 0, textAlign: 'center', fontFamily: fonts.englishBody, fontSize: `${22 * scale}px`,
-          color: tokens.dim, fontStyle: 'italic', whiteSpace: 'pre-wrap', unicodeBidi: 'plaintext',
-        }}>
-          {[c.subtitle, has(c.attribution) ? `— ${c.attribution}` : ''].filter(has).join('\n')}
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 0, textAlign: 'center', gap: 16 * scale }}>
+      {has(c.target) && <div data-s="" style={{ '--i': 0, fontFamily: F.en, fontSize: 30 * scale, color: 'var(--inkDim)', fontWeight: 500, flex: 'none' }}>{c.target}</div>}
+      {hePrim && (
+        <Fit data-s="" wrap max={hMax} dir="rtl" style={{ '--i': 1, ...dispHe, width: '100%', flex: only ? 3 : 2.2, minHeight: 0, textAlign: 'center', color: 'var(--accentText)' }}>{hePrim}</Fit>
+      )}
+      {enPrim && (
+        <Fit data-s="" wrap max={Math.round((hePrim ? 76 : cap || 200) * scale)} dir="ltr" style={{ '--i': 2, ...(hePrim ? { fontFamily: F.en, fontWeight: 600, letterSpacing: '-.02em' } : { ...dispEn, color: 'var(--ink)' }), width: hePrim ? '88%' : '100%', flex: hePrim ? 1.1 : 3, minHeight: 0, textAlign: 'center', lineHeight: 1.18 }}>{enPrim}</Fit>
+      )}
+      {(bodyHe || bodyEn) && (
+        <div data-s="" style={{ '--i': 3, flex: 'none', maxWidth: '88%', display: 'flex', flexDirection: 'column', gap: 10 * scale }}>
+          {bodyHe && <div className="tt-he" style={{ fontFamily: F.he, fontSize: he(Math.round(40 * scale)), lineHeight: 1.4, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{bodyHe}</div>}
+          {bodyEn && <div style={{ fontFamily: F.en, fontSize: 32 * scale, lineHeight: 1.4, color: bodyHe ? 'var(--inkDim)' : 'var(--ink)', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{bodyEn}</div>}
         </div>
       )}
+      {foot && <div data-s="" style={{ '--i': 4, flex: 'none', fontFamily: F.en, fontSize: 30 * scale, color: 'var(--inkDim)', fontWeight: 500, whiteSpace: 'pre-wrap' }}>{foot}</div>}
     </div>
   );
 }
 
 // ── Event card ──────────────────────────────────────────────────────────────
 
-function TimeFace({ hhmm, tokens, size }) {
+function TimeFace({ hhmm, size }) {
   const t = to12h(hhmm);
   const m = /^(\d{1,2}:\d{2})\s*(AM|PM)$/.exec(t);
   return (
-    <span style={{ fontFamily: fonts.englishDisplay, fontVariantNumeric: 'tabular-nums lining-nums', fontWeight: 600, color: tokens.gold, lineHeight: 1, whiteSpace: 'nowrap' }}>
-      <span style={{ fontSize: `${size}px` }}>{m ? m[1] : t}</span>
-      {m && <span style={{ fontSize: `${Math.round(size * 0.32)}px`, marginLeft: `${Math.round(size * 0.08)}px`, color: tokens.dim, letterSpacing: '0.06em' }}>{m[2]}</span>}
+    <span className="tt-num" style={{ fontSize: size, fontWeight: 'var(--tile-w, 700)', letterSpacing: '-.05em', lineHeight: 0.9, whiteSpace: 'nowrap' }}>
+      {m ? m[1] : t}
+      {m && <small style={{ fontSize: size * 0.28, letterSpacing: 0, fontWeight: 600, marginLeft: 10, opacity: 0.78 }}>{m[2]}</small>}
     </span>
   );
 }
 
-function Tile({ label, children, tokens, scale }) {
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      gap: `${8 * scale}px`, padding: `${20 * scale}px ${34 * scale}px`, minWidth: `${180 * scale}px`,
-      background: tokens.goldBg, border: `1px solid ${tokens.goldBd}`, borderRadius: `${12 * scale}px`,
-    }}>
-      {label && <div style={{ fontFamily: fonts.englishBody, fontSize: `${17 * scale}px`, color: tokens.dim, letterSpacing: '0.1em' }}>{label}</div>}
-      {children}
-    </div>
-  );
-}
-
-export function EventCard({ item, tokens, scale = 1 }) {
+export function EventCard({ item, scale = 1 }) {
   const e = item.content?.event || {};
+  const titleHe = has(e.titleHe) ? e.titleHe : '';
+  const titleEn = has(e.title) ? e.title : '';
   const dayIsHe = isHebrew(e.day);
+  const hasTile = has(e.day) || has(e.time);
+  const hasPlace = has(e.place) || has(e.placeHe);
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${22 * scale}px` }}>
-      <div style={{ flex: has(e.titleHe) && has(e.title) ? 2.4 : 3, minHeight: 0 }}>
-        <FitText
-          text={has(e.title) ? e.title : e.titleHe}
-          dir={has(e.title) ? (isHebrew(e.title) ? 'rtl' : 'ltr') : 'rtl'}
-          min={20} max={Math.round((item.look?.maxFontPx || 170) * scale)} lineHeight={1.1}
-          style={{ fontFamily: isHebrew(has(e.title) ? e.title : e.titleHe) ? fonts.hebrewDisplay : fonts.englishDisplay, fontWeight: 700, color: tokens.text }}
-        />
+    <div style={{ flex: 1, display: 'grid', gridTemplateRows: hasTile || hasPlace ? '1fr auto' : '1fr', minHeight: 0, rowGap: 24 * scale }}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: 0, gap: 8, minWidth: 0 }}>
+        {titleHe && <Fit data-s="" max={Math.round(210 * scale)} dir="rtl" style={{ '--i': 1, ...dispHe, height: titleEn ? '54%' : '88%', textAlign: 'left' }}>{titleHe}</Fit>}
+        {titleEn && <Fit data-s="" max={Math.round((titleHe ? 180 : 230) * scale)} wrap={!titleHe} style={{ '--i': 2, ...dispEn, height: titleHe ? '42%' : '88%' }}>{titleEn}</Fit>}
       </div>
-      {has(e.title) && has(e.titleHe) && (
-        <div style={{ flex: 1.1, minHeight: 0 }}>
-          <FitText text={e.titleHe} dir="rtl" min={16} max={Math.round(90 * scale)} style={{ fontFamily: fonts.hebrewDisplay, fontWeight: 500, color: tokens.dim }} />
-        </div>
-      )}
-      {(has(e.day) || has(e.time)) && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'stretch', gap: `${24 * scale}px`, flexShrink: 0 }}>
-          {has(e.day) && (
-            <Tile tokens={tokens} scale={scale}>
-              <div style={{
-                fontFamily: dayIsHe ? fonts.hebrewDisplay : fonts.englishDisplay, fontSize: `${64 * scale}px`, fontWeight: 600,
-                color: tokens.text, lineHeight: 1.05, whiteSpace: 'pre-wrap', textAlign: 'center', unicodeBidi: 'plaintext',
-              }}>{e.day}</div>
-            </Tile>
+      {(hasTile || hasPlace) && (
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 48 * scale, flexWrap: 'nowrap' }}>
+          {hasTile && (
+            <div data-s="" style={{ '--i': 3, background: 'var(--fill)', color: 'var(--fillInk)', borderRadius: 30, padding: `${26 * scale}px ${44 * scale}px ${30 * scale}px`, display: 'flex', alignItems: 'center', gap: 40 * scale, boxShadow: 'var(--tileRing, none)', flex: 'none' }}>
+              {has(e.day) && (
+                <div style={{ fontFamily: dayIsHe ? F.he : F.en, fontSize: dayIsHe ? he(40 * scale) : 40 * scale, fontWeight: 600, lineHeight: 1.15, whiteSpace: 'pre-wrap', textAlign: 'left' }} dir={dayIsHe ? 'rtl' : 'ltr'}>{e.day}</div>
+              )}
+              {has(e.time) && <TimeFace hhmm={e.time} size={150 * scale} />}
+            </div>
           )}
-          {has(e.time) && (
-            <Tile tokens={tokens} scale={scale}>
-              <TimeFace hhmm={e.time} tokens={tokens} size={Math.round(92 * scale)} />
-            </Tile>
+          {hasPlace && (
+            <div data-s="" style={{ '--i': 4, paddingBottom: 8, minWidth: 0 }}>
+              {has(e.place) && <div style={{ fontFamily: F.en, fontSize: 42 * scale, fontWeight: 600, lineHeight: 1.15 }}>{e.place}</div>}
+              {has(e.placeHe) && <div className="tt-he" style={{ fontFamily: F.he, fontSize: he(34 * scale), color: 'var(--inkDim)', textAlign: 'left', marginTop: 6 }}>{e.placeHe}</div>}
+            </div>
           )}
-        </div>
-      )}
-      {(has(e.place) || has(e.placeHe)) && (
-        <div style={{ flex: 0.9, minHeight: 0 }}>
-          <FitText
-            text={[e.place, e.placeHe].filter(has).join('  ·  ')}
-            min={16} max={Math.round(56 * scale)}
-            style={{ fontFamily: fonts.englishBody, color: tokens.dim, fontStyle: 'italic' }}
-          />
         </div>
       )}
     </div>
@@ -187,164 +103,88 @@ export function EventCard({ item, tokens, scale = 1 }) {
 
 // ── List ────────────────────────────────────────────────────────────────────
 
-export function ListCard({ item, tokens, scale = 1 }) {
+export function ListCard({ item, scale = 1 }) {
   const l = item.content?.list || {};
   const items = (l.items || []).filter(has).slice(0, 8);
-  const heading = [l.heading, l.headingHe].filter(has);
-  const boxRef = useRef(null);
-  const listRef = useRef(null);
-  const anyHe = items.some(isHebrew);
-  const size = useFitSize(boxRef, listRef, [items.join('\u0001')], { min: 16, max: Math.round(84 * scale) });
+  const heading = has(l.heading) ? l.heading : '';
+  const headingHe = has(l.headingHe) ? l.headingHe : '';
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', gap: `${18 * scale}px` }}>
-      {heading.length > 0 && (
-        <div style={{ flex: items.length ? 1.2 : 3, minHeight: 0 }}>
-          <FitText
-            text={heading.join('\n')}
-            min={20} max={Math.round((item.look?.maxFontPx || 120) * scale)} lineHeight={1.1}
-            style={{ fontFamily: isHebrew(heading[0]) ? fonts.hebrewDisplay : fonts.englishDisplay, fontWeight: 700, color: tokens.gold }}
-          />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {(heading || headingHe) && (
+        <div data-s="" style={{ '--i': 0, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 22 * scale, gap: 24, flex: 'none' }}>
+          <span style={{ ...dispEn, fontSize: 66 * scale, lineHeight: 1.1 }}>{heading}</span>
+          <span className="tt-he" style={{ ...dispHe, fontSize: he(56 * scale), lineHeight: 1.1 }}>{headingHe}</span>
         </div>
       )}
-      {heading.length > 0 && items.length > 0 && <Divider tokens={tokens} width="30%" />}
-      {items.length > 0 && (
-        <div ref={boxRef} style={{ flex: 3, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-          <ul
-            ref={listRef}
-            dir={anyHe ? 'rtl' : 'ltr'}
-            style={{
-              listStyle: 'none', margin: 0, padding: 0, maxWidth: '100%',
-              fontSize: size ? `${size}px` : '16px', lineHeight: 1.25,
-              display: 'flex', flexDirection: 'column', gap: '0.35em',
-            }}
-          >
-            {items.map((t, i) => (
-              <li key={i} style={{ display: 'flex', gap: '0.55em', alignItems: 'baseline' }}>
-                <span style={{ color: tokens.gold, fontSize: '0.55em', flexShrink: 0, transform: 'translateY(-0.15em)' }}>{'◆'}</span>
-                <span style={{
-                  fontFamily: isHebrew(t) ? fonts.hebrewPrimary : fonts.englishBody, color: tokens.text,
-                  whiteSpace: 'pre-wrap', overflowWrap: 'normal', unicodeBidi: 'plaintext',
-                }}>{t}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <div style={{ flex: 1, display: 'grid', gridAutoRows: 'minmax(0, 1fr)', minHeight: 0 }}>
+        {items.map((t, i) => {
+          const hb = isHebrew(t);
+          return (
+            <div key={i} data-s="" style={{ '--i': i + 1, display: 'flex', alignItems: 'center', gap: 24, borderTop: '2px solid var(--line)', minHeight: 0 }}>
+              <i style={{ width: 14, height: 14, borderRadius: '50%', background: i === 0 ? 'var(--accentText)' : 'var(--line)', flex: 'none' }} />
+              <span dir={hb ? 'rtl' : 'ltr'} style={{ fontFamily: hb ? F.he : F.en, fontSize: hb ? he(44 * scale) : 42 * scale, fontWeight: 600, lineHeight: 1.2, whiteSpace: 'pre-wrap', unicodeBidi: 'plaintext', textAlign: 'start' }}>{t}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
 // ── Quick time ──────────────────────────────────────────────────────────────
 
-export function QuickTime({ item, tokens, scale = 1 }) {
+export function QuickTime({ item, scale = 1 }) {
   const q = item.content?.quicktime || {};
-  const names = [q.name, q.nameHe].filter(has);
   const t = to12h(q.time);
   const m = /^(\d{1,2}:\d{2})\s*(AM|PM)$/.exec(t);
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: `${10 * scale}px` }}>
-      <div style={{ flex: 2, minHeight: 0 }}>
-        <FitText
-          text={names.join('\n')}
-          min={20} max={Math.round(130 * scale)} lineHeight={1.08} valign="bottom"
-          style={{ fontFamily: isHebrew(names[0]) ? fonts.hebrewDisplay : fonts.englishDisplay, fontWeight: 600, color: tokens.text }}
-        />
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', minHeight: 0 }}>
+      <div data-s="" style={{ '--i': 0, display: 'flex', alignItems: 'baseline', gap: 36 * scale, maxWidth: '100%' }}>
+        {has(q.name) && <span style={{ ...dispEn, fontSize: 80 * scale, lineHeight: 1.1 }}>{q.name}</span>}
+        {has(q.nameHe) && <span className="tt-he" style={{ ...dispHe, fontSize: he(88 * scale), lineHeight: 1.1 }}>{q.nameHe}</span>}
       </div>
-      <div style={{ flex: 3, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: `${16 * scale}px` }}>
-        <div style={{ width: `${70 * scale}px`, height: '2px', background: tokens.goldBd, flexShrink: 0 }} />
-        <div style={{ height: '100%', flex: '0 1 auto', minWidth: 0, width: '62%' }}>
-          <FitText
-            text={m ? m[1] : t}
-            min={30} max={Math.round((item.look?.maxFontPx || 330) * scale)} lineHeight={1}
-            style={{ fontFamily: fonts.englishDisplay, fontWeight: 700, color: tokens.gold, fontVariantNumeric: 'tabular-nums lining-nums', letterSpacing: '-0.02em' }}
-          />
-        </div>
-        {m && (
-          <div style={{ fontFamily: fonts.englishBody, fontSize: `${40 * scale}px`, color: tokens.dim, letterSpacing: '0.1em', flexShrink: 0 }}>{m[2]}</div>
-        )}
-        <div style={{ width: `${70 * scale}px`, height: '2px', background: tokens.goldBd, flexShrink: 0 }} />
+      <div data-s="" className="tt-num" style={{ '--i': 1, fontSize: 340 * scale, fontWeight: 'var(--qt-w, 300)', letterSpacing: '-.06em', lineHeight: 0.95, color: 'var(--accentText)', margin: `${6 * scale}px 0 ${16 * scale}px`, whiteSpace: 'nowrap' }}>
+        {m ? m[1] : t}
+        {m && <small style={{ fontSize: 72 * scale, fontWeight: 500, letterSpacing: 0, marginLeft: 16 }}>{m[2]}</small>}
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        {has(q.place) && (
-          <FitText
-            text={q.place}
-            min={16} max={Math.round(54 * scale)} valign="top"
-            style={{ fontFamily: isHebrew(q.place) ? fonts.hebrewPrimary : fonts.englishBody, color: tokens.dim, fontStyle: isHebrew(q.place) ? 'normal' : 'italic' }}
-          />
-        )}
-      </div>
+      {has(q.place) && <div data-s="" style={{ '--i': 2, fontFamily: isHebrew(q.place) ? F.he : F.en, fontSize: 38 * scale, color: 'var(--inkDim)', fontWeight: 500 }}>{q.place}</div>}
     </div>
   );
 }
 
-const LAYOUT_COMPONENTS = { bigwords: BigWords, event: EventCard, list: ListCard, quicktime: QuickTime };
-
-// Styles StyledSlide has; the other takeover styles render via TakeoverCard.
-const STYLED_SLIDE_STYLES = new Set(['classic', 'grand', 'emergency', 'sleek', 'celebration', 'urgent']);
+const LAYOUT_COMPONENTS = { bigwords: BigWords, event: EventCard, list: ListCard, quicktime: QuickTime, classic: BigWords };
 
 /**
- * Rotation / hold slide body for an announcement item.
- * Layout and style are independent: the classic layout uses the original
- * template/style renderers; the other layouts take the style's palette.
+ * Rotation / hold slide body for an announcement item. Layout and style are
+ * independent: the layout decides what is drawn, look.style how it is dressed.
  */
-export default function AnnouncementSlide({ item, tokens }) {
+export default function AnnouncementSlide({ item }) {
   if (!item) return null;
-  const layout = layoutOf(item);
-  const auto = item.look?.fit !== 'fixed';
-  const style = item.look?.style || null;
-  if (layout === 'classic') {
-    const tmpl = item.look?.template;
-    if (!auto && tmpl === 'board' && !style) return <BoardDisplay boards={[toLegacyBoard(item)]} tokens={tokens} />;
-    if (!auto && tmpl === 'pinned' && !style) {
-      return <PinnedSlide slide={{ textHe: item.content?.headlineHe, textEn: item.content?.headlineEn }} tokens={tokens} />;
-    }
-    if (style && STYLED_SLIDE_STYLES.has(style)) return <StyledSlide slide={toLegacyTextSlide(item)} tokens={tokens} />;
-    if (style) return <TakeoverCard takeover={toLegacyTakeover(item)} tokens={tokens} />;
-    // Text templates (headline / quote / info / announcement) keep their look.
-    return <TextSlide slide={toLegacyTextSlide(item)} tokens={tokens} />;
-  }
-  const C = LAYOUT_COMPONENTS[layout] || BigWords;
-  const { tokens: t, background } = styledTokens(style, tokens);
-  if (!background) return <C item={item} tokens={t} />;
+  const C = LAYOUT_COMPONENTS[layoutOf(item)] || BigWords;
   return (
-    <div data-fit-root="" style={{
-      position: 'absolute', inset: 0, background, borderRadius: '4px', overflow: 'hidden',
-      padding: '52px 44px 36px', boxSizing: 'border-box', display: 'flex',
-    }}>
-      <C item={item} tokens={t} />
-    </div>
+    <Panel look={item.look?.style || null} pad="48px 60px 52px">
+      <C item={item} />
+    </Panel>
   );
 }
 
 /**
- * Full-screen takeover for an announcement. Classic layout uses the
- * Takeover.jsx styles (with auto-fit primary text unless fit is 'fixed');
- * the other layouts render full canvas on the style's (or theme's) background.
+ * Full-canvas takeover: same layouts and styles at 1520×820, rail hidden, a
+ * small 34 px clock stays top-right. Pauses rotation (App.jsx).
  */
-export function AnnouncementTakeover({ item, tokens }) {
-  const layout = item ? layoutOf(item) : null;
-  if (!item || layout === 'classic') {
-    return <Takeover takeover={item ? toLegacyTakeover(item) : null} tokens={tokens} />;
-  }
-  const C = LAYOUT_COMPONENTS[layout] || BigWords;
-  const { tokens: t, background } = styledTokens(item.look?.style, tokens);
+export function AnnouncementTakeover({ item, clock }) {
+  if (!item) return null;
+  const C = LAYOUT_COMPONENTS[layoutOf(item)] || BigWords;
   return (
-    <AnimatePresence>
-      <motion.div
-        key={item.id}
-        data-fit-root=""
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.5 }}
-        style={{
-          position: 'fixed', inset: 0, zIndex: 100, background: background || tokens.bg,
-          padding: '70px 90px', boxSizing: 'border-box', display: 'flex',
-        }}
-      >
-        <div style={{ position: 'absolute', inset: '18px', border: `1px solid ${t.goldBd}`, pointerEvents: 'none' }} />
-        <C item={item} tokens={t} scale={1.35} />
-      </motion.div>
-    </AnimatePresence>
+    <div className="tt-fadein" style={{ position: 'absolute', inset: 0, zIndex: 100, padding: 40, display: 'flex', background: 'var(--bg)' }}>
+      <Panel look={item.look?.style || null} pad="56px 72px 56px">
+        {clock && (
+          <span className="tt-num" style={{ position: 'absolute', top: 30, right: 48, fontSize: 34, fontWeight: 600, color: 'var(--inkDim)', zIndex: 3 }}>
+            {clock.formatted} {clock.ampm}
+          </span>
+        )}
+        <C item={item} scale={1.1} />
+      </Panel>
+    </div>
   );
 }
