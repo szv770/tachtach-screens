@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction B · Gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..600&family=Frank+Ruhl+Libre:wght@400;500;700;900&family=EB+Garamond:ital,wght@0,400..700;1,400..600&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: 'FbMazalMedium'; src: url('fonts/FbMazalMedium.ttf') format('truetype'); }
+/*
+  Direction B — "Gallery"  (museum wall text / editorial poster)
+  Full-width stage, no boxes: big serif numerals, hairline grid, one solid accent block per screen.
+  Colors = token roles (tokens.js keys + surface2/onAccent). Fonts = font roles (+ numeric).
+*/
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: var(--bg); overflow: hidden; }
+body { color: var(--text); font-family: var(--f-en); -webkit-font-smoothing: antialiased; }
+.canvas { position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto 58px; padding: 30px 40px 0; }
+
+.he { direction: rtl; font-family: var(--f-he); }
+.hed { direction: rtl; font-family: var(--f-he-display); font-weight: 700; }
+.num { font-family: var(--f-num); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; font-variation-settings: "opsz" 144; }
+.lbl { font-family: var(--f-en-display); text-transform: uppercase; letter-spacing: .16em; font-size: 15px; font-weight: 500; color: var(--dim); }
+.it { font-style: italic; }
+
+/* header */
+.head { display: grid; grid-template-columns: auto auto 1fr auto; align-items: end; gap: 0; padding-bottom: 18px; border-bottom: 1px solid var(--frame2); }
+.clock { display: flex; align-items: flex-start; gap: 8px; padding-right: 40px; }
+.clock .t { font-size: 150px; font-weight: 300; line-height: .78; letter-spacing: -.035em; }
+.clock .ap { font-size: 26px; font-weight: 400; color: var(--dim); font-style: italic; }
+.endate { padding: 0 0 4px 36px; border-left: 1px solid var(--frame2); display: flex; flex-direction: column; gap: 6px; }
+.endate .d { font-size: 34px; font-weight: 400; line-height: 1; }
+.endate .p { font-size: 24px; color: var(--dim); }
+.hedate { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.hedate .d { font-size: 78px; font-weight: 900; line-height: .9; }
+.hedate .p { font-size: 32px; color: var(--dim); font-weight: 500; }
+.hedate .p b { color: var(--accent); font-weight: 700; }
+.prog { display: flex; gap: 6px; height: 3px; margin-top: -2px; }
+.prog i { flex: 1; } .prog i.cur { background: linear-gradient(90deg, var(--accent) 58%, transparent 58%); }
+
+/* stage */
+.stage { display: flex; flex-direction: column; min-height: 0; padding-top: 14px; }
+.stitle { display: flex; align-items: baseline; gap: 18px; padding-bottom: 12px; }
+.stitle .n { font-size: 24px; font-style: italic; color: var(--accent); }
+.stitle .t { font-size: 28px; font-weight: 500; }
+.stitle .s { font-size: 20px; color: var(--dim); font-style: italic; }
+.stitle .h { margin-left: auto; font-size: 40px; }
+
+.zgrid { flex: 1; min-height: 0; display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--frame1); }
+.cell { display: flex; flex-direction: column; padding: 14px 22px 16px; border-left: 1px solid var(--frame1); border-bottom: 1px solid var(--frame1); min-width: 0; }
+.cell:nth-child(4n+1) { border-left: 0; padding-left: 0; }
+.cell:nth-child(n+5) { border-bottom: 0; }
+.cell .top { display: flex; justify-content: space-between; font-size: 18px; color: var(--muted); font-style: italic; }
+.cell .hen { font-size: 42px; text-align: right; margin-top: 2px; line-height: 1.15; white-space: nowrap; }
+.cell .enn { font-size: 15px; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); margin-top: auto; }
+.cell .tm { font-size: 86px; font-weight: 300; line-height: .95; letter-spacing: -.02em; }
+.cell .tm small { font-size: 24px; font-style: italic; color: var(--dim); letter-spacing: 0; margin-left: 6px; }
+.cell.past { color: var(--muted); } .cell.past .enn, .cell.past .tm small { color: var(--muted); }
+.cell.next { background: var(--accent); color: var(--onAccent); border-left-color: transparent; padding-left: 22px !important; }
+.cell.next .top, .cell.next .enn, .cell.next .tm small { color: var(--onAccent); opacity: .8; }
+.cell.next .top b { opacity: 1; font-style: normal; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 16px; }
+
+/* timeline (schedule) */
+.tl { flex: 1; position: relative; display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid var(--frame1); }
+.stop { position: relative; display: flex; flex-direction: column; padding: 22px 14px 18px; min-width: 0; }
+.stop .tm { font-size: 70px; font-weight: 300; line-height: 1; letter-spacing: -.02em; }
+.stop .tm small { font-size: 20px; font-style: italic; color: var(--dim); margin-left: 4px; letter-spacing: 0; }
+.stop .dot { width: 18px; height: 18px; border-radius: 50%; background: var(--bg); border: 2px solid var(--frame2); margin: 34px 0 30px; position: relative; z-index: 2; }
+.stop .hen { font-size: 42px; line-height: 1.1; text-align: left; direction: rtl; unicode-bidi: plaintext; }
+.stop .enn { font-size: 19px; text-transform: uppercase; letter-spacing: .12em; color: var(--dim); margin-top: 10px; }
+.stop .st { margin-top: auto; font-size: 24px; font-style: italic; color: var(--dim); }
+.stop.past { color: var(--muted); } .stop.past .enn, .stop.past .st, .stop.past .tm small { color: var(--muted); }
+.stop.past .dot { background: var(--text); border-color: var(--text); opacity: .45; }
+.stop.now .dot { background: var(--text); border-color: var(--text); }
+.stop.now .st { color: var(--text); font-style: normal; font-weight: 600; }
+.stop.next { background: var(--accent); color: var(--onAccent); }
+.stop.next .tm small, .stop.next .enn, .stop.next .st { color: var(--onAccent); }
+.stop.next .st { font-style: normal; font-weight: 600; font-size: 30px; }
+.stop.next .dot { background: var(--onAccent); border-color: var(--onAccent); box-shadow: 0 0 0 6px var(--accent), 0 0 0 8px var(--onAccent); }
+.rail { position: absolute; left: 0; right: 0; height: 2px; background: var(--frame2); z-index: 1; }
+.rail.done { right: auto; height: 4px; background: var(--text); opacity: .7; }
+.nowmark { position: absolute; z-index: 3; width: 2px; background: var(--text); }
+.nowmark span { position: absolute; top: -2px; right: 10px; font-size: 18px; font-style: italic; white-space: nowrap; color: var(--text); }
+
+/* announcement */
+.ann { flex: 1; min-height: 0; display: grid; grid-template-columns: 420px 1fr; border-top: 1px solid var(--frame1); }
+.when { background: var(--accent); color: var(--onAccent); padding: 26px 34px; display: flex; flex-direction: column; }
+.when .dow { font-size: 34px; font-style: italic; }
+.when .day { font-size: 190px; font-weight: 300; line-height: .85; letter-spacing: -.04em; margin-top: 6px; }
+.when .mon { font-size: 30px; }
+.when .rule { height: 1px; background: var(--onAccent); opacity: .4; margin: 18px 0; }
+.when .tm { font-size: 76px; font-weight: 400; line-height: 1; }
+.when .tm small { font-size: 30px; font-style: italic; }
+.when .he { margin-top: auto; font-size: 30px; text-align: right; }
+.what { padding: 26px 0 20px 44px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.fit { white-space: nowrap; overflow: hidden; line-height: 1.08; }
+.what .h1 { height: 230px; font-family: var(--f-he-display); font-weight: 900; direction: rtl; text-align: right; }
+.what .h2 { height: 140px; font-style: italic; font-weight: 400; font-variation-settings: "opsz" 144; }
+.what .meta { display: flex; justify-content: space-between; align-items: baseline; border-top: 1px solid var(--frame2); padding-top: 16px; margin-top: 16px; }
+.what .meta .en { font-size: 26px; color: var(--dim); }
+.what .meta .he { font-size: 34px; }
+
+/* footer: at-a-glance */
+.foot { display: grid; grid-template-columns: 1fr 1fr 360px; border-top: 1px solid var(--frame2); }
+.fc { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 14px 28px; border-left: 1px solid var(--frame1); min-width: 0; }
+.fc:first-child { border-left: 0; padding-left: 0; }
+.fc .row { display: flex; align-items: baseline; gap: 16px; }
+.fc .row .tm { font-size: 48px; font-weight: 400; line-height: 1; }
+.fc .row .tm small { font-size: 20px; font-style: italic; color: var(--dim); margin-left: 3px; }
+.fc .row .en { font-size: 22px; color: var(--dim); }
+.fc .row .he { margin-left: auto; font-size: 40px; font-family: var(--f-he-display); font-weight: 700; }
+.fc .lb { display: flex; justify-content: space-between; align-items: baseline; }
+.fc .eta { font-size: 20px; font-style: italic; color: var(--accent); }
+.wx { flex-direction: row; align-items: center; gap: 16px; }
+.wx svg { width: 56px; height: 56px; flex: none; }
+.wx .deg { font-size: 60px; font-weight: 300; line-height: 1; }
+.wx .m { display: flex; flex-direction: column; gap: 2px; font-size: 20px; }
+.wx .m .b { color: var(--dim); }
+
+.banner { margin: 0 -40px; display: flex; align-items: center; gap: 26px; padding: 0 40px; background: var(--surface2); border-top: 1px solid var(--frame2); white-space: nowrap; overflow: hidden; }
+.banner .tag { font-size: 22px; font-style: italic; color: var(--accent); }
+.banner .tx { font-size: 26px; } .banner .he { font-size: 30px; }
+.banner .sep { width: 28px; height: 1px; background: var(--frame2); flex: none; }
+</style>
+</head>
+<body>
+<div class="canvas" id="app"></div>
+<script>
+const THEMES = {
+  dark:  { bg:'#13110E', surface:'#1C1915', surface2:'#221E18', text:'#F3EBDB', dim:'rgba(243,235,219,.64)', muted:'rgba(243,235,219,.32)',
+           gold:'#E6B85C', goldBg:'rgba(230,184,92,.12)', goldBd:'rgba(230,184,92,.45)', copper:'#C98A4B', onAccent:'#1A1206',
+           framePrimary:'rgba(243,235,219,.12)', frameSecondary:'rgba(243,235,219,.26)' },
+  light: { bg:'#F4EFE5', surface:'#FBF8F2', surface2:'#EAE3D5', text:'#1D150B', dim:'rgba(29,21,11,.62)', muted:'rgba(29,21,11,.32)',
+           gold:'#8C5A12', goldBg:'rgba(140,90,18,.10)', goldBd:'rgba(140,90,18,.4)', copper:'#7A4E1A', onAccent:'#FBF6EC',
+           framePrimary:'rgba(29,21,11,.12)', frameSecondary:'rgba(29,21,11,.26)' },
+};
+const FONTS = {
+  default: { hebrewDisplay:"'Frank Ruhl Libre', serif", hebrewPrimary:"'Frank Ruhl Libre', serif", englishDisplay:"'Fraunces', serif", englishBody:"'Fraunces', serif", numeric:"'Fraunces', serif" },
+  serif:   { hebrewDisplay:"'FbMazalMedium','Frank Ruhl Libre', serif", hebrewPrimary:"'FbMazalMedium','Frank Ruhl Libre', serif", englishDisplay:"'EB Garamond', serif", englishBody:"'EB Garamond', serif", numeric:"'EB Garamond', serif" },
+};
+const q = new URLSearchParams(location.search);
+const screen = q.get('screen') || 'main', theme = THEMES[q.get('theme') || 'dark'], fonts = FONTS[q.get('fonts') || 'default'];
+const r = document.documentElement.style;
+const map = { bg:'bg', surface:'surface', surface2:'surface2', text:'text', dim:'dim', muted:'muted', gold:'accent', goldBg:'accentBg', goldBd:'accentBd', copper:'copper', onAccent:'onAccent', framePrimary:'frame1', frameSecondary:'frame2' };
+for (const k in map) r.setProperty('--' + map[k], theme[k]);
+r.setProperty('--f-he-display', fonts.hebrewDisplay); r.setProperty('--f-he', fonts.hebrewPrimary);
+r.setProperty('--f-en-display', fonts.englishDisplay); r.setProperty('--f-en', fonts.englishBody); r.setProperty('--f-num', fonts.numeric);
+
+const ZMANIM = [
+  { he:'עלות השחר', en:'Alos Hashachar', t:'6:01', ap:'am', s:'past' },
+  { he:'הנץ החמה', en:'Netz Hachamah', t:'7:19', ap:'am', s:'past' },
+  { he:'סוף זמן ק״ש', en:'Sof Zman Shema', t:'10:08', ap:'am', s:'past' },
+  { he:'חצות היום', en:'Chatzos', t:'12:57', ap:'pm', s:'next' },
+  { he:'מנחה גדולה', en:'Mincha Gedolah', t:'1:25', ap:'pm' },
+  { he:'פלג המנחה', en:'Plag Hamincha', t:'5:24', ap:'pm' },
+  { he:'שקיעה', en:'Shkiah', t:'6:35', ap:'pm' },
+  { he:'צאת הכוכבים', en:'Tzeis Hakochavim', t:'7:01', ap:'pm' },
+];
+const SCHEDULE = [
+  { he:'שחרית', en:'Shacharis', t:'7:30', ap:'am', s:'past', st:'Done' },
+  { he:'ארוחת בוקר', en:'Breakfast', t:'8:45', ap:'am', s:'past', st:'Done' },
+  { he:'סדר בוקר', en:'Seder', t:'9:30', ap:'am', s:'now', st:'Now · until 1:00' },
+  { he:'ארוחת צהריים', en:'Lunch', t:'1:00', ap:'pm', s:'next', st:'In 19 min' },
+  { he:'מנחה', en:'Mincha', t:'1:45', ap:'pm', st:'' },
+  { he:'סדר ערב', en:'Night Seder', t:'7:30', ap:'pm', st:'' },
+  { he:'מעריב', en:'Maariv', t:'9:00', ap:'pm', st:'' },
+];
+const SUN = `<svg viewBox="0 0 64 64" fill="none"><circle cx="24" cy="24" r="10" fill="var(--accent)"/><g stroke="var(--accent)" stroke-width="3" stroke-linecap="round"><path d="M24 4v5M24 39v5M4 24h5M39 24h5M10 10l3.5 3.5M34.5 34.5L38 38M38 10l-3.5 3.5M10 38l3.5-3.5"/></g><path d="M22 52h28a9 9 0 0 0 0-18 13 13 0 0 0-25 4 7 7 0 0 0-3 14z" fill="var(--text)" opacity=".9"/></svg>`;
+
+const head = `
+<div>
+  <div class="head">
+    <div class="clock num"><span class="t">12:41</span><span class="ap">pm</span></div>
+    <div class="endate"><span class="lbl">Tuesday</span><span class="d">13 October 2026</span><span class="p it">Parshas Noach</span></div>
+    <div></div>
+    <div class="hedate"><span class="d hed">ב׳ חשון תשפ״ז</span><span class="p he">יום שלישי · <b>פרשת נח</b></span></div>
+  </div>
+  <div class="prog"></div>
+</div>`;
+
+function stage(n, title, sub, heTitle, body) {
+  return `<div class="stage"><div class="stitle"><span class="n num">${n}</span><span class="t">${title}</span><span class="s">${sub}</span><span class="h hed">${heTitle}</span></div>${body}</div>`;
+}
+
+const zBody = `<div class="zgrid">${ZMANIM.map((z, i) => `
+  <div class="cell ${z.s || ''}">
+    <div class="top"><span class="num">${String(i + 1).padStart(2, '0')}</span>${z.s === 'next' ? '<b>Next · in 16 min</b>' : z.s === 'past' ? '<span>passed</span>' : ''}</div>
+    <div class="hen hed">${z.he}</div>
+    <div class="enn">${z.en}</div>
+    <div class="tm num">${z.t}<small>${z.ap}</small></div>
+  </div>`).join('')}</div>`;
+
+const sBody = `<div class="tl" id="tl">${SCHEDULE.map(z => `
+  <div class="stop ${z.s || ''}">
+    <div class="tm num">${z.t}<small>${z.ap}</small></div>
+    <div class="dot"></div>
+    <div class="hen hed">${z.he}</div>
+    <div class="enn">${z.en}</div>
+    <div class="st">${z.st}</div>
+  </div>`).join('')}<div class="rail" id="rail"></div><div class="rail done" id="raild"></div><div class="nowmark" id="now"><span class="num">12:41</span></div></div>`;
+
+const aBody = `<div class="ann">
+  <div class="when"><span class="dow">Thursday</span><span class="day num">15</span><span class="mon">October</span><div class="rule"></div><span class="tm num">2:00<small> pm</small></span><span class="he">יום חמישי · ד׳ חשון</span></div>
+  <div class="what">
+    <div class="fit h1" data-max="250">מבצע תפילין</div>
+    <div class="fit h2" data-max="150">Mivtza Tefillin</div>
+    <div class="meta"><span class="en it">All bochurim · Meet in the front lobby</span><span class="he">כל התלמידים · בלובי</span></div>
+  </div></div>`;
+
+const foot = `<div class="foot">
+  <div class="fc"><div class="lb"><span class="lbl">Next zman</span><span class="eta">in 16 min</span></div>
+    <div class="row"><span class="tm num">12:57<small>pm</small></span><span class="en it">Chatzos</span><span class="he">חצות היום</span></div></div>
+  <div class="fc"><div class="lb"><span class="lbl">Up next</span><span class="eta">in 19 min</span></div>
+    <div class="row"><span class="tm num">1:00<small>pm</small></span><span class="en it">Lunch</span><span class="he">ארוחת צהריים</span></div></div>
+  <div class="fc wx">${SUN}<span class="deg num">84<span style="font-size:.55em;vertical-align:.55em">°</span></span><div class="m"><span class="it">Partly cloudy</span><span class="b num">H 88° · L 77°</span></div></div>
+</div>`;
+const banner = `<div class="banner"><span class="tag">Notice</span><span class="tx">Farbrengen tonight after Maariv in the zal</span><span class="sep"></span><span class="he">התוועדות הערב אחרי מעריב בזאל</span><span class="sep"></span><span class="tx">Bring your siddur</span></div>`;
+
+const S = {
+  main: [1, stage('02', 'Zmanim', 'Halachic times · Miami Beach', 'זמני היום', zBody)],
+  announce: [3, stage('04', 'Announcement', 'This week', 'הודעה', aBody)],
+  schedule: [2, stage('03', 'Today’s Schedule', 'Tuesday', 'סדר היום', sBody)],
+}[screen];
+document.getElementById('app').innerHTML = head + S[1] + foot + banner;
+// progress bar (rebuild cleanly)
+document.querySelector('.prog').innerHTML = Array.from({ length: 7 }, (_, i) => `<i class="${i === S[0] ? 'cur' : ''}"></i>`).join('');
+
+function layoutTimeline() {
+  const tl = document.getElementById('tl'); if (!tl) return;
+  const dots = [...tl.querySelectorAll('.dot')].map(d => { const b = d.getBoundingClientRect(), t = tl.getBoundingClientRect(); return { x: b.left - t.left + b.width / 2, y: b.top - t.top + b.height / 2 }; });
+  const y = dots[0].y;
+  const rail = document.getElementById('rail'), done = document.getElementById('raild'), now = document.getElementById('now');
+  rail.style.top = (y - 1) + 'px';
+  const nx = dots[2].x + (dots[3].x - dots[2].x) * (191 / 210);   // 12:41 between 9:30 and 1:00
+  done.style.top = (y - 2) + 'px'; done.style.width = nx + 'px';
+  now.style.left = (nx - 1) + 'px'; now.style.top = (y - 30) + 'px'; now.style.height = '60px';
+  now.querySelector('span').style.top = '-6px';
+}
+function fitAll() {
+  document.querySelectorAll('.fit').forEach(el => {
+    let lo = 20, hi = +el.dataset.max || 200;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; el.style.fontSize = mid + 'px';
+      (el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight + 2) ? lo = mid : hi = mid; }
+    el.style.fontSize = lo + 'px';
+  });
+}
+document.fonts.ready.then(() => { fitAll(); layoutTimeline(); window.__ready = true; });
+</script>
+</body>
+</html>

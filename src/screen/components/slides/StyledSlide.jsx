@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect, useState } from 'react';
+import { FitLine } from '../FitText.jsx';
 import { motion } from 'framer-motion';
 import { fonts } from '../../styles/tokens.js';
 
@@ -205,6 +206,12 @@ function TypewriterText({ text, delay = 0, speed = 60, fontStyle }) {
   );
 }
 
+// Auto-fit primary line for announcements with look.fit 'auto'.
+function fitPrimary(data) {
+  if (!data.fit) return data.primary;
+  return <FitLine min={28} max={170} heightFrac={data.secondary ? 0.4 : 0.52}>{data.primary}</FitLine>;
+}
+
 // ── Primary/secondary logic (same as Takeover) ──────────────────────────────
 function getPrimarySecondary(slide) {
   // For styled slides, use titleHe/titleEn as primary text (like textHe/textEn in takeover)
@@ -239,7 +246,7 @@ const SLIDE_STYLES = {
             fontSize: '48px', fontWeight: 700,
             color: tokens.text, textAlign: 'center', lineHeight: 1.3, marginBottom: '16px',
             direction: data.primaryIsHe ? 'rtl' : 'ltr',
-          }}>{data.primary}</div>
+          }}>{fitPrimary(data)}</div>
         )}
         {data.secondary && (
           <div style={{
@@ -348,7 +355,7 @@ const SLIDE_STYLES = {
               zIndex: 3, position: 'relative',
               padding: '0 30px',
             }}
-          >{data.primary}</motion.div>
+          >{fitPrimary(data)}</motion.div>
         )}
 
         {data.secondary && (
@@ -453,7 +460,7 @@ const SLIDE_STYLES = {
               animation: 'emergencyTextGlow 1.8s ease-in-out infinite',
               padding: '0 30px', zIndex: 4, position: 'relative',
             }}
-          >{data.primary}</motion.div>
+          >{fitPrimary(data)}</motion.div>
         )}
 
         {data.secondary && (
@@ -685,7 +692,7 @@ const SLIDE_STYLES = {
               position: 'relative', zIndex: 3,
               WebkitTextStroke: '0.5px rgba(255,255,255,.3)',
             }}
-          >{data.primary}</motion.div>
+          >{fitPrimary(data)}</motion.div>
         )}
 
         {data.secondary && (
@@ -805,7 +812,7 @@ const SLIDE_STYLES = {
               direction: data.primaryIsHe ? 'rtl' : 'ltr',
               marginBottom: '12px', zIndex: 1,
             }}
-          >{data.primary}</motion.div>
+          >{fitPrimary(data)}</motion.div>
         )}
 
         {data.secondary && (
@@ -859,6 +866,7 @@ export default function StyledSlide({ slide, tokens }) {
 
   const data = {
     ...getPrimarySecondary(slide),
+    fit: !!slide?.fit,
     subtitle: slide?.subtitle || null,
     target: slide?.bodyEn || slide?.bodyHe || slide?.attribution || null,
   };
@@ -866,7 +874,7 @@ export default function StyledSlide({ slide, tokens }) {
   return (
     <>
       <style>{STYLED_SLIDE_KEYFRAMES}</style>
-      <div style={{
+      <div data-fit-root="" style={{
         position: 'absolute',
         inset: 0,
         overflow: 'hidden',

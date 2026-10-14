@@ -67,3 +67,7 @@ SettingsPanel wrote top-level `zipCode`, `chabadLocationId`, `trackA`, `trackBTi
 ## `fast-xml-parser` breaking change
 
 `006f6f1` — an npm audit fix pulled in a `fast-xml-parser` major version with a breaking parsing change; the zmanim RSS parser (`src/fetchers/chabad.js`) had to be guarded against it. If zmanim parsing breaks after a routine `npm audit fix`/dependency bump, check this first — it's the one dependency in this stack with a history of breaking the fetchers on a version bump.
+
+## Announcements: one rule source, migration in code (2026-10-14)
+
+Messages, pinned notes and custom text slides used to have six separate expiry checks and three renderers. They are now one file (`data/announcements.json`) and one pure rule module (`src/shared/announcements.js`). **Never add an expiry/"is it showing" check anywhere else** — call `isActive`/`selectActive`. The legacy-to-announcements migration runs at server start in code (not via committed data) because `update.sh` restores the Pi's own `data/*.json`; it is idempotent (skips ids already migrated) and backs up to `data/legacy/`. `PUT /api/slides` whitelists `announcementId` — drop it and every ANNOUNCEMENT ref row in the rotation silently breaks. Also: the banner strip used to start its text at x=+100% of a very wide repeated string, so a new banner was invisible for ~25 s; it now starts at the left edge — don't reintroduce a right-edge start without accounting for the text width.

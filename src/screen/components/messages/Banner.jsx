@@ -45,8 +45,15 @@ export default function Banner({ banners, tokens, bannerSettings }) {
   const singleText = banners.map(b => oneLine(b.textHe || b.textEn || b.text)).join('  \u2003|\u2003  ');
   const singleWithTail = singleText + '   \u2014   ';
   const REPEATS = Math.max(3, Math.ceil(400 / (singleWithTail.length + 2)));
-  const text = Array(REPEATS).fill(singleWithTail).join('');
-  const scrollDuration = Math.max(10, text.length * speed);
+  const half = Array(REPEATS).fill(singleWithTail).join('');
+  // The strip used to animate x from +100% to -100% of the (very wide,
+  // repeated) text, so a newly posted banner stayed off-screen to the right
+  // for the first ~25 s. Now the text starts visible at the left edge:
+  // 'loop' scrolls two identical halves 0 → -50% (seamless), 'wait' scrolls
+  // one copy fully out, pauses 4 s and starts again. Same speed as before.
+  const loop = repeat !== 'wait';
+  const text = loop ? half + half : half;
+  const scrollDuration = Math.max(5, (half.length * speed) / 2);
 
   const transition = repeat === 'wait'
     ? { duration: scrollDuration, repeat: Infinity, repeatDelay: 4, ease: 'linear' }
@@ -77,7 +84,7 @@ export default function Banner({ banners, tokens, bannerSettings }) {
       }} />
 
       <motion.div
-        animate={{ x: ['100%', '-100%'] }}
+        animate={{ x: loop ? ['0%', '-50%'] : ['0%', '-100%'] }}
         transition={transition}
         style={{
           whiteSpace: 'nowrap',

@@ -13,7 +13,18 @@ const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
 const GP_DIR = path.join(PROJECT_ROOT, 'data/google-photos');
 
-const MAX_PHOTOS = 200;
+// Default cap on photos kept per album. Was a hard 200, which silently cut
+// bigger albums. Each album can now set its own `maxPhotos` (0 = no cap);
+// albums saved before that existed get this default. ~1000 resized photos is
+// a few hundred MB on the Pi's SD card.
+const DEFAULT_MAX_PHOTOS = 1000;
+
+function resolveMaxPhotos(albumConfig) {
+  const n = Number(albumConfig?.maxPhotos);
+  if (Number.isFinite(n) && n === 0) return Infinity;
+  if (Number.isFinite(n) && n > 0) return Math.floor(n);
+  return DEFAULT_MAX_PHOTOS;
+}
 
 // Track running sync jobs to prevent overlap
 const activeSyncs = new Map();
@@ -104,6 +115,7 @@ async function downloadAndProcessPhoto(url, albumDir) {
 export async function syncAlbum(albumConfig) {
   const { id: configId, url: albumUrl } = albumConfig;
   const albumId = extractAlbumId(albumUrl);
+  const maxPhotos = resolveMaxPhotos(albumConfig);
 
   // Prevent concurrent syncs for same album
   if (activeSyncs.get(albumId)) {
@@ -142,9 +154,10 @@ export async function syncAlbum(albumConfig) {
       throw err;
     }
 
-    // Cap at MAX_PHOTOS
-    if (remoteUrls.length > MAX_PHOTOS) {
-      remoteUrls = remoteUrls.slice(0, MAX_PHOTOS);
+    console.log(`[google-photos] Album ${albumId}: ${remoteUrls.length} photo(s) found on the shared page`);
+    if (remoteUrls.length > maxPhotos) {
+      console.log(`[google-photos] Keeping the first ${maxPhotos} (album maxPhotos setting)`);
+      remoteUrls = remoteUrls.slice(0, maxPhotos);
     }
 
     // Build a Set of existing source URLs for comparison
@@ -184,7 +197,7 @@ export async function syncAlbum(albumConfig) {
 
     // Build updated photo list (keep existing that are still in album + add new)
     const keptPhotos = existingManifest.photos.filter(p => remoteUrlSet.has(p.sourceUrl));
-    const allPhotos = [...keptPhotos, ...newPhotos].slice(0, MAX_PHOTOS);
+    const allPhotos = [...keptPhotos, ...newPhotos].slice(0, maxPhotos);
 
     const manifest = {
       albumId,

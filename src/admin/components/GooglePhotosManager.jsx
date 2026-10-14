@@ -67,6 +67,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
   const [photoInterval, setPhotoInterval] = useState(8);
   const [photoOrder, setPhotoOrder] = useState('album');
   const [refreshInterval, setRefreshInterval] = useState(30);
+  const [maxPhotos, setMaxPhotos] = useState(1000);
   const [slideDuration, setSlideDuration] = useState(30);
   const [kenBurns, setKenBurns] = useState(false);
   const [imageDisplayMode, setImageDisplayMode] = useState('fit');
@@ -115,6 +116,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
           refreshInterval,
           kenBurns,
           imageDisplayMode,
+          maxPhotos,
         }),
       });
 
@@ -435,6 +437,27 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
               </select>
             </div>
           )}
+
+          {!isEdit && (
+            <div>
+              <label style={{
+                fontFamily: adminFonts.englishBody, fontSize: '13px',
+                color: colors.dim, display: 'block', marginBottom: '4px',
+              }}>
+                Max photos to keep
+              </label>
+              <select
+                value={formState.maxPhotos ?? 1000}
+                onChange={(e) => setFormField('maxPhotos', parseInt(e.target.value))}
+                style={{ ...inputStyle, width: '100%' }}
+              >
+                {[200, 500, 1000, 2000].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+                <option value={0}>All (no limit)</option>
+              </select>
+            </div>
+          )}
         </div>
 
         {/* Label (edit only) */}
@@ -577,7 +600,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
 
       {/* Display settings for NEW album */}
       {renderSettingsForm(
-        { displayMode, photoInterval, photoOrder, kenBurns, imageDisplayMode, duration: slideDuration, refreshInterval },
+        { displayMode, photoInterval, photoOrder, kenBurns, imageDisplayMode, duration: slideDuration, refreshInterval, maxPhotos },
         (field, value) => {
           switch (field) {
             case 'displayMode': setDisplayMode(value); break;
@@ -587,6 +610,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
             case 'imageDisplayMode': setImageDisplayMode(value); break;
             case 'duration': setSlideDuration(value); break;
             case 'refreshInterval': setRefreshInterval(value); break;
+            case 'maxPhotos': setMaxPhotos(value); break;
           }
         },
         false,

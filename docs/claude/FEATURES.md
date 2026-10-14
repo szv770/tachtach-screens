@@ -6,7 +6,7 @@ Read `CLAUDE.md` first. Use this to jump straight to the component behind a slid
 
 `App.jsx` renders `Layout.jsx` (persistent left column: `Clock.jsx`, `HebrewDate.jsx`, `PinnedNotes.jsx`) + `SlideCarousel.jsx` (right column, rotates through enabled slides) + `HiddenAccess.jsx` (top-left 10×10px, 5-tap-in-2s admin gesture) + `ScreenScaler.jsx` (scales the whole canvas to fill actual screen resolution, pinned top-left) + message overlays.
 
-Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlideRotation.js` (advance timer, respects per-slide duration + pause/blank commands), `useMessages.js`, `useClock.js`.
+Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlideRotation.js` (advance timer, respects per-slide duration + pause/blank commands), `useAnnouncements.js` (re-evaluates `src/shared/announcements.js` `selectActive()` every second: rotation slides, holds, banners, side notes, the one takeover), `useClock.js`. `src/screen/lib/announcementView.js` maps announcement items onto the props the existing components take; `src/screen/components/FitText.jsx` is the shared auto-fit text (`FitText` fills a box, `FitLine` fits a styled primary line; unmount-guarded ResizeObserver).
 
 ### Slide types (`src/screen/components/slides/`)
 
@@ -18,26 +18,29 @@ Hooks: `useSSE.js` (subscribes to `/stream`, dispatches by event type), `useSlid
 | Pirkei Avos | `PirkeiAvosSlide.jsx` | Seasonal — visibility computed in `src/shared/pirkeiAvos.js` (Pesach→Rosh Hashana window only) |
 | Daily Quote | `DailyQuoteSlide.jsx` | |
 | Parsha Tidbits | `ParshaTidbitsSlide.jsx` | |
-| Schedule | `ScheduleSlide.jsx` | Reads `schedule.json`; icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
+| Schedule | `ScheduleSlide.jsx` | Shows the schedule `App.jsx` resolved for today / `?previewDate=` via `getEffectiveSchedule` (`src/shared/scheduleResolution.js`): the date's own schedule from `schedule-dates.json`, else enabled weekly `schedule.json` entries for that weekday. Shows the date's label under the title. Icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
 | Google Photos | `GooglePhotosSlide.jsx` | Fetches via localhost-only `/api/google-album/:id/photos` |
 | RSS Feed | `RSSSlide.jsx` | Fetches via localhost-only `/api/rss/cache/:feedId` |
 | Image | `ImageSlide.jsx` | Fit/Fill/Stretch + edge treatment (dark/light/glassy-blur/gradient) |
 | Video | `VideoSlide.jsx` | Advances on end |
-| Custom Text | `TextSlide.jsx` | Templates: headline/quote/info/about/classes/announcement |
+| Announcement (`type: 'ANNOUNCEMENT'`) | `AnnouncementSlide.jsx` | Layouts Big words / Event / List / Quick time (auto-fit, any of the 11 styles via `styles/announcementStyles.js` palettes) and Classic (dispatches to `TextSlide` / `StyledSlide` / `BoardSlide` / `PinnedSlide` / `Takeover.TakeoverCard`). slides.json ref rows `{type:'ANNOUNCEMENT', announcementId}` keep a rotation spot; other active slide announcements are appended. |
+| Custom Text (legacy) | `TextSlide.jsx` | Templates: headline/quote/info/announcement. Only reached via Classic announcements now; raw `custom` rows are migrated at startup |
 | Styled Template | `StyledSlide.jsx` | Reuses the 11 takeover visual styles as a rotating slide instead of an interrupt |
 | Pinned (all-notes slide) | `PinnedSlide.jsx` | Distinct from the always-visible `PinnedNotes.jsx` in the left column |
 | Mivtzah Leaderboard | `MivtzahLeaderboardSlide.jsx` | Talks to the Mivtzah SaaS platform's data, not a raw embed |
 | Mivtzah Live Embed | `MivtzahLiveEmbedSlide.jsx` | Just an iframe to the SaaS platform's `/live` page — any visual change to it happens in `saas-admin`/`saas-server`, not here |
 
-### Messages (`src/screen/components/messages/`)
+### Messages (`src/screen/components/messages/`) — all driven by announcements (`data/announcements.json`)
 
 - **Takeover** (`Takeover.jsx`) — full-screen, pauses the carousel. 11 styles: Classic, Grand, Emergency, Sleek, Celebration, Notice, Torah, Trip, Phone, Memorial, Hype.
 - **Banner** (`Banner.jsx`) — scrolling bottom strip. **Does not pause rotation.**
-- **Board** — replaces slide content only, rotation resumes after; rendered inline in `SlideCarousel.jsx`, not a separate component.
+- **Board** (legacy, migrated to Classic announcement slides) — `slides/BoardSlide.jsx`.
+- **Side note** — `PinnedNotes.jsx` in the side column, max 3, cycling every 4 s.
+- **Hold** ("Pause everything else" slide) — replaces the slide area via `SlideCarousel` `hold` prop and pauses the rotation timer (`useSlideRotation(slides, { paused })`).
 
 ### Countdown (`src/screen/components/CountdownOverlay.jsx`)
 
-Driven server-side by `src/server/countdown.js`, which schedules today's enabled `schedule.json` entries (day filter via `src/shared/scheduleDays.js`) that have an `alertBefore` value and broadcasts SSE `countdown-start` / `countdown-tick` / `countdown-end`; the running one is also in `/api/state` as `countdown`. Display mode per entry is `countdownDisplay` (`alertDisplay` accepted as a legacy alias): `slide` replaces the slide area while it runs (SlideCarousel, like a board) or `takeover` is a full-screen overlay (App.jsx). Neither pauses the hidden rotation timer.
+Driven server-side by `src/server/countdown.js`, which schedules today's effective schedule entries (`getEffectiveSchedule`: the date's own schedule, else enabled weekly entries for today — re-init at midnight and on every schedule/date change) that have an `alertBefore` value and broadcasts SSE `countdown-start` / `countdown-tick` / `countdown-end`; the running one is also in `/api/state` as `countdown`. Display mode per entry is `countdownDisplay` (`alertDisplay` accepted as a legacy alias): `slide` replaces the slide area while it runs (SlideCarousel, like a board) or `takeover` is a full-screen overlay (App.jsx). Neither pauses the hidden rotation timer.
 
 ## Admin panel (`src/admin/`)
 
@@ -46,9 +49,8 @@ Driven server-side by `src/server/countdown.js`, which schedules today's enabled
 | Admin section | Component |
 |---|---|
 | Slides | `SlideManager.jsx` |
-| Schedule | `ScheduleEditor.jsx` |
-| Messages | `MessageComposer.jsx` |
-| Pinned | `PinnedManager.jsx` |
+| Schedule | `ScheduleSection.jsx` — tabs: **By date** (`schedule/ScheduleByDate.jsx` week strip + `schedule/DayEditor.jsx` inline rows, text mode, blocks), **Paste / Import** (`schedule/ScheduleImport.jsx`: Claude prompt/format guide via `src/shared/scheduleClaudePrompt.js`, paste/upload → server preview → apply), **Weekly** (`ScheduleEditor.jsx`). Shared bits (API, clipboard + iOS fallback sheet, `TimeField`, `CategoryPicker` with "+ New category", Undo snackbar) in `schedule/scheduleShared.jsx` |
+| Announcements (replaces Messages + Pinned) | `announcements/AnnouncementsPanel.jsx` (lists + Again… / Undo), `announcements/AnnouncementComposer.jsx` (composer + takeover conflict dialog), `announcements/AnnouncementPreview.jsx` (real kiosk components scaled), `announcements/helpers.js` |
 | Custom Days | `CustomDaysEditor.jsx` |
 | Media | `ImageUploader.jsx` |
 | Photos | `GooglePhotosManager.jsx` |

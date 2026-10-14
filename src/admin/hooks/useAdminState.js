@@ -26,7 +26,7 @@ function parseErrorMessage(err) {
   return raw;
 }
 
-async function apiFetch(path, options = {}, _retried = false) {
+export async function apiFetch(path, options = {}, _retried = false) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET') {
@@ -75,9 +75,9 @@ export default function useAdminState() {
   const toastTimers = useRef({});
 
   // Add a toast notification that auto-dismisses after 6 seconds
-  const addToast = useCallback((message, type = 'error') => {
+  const addToast = useCallback((message, type = 'error', action = null) => {
     const id = ++toastIdCounter;
-    setToasts(prev => [...prev, { id, message, type, timestamp: Date.now() }]);
+    setToasts(prev => [...prev, { id, message, type, action, timestamp: Date.now() }]);
     toastTimers.current[id] = setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
       delete toastTimers.current[id];
@@ -201,64 +201,92 @@ export default function useAdminState() {
     });
   }, [withErrorHandling]);
 
-  // --- Messages ---
-  const createMessage = useCallback(async (message) => {
+  // --- Announcements (unified slides / banners / side notes / takeovers) ---
+  const upsertAnnouncement = useCallback((item) => {
+    setState(prev => {
+      const list = prev.announcements || [];
+      const exists = list.some(a => a.id === item.id);
+      return { ...prev, announcements: exists ? list.map(a => a.id === item.id ? item : a) : [...list, item] };
+    });
+  }, []);
+
+  /** Apply a server response that may also have changed other takeovers (conflict choices). */
+  const resyncAnnouncements = useCallback(async () => {
+    try {
+      const list = await apiFetch('/api/announcements');
+      if (Array.isArray(list)) setState(prev => ({ ...prev, announcements: list }));
+    } catch { /* keep optimistic state */ }
+  }, []);
+
+  const createAnnouncement = useCallback(async (data, successMsg = 'Posted') => {
     let created;
-    const ok = await withErrorHandling('Send message', async () => {
-      created = await apiFetch('/api/messages', {
-        method: 'POST',
-        body: JSON.stringify(message),
-      });
-      setState(prev => ({ ...prev, messages: [...(prev.messages || []), created] }));
-    }, 'Message sent');
+    const ok = await withErrorHandling('Save announcement', async () => {
+      created = await apiFetch('/api/announcements', { method: 'POST', body: JSON.stringify(data) });
+      upsertAnnouncement(created);
+      if (data.resolve) await resyncAnnouncements();
+    }, successMsg);
     return ok ? created : null;
-  }, [withErrorHandling]);
+  }, [withErrorHandling, upsertAnnouncement, resyncAnnouncements]);
 
-  const deleteMessage = useCallback(async (id) => {
-    return withErrorHandling('Delete message', async () => {
-      await apiFetch(`/api/messages/${id}`, { method: 'DELETE' });
+  const updateAnnouncement = useCallback(async (id, data, successMsg = 'Saved') => {
+    let updated;
+    const ok = await withErrorHandling('Save announcement', async () => {
+      updated = await apiFetch(`/api/announcements/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(data) });
+      upsertAnnouncement(updated);
+      if (data.resolve) await resyncAnnouncements();
+    }, successMsg);
+    return ok ? updated : null;
+  }, [withErrorHandling, upsertAnnouncement, resyncAnnouncements]);
+
+  const reactivateAnnouncement = useCallback(async (id, body, successMsg = 'Back on screen') => {
+    let updated;
+    const ok = await withErrorHandling('Show again', async () => {
+      updated = await apiFetch(`/api/announcements/${encodeURIComponent(id)}/reactivate`, { method: 'POST', body: JSON.stringify(body || {}) });
+      upsertAnnouncement(updated);
+    }, successMsg);
+    return ok ? updated : null;
+  }, [withErrorHandling, upsertAnnouncement]);
+
+  const duplicateAnnouncement = useCallback(async (id) => {
+    let copy;
+    const ok = await withErrorHandling('Duplicate', async () => {
+      copy = await apiFetch(`/api/announcements/${encodeURIComponent(id)}/duplicate`, { method: 'POST' });
+      upsertAnnouncement(copy);
+    }, 'Copied to Drafts');
+    return ok ? copy : null;
+  }, [withErrorHandling, upsertAnnouncement]);
+
+  const restoreAnnouncement = useCallback(async (payload) => {
+    return withErrorHandling('Undo', async () => {
+      const item = await apiFetch('/api/announcements/restore', { method: 'POST', body: JSON.stringify(payload) });
+      upsertAnnouncement(item);
+      if (payload.refs?.length) fetchState({ silent: true });
+    }, 'Restored');
+  }, [withErrorHandling, upsertAnnouncement, fetchState]);
+
+  /** Delete with an Undo toast (restores the same id and rotation spot). */
+  const deleteAnnouncement = useCallback(async (id) => {
+    let result;
+    const ok = await withErrorHandling('Delete announcement', async () => {
+      result = await apiFetch(`/api/announcements/${encodeURIComponent(id)}`, { method: 'DELETE' });
       setState(prev => ({
         ...prev,
-        messages: (prev.messages || []).filter(m => m.id !== id),
+        announcements: (prev.announcements || []).filter(a => a.id !== id),
+        slides: (prev.slides || []).filter(s => !(s.type === 'ANNOUNCEMENT' && s.announcementId === id)),
       }));
     });
-  }, [withErrorHandling]);
-
-  // --- Pinned ---
-  const createPinned = useCallback(async (pinned) => {
-    let created;
-    const ok = await withErrorHandling('Add pinned note', async () => {
-      created = await apiFetch('/api/pinned', {
-        method: 'POST',
-        body: JSON.stringify(pinned),
+    if (ok && result?.item) {
+      const toastId = addToast('Deleted', 'success', {
+        label: 'Undo',
+        onClick: () => { dismissToast(toastId); restoreAnnouncement({ item: result.item, refs: result.refs || [] }); },
       });
-      setState(prev => ({ ...prev, pinned: [...(prev.pinned || []), created] }));
-    }, 'Pinned note added');
-    return ok ? created : null;
-  }, [withErrorHandling]);
+    }
+    return ok;
+  }, [withErrorHandling, addToast, dismissToast, restoreAnnouncement]);
 
-  const updatePinned = useCallback(async (id, data) => {
-    return withErrorHandling('Update pinned note', async () => {
-      const result = await apiFetch(`/api/pinned/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      });
-      setState(prev => ({
-        ...prev,
-        pinned: (prev.pinned || []).map(p => p.id === id ? (result || { ...p, ...data }) : p),
-      }));
-    });
-  }, [withErrorHandling]);
-
-  const deletePinned = useCallback(async (id) => {
-    return withErrorHandling('Delete pinned note', async () => {
-      await apiFetch(`/api/pinned/${id}`, { method: 'DELETE' });
-      setState(prev => ({
-        ...prev,
-        pinned: (prev.pinned || []).filter(p => p.id !== id),
-      }));
-    });
-  }, [withErrorHandling]);
+  const fetchShabbosEnd = useCallback(async () => {
+    try { return await apiFetch('/api/announcements/shabbos-end'); } catch { return { available: false }; }
+  }, []);
 
   // --- Schedule ---
   const fetchSchedule = useCallback(async () => {
@@ -442,11 +470,12 @@ export default function useAdminState() {
     updateSlides,
     createSlide,
     deleteSlide,
-    createMessage,
-    deleteMessage,
-    createPinned,
-    updatePinned,
-    deletePinned,
+    createAnnouncement,
+    updateAnnouncement,
+    reactivateAnnouncement,
+    duplicateAnnouncement,
+    deleteAnnouncement,
+    fetchShabbosEnd,
     createCustomDay,
     deleteCustomDay,
     fetchSchedule,

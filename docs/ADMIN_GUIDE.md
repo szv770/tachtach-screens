@@ -9,15 +9,14 @@ This guide covers everything you need to know to manage your TachTach kiosk disp
 1. [Accessing the Admin Panel](#accessing-the-admin-panel)
 2. [Slides](#slides)
 3. [Schedule](#schedule)
-4. [Messages](#messages)
-5. [Pinned Notes](#pinned-notes)
-6. [Custom Days](#custom-days)
-7. [Media (Images & Videos)](#media)
-8. [Google Photos](#google-photos)
-9. [RSS Feeds](#rss-feeds)
-10. [Style (Themes & Fonts)](#style)
-11. [Settings](#settings)
-12. [Troubleshooting](#troubleshooting)
+4. [Announcements](#announcements) (slides, banners, side notes, takeovers)
+5. [Custom Days](#custom-days)
+6. [Media (Images & Videos)](#media)
+7. [Google Photos](#google-photos)
+8. [RSS Feeds](#rss-feeds)
+9. [Style (Themes & Fonts)](#style)
+10. [Settings](#settings)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -69,17 +68,16 @@ These slides pull content automatically -- you just need to enable them:
 
 These slides display content you create or upload:
 
-- **Custom Text** -- Write your own Hebrew and/or English text. Can use styled templates (see below).
+- **Message** -- Your own text (big words, an event card, a list, a quick time, or a classic styled card). Made in the Announcements composer -- see [Announcements](#announcements).
 - **Image** -- Upload a photo (JPEG, PNG, WebP, GIF). Images are automatically optimized.
 - **Video** -- Upload a video (MP4, WebM). Plays inline, advances to next slide when finished.
 - **Schedule** -- Shows the daily schedule (configured in the Schedule section).
 - **Google Photos** -- Slideshow from a connected Google Photos shared album.
 - **RSS Feed** -- Displays items from a connected RSS feed.
-- **Pinned** -- Shows all pinned notes in a single slide.
 
 ### Managing Slides
 
-- **Add a slide**: Click the "Add Slide" button, choose a type, and configure it
+- **Add a slide**: Tap **+ New Slide** and pick **Message** (opens the Announcements composer with *Show as: Slide* chosen), **Image or video**, **Google Photos album** or **RSS feed**
 - **Reorder slides**: Drag slides up or down in the list to change their display order
 - **Enable/disable**: Toggle the switch next to any slide to show or hide it without deleting
 - **Set duration**: Each slide has a duration in seconds (how long it displays before the next slide)
@@ -87,20 +85,65 @@ These slides display content you create or upload:
 
 ### Styled Templates
 
-When creating a Custom Text slide, you can apply a visual style. These use the same visual treatments as takeover messages (Grand, Sleek, Torah, etc.) but display as a regular slide in the rotation rather than interrupting the slideshow. This is useful for announcements that should be part of the regular rotation rather than a one-time interruption.
+Message slides can use any of the 11 takeover looks (Grand, Sleek, Torah, Trip, ...) while staying a normal slide in the rotation. Pick the style in the composer's **Look** section. Message rows in the Slides list show the message text and an **Edit** button; their switch pauses or resumes the message. Messages posted from Announcements that are not in this list play after the listed slides (they are shown at the bottom of the list).
 
 ---
 
 ## Schedule
 
-The Schedule section lets you define a daily timetable that displays on the Schedule slide.
+The Schedule section has three tabs:
 
-### Adding Entries
+- **By date** -- give any calendar date its own schedule (Shabbos, Yom Tov, trips, short days). Works well from a phone.
+- **Paste / Import** -- paste a schedule that Claude wrote for you (or upload a .txt/.md/.json file) and apply several dates at once.
+- **Weekly** -- the regular week. It is used on every date that doesn't have its own schedule.
+
+The rule is simple: if a date has its own schedule, the screen shows that (even if it's empty); otherwise it shows the weekly entries for that day of the week. The schedule slide, the "starting in N min" box in the sidebar and the countdown alerts all follow the same rule.
+
+### Schedule by date
+
+1. Open **Schedule → By date** and tap a day in the week strip (this week and the next five). A gold dot means the date already has its own schedule. Use **Other date** for anything further out.
+2. If the day has no schedule of its own yet, pick where to start: **Weekly schedule** (copy that day's weekly items), **Saved block** (e.g. "Regular Shabbos"), **Copy another date** (e.g. last Shabbos) or **Blank day**.
+3. Edit right in the rows:
+   - Tap the **time** and type it -- `7:05 pm`, `19:05` and `7pm` all work. The second box is an optional end time.
+   - Tap the **name** fields to type the English and Hebrew names.
+   - Tap the **category chip** to change it; **+ New category** creates one on the spot.
+   - Choose an **alert** (countdown before the item) and tick **Full screen** for a takeover; pick an **icon**; tick **Hide** to keep an item without showing it.
+   - **+ Add row** adds an item 30 minutes after the last one. ⧉ duplicates a row; ✕ deletes it (tap **Undo** if that was a mistake).
+4. Tap **Save day**. Nothing changes on the screen until you save; **Discard** throws your edits away.
+
+Other buttons on the day:
+
+- **Text** -- edit the whole day as lines of text (same format as Paste / Import), then **Use this text**.
+- **Save day as block…** -- keep this day as a reusable block ("Shabbos Mevarchim"). Saved blocks are listed at the bottom; **Apply to …** puts one on the selected date in one tap.
+- **Revert to weekly** -- remove this date's own schedule.
+- **Copy as text** -- copies the day in the text format (handy to give to Claude: "same as this but Mincha at 5:30").
+- **Preview ↗** -- opens the screen as it will look on that date.
+
+### Using Claude to make the Shabbos schedule
+
+You don't need to remember any format -- the admin teaches Claude:
+
+1. Go to **Schedule → Paste / Import**. Choose **This Shabbos**, **Next Shabbos** or the **Picked date**. Under the buttons you'll see the zmanim it found (candle lighting, shkia, Shabbos ends).
+2. Tap **Copy Claude prompt**. It copies the rules, the dates, your categories, the icon list and that weekend's zmanim.
+3. Open Claude chat, paste, and add what's happening, for example: *"Shacharis 9:30, kiddush after davening, Mincha 5:45, guest speaker at shalosh seudos, Rabbi Cohen gives the shiur Friday night at 9."*
+4. Copy Claude's answer (the code block) and paste it into the big box. Tap **Check & preview**.
+5. You'll see one card per date: the weekday, whether it **replaces** an existing schedule or is **new**, every item with its time, category and alert, and any problems with their **line number**. **Apply** stays grey while there are errors -- fix the line in the box (or paste the error back to Claude), then check again.
+6. Tap **Apply**. Every date is saved together or not at all, and the screen updates right away. Use **Edit day** to tweak one item, or **Preview ↗** to see it.
+
+Tips:
+
+- **Copy format guide for a Claude Project** copies just the rules (no dates). Paste it once into a Claude Project's instructions; after that "make this Shabbos: …" in that project is enough.
+- **Copy these dates as text** hands Claude the current schedule as a starting point.
+- If a zman can't be found, the prompt contains a clearly marked `[… NOT AVAILABLE — please fill in]` instead of a guess.
+- You can also upload a `.txt`, `.md` or `.json` file instead of pasting. (Excel files aren't supported yet.)
+- The full format is in `docs/SCHEDULE_FORMAT.md`. In short, one line per item: `6:28 PM | Candle Lighting | הדלקת נרות | Events | alert 15 takeover | icon candle`, and `@ 2026-10-24 clear` puts a date back on the weekly schedule.
+
+### Weekly schedule: adding entries
 
 Each schedule entry has:
 
 - **Name** (English and/or Hebrew) -- e.g., "Shacharis" or "שחרית"
-- **Time** -- Start time in HH:MM format
+- **Time** -- Start time; type it (`2:10 pm` or `14:10`)
 - **End Time** (optional) -- If set, shows a time range
 - **Category** -- Group entries by type (e.g., "Tefillos", "Shiurim", "Meals")
 - **Days** -- Which days of the week this entry applies to
@@ -109,7 +152,7 @@ Each schedule entry has:
 
 ### Categories
 
-Categories let you color-code and group schedule entries. Each category has:
+Categories let you color-code and group schedule entries. The starting set is Davening, Shiur, Seder, Meals, Mivtzoim, Farbrengen, Events, Trips and Breaks (any you already had are kept). You can add one from any category picker with **+ New category**, or manage them in the Weekly tab. Each category has:
 
 - **Name** -- Display label
 - **Color** -- Used for visual grouping on the schedule slide
@@ -157,7 +200,7 @@ The "Slide" display mode is less intrusive and good for regular events. The "Tak
 
 You can save the current schedule as a template and load it later. This is helpful for:
 
-- **Weekday vs. Shabbos schedules** -- Save each as a template and switch between them
+- **Weekday vs. Shabbos schedules** -- Prefer **Schedule by date** and saved blocks for Shabbos now; weekly templates replace the whole weekly schedule
 - **Seasonal changes** -- Save summer and winter schedules
 - **Special events** -- Load a custom schedule for a Yom Tov or program
 
@@ -165,82 +208,63 @@ To save a template: configure your schedule entries and categories, then use the
 
 ---
 
-## Messages
+## Announcements
 
-Messages are announcements sent to the kiosk screen. Unlike slides, messages are immediate and can interrupt the slideshow.
+Everything you post to the screen lives here: one list, one composer. (This replaces the old Messages tab and Pinned Notes. Your existing messages, pinned notes and custom text slides were moved here automatically and look exactly the same.)
 
-### Message Types
+### The lists
 
-#### Takeover
+At the top are five tabs, each with a count:
 
-A takeover takes over the entire screen with a dramatic full-screen message. The slideshow pauses while the takeover is active.
+- **Drafts** -- saved but never shown. Tap **Edit / Post** to finish and post one.
+- **Live** -- on the screen right now (soonest to end first).
+- **Scheduled** -- will show later (a start time in the future, or a repeat that isn't active right now).
+- **Paused** -- you paused it; it keeps its settings. Tap **Resume**.
+- **Archived** -- its end time has passed. Archived items are **deleted automatically** after 30 days (change the number at the bottom of the Archived tab).
 
-**When to use:** Important announcements that everyone needs to see immediately -- a minyan starting, an emergency, a simcha announcement.
+Each row shows a small preview, how it shows (Slide / Banner / Side note / Takeover, plus layout and style) and its timing ("Until 9:00 PM", "Mon–Thu 7:00–9:30 AM"). Actions:
 
-Each takeover has:
+- **Edit** -- change anything: text, look, timing. The screen updates in place.
+- **Pause / Resume**
+- **Again…** -- put it back on the screen from now: same length as last time, 15 minutes, 1 hour, until end of day, until end of Shabbos, until you remove it, or until a date and time you pick. Works for archived items too.
+- **Duplicate** -- makes a copy as a draft and opens it.
+- **Delete** -- asks first; an **Undo** button appears for a few seconds afterwards.
 
-- **Hebrew text** and/or **English text** -- The main message
-- **Subtitle** (optional) -- A secondary line
-- **Style** -- Visual treatment (see below)
-- **Expiration** (optional) -- Automatically removes the message after a set time
+**Banner display settings** (text size, scroll speed, loop or wait) for all banners are at the bottom of the tab.
 
-**Takeover Styles:**
+### Posting something
 
-| Style | Best For | Visual Effect |
-|---|---|---|
-| **Classic** | General announcements | Clean, minimal, gold accents |
-| **Grand** | Simchas, milestones, special occasions | Elegant gold shimmer with floating sparkle particles |
-| **Emergency** | Urgent safety alerts | Red pulsing background with hazard stripes, glowing text |
-| **Sleek** | Modern, professional announcements | Dark background with typing cursor animation |
-| **Celebration** | Birthdays, engagements, achievements | Rainbow confetti and floating emojis |
-| **Notice** | Schedule changes, reminders | Amber border pulse, attention-grabbing but not alarming |
-| **Torah** | Shiur announcements, learning events | Floating Hebrew letters, Torah-themed visual treatment |
-| **Trip** | Outings, trips, adventures | Adventure-themed visual treatment |
-| **Phone** | RSVP requests, call-to-action | Phone/contact themed styling |
-| **Memorial** | Yahrzeits, remembrance | Subdued, respectful tones |
-| **Hype** | Upcoming events, countdowns, excitement | High-energy, bold styling |
+Tap **+ New announcement** (or **+ New Slide → Message** in Slides). On a phone the composer fills the screen; on a computer it opens as a wide panel with the preview on the right.
 
-#### Banner
+1. **Show as**
+   - **Slide** -- takes its turn in the slideshow with the other slides.
+   - **Banner** -- scrolls along the bottom. Never stops the slideshow. Line breaks show as " · ".
+   - **Side note** -- a small note in the side column (up to 3 show at once; more take turns).
+   - **Takeover** -- covers the whole screen and pauses everything.
+2. **Layout** (Slides and Takeovers):
+   - **Big words** -- a short message, sized as big as fits. A few words become huge; longer text shrinks to fit.
+   - **Event** -- a title, the day and time in "tiles", and a place.
+   - **List** -- a heading and up to 8 short items.
+   - **Quick time** -- e.g. "Mincha 1:45": the time is the big part, the name and place are smaller.
+   - **Classic** -- the original templates (Headline, Quote, Info, Announcement) and styled cards.
+3. **Text** -- English and/or Hebrew (Hebrew boxes type right-to-left). Enter makes a new line on the screen. Times can be typed as "9:30 pm", "21:30" or "930p".
+4. **Look** -- **Style**: Theme (screen colours) or any of Classic, Grand, Emergency, Sleek, Celebration, Notice, Torah, Trip, Phone, Memorial, Hype. Any layout can use any style. **Text size** (Classic cards and side notes): Auto fits the space, Fixed keeps the original sizes. **Full screen** hides the side column. **Seconds on screen** for slides.
+5. **While this is showing** (Slides): **Keep rotating other slides** (it takes its turn) or **Pause everything else** (it stays on screen until it ends, then the slideshow continues where it left off).
+6. **When**
+   - **Start**: now, or at a date and time.
+   - **End**: until you remove it, 15 min / 1 hour / 2 hours / end of day, **Until end of Shabbos** (shows the actual time, e.g. "Shabbos 7:36 PM", taken from the zmanim for your location; greyed out if zmanim aren't available), or at a date and time.
+   - **Repeat** (optional): days of the week (Sun…Shabbos), days of the month (e.g. 1, 15), one or more time windows (a window can cross midnight, e.g. 10:00 PM–2:00 AM), and an optional from/until date.
+7. **Preview** -- the real screen, at the real shape, updates as you type.
+8. **Save draft**, **Post**, or **Save changes** when editing.
 
-A banner displays scrolling text along the bottom of the screen without interrupting the slideshow.
+### When two takeovers overlap
 
-**When to use:** Ongoing information that should be visible while slides continue -- weather updates, schedule reminders, general notices.
+Only one takeover can cover the screen. If you post a takeover while another one is live or scheduled at the same time, you are asked:
 
-#### Board
-
-Board messages are displayed as a list, like a bulletin board.
-
-**When to use:** Multiple short messages that should be readable together -- daily announcements, schedule changes.
-
-### Sending a Message
-
-1. Go to the **Messages** section
-2. Choose the message type (Takeover, Banner, or Board)
-3. Enter your text (Hebrew and/or English)
-4. For takeovers, select a style
-5. Optionally set a subtitle, priority, background color, or expiration
-6. Click Send
-
-The message appears on the kiosk screen immediately via real-time sync.
-
-### Removing a Message
-
-Click the delete button next to any active message. It will be removed from the screen instantly.
-
----
-
-## Pinned Notes
-
-Pinned notes are persistent messages displayed on every slide. They appear as small text in a designated area of the screen and remain visible as slides rotate.
-
-**When to use:** Information that should always be visible -- "Mincha at 1:30", "Building closes at 10pm", "No parking on Tuesday".
-
-Each pinned note has:
-
-- **Hebrew text** and/or **English text**
-- **Icon** (optional) -- An emoji shown next to the note
-- **Priority** -- Higher priority notes display first
-- **Enabled** -- Toggle on/off without deleting
+- **Replace** -- the new one shows now; the other is paused (not deleted).
+- **Share** -- both take turns full screen, switching every 10 seconds.
+- **Queue after** -- the new one starts when the other ends (only offered when the other has an end time).
+- **Cancel** -- go back to editing.
 
 ---
 
@@ -444,7 +468,7 @@ Toggle what appears on the kiosk display:
 - **Hebrew Date** -- Show/hide the Hebrew date
 - **Parsha** -- Show/hide the weekly parsha name
 - **Omer** -- Show/hide Sefirat HaOmer count (during the relevant season)
-- **Pinned Notes** -- Show/hide the pinned notes area
+- **Pinned Notes** -- Show/hide the side notes area (Announcements shown as "Side note")
 
 ### Manual Actions
 
