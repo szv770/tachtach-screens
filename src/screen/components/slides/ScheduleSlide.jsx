@@ -228,7 +228,7 @@ function EntryRow({ entry, state, isNext, categoryData, tokens, lang, compact, s
 
 // ── Header ────────────────────────────────────────────────────────────────
 
-function SlideHeader({ tokens, isHebrew, title }) {
+function SlideHeader({ tokens, isHebrew, title, label }) {
   return (
     <div style={{
       textAlign: 'center',
@@ -245,6 +245,17 @@ function SlideHeader({ tokens, isHebrew, title }) {
       }}>
         {title}
       </span>
+      {label ? (
+        <div style={{
+          fontFamily: fonts.englishBody,
+          fontSize: '17px',
+          color: tokens.dim,
+          marginTop: '4px',
+          unicodeBidi: 'plaintext',
+        }}>
+          {label}
+        </div>
+      ) : null}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -522,13 +533,16 @@ export default function ScheduleSlide({ schedule, tokens, settings }) {
   // day code (missing/empty `days` = every day). Previously every entry
   // showed every day, so weekday seder showed on Shabbos (audit bug 11).
   // Recomputed when the weekday changes (the 30 s `now` tick crosses midnight).
+  // A schedule resolved by App.jsx (getEffectiveSchedule: the date's own
+  // schedule or the weekly one, for today or ?previewDate=) is already
+  // filtered — re-filtering by the real weekday would break date previews.
   const todayDow = now.getDay();
   const entries = useMemo(
     () => (schedule?.entries || [])
-      .filter(e => isEntryActiveOn(e, now))
+      .filter(e => (schedule?.resolvedFor ? e.enabled !== false : isEntryActiveOn(e, now)))
       .sort((a, b) => (parseTimeToMinutes(a.time) ?? 9999) - (parseTimeToMinutes(b.time) ?? 9999)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [schedule?.entries, todayDow]
+    [schedule?.entries, schedule?.resolvedFor, todayDow]
   );
   const categories = schedule?.categories || [];
   const categoryMap = useMemo(() => buildCategoryMap(categories), [categories]);
@@ -566,7 +580,7 @@ export default function ScheduleSlide({ schedule, tokens, settings }) {
     }}>
       <style>{SCHEDULE_KEYFRAMES}</style>
 
-      <SlideHeader tokens={tokens} isHebrew={isHebrew} title={title} />
+      <SlideHeader tokens={tokens} isHebrew={isHebrew} title={title} label={schedule?.label} />
 
       {entries.length === 0 ? (
         <EmptyState tokens={tokens} isHebrew={isHebrew} />

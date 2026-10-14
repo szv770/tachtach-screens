@@ -12,7 +12,7 @@ import StylePanel from './components/StylePanel.jsx';
 import ImageUploader from './components/ImageUploader.jsx';
 import GooglePhotosManager from './components/GooglePhotosManager.jsx';
 import RSSManager from './components/RSSManager.jsx';
-import ScheduleEditor from './components/ScheduleEditor.jsx';
+import ScheduleSection from './components/ScheduleSection.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
@@ -94,7 +94,10 @@ export default function App() {
         );
       case 'schedule':
         return (
-          <ScheduleEditor
+          <ScheduleSection
+            scheduleDates={state?.scheduleDates || {}}
+            settings={state?.settings || {}}
+            onRefreshSchedule={fetchSchedule}
             entries={state?.scheduleEntries || []}
             categories={state?.scheduleCategories || []}
             onUpdateEntries={updateScheduleEntries}

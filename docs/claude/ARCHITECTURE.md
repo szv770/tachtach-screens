@@ -7,7 +7,7 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 1. `trust proxy` set if `TRUST_PROXY` env var present (required behind Cloudflare Tunnel — see GOTCHAS.md)
 2. Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
 3. `Cache-Control: no-store` on `/login`, `/admin`, `/api` (prevents a cached auth response looking like a logout)
-4. `express.json({ limit: '16kb' })`, `cookie-parser`
+4. `express.json({ limit: '16kb' })` — skipped for `/api/schedule/{dates,blocks}*`, which parse their own bodies at 256 kB (`routes/schedule-dates.js`) — then `cookie-parser`
 5. `setupCheck` — 503 setup page for everything except `/login` + static assets until `data/auth.json` has a password hash
 6. Login rate limiter (5/15min) on `POST /login`, `/login/totp`, `/login/totp-setup`
 7. `authRouter` (login/logout/TOTP endpoints)
@@ -17,7 +17,7 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 11. A few more `localhostOnly` kiosk-support endpoints: Google Photos album photos, RSS cache reads, screen-state report/read
 12. Static file serving (`/assets`, `/fonts`, `/uploads`, `/google-photos`) + SPA `GET /screen`, `/error`, `/admin` (admin route also has `requireAuth` + `csrfProtection`)
 13. `requireAuth` + `csrfProtection` + mutation rate limiter (60/min, skips GET/HEAD/OPTIONS) on all of `/api`
-14. `apiRouter` — the actual CRUD handlers (`src/server/routes/api.js`, ~1300 lines, one section per admin resource: slides, schedule, messages, pinned, custom-days, media, photos, RSS, style, settings, screen-control)
+14. `scheduleDatesRouter` at `/api/schedule` (`src/server/routes/schedule-dates.js`: `dates` GET/preview/PUT all-or-nothing, `dates/:date` PUT/DELETE, `dates/:date/apply-block`, `blocks` CRUD, `zmanim?dates=`), then `apiRouter` — the actual CRUD handlers (`src/server/routes/api.js`, ~1300 lines, one section per admin resource: slides, schedule, messages, pinned, custom-days, media, photos, RSS, style, settings, screen-control)
 15. 404 handler, then a global error handler (multer file-size, JSON parse errors, generic 500)
 
 ## Auth model (`src/server/auth.js`)
@@ -43,14 +43,21 @@ Double-submit cookie, HMAC-bound to the session token: `_csrf` cookie = `nonce.h
 
 - Two client pools: kiosk (`broadcast()`, max 20) and preview/admin-iframe (`broadcastToAll()` reaches both, max 10). Oldest-of-type client is evicted once its pool is full.
 - 15s heartbeat sent as a real `data:` event (`type: 'heartbeat'`) — a bare SSE comment does **not** fire the client's `onmessage`, which previously made the client think the connection was stale after 20s of no real updates and reconnect-loop.
-- Event types in the wild: `connected`, `heartbeat`, `settings-update`, `slides-update`, `messages-update`, `pinned-update`, `cache-refresh`, `screen-command` (`{action: pause|resume|blank|advance}`), `preview` (admin-iframe only, via `broadcastToAll`).
+- Event types in the wild: `connected`, `heartbeat`, `settings-update`, `slides-update`, `messages-update`, `pinned-update`, `schedule-update`, `schedule-dates-update` (whole `schedule-dates.json` map; also in `/api/state` as `scheduleDates`), `countdown-start`/`-tick`/`-end`, `cache-refresh`, `screen-command` (`{action: pause|resume|blank|advance}`), `preview` (admin-iframe only, via `broadcastToAll`).
 
 ## Data files (`data/*.json`, via `src/server/storage.js`)
 
 Atomic write: JSON → `.tmp` → `rename()`. Existing file copied to `.bak` first, **except** `auth.json` (never backed up — contains password hash/TOTP secret). On Windows/OneDrive, `rename()` can EPERM/EBUSY if the file is locked; falls back to a direct (non-atomic) write rather than crashing. File-level locking (`Map` of pending promises) serializes concurrent writes to the same file within one process.
 
-Files: `auth.json`, `settings.json`, `slides.json`, `messages.json`, `pinned.json`, `custom-days.json`, `schedule.json`, `schedule-templates.json`, `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
+Files: `auth.json`, `settings.json`, `slides.json`, `messages.json`, `pinned.json`, `custom-days.json`, `schedule.json`, `schedule-templates.json`, `schedule-dates.json` (`{ "YYYY-MM-DD": { label, entries, updatedAt } }` — key present = that date overrides the weekly schedule even if empty; dates >60 days old pruned on write), `schedule-blocks.json` (`{ version, seeded, blocks: [{ id, name, label, entries }] }`; `seeded` marks the one-time default-category seeding so deleted categories don't come back), `zmanim-dates.json` (per-date zmanim fetched for the Claude prompt), all three gitignored and written via `src/server/scheduleStore.js` (one in-process read-modify-write queue), `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
 
 ## Fetchers (`src/fetchers/`)
 
 All server-side, all write into `cache.json`. `chabad.js` (zmanim RSS + Hayom Yom/Chitas/Rambam HTML scrape via `cheerio`), `hebcal.js` (Hebrew date, Omer, parsha), `sefaria.js` (Daily Rambam/Tanya calendar), `rss.js` (generic feed + field mapping), `google-photos.js` (shared-album scrape, no OAuth), `mivtzah.js` (pulls from the co-located SaaS platform), `torahcalc.js`, `browserFetch.js` (puppeteer-core-backed fetch used where a plain HTTP request gets blocked — see GOTCHAS.md re: Cloudflare).
+
+## Schedule by date (`src/shared/scheduleResolution.js`, `schedulePaste.js`, `scheduleClaudePrompt.js`)
+
+- `getEffectiveSchedule(schedule, scheduleDates, dateISO)` is the only place the "date override vs weekly" rule lives. Callers: kiosk `App.jsx` (feeds ScheduleSlide and the sidebar "starting in"), `countdown.js`, `/api/preview-state?date=`. It returns `resolvedFor` so ScheduleSlide doesn't re-filter by the real weekday; resolving twice is idempotent. Dates are local `YYYY-MM-DD` (noon-anchored `Date`s, never UTC).
+- `parseScheduleText(text, { categories, today })` is used by the admin (day editor text mode) and the server (preview + apply re-parse). Errors carry line numbers and block apply; unknown categories become `newCategories` and are created on apply. `formatScheduleText` is its inverse ("Copy as text"); a round-trip test guards it.
+- Startup (`app.js`): `ensureDefaultCategories()` adds the owner's default categories once, before `initCountdowns()`.
+- Tests: `npm test` runs `node --test test/*.test.js` (no framework). Don't use bare `node --test`: it would also pick up `scripts/test-hayom-yom.js`, which hits the network.

@@ -93,14 +93,59 @@ When creating a Custom Text slide, you can apply a visual style. These use the s
 
 ## Schedule
 
-The Schedule section lets you define a daily timetable that displays on the Schedule slide.
+The Schedule section has three tabs:
 
-### Adding Entries
+- **By date** -- give any calendar date its own schedule (Shabbos, Yom Tov, trips, short days). Works well from a phone.
+- **Paste / Import** -- paste a schedule that Claude wrote for you (or upload a .txt/.md/.json file) and apply several dates at once.
+- **Weekly** -- the regular week. It is used on every date that doesn't have its own schedule.
+
+The rule is simple: if a date has its own schedule, the screen shows that (even if it's empty); otherwise it shows the weekly entries for that day of the week. The schedule slide, the "starting in N min" box in the sidebar and the countdown alerts all follow the same rule.
+
+### Schedule by date
+
+1. Open **Schedule → By date** and tap a day in the week strip (this week and the next five). A gold dot means the date already has its own schedule. Use **Other date** for anything further out.
+2. If the day has no schedule of its own yet, pick where to start: **Weekly schedule** (copy that day's weekly items), **Saved block** (e.g. "Regular Shabbos"), **Copy another date** (e.g. last Shabbos) or **Blank day**.
+3. Edit right in the rows:
+   - Tap the **time** and type it -- `7:05 pm`, `19:05` and `7pm` all work. The second box is an optional end time.
+   - Tap the **name** fields to type the English and Hebrew names.
+   - Tap the **category chip** to change it; **+ New category** creates one on the spot.
+   - Choose an **alert** (countdown before the item) and tick **Full screen** for a takeover; pick an **icon**; tick **Hide** to keep an item without showing it.
+   - **+ Add row** adds an item 30 minutes after the last one. ⧉ duplicates a row; ✕ deletes it (tap **Undo** if that was a mistake).
+4. Tap **Save day**. Nothing changes on the screen until you save; **Discard** throws your edits away.
+
+Other buttons on the day:
+
+- **Text** -- edit the whole day as lines of text (same format as Paste / Import), then **Use this text**.
+- **Save day as block…** -- keep this day as a reusable block ("Shabbos Mevarchim"). Saved blocks are listed at the bottom; **Apply to …** puts one on the selected date in one tap.
+- **Revert to weekly** -- remove this date's own schedule.
+- **Copy as text** -- copies the day in the text format (handy to give to Claude: "same as this but Mincha at 5:30").
+- **Preview ↗** -- opens the screen as it will look on that date.
+
+### Using Claude to make the Shabbos schedule
+
+You don't need to remember any format -- the admin teaches Claude:
+
+1. Go to **Schedule → Paste / Import**. Choose **This Shabbos**, **Next Shabbos** or the **Picked date**. Under the buttons you'll see the zmanim it found (candle lighting, shkia, Shabbos ends).
+2. Tap **Copy Claude prompt**. It copies the rules, the dates, your categories, the icon list and that weekend's zmanim.
+3. Open Claude chat, paste, and add what's happening, for example: *"Shacharis 9:30, kiddush after davening, Mincha 5:45, guest speaker at shalosh seudos, Rabbi Cohen gives the shiur Friday night at 9."*
+4. Copy Claude's answer (the code block) and paste it into the big box. Tap **Check & preview**.
+5. You'll see one card per date: the weekday, whether it **replaces** an existing schedule or is **new**, every item with its time, category and alert, and any problems with their **line number**. **Apply** stays grey while there are errors -- fix the line in the box (or paste the error back to Claude), then check again.
+6. Tap **Apply**. Every date is saved together or not at all, and the screen updates right away. Use **Edit day** to tweak one item, or **Preview ↗** to see it.
+
+Tips:
+
+- **Copy format guide for a Claude Project** copies just the rules (no dates). Paste it once into a Claude Project's instructions; after that "make this Shabbos: …" in that project is enough.
+- **Copy these dates as text** hands Claude the current schedule as a starting point.
+- If a zman can't be found, the prompt contains a clearly marked `[… NOT AVAILABLE — please fill in]` instead of a guess.
+- You can also upload a `.txt`, `.md` or `.json` file instead of pasting. (Excel files aren't supported yet.)
+- The full format is in `docs/SCHEDULE_FORMAT.md`. In short, one line per item: `6:28 PM | Candle Lighting | הדלקת נרות | Events | alert 15 takeover | icon candle`, and `@ 2026-10-24 clear` puts a date back on the weekly schedule.
+
+### Weekly schedule: adding entries
 
 Each schedule entry has:
 
 - **Name** (English and/or Hebrew) -- e.g., "Shacharis" or "שחרית"
-- **Time** -- Start time in HH:MM format
+- **Time** -- Start time; type it (`2:10 pm` or `14:10`)
 - **End Time** (optional) -- If set, shows a time range
 - **Category** -- Group entries by type (e.g., "Tefillos", "Shiurim", "Meals")
 - **Days** -- Which days of the week this entry applies to
@@ -109,7 +154,7 @@ Each schedule entry has:
 
 ### Categories
 
-Categories let you color-code and group schedule entries. Each category has:
+Categories let you color-code and group schedule entries. The starting set is Davening, Shiur, Seder, Meals, Mivtzoim, Farbrengen, Events, Trips and Breaks (any you already had are kept). You can add one from any category picker with **+ New category**, or manage them in the Weekly tab. Each category has:
 
 - **Name** -- Display label
 - **Color** -- Used for visual grouping on the schedule slide
@@ -157,7 +202,7 @@ The "Slide" display mode is less intrusive and good for regular events. The "Tak
 
 You can save the current schedule as a template and load it later. This is helpful for:
 
-- **Weekday vs. Shabbos schedules** -- Save each as a template and switch between them
+- **Weekday vs. Shabbos schedules** -- Prefer **Schedule by date** and saved blocks for Shabbos now; weekly templates replace the whole weekly schedule
 - **Seasonal changes** -- Save summer and winter schedules
 - **Special events** -- Load a custom schedule for a Yom Tov or program
 

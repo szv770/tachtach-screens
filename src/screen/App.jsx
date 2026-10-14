@@ -17,7 +17,7 @@ import ScreenScaler from './components/ScreenScaler.jsx';
 import AnimatedText from './components/AnimatedText.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
-import { isEntryActiveOn } from '../shared/scheduleDays.js';
+import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
 
 /**
  * Normalize a server countdown payload (SSE `countdown-start` or
@@ -98,6 +98,15 @@ function AppContent() {
 
   // Message management with auto-expiry
   const { banners, boards, takeovers } = useMessages(state?.messages);
+
+  // The schedule that applies today (or on ?previewDate=): that date's own
+  // schedule from schedule-dates.json, else the weekly one. `clock` ticks
+  // every second, so the date string flips at midnight on its own.
+  const scheduleDateISO = _previewDate || toISODate(new Date());
+  const effectiveSchedule = React.useMemo(
+    () => getEffectiveSchedule(state?.schedule, state?.scheduleDates, scheduleDateISO),
+    [state?.schedule, state?.scheduleDates, scheduleDateISO]
+  );
 
   // Build slides array: regular slides + pinned notes + non-blocking board messages
   const allSlides = React.useMemo(() => {
@@ -229,6 +238,9 @@ function AppContent() {
         break;
       case 'schedule-update':
         setState(prev => prev ? { ...prev, schedule: data } : prev);
+        break;
+      case 'schedule-dates-update':
+        setState(prev => prev ? { ...prev, scheduleDates: data } : prev);
         break;
       case 'rss-update':
         if (data?.feedId) {
@@ -490,14 +502,14 @@ function AppContent() {
         customDays={state?.customDays}
       />
       {(() => {
-        const schedEntries = state?.schedule?.entries;
+        // Today's effective schedule (date schedule, else enabled weekly
+        // entries for today's weekday) — weekday items used to announce
+        // themselves on Shabbos (audit bug 11).
+        const schedEntries = effectiveSchedule.entries;
         if (!schedEntries?.length) return null;
         const now = new Date();
         const nowMins = now.getHours() * 60 + now.getMinutes();
-        // Only entries that are enabled and scheduled for today's weekday —
-        // weekday items used to announce themselves on Shabbos (audit bug 11).
         const upcoming = schedEntries
-          .filter(e => isEntryActiveOn(e, now))
           .map(e => ({ ...e, _mins: parseScheduleTime(e.time) }))
           .filter(e => e._mins != null && e._mins - nowMins > 0 && e._mins - nowMins <= 10)
           .sort((a, b) => a._mins - b._mins);
@@ -561,7 +573,7 @@ function AppContent() {
         onVideoEnded={slideRotation.advance}
         onRequestDuration={slideRotation.setOverrideDuration}
         googleAlbums={state?.googleAlbums || []}
-        schedule={state?.schedule}
+        schedule={effectiveSchedule}
         countdown={countdown?.mode === 'slide' ? countdown : null}
         onCountdownComplete={() => setCountdown(null)}
         credit={settings.credit}

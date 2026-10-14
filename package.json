@@ -13,6 +13,7 @@
     "start": "node server.js",
     "setup": "node setup.js",
     "reset-admin": "node scripts/reset-admin-credentials.js",
+    "test": "node --test test/*.test.js",
     "test:hayom-yom": "node scripts/test-hayom-yom.js"
   },
   "dependencies": {

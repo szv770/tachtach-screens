@@ -17,6 +17,7 @@ import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import { forgetAllTrustedDevices } from '../auth.js';
 import { normalizeSettingsKeys } from '../settings-migrate.js';
+import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
@@ -1206,7 +1207,7 @@ router.get('/preview-state', async (req, res) => {
       return res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
     }
 
-    const [settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, currentCache] = await Promise.all([
+    const [settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, currentCache, scheduleDates] = await Promise.all([
       readJSON('settings.json'),
       readJSON('slides.json'),
       readJSON('messages.json'),
@@ -1216,6 +1217,7 @@ router.get('/preview-state', async (req, res) => {
       readJSON('schedule.json'),
       readJSON('rss-feeds.json'),
       readJSON('cache.json'),
+      readJSON('schedule-dates.json'),
     ]);
 
     // Fetch date-sensitive data for the override date
@@ -1332,7 +1334,11 @@ router.get('/preview-state', async (req, res) => {
       pinned: pinned ?? [],
       customDays: customDays ?? [],
       googleAlbums: googleAlbums ?? [],
-      schedule: schedule ?? { entries: [], categories: [] },
+      // That date's effective schedule (its own date schedule, else the
+      // weekly entries for that weekday) — the kiosk resolves it again with
+      // scheduleDates, which is idempotent.
+      schedule: getEffectiveSchedule(schedule, scheduleDates, dateStr),
+      scheduleDates: scheduleDates ?? {},
       rssFeeds: rssFeeds ?? [],
       _previewDate: dateStr,
     });
