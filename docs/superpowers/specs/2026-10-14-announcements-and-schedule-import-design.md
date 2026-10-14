@@ -171,15 +171,17 @@ Phase 1 makes them work at all. Phase 3 makes them resolve per date, so alerts f
 
 ## Owner decisions (2026-10-14)
 
-1. **Hold pauses rotation**: yes. While a held slide is up, the rotation timer pauses and resumes where it left off.
+1. **Hold is chosen per announcement**. The composer has a "While this is showing: keep rotating other slides / pause everything else" choice (Slide only; default: keep rotating). When it's set to pause, the rotation timer pauses and resumes where it left off.
 2. **Expired items** go to an **Archived** list and are auto-deleted 30 days after they expire. The number is a setting, default 30. Re-activating moves an item back out of Archived.
 3. **Takeover conflicts**: the newest wins by default. When posting or scheduling a takeover whose time overlaps one that's already live or scheduled, the composer **warns and asks**:
    - **Replace**: the new one shows now and the old one is paused, not deleted.
    - **Share**: both rotate full-screen, alternating every N seconds.
    - **Queue after**: the new one's start is set to the old one's end. Only offered if the old one has an end time.
+   - **Cancel**: go back to editing without posting.
 
    Data: a takeover can carry `takeover.group` (shared rotation) and the start time handles queueing; no extra engine needed. This replaces the `priority` rule above.
-4. **Categories**: start with Davening, Shiur, Seder (learning), Meals, Mivtzoim, Farbrengen, Events, Trips, Breaks. They're editable in admin as today.
+3b. **Drafts**: the composer has **Save draft** next to **Post**. Drafts are a fifth list tab (**Drafts · Live · Scheduled · Paused · Archived**). They never show on screen and can be previewed, edited, and posted later. Data: `status: "draft"` (absent or `"published"` otherwise); `isActive` is false for drafts.
+4. **Categories**: start with Davening, Shiur, Seder (learning), Meals, Mivtzoim, Farbrengen, Events, Trips, Breaks. They're editable in admin as today, and a **"+ New category"** option sits right in every category picker (day editor and composer), so a category can be created without leaving the screen. Pasted text with an unknown category offers "create it" in the preview.
 5. **"End of Shabbos" chip** uses **tzeis / Shabbos-end from the zmanim cache**, which comes from the system's configured location and zmanim source (`settings.location`, Chabad.org feed). The chip shows the actual resolved time ("until 7:36 PM") before you tap it, so it's always visible what it will do. If zmanim are unavailable, the chip is disabled rather than guessing.
 
 ## How Claude chat learns the format (owner question)
