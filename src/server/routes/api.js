@@ -780,7 +780,7 @@ router.delete('/images/:id', async (req, res) => {
 
 // ── Google Photos Albums ──────────────────────────────────────────────────
 
-const GOOGLE_ALBUM_FIELDS = ['url', 'displayMode', 'photoInterval', 'photoOrder', 'refreshInterval', 'kenBurns', 'imageDisplayMode', 'enabled'];
+const GOOGLE_ALBUM_FIELDS = ['url', 'displayMode', 'photoInterval', 'photoOrder', 'refreshInterval', 'kenBurns', 'imageDisplayMode', 'enabled', 'maxPhotos'];
 
 router.get('/google-albums', async (_req, res) => {
   try {
