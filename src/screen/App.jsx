@@ -9,7 +9,7 @@ import Clock from './components/Clock.jsx';
 import HebrewDate from './components/HebrewDate.jsx';
 import PinnedNotes from './components/PinnedNotes.jsx';
 import SlideCarousel from './components/SlideCarousel.jsx';
-import Banner from './components/messages/Banner.jsx';
+import Banner, { bannerHeightFor } from './components/messages/Banner.jsx';
 import Takeover from './components/messages/Takeover.jsx';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import HiddenAccess from './components/HiddenAccess.jsx';
@@ -592,13 +592,15 @@ function AppContent() {
     </div>
   ) : null;
 
+  const liveBanners = banners.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date());
   const banner = banners.length > 0 ? (
     <Banner
-      banners={banners.filter(b => !b.expiresAt || new Date(b.expiresAt) > new Date())}
+      banners={liveBanners}
       tokens={tokens}
       bannerSettings={settings.banner}
     />
   ) : null;
+  const bannerHeight = bannerHeightFor(liveBanners, settings.banner);
 
   const portraitTopBar = isPortrait ? (
     <>
@@ -628,6 +630,7 @@ function AppContent() {
         rightColumn={rightColumn}
         progressDots={progressDots}
         banner={banner}
+        bannerHeight={bannerHeight}
         theme={settings.theme}
         tokens={tokens}
         fullscreen={isFullscreen}
