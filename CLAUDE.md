@@ -42,6 +42,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 
 - **`docs/claude/ARCHITECTURE.md`** — request/middleware pipeline, scheduler tracks A/B/C, SSE event catalog, auth/CSRF/TOTP flow, data file inventory.
 - **`docs/claude/FEATURES.md`** — every slide type, message type, and admin section mapped to its actual component file.
+- **`docs/BACKLOG.md`** — owner's open requests not yet scheduled (fold into the next relevant pass; check it before starting a redesign/upgrade).
 - **`docs/claude/GOTCHAS.md`** — real incidents from git history (localhost-gating breaking remote access, screen-scaling bugs, CSRF cookie timing, Cloudflare blocking fetchers, Windows/OneDrive file-lock quirks). Read this before touching auth, `/screen` scaling, or the fetchers.
 
 ## Recent changes log
