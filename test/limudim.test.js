@@ -93,3 +93,24 @@ test('Sefer HaMitzvos', () => {
   assert.equal(raw.items.length, 0);
   assert.equal(raw.raw.en, 'Introduction');
 });
+
+test('real Chabad RSS text photographed on the TV (2026-10-14) parses into sefer → halachos → perakim', () => {
+  const one = parseRambam({ displayHe: 'נערה בתולה - פרק ב', displayEn: 'Naarah Betulah - Chapter 2' });
+  assert.equal(one.groups[0].sefer.he, 'ספר נשים');
+  assert.equal(one.groups[0].hilchos[0].text.en, 'Perek 2');
+
+  const three = parseRambam({
+    displayHe: 'גזילה ואבידה - פרק יג, גזילה ואבידה - פרק יד, גזילה ואבידה - פרק טו',
+    displayEn: "Gezelah va'Avedah - Chapter 13, Gezelah va'Avedah - Chapter 14, Gezelah va'Avedah - Chapter 15",
+  });
+  assert.equal(three.groups.length, 1);
+  assert.equal(three.groups[0].sefer.he, 'ספר נזיקין');
+  assert.equal(three.groups[0].hilchos[0].text.en, 'Perakim 13–15');
+  assert.equal(three.groups[0].hilchos[0].text.he, 'פרקים י״ג–ט״ו');
+
+  // Double-vav spelling "מצוות" and "Positive Commandment N"
+  const m = parseSeferHamitzvos({ displayHe: 'מצוות עשה קצד', displayEn: 'Positive Commandment 194' });
+  assert.equal(m.items[0].kind, 'aseh');
+  assert.equal(m.items[0].n, 194);
+  assert.equal(m.items[0].en, 'Positive mitzvah 194');
+});
