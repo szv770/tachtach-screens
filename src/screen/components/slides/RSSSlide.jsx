@@ -40,12 +40,12 @@ export default function RSSSlide({ slide, rssCache, rssFeeds }) {
   return (
     <Panel pad="56px 72px 48px">
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', minHeight: 0, gap: 22 }}>
-        <Fit data-s="" wrap max={showBody ? 92 : 120} dir={hb ? 'rtl' : 'ltr'} style={{
+        <Fit data-s="" vcenter wrap max={showBody ? 92 : 120} dir={hb ? 'rtl' : 'ltr'} style={{
           '--i': 1, width: '92%', flex: showBody ? 1.3 : 1, minHeight: 0, textAlign: 'center', lineHeight: 1.2,
           fontFamily: hb ? 'var(--f-th)' : 'var(--f-te)', fontWeight: 500, fontStyle: !primary && !hb ? 'italic' : 'normal',
         }}>{lead}</Fit>
         {showBody && (
-          <Fit data-s="" wrap max={44} dir={isHebrew(body) ? 'rtl' : 'ltr'} style={{ '--i': 2, width: '84%', flex: 1, minHeight: 0, textAlign: 'center', lineHeight: 1.4, color: 'var(--inkDim)', fontFamily: F.en, fontWeight: 500 }}>{body}</Fit>
+          <Fit data-s="" vcenter wrap max={44} dir={isHebrew(body) ? 'rtl' : 'ltr'} style={{ '--i': 2, width: '84%', flex: 1, minHeight: 0, textAlign: 'center', lineHeight: 1.4, color: 'var(--inkDim)', fontFamily: F.en, fontWeight: 500 }}>{body}</Fit>
         )}
         {(attribution || secondary) && (
           <>

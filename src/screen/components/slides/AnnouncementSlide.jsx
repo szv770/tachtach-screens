@@ -37,10 +37,10 @@ export function BigWords({ item, scale = 1 }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: 0, textAlign: 'center', gap: 16 * scale }}>
       {has(c.target) && <div data-s="" style={{ '--i': 0, fontFamily: F.en, fontSize: 30 * scale, color: 'var(--inkDim)', fontWeight: 500, flex: 'none' }}>{c.target}</div>}
       {hePrim && (
-        <Fit data-s="" wrap max={hMax} dir="rtl" style={{ '--i': 1, ...dispHe, width: '100%', flex: only ? 3 : 2.2, minHeight: 0, textAlign: 'center', color: 'var(--accentText)' }}>{hePrim}</Fit>
+        <Fit data-s="" vcenter wrap max={hMax} dir="rtl" style={{ '--i': 1, ...dispHe, width: '100%', flex: only ? 3 : 2.2, minHeight: 0, textAlign: 'center', color: 'var(--accentText)' }}>{hePrim}</Fit>
       )}
       {enPrim && (
-        <Fit data-s="" wrap max={Math.round((hePrim ? 76 : cap || 200) * scale)} dir="ltr" style={{ '--i': 2, ...(hePrim ? { fontFamily: F.en, fontWeight: 600, letterSpacing: '-.02em' } : { ...dispEn, color: 'var(--ink)' }), width: hePrim ? '88%' : '100%', flex: hePrim ? 1.1 : 3, minHeight: 0, textAlign: 'center', lineHeight: 1.18 }}>{enPrim}</Fit>
+        <Fit data-s="" vcenter wrap max={Math.round((hePrim ? 76 : cap || 200) * scale)} dir="ltr" style={{ '--i': 2, ...(hePrim ? { fontFamily: F.en, fontWeight: 600, letterSpacing: '-.02em' } : { ...dispEn, color: 'var(--ink)' }), width: hePrim ? '88%' : '100%', flex: hePrim ? 1.1 : 3, minHeight: 0, textAlign: 'center', lineHeight: 1.18 }}>{enPrim}</Fit>
       )}
       {(bodyHe || bodyEn) && (
         <div data-s="" style={{ '--i': 3, flex: 'none', maxWidth: '88%', display: 'flex', flexDirection: 'column', gap: 10 * scale }}>

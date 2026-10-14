@@ -12,7 +12,7 @@ export default function DailyQuoteSlide({ cache }) {
   return (
     <Panel pad="56px 72px 48px">
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', minHeight: 0 }}>
-        <Fit data-s="" wrap max={hb ? 150 : 84} dir={hb ? 'rtl' : 'ltr'} style={{
+        <Fit data-s="" vcenter wrap max={hb ? 150 : 84} dir={hb ? 'rtl' : 'ltr'} style={{
           '--i': 1, width: hb ? '92%' : '86%', flex: 1, minHeight: 0, textAlign: 'center', lineHeight: 1.22,
           fontFamily: hb ? 'var(--f-th)' : 'var(--f-te)', fontWeight: 500, fontStyle: hb ? 'normal' : 'italic', color: 'var(--ink)',
         }}>{quote.text}</Fit>

@@ -52,7 +52,7 @@ export default function LimudimSlide({ cache, settings }) {
     on('tehillim') && { labelHe: 'תהילים', labelEn: 'Tehillim', valueHe: oneLine(l.tehillimHe), valueEn: oneLine(l.tehillim) },
     on('tanya') && { labelHe: 'תניא', labelEn: 'Tanya', valueHe: oneLine(l.tanyaHe), valueEn: oneLine(l.tanya), extra: tanyaExcerpt },
     on('rambam1') && cache?.rambam1 && { labelHe: 'רמב״ם', labelEn: 'Rambam · 1 chapter', valueHe: stripMishneh(cache.rambam1.displayHe, true), valueEn: stripMishneh(cache.rambam1.displayEn, false) },
-    on('rambam3') && cache?.rambam3 && { labelHe: 'רמב״ם ג׳ פרקים', labelEn: 'Rambam · 3 chapters', valueHe: stripMishneh(cache.rambam3.displayHe, true), valueEn: stripMishneh(cache.rambam3.displayEn, false) },
+    on('rambam3') && cache?.rambam3 && { labelHe: 'רמב״ם', labelEn: 'Rambam · 3 chapters', valueHe: stripMishneh(cache.rambam3.displayHe, true), valueEn: stripMishneh(cache.rambam3.displayEn, false) },
     on('sefer') && (sh?.displayHe || sh?.displayEn) && { labelHe: 'ספר המצוות', labelEn: 'Sefer HaMitzvos', valueHe: oneLine(sh.displayHe), valueEn: oneLine(sh.displayEn) },
   ].filter((r) => r && (r.valueHe || r.valueEn));
 

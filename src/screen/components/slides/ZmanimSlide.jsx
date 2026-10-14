@@ -197,10 +197,10 @@ function BoardArc({ rows, st, now, z, offset }) {
 /* ── arc + tiles ──────────────────────────────────────────────────────────── */
 
 function ArcTiles({ rows, st, now, z, portrait, offset }) {
-  const cols = portrait ? 3 : 4;
+  const cols = portrait ? 2 : 3;
   return (
     <>
-      <SunArc rows={rows} st={st} now={now} z={z} offset={offset} height={portrait ? 150 : 170} style={{ margin: '4px 0 38px' }} />
+      <SunArc rows={rows} st={st} now={now} z={z} offset={offset} height={portrait ? 130 : 110} style={{ margin: '4px 0 36px' }} />
       <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridAutoRows: 'minmax(0, 1fr)', gap: 14, minHeight: 0 }}>
         {rows.map((r, k) => {
           const next = st[k] === 'next', past = st[k] === 'past';

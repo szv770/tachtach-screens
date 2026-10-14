@@ -32,25 +32,31 @@ function useRefit(fit, ref) {
  * box (give it a height/width via style); its font size is the largest that
  * fits. `wrap` allows balanced wrapping; otherwise one line.
  */
-export function Fit({ children, max = 200, min = 16, wrap = false, style, className, dir, as: Tag = 'div', onSize, ...rest }) {
+export function Fit({ children, max = 200, min = 16, wrap = false, vcenter = false, style, className, dir, as: Tag = 'div', onSize, ...rest }) {
   const ref = useRef(null);
+  const innerRef = useRef(null);
   const [size, setSize] = useState(null);
   const text = typeof children === 'string' ? children : JSON.stringify(React.Children.map(children, (c) => (typeof c === 'string' ? c : c?.key)));
+  const ok = useCallback(() => {
+    const el = ref.current, inner = innerRef.current;
+    if (inner) return inner.offsetHeight <= el.clientHeight + 2 && inner.scrollWidth <= el.clientWidth + 1;
+    return fits(el);
+  }, []);
   const fit = useCallback(() => {
     const el = ref.current;
     if (!el || !el.clientWidth) return;
     let lo = min, hi = max;
     el.style.fontSize = `${hi}px`;
-    if (fits(el)) { setSize(hi); onSize?.(hi); return; }
+    if (ok()) { setSize(hi); onSize?.(hi); return; }
     while (hi - lo > 1) {
       const mid = (lo + hi) >> 1;
       el.style.fontSize = `${mid}px`;
-      if (fits(el)) lo = mid; else hi = mid;
+      if (ok()) lo = mid; else hi = mid;
     }
     el.style.fontSize = `${lo}px`;
     setSize(lo);
     onSize?.(lo);
-  }, [text, max, min, wrap]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [text, max, min, wrap, vcenter]); // eslint-disable-line react-hooks/exhaustive-deps
   useRefit(fit, ref);
   return (
     <Tag
@@ -60,12 +66,13 @@ export function Fit({ children, max = 200, min = 16, wrap = false, style, classN
       style={{
         whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', lineHeight: 1.12,
         textWrap: wrap ? 'balance' : undefined, minWidth: 0,
+        ...(vcenter ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
         ...style,
         fontSize: size ? `${size}px` : `${max}px`,
       }}
       {...rest}
     >
-      {children}
+      {vcenter ? <div ref={innerRef} style={{ width: '100%', textAlign: 'inherit' }}>{children}</div> : children}
     </Tag>
   );
 }

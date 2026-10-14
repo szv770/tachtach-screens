@@ -182,14 +182,14 @@ export function BackgroundArt({ width = 1600, height = 900 }) {
   const { graphics, themeId, phase, light } = useDesign();
   if (graphics === 'off') return null;
   const kind = MOTIF[themeId] || 'arcs';
-  const op = graphics === 'rich' ? (light ? 0.06 : 0.055) : (light ? 0.035 : 0.03);
+  const op = graphics === 'rich' ? (light ? 0.04 : 0.05) : (light ? 0.025 : 0.028);
   const tint = graphics === 'rich' ? PHASE_TINT[phase] : null;
   return (
     <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
       {tint && (
         <div style={{
           position: 'absolute', inset: 0,
-          background: `linear-gradient(180deg, color-mix(in srgb, ${tint} ${light ? 16 : 11}%, transparent) 0%, transparent 55%)`,
+          background: `linear-gradient(180deg, color-mix(in srgb, ${tint} ${light ? 11 : 7}%, transparent) 0%, transparent 50%)`,
         }} />
       )}
       <svg width="100%" height="100%" viewBox={`0 0 ${Math.round(width)} ${Math.round(height)}`} preserveAspectRatio="xMinYMax slice" style={{ position: 'absolute', inset: 0, opacity: op }}>

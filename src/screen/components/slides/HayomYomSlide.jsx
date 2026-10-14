@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Panel, F, he } from '../../design/ui.jsx';
 import PagedBody from '../../design/Paged.jsx';
-import { hNum } from '../../../shared/constants.js';
 import { hebrewDateText } from '../Rail.jsx';
 
 /**
@@ -85,7 +84,7 @@ export default function HayomYomSlide({ cache, settings, onRequestDuration }) {
         )}
       </div>
       <footer style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', fontWeight: 500 }}>
-        <span className="tt-he" style={{ fontFamily: 'var(--f-th)' }}>{hebrewDateText(hd)}{hd.hebrewYear > 0 ? ` · ${hNum(hd.hebrewYear % 1000)}` : ''}</span>
+        <span className="tt-he" style={{ fontFamily: 'var(--f-th)' }}>{hebrewDateText(hd)}</span>
         {total > 1 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span className="tt-num">{page + 1} / {total}</span>
