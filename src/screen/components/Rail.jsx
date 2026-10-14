@@ -124,24 +124,29 @@ export default function Rail({
   const showWeather = settings.weather?.enabled !== false && settings.weather?.showInRail !== false && weather?.current;
   const railCredit = credit?.enabled && (credit?.text || credit?.logo?.url) && credit?.position === 'under-clock';
 
+  // Date unit (owner polish): Hebrew date strongest, English day/date beneath
+  // on the same edge, then the parsha as a quiet chip that belongs to them.
+  // One edge, one rhythm (8 / 20 px), sizes stepping 56 → 27 → 30/21.
+  const edge = portrait || align === 'right' ? 'flex-end' : 'flex-start';
+  const textEdge = portrait ? 'right' : align;
   const dates = (
-    <div style={{ textAlign: align }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: edge, textAlign: textEdge, marginTop: portrait ? 2 : busy ? 26 : 38 }}>
       {hd && (
-        <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(portrait ? 54 : busy ? 52 : 58), fontWeight: 600, lineHeight: 1.1, marginTop: portrait ? 0 : busy ? 30 : 42, textAlign: portrait ? 'right' : align }}>{hd}</div>
+        <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(portrait ? 52 : busy ? 50 : 56), fontWeight: 600, lineHeight: 1.04, letterSpacing: '-.005em' }}>{hd}</div>
       )}
-      <div style={{ fontFamily: F.en, fontSize: 28, color: 'var(--dim)', fontWeight: 500, marginTop: hd ? 6 : portrait ? 0 : 42, textAlign: portrait ? 'right' : align }}>{englishDateText(now)}</div>
+      <div style={{ fontFamily: F.en, fontSize: busy && !portrait ? 25 : 27, color: 'var(--dim)', fontWeight: 500, lineHeight: 1.2, marginTop: hd ? 8 : 0, letterSpacing: '.005em' }}>{englishDateText(now)}</div>
       {(omer || specials.length > 0) && (
-        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: portrait || align === 'right' ? 'flex-end' : 'flex-start' }}>
+        <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 4, alignItems: edge }}>
           {omer && (
-            <div className="tt-he" style={{ fontFamily: F.he, fontSize: he(30), fontWeight: 600, color: 'var(--accent)' }}>
+            <div className="tt-he" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 600, color: 'var(--accent)' }}>
               {hNum(omer)} לעומר <span style={{ fontWeight: 500, color: 'var(--dim)' }}>· {sefira(omer)}</span>
             </div>
           )}
           {specials.map((d, i) => (
             <div key={d.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
-              {graphics !== 'off' && <Ornament size={20} style={{ color: 'var(--accent)' }} />}
-              <span style={{ fontFamily: /[א-ת]/.test(d.title) ? F.he : F.en, fontSize: /[א-ת]/.test(d.title) ? he(30) : 26, fontWeight: 600 }}>{d.title}</span>
-              {d.subtitle && <span style={{ fontFamily: F.en, fontSize: 22, color: 'var(--dim)' }}>{d.subtitle}</span>}
+              {graphics !== 'off' && <Ornament size={18} style={{ color: 'var(--accent)' }} />}
+              <span style={{ fontFamily: /[א-ת]/.test(d.title) ? F.he : F.en, fontSize: /[א-ת]/.test(d.title) ? he(28) : 25, fontWeight: 600 }}>{d.title}</span>
+              {d.subtitle && <span style={{ fontFamily: F.en, fontSize: 21, color: 'var(--dim)' }}>{d.subtitle}</span>}
             </div>
           ))}
         </div>
@@ -149,18 +154,20 @@ export default function Rail({
     </div>
   );
 
+  const markEl = mark ? (yomTov && dow !== 5 && dow !== 6
+    ? <Ornament size={20} style={{ color: 'var(--dim)' }} />
+    : <ShabbosMark size={busy ? 24 : 26} style={{ color: 'var(--dim)', marginBottom: -2 }} />) : null;
   const parshaEl = parsha ? (
-    <div style={{
-      marginTop: portrait ? 0 : busy ? 18 : 30,
-      display: busy && !portrait ? 'flex' : 'block', gap: 14, alignItems: 'baseline',
-      flexDirection: busy && align === 'right' ? 'row-reverse' : 'row', textAlign: portrait ? 'right' : align,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: portrait || align === 'right' ? 'flex-end' : 'flex-start' }}>
-        {mark && align !== 'right' && !portrait && (yomTov && dow !== 5 && dow !== 6 ? <Ornament size={26} style={{ color: 'var(--dim)' }} /> : <ShabbosMark size={busy ? 30 : 36} style={{ color: 'var(--dim)' }} />)}
-        {parsha.hebrew && <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(busy && !portrait ? 34 : 42), fontWeight: 500, lineHeight: 1.1 }}>{parsha.hebrew}</div>}
-        {mark && (align === 'right' || portrait) && (yomTov && dow !== 5 && dow !== 6 ? <Ornament size={26} style={{ color: 'var(--dim)' }} /> : <ShabbosMark size={busy ? 30 : 36} style={{ color: 'var(--dim)' }} />)}
+    <div style={{ display: 'flex', justifyContent: edge, marginTop: portrait ? 0 : busy ? 14 : 20, maxWidth: '100%' }}>
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 2, maxWidth: '100%',
+        justifyContent: edge, flexDirection: align === 'right' && !portrait ? 'row-reverse' : 'row',
+        background: 'var(--raised)', borderRadius: 18, padding: busy && !portrait ? '7px 16px 8px' : '9px 18px 10px',
+      }}>
+        {markEl}
+        {parsha.hebrew && <span className="tt-he" style={{ fontFamily: F.he, fontSize: he(busy && !portrait ? 28 : 31), fontWeight: 600, lineHeight: 1.15, whiteSpace: 'nowrap' }}>{parsha.hebrew}</span>}
+        {parsha.name && <span style={{ fontFamily: F.en, fontSize: busy && !portrait ? 20 : 21, color: 'var(--dim)', fontWeight: 500, lineHeight: 1.2, whiteSpace: 'nowrap' }}>{parshaEnglish(parsha.name)}</span>}
       </div>
-      {parsha.name && <div style={{ fontFamily: F.en, fontSize: busy && !portrait ? 24 : 26, color: 'var(--dim)', fontWeight: 500, marginTop: busy && !portrait ? 0 : 4 }}>{parshaEnglish(parsha.name)}</div>}
     </div>
   ) : null;
 
