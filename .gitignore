@@ -11,3 +11,8 @@ data/.puppeteer-tmp/
 .superpowers/
 .playwright-mcp/
 .claude/worktrees/
+
+# Schedule-by-date runtime state (created by the server)
+data/schedule-dates.json
+data/schedule-blocks.json
+data/zmanim-dates.json

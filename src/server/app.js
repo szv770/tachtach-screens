@@ -9,6 +9,8 @@ import { setupCheck, requireAuth, localhostOnly, localhostOrAuth, csrfProtection
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
+import scheduleDatesRouter from './routes/schedule-dates.js';
+import { ensureDefaultCategories, readScheduleDates } from './scheduleStore.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
@@ -83,6 +85,13 @@ export function createApp() {
       } catch (gpErr) {
         console.error('[google-photos] Startup error:', gpErr.message);
       }
+      // Owner's default schedule categories (added once, never removed)
+      try {
+        const added = await ensureDefaultCategories();
+        if (added.length) console.log(`[schedule] Added default categories: ${added.map(c => c.name).join(', ')}`);
+      } catch (catErr) {
+        console.error('[schedule] Default categories error:', catErr.message);
+      }
       // Initialize countdown alert system
       try {
         await initCountdowns();
@@ -132,7 +141,12 @@ export function createApp() {
   });
 
   // ── 1. Body parsing ──────────────────────────────────────────────────
-  app.use(express.json({ limit: '16kb' }));
+  // /api/schedule/dates* and /blocks* parse their own bodies (256 kB — a
+  // pasted multi-week schedule is bigger than 16 kB); see routes/schedule-dates.js.
+  const smallJson = express.json({ limit: '16kb' });
+  app.use((req, res, next) => (
+    /^\/api\/schedule\/(dates|blocks)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+  ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
   app.use(cookieParser());
@@ -170,7 +184,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
     try {
-      const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, fonts] = await Promise.all([
+      const [cache, settings, slides, messages, pinned, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -181,6 +195,7 @@ export function createApp() {
         readJSON('schedule.json'),
         readJSON('rss-feeds.json'),
         readJSON('fonts.json'),
+        readScheduleDates(),
       ]);
       res.json({
         cache: cache ?? {},
@@ -193,6 +208,9 @@ export function createApp() {
         schedule: schedule ?? { entries: [], categories: [] },
         rssFeeds: rssFeeds ?? [],
         fonts: fonts ?? [],
+        // Per-date schedule overrides (schedule-dates.json). Must be here or
+        // the kiosk's state refetch would drop SSE schedule-dates-update data.
+        scheduleDates: scheduleDates ?? {},
         // Running schedule countdown alert (or null), so a kiosk that
         // reconnects/reloads mid-countdown still shows it. Not persisted.
         countdown: getActiveCountdown(),
@@ -346,6 +364,7 @@ export function createApp() {
   app.use('/api', requireAuth, csrfProtection, apiMutationLimiter);
 
   // ── 9. API routes ────────────────────────────────────────────────────
+  app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
 
   // ── 10. 404 handler ──────────────────────────────────────────────────

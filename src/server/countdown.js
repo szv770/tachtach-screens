@@ -1,6 +1,7 @@
 import { readJSON } from './storage.js';
 import { broadcast } from './sse.js';
-import { dayCodeFor, isEntryActiveOn, countdownDisplayOf } from '../shared/scheduleDays.js';
+import { dayCodeFor, countdownDisplayOf } from '../shared/scheduleDays.js';
+import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
 
 /** @type {Map<string, NodeJS.Timeout>} entry id -> alert start timer */
 const alertTimers = new Map();
@@ -158,27 +159,31 @@ export async function initCountdowns() {
   // Clear any existing timers
   clearAllCountdowns();
 
-  const schedule = await readJSON('schedule.json');
-  if (!schedule?.entries?.length) return;
+  const [schedule, scheduleDates] = await Promise.all([
+    readJSON('schedule.json'),
+    readJSON('schedule-dates.json'),
+  ]);
 
   const now = new Date();
   const today = dayCodeFor(now);
+  const todayISO = toISODate(now);
 
-  for (const entry of schedule.entries) {
-    // Skip disabled entries and entries not scheduled for today. Uses the
-    // shared helper — the old local lowercase day codes never matched the
-    // stored 'Sun'…'Shabbos' codes, so no alert ever fired (audit bug 1).
-    if (!isEntryActiveOn(entry, now)) continue;
+  // Today's effective schedule: the date's own schedule if it has one
+  // (schedule-dates.json), else the weekly entries for today's weekday that
+  // are enabled — via the shared resolver, so alerts always match what the
+  // kiosk shows. (The old local lowercase day codes never matched the stored
+  // 'Sun'…'Shabbos' codes, so no alert ever fired — audit bug 1.)
+  const { entries, source } = getEffectiveSchedule(schedule, scheduleDates, todayISO);
 
+  entries.forEach((entry, i) => {
     // Skip entries without alertBefore
-    if (!entry.alertBefore || entry.alertBefore <= 0) continue;
-
-    scheduleEntryAlert(entry);
-  }
+    if (!entry.alertBefore || entry.alertBefore <= 0) return;
+    scheduleEntryAlert(entry.id ? entry : { ...entry, id: `${todayISO}-${i}` });
+  });
 
   const scheduled = alertTimers.size;
   if (scheduled > 0) {
-    console.log(`[countdown] Scheduled ${scheduled} alert(s) for today (${today})`);
+    console.log(`[countdown] Scheduled ${scheduled} alert(s) for today (${today} ${todayISO}, ${source === 'date' ? 'date schedule' : 'weekly schedule'})`);
   }
 }
 
