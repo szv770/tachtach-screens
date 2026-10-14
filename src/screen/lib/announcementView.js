@@ -84,7 +84,9 @@ export function toLegacyTakeover(item) {
     type: 'takeover',
     textHe: c.headlineHe, textEn: c.headlineEn,
     style: item.look?.style || 'classic',
-    subtitle: c.subtitle, target: c.target,
+    subtitle: c.subtitle,
+    // Takeover styles have no body slot; a second line shows as the target line.
+    target: c.target || c.bodyEn || c.bodyHe,
     fit: item.look?.fit === 'auto',
     fitMax: item.look?.maxFontPx || undefined,
   };
