@@ -26,7 +26,7 @@ export default function App() {
     updateSettings, updateSlides, createSlide, deleteSlide,
     createAnnouncement, updateAnnouncement, reactivateAnnouncement,
     duplicateAnnouncement, deleteAnnouncement, fetchShabbosEnd,
-    createCustomDay, deleteCustomDay,
+    createCustomDay, updateCustomDay, deleteCustomDay,
     fetchSchedule, updateScheduleEntries, createScheduleEntry,
     updateScheduleEntry, deleteScheduleEntry, updateScheduleCategories,
     loadScheduleTemplate,
@@ -138,6 +138,7 @@ export default function App() {
           <CustomDaysEditor
             customDays={state?.customDays || []}
             onCreate={createCustomDay}
+            onUpdate={updateCustomDay}
             onDelete={deleteCustomDay}
           />
         );
@@ -188,6 +189,9 @@ export default function App() {
         return (
           <RSSManager
             onSlideCreated={createSlide}
+            slides={state?.slides || []}
+            onUpdateSlides={updateSlides}
+            onDeleteSlide={deleteSlide}
           />
         );
       case 'style':

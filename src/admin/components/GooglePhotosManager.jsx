@@ -1,28 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
+import { apiFetch, notify } from '../hooks/useAdminState.js';
 
-function getCsrfToken() {
-  const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
-
-async function apiFetch(path, options = {}) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
-  const method = (options.method || 'GET').toUpperCase();
-  if (method !== 'GET') {
-    headers['X-CSRF-Token'] = getCsrfToken();
-  }
-  const res = await fetch(path, { ...options, headers, credentials: 'same-origin' });
-  if (!res.ok) {
-    const body = await res.text();
-    let msg;
-    try { msg = JSON.parse(body).error; } catch { msg = body; }
-    throw new Error(msg || `${res.status}`);
-  }
-  const text = await res.text();
-  return text ? JSON.parse(text) : null;
-}
 
 const DISPLAY_MODES = [
   { value: 'single', label: 'Single Photo', desc: 'One photo at a time with crossfade' },
@@ -181,8 +161,11 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
 
   // Start editing a Google Photos slide
   const startEdit = (slide) => {
+    const album = slide.googleAlbumId && albums.find(a => a.id === slide.googleAlbumId);
     setEditingSlideId(slide.id);
     setEditForm({
+      refreshInterval: album?.refreshInterval || 30,
+      maxPhotos: album?.maxPhotos ?? 1000,
       displayMode: slide.displayMode || 'single',
       photoInterval: slide.photoInterval || 8,
       photoOrder: slide.photoOrder || 'album',
@@ -215,13 +198,14 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
         label: editForm.label,
       };
     });
-    await onUpdateSlides(updated);
+    const slidesOk = await onUpdateSlides(updated);
+    if (slidesOk === false) return; // toast already shown; keep the sheet open
 
-    // Also update the album config on the server if there's a linked album
+    // Also update the album config (sync interval, photo cap, ...) on the server
     const slide = slides.find(s => s.id === editingSlideId);
     if (slide?.googleAlbumId) {
       try {
-        await apiFetch(`/api/google-album/${slide.googleAlbumId}`, {
+        const saved = await apiFetch(`/api/google-album/${slide.googleAlbumId}`, {
           method: 'PUT',
           body: JSON.stringify({
             displayMode: editForm.displayMode,
@@ -229,16 +213,38 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
             photoOrder: editForm.photoOrder,
             kenBurns: editForm.kenBurns,
             imageDisplayMode: editForm.imageDisplayMode,
+            refreshInterval: editForm.refreshInterval,
+            maxPhotos: editForm.maxPhotos,
           }),
         });
+        setAlbums(prev => prev.map(a => a.id === slide.googleAlbumId ? { ...a, ...(saved || {}) } : a));
       } catch (err) {
-        console.error('Failed to update album config:', err);
+        notify(`Save album settings: ${err.message}`, 'error');
+        return;
       }
     }
 
     setEditingSlideId(null);
     setEditForm(null);
-    setSuccess('Slide settings updated.');
+    notify('Google Photos settings saved');
+    loadAlbums();
+  };
+
+  const addSlideForAlbum = async (album) => {
+    if (!onSlideCreated) return;
+    await onSlideCreated({
+      type: 'GOOGLE_PHOTOS_SLIDE',
+      googleAlbumId: album.id,
+      displayMode: album.displayMode || 'single',
+      photoInterval: album.photoInterval || 8,
+      photoOrder: album.photoOrder || 'album',
+      kenBurns: !!album.kenBurns,
+      imageDisplayMode: album.imageDisplayMode || 'fit',
+      duration: 30,
+      fullscreen: album.displayMode === 'fullscreen',
+      label: 'Google Photos',
+      enabled: true,
+    });
   };
 
   // Find Google Photos slides from the slides list
@@ -418,7 +424,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
             </select>
           </div>
 
-          {!isEdit && (
+          {(
             <div>
               <label style={{
                 fontFamily: adminFonts.englishBody, fontSize: '13px',
@@ -438,7 +444,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
             </div>
           )}
 
-          {!isEdit && (
+          {(
             <div>
               <label style={{
                 fontFamily: adminFonts.englishBody, fontSize: '13px',
@@ -684,8 +690,8 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
               gap: isMobile ? '10px' : '8px',
               justifyContent: 'flex-end',
             }}>
-              <button onClick={cancelEdit} style={{ ...buttonSecondary, minHeight: isMobile ? '44px' : undefined }}>Cancel</button>
-              <button onClick={saveEdit} style={{ ...buttonPrimary, minHeight: isMobile ? '44px' : undefined }}>Save Changes</button>
+              <button onClick={cancelEdit} style={{ ...buttonSecondary, minHeight: '44px' }}>Cancel</button>
+              <button onClick={saveEdit} style={{ ...buttonPrimary, minHeight: '44px' }}>Save Changes</button>
             </div>
           </div>
         </div>
@@ -716,7 +722,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
                     {slide.displayMode || 'single'} | {slide.imageDisplayMode || 'fit'} | {slide.photoInterval || 8}s per photo | {slide.duration || 30}s duration
                   </div>
                 </div>
-                <button onClick={() => startEdit(slide)} style={{ ...buttonSecondary, padding: '6px 14px', fontSize: '12px' }}>
+                <button onClick={() => startEdit(slide)} style={{ ...buttonSecondary, padding: '6px 14px', fontSize: '13px', minHeight: '44px', flexShrink: 0 }}>
                   Edit
                 </button>
               </div>
@@ -793,15 +799,34 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  {(() => {
+                    const linked = googleSlides.find(s => s.googleAlbumId === album.id);
+                    return linked ? (
+                      <button
+                        onClick={() => startEdit(linked)}
+                        style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
+                      >
+                        Settings
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => addSlideForAlbum(album)}
+                        title="This album has no slide in the rotation"
+                        style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
+                      >
+                        Add slide
+                      </button>
+                    );
+                  })()}
                   <button
                     onClick={() => handleSync(album.id)}
-                    style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '12px', minHeight: '36px', flex: isMobile ? 1 : undefined }}
+                    style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
                   >
                     Sync
                   </button>
                   <button
                     onClick={() => handleDelete(album.id)}
-                    style={{ ...buttonDanger, padding: '6px 12px', fontSize: '12px', minHeight: '36px', flex: isMobile ? 1 : undefined }}
+                    style={{ ...buttonDanger, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
                   >
                     Remove
                   </button>
