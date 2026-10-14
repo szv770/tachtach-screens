@@ -7,8 +7,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary } from '../../styles/admin-tokens.js';
 import { ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
-import { formatScheduleText, formatTime12 } from '../../../shared/schedulePaste.js';
-import { buildClaudePrompt, buildFormatGuide, keyTimesForDate } from '../../../shared/scheduleClaudePrompt.js';
+import { formatScheduleText, formatWeeklyText, formatTime12 } from '../../../shared/schedulePaste.js';
+import { PROMPT_TYPES, buildPromptOfType, buildFormatGuide, keyTimesForDate } from '../../../shared/scheduleClaudePrompt.js';
 import {
   toISODate, shabbosPairISO, weekdayOfISO, addDaysISO, formatDateShort, formatDateLong, getEffectiveSchedule,
 } from '../../../shared/scheduleResolution.js';
@@ -28,8 +28,9 @@ function targetDates(target, today, selectedDate) {
 }
 
 export default function ScheduleImport({
-  schedule, scheduleDates, selectedDate, settings, onApplied, onEditDate, notify, copy, isMobile,
+  schedule, scheduleDates, selectedDate, settings, onApplied, onEditDate, notify, copy, isMobile, mode = 'dates', onWeeklyApplied,
 }) {
+  const weekly = mode === 'weekly';
   const today = toISODate(new Date());
   const categories = schedule?.categories || [];
   const [text, setText] = useState('');
@@ -38,6 +39,7 @@ export default function ScheduleImport({
   const [busy, setBusy] = useState(false);
   const [applied, setApplied] = useState(null);
   const [target, setTarget] = useState('this');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [zinfo, setZinfo] = useState({ loading: true, zmanim: {}, parsha: '' });
   const fileRef = useRef(null);
 
@@ -56,8 +58,9 @@ export default function ScheduleImport({
   }, [datesKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const zip = settings?.location?.zip || zinfo.location || '';
-  const prompt = buildClaudePrompt({
+  const promptCtx = () => ({
     dates, zmanimByDate: zinfo.zmanim, parsha: zinfo.parsha, categories, location: zip ? `zip code ${zip}` : '',
+    currentText: (schedule?.entries || []).length ? formatWeeklyText(schedule.entries, { categories, header: false }) : '',
   });
   const guide = buildFormatGuide({ categories });
 
@@ -65,7 +68,7 @@ export default function ScheduleImport({
     if (!value.trim()) { setPreview(null); return; }
     setBusy(true);
     try {
-      const r = await scheduleApi.preview(value);
+      const r = await (weekly ? scheduleApi.weeklyPreview(value) : scheduleApi.preview(value));
       setPreview(r);
       setStale(false);
       setApplied(null);
@@ -80,6 +83,14 @@ export default function ScheduleImport({
     if (!preview?.canApply || stale) return;
     setBusy(true);
     try {
+      if (weekly) {
+        const r = await scheduleApi.weeklyApply(text);
+        onWeeklyApplied?.(r);
+        setApplied(r);
+        setPreview(null);
+        notify(`Weekly schedule replaced: ${r.count} item${r.count === 1 ? '' : 's'}${r.backupName ? `\nOld one saved as "${r.backupName}"` : ''}`, 'success', null, 7000);
+        return;
+      }
       const r = await scheduleApi.apply(text);
       onApplied(r.scheduleDates, r.createdCategories?.length > 0);
       setApplied(r);
@@ -113,6 +124,8 @@ export default function ScheduleImport({
     reader.readAsText(file);
   };
 
+  const copyWeeklyAsText = () => copy(formatWeeklyText(schedule?.entries || [], { categories }), 'Weekly schedule copied as text');
+
   const copyAsText = () => {
     const days = dates.map((d) => {
       const eff = getEffectiveSchedule(schedule, scheduleDates, d);
@@ -140,31 +153,73 @@ export default function ScheduleImport({
       <div className="tt-card" style={card(isMobile)}>
         <div style={{ ...sectionLabel, marginBottom: '6px' }}>1 · Ask Claude</div>
         <p style={para}>
-          Copy the prompt, paste it into Claude chat, add what's happening ("Shacharis 9:30, kiddush after, guest speaker at shalosh seudos"), then paste Claude's answer below.
+          {weekly
+            ? 'Pick "A weekly schedule", paste the prompt into Claude chat, describe the regular week (or what to change), then paste Claude\'s answer below. Schedules are one of the things Claude can prepare for the screen; this menu will grow.'
+            : 'Pick a prompt type, paste it into Claude chat, add what\'s happening ("Shacharis 9:30, kiddush after, guest speaker at shalosh seudos"), then paste Claude\'s answer below.'}
         </p>
-        <div role="radiogroup" aria-label="Which dates" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', margin: '10px 0' }}>
-          {[
-            ['this', `This Shabbos (${formatDateShort(shabbosPairISO(today, 0)[0]).split(', ')[1]})`],
-            ['next', `Next Shabbos (${formatDateShort(shabbosPairISO(today, 1)[0]).split(', ')[1]})`],
-            ['selected', `Picked date (${formatDateShort(selectedDate)})`],
-          ].map(([v, l]) => (
-            <button key={v} type="button" role="radio" aria-checked={target === v} style={chipButton(target === v)} onClick={() => setTarget(v)}>{l}</button>
-          ))}
-        </div>
-        <div data-testid="zmanim-summary" style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '10px', lineHeight: 1.6 }}>
-          {zinfo.loading ? 'Looking up zmanim…' : zLine.map((l) => <div key={l}>{l}</div>)}
-          {!zinfo.loading && zinfo.parsha && <div>Parshas {zinfo.parsha}</div>}
-        </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button type="button" style={{ ...buttonPrimary, fontFamily: adminFonts.englishBody, minHeight: '42px' }} onClick={() => copy(prompt, 'Claude prompt copied')}>
-            Copy Claude prompt
-          </button>
+        {!weekly && (
+          <>
+            <div role="radiogroup" aria-label="Which dates" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', margin: '10px 0' }}>
+              {[
+                ['this', `This Shabbos (${formatDateShort(shabbosPairISO(today, 0)[0]).split(', ')[1]})`],
+                ['next', `Next Shabbos (${formatDateShort(shabbosPairISO(today, 1)[0]).split(', ')[1]})`],
+                ['selected', `Picked date (${formatDateShort(selectedDate)})`],
+              ].map(([v, l]) => (
+                <button key={v} type="button" role="radio" aria-checked={target === v} style={chipButton(target === v)} onClick={() => setTarget(v)}>{l}</button>
+              ))}
+            </div>
+            <div data-testid="zmanim-summary" style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '10px', lineHeight: 1.6 }}>
+              {zinfo.loading ? 'Looking up zmanim…' : zLine.map((l) => <div key={l}>{l}</div>)}
+              {!zinfo.loading && zinfo.parsha && <div>Parshas {zinfo.parsha}</div>}
+            </div>
+          </>
+        )}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: weekly ? '10px' : 0, alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              data-testid="prompt-menu-button"
+              style={{ ...buttonPrimary, fontFamily: adminFonts.englishBody, minHeight: '42px' }}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              Copy Claude prompt for… ▾
+            </button>
+            {menuOpen && (
+              <div role="menu" data-testid="prompt-menu" style={{
+                position: 'absolute', zIndex: 30, top: 'calc(100% + 4px)', left: 0, minWidth: '240px', maxWidth: 'calc(100vw - 32px)',
+                background: colors.bg, border: `1px solid ${colors.goldBd}`, borderRadius: '8px', boxShadow: '0 10px 28px rgba(0,0,0,.5)', overflow: 'hidden',
+              }}>
+                {PROMPT_TYPES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => { setMenuOpen(false); copy(buildPromptOfType(t.id, promptCtx()), `Claude prompt copied: ${t.label.toLowerCase()}`); }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderBottom: `1px solid ${colors.border}`,
+                      color: colors.text, fontFamily: adminFonts.englishBody, fontSize: '14px', padding: '10px 14px', minHeight: '44px', cursor: 'pointer',
+                    }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="button" style={smallButton} onClick={() => copy(guide, 'Format guide copied')}>
             Copy format guide for a Claude Project
           </button>
-          <button type="button" style={smallButton} onClick={copyAsText}>
-            Copy {dates.length > 1 ? 'these dates' : 'this date'} as text
-          </button>
+          {weekly ? (
+            <button type="button" style={smallButton} onClick={copyWeeklyAsText} disabled={!(schedule?.entries || []).length}>
+              Copy current weekly schedule as text
+            </button>
+          ) : (
+            <button type="button" style={smallButton} onClick={copyAsText}>
+              Copy {dates.length > 1 ? 'these dates' : 'this date'} as text
+            </button>
+          )}
         </div>
       </div>
 
@@ -179,7 +234,9 @@ export default function ScheduleImport({
             if (pasted && !text.trim()) { e.preventDefault(); setText(pasted); runPreview(pasted); }
           }}
           aria-label="Schedule text"
-          placeholder={'# TachTach schedule v1\n@ 2026-10-16 Fri  Erev Shabbos\n7:05 AM | Shacharis | שחרית | Davening | alert 10\n6:28 PM | Candle Lighting | הדלקת נרות | Events | alert 15 takeover | icon candle'}
+          placeholder={weekly
+            ? '# TachTach schedule v1\n@ every Sun-Thu\n7:00 AM | Shacharis | שחרית | Davening\n9:00 AM - 12:30 PM | | סדר | Seder\n@ Fri\n7:30 AM | Shacharis | שחרית | Davening'
+            : '# TachTach schedule v1\n@ 2026-10-16 Fri  Erev Shabbos\n7:05 AM | Shacharis | שחרית | Davening\n6:28 PM | Candle Lighting | הדלקת נרות | Events | alert 15 takeover | icon candle'}
           spellCheck={false}
           rows={isMobile ? 10 : 14}
           style={{ ...inputStyle, ...monoStyle, resize: 'vertical' }}
@@ -204,6 +261,26 @@ export default function ScheduleImport({
             </div>
           )}
           <IssueList issues={{ errors: globalErrors, warnings: globalWarnings }} />
+          {weekly && preview.weekly && (
+            <div data-testid="weekly-replace-note" style={{
+              fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.copper, marginBottom: '10px', lineHeight: 1.5,
+              border: `1px solid ${colors.copper}66`, borderRadius: '8px', padding: '8px 12px',
+            }}>
+              <b>Replaces {preview.replaces} weekly item{preview.replaces === 1 ? '' : 's'}</b> with {preview.weekly.entries.length} new.
+              {preview.replaces > 0 ? ' The current weekly schedule is saved first as a template named "Auto-backup <date>". ' : ' '}
+              Dates with their own schedule are not affected.
+            </div>
+          )}
+          {weekly && preview.weekly && weeklyGroups(preview.weekly).map((g) => (
+            <PreviewCard
+              key={g.key}
+              day={{ title: g.title, sub: g.sub, entries: g.entries, weeklyBadge: `${g.entries.length} item${g.entries.length === 1 ? '' : 's'}` }}
+              categories={allCats}
+              errors={[]}
+              warnings={[]}
+              isMobile={isMobile}
+            />
+          ))}
           {preview.days.map((d) => (
             <PreviewCard
               key={d.date}
@@ -223,7 +300,9 @@ export default function ScheduleImport({
             <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: preview.errors.length ? colors.danger : colors.text }}>
               {preview.errors.length
                 ? `${preview.errors.length} error${preview.errors.length > 1 ? 's' : ''} — fix ${preview.errors.length > 1 ? 'them' : 'it'} to apply`
-                : `${preview.days.length} date${preview.days.length > 1 ? 's' : ''} ready`}
+                : weekly
+                  ? `${preview.weekly?.entries.length || 0} weekly items ready · replaces ${preview.replaces}`
+                  : `${preview.days.length} date${preview.days.length > 1 ? 's' : ''} ready`}
             </span>
             <button
               type="button"
@@ -238,7 +317,19 @@ export default function ScheduleImport({
         </div>
       )}
 
-      {applied && (
+      {applied && weekly && (
+        <div className="tt-card" style={{ ...card(isMobile), marginTop: '12px', borderColor: colors.goldBd }} data-testid="paste-applied">
+          <div style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', color: colors.success }}>
+            Saved: the weekly schedule now has {applied.count} item{applied.count === 1 ? '' : 's'}. The screen updates right away.
+          </div>
+          {applied.backupName && (
+            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginTop: '6px' }}>
+              The previous one is saved as the template "{applied.backupName}" (Schedule Templates, below).
+            </div>
+          )}
+        </div>
+      )}
+      {applied && !weekly && (
         <div className="tt-card" style={{ ...card(isMobile), marginTop: '12px', borderColor: colors.goldBd }} data-testid="paste-applied">
           <div style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', color: colors.success, marginBottom: '8px' }}>Saved. The screen updates right away.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -256,8 +347,27 @@ export default function ScheduleImport({
   );
 }
 
+/** One preview group per distinct set of days, in the order they appear. */
+function weeklyGroups(weekly) {
+  const map = new Map();
+  for (const e of weekly.entries) {
+    const key = (e.days || []).join(',');
+    if (!map.has(key)) map.set(key, { key, entries: [], codes: e.days || [] });
+    map.get(key).entries.push(e);
+  }
+  const order = weekly.rules.map((r) => r.codes.join(','));
+  const groups = [...map.values()].sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
+  return groups.map((g) => ({
+    ...g,
+    title: g.codes.length === 7 ? 'Every day' : g.codes.length === 1 ? `Every ${g.codes[0]}` : 'Days',
+    sub: g.codes.length === 7 ? '' : g.codes.join(', '),
+  }));
+}
+
 function PreviewCard({ day, categories, errors, warnings, isMobile }) {
-  const badge = day.clear
+  const badge = day.weeklyBadge
+    ? { text: day.weeklyBadge, color: colors.gold }
+    : day.clear
     ? { text: 'Back to weekly', color: colors.dim }
     : day.existingCount != null
       ? { text: `Replaces ${day.existingCount} item${day.existingCount === 1 ? '' : 's'}`, color: colors.copper }
@@ -267,7 +377,8 @@ function PreviewCard({ day, categories, errors, warnings, isMobile }) {
     <div data-testid="preview-card" className="tt-card" style={{ ...card(isMobile), marginBottom: '10px', borderColor: errors.length ? `${colors.danger}88` : colors.border }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
         <div>
-          <div style={{ fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 600, color: colors.text }}>{formatDateLong(day.date)}</div>
+          <div style={{ fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 600, color: colors.text }}>{day.title || formatDateLong(day.date)}</div>
+          {day.sub && <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>{day.sub}</div>}
           {day.label && <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, unicodeBidi: 'plaintext' }}>{day.label}</div>}
         </div>
         <span style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', padding: '3px 9px', borderRadius: '999px', color: badge.color, border: `1px solid ${badge.color}66` }}>
@@ -297,7 +408,11 @@ function PreviewCard({ day, categories, errors, warnings, isMobile }) {
                       <CategoryDot color={cat.color} size={7} />{cat.name}{cat.isNew && <b style={{ color: colors.gold }}> new</b>}
                     </span>
                   )}
-                  {e.alertBefore > 0 && <span title="Countdown alert">⏱ {e.alertBefore}m{e.countdownDisplay === 'takeover' ? ' full screen' : ''}</span>}
+                  {e.alertBefore > 0 && (
+                    <span title={e.alertFromDefault ? `Reminder applied from the ${cat?.name || 'category'} default` : 'Countdown alert'}>
+                      ⏱ {e.alertBefore}m{e.countdownDisplay === 'takeover' ? ' full screen' : ''}{e.alertFromDefault ? ' (default)' : ''}
+                    </span>
+                  )}
                   {e.icon && <ScheduleIcon iconKey={e.icon} size={14} color={colors.dim} />}
                   {!e.enabled && <span>hidden</span>}
                   {lineErrors.has(e.line) && <span style={{ color: colors.danger }}>line {e.line}</span>}

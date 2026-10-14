@@ -82,7 +82,18 @@ function pickScheduleEntry(e) {
   }
   return picked;
 }
-const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon'];
+const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert'];
+// defaultAlert = minutes of countdown reminder given to pasted entries of this
+// category that have no explicit "alert N" (0/absent = none).
+function pickCategory(c) {
+  const out = pick(c, SCHEDULE_CATEGORY_FIELDS);
+  if ('defaultAlert' in out) {
+    const n = Math.round(Number(out.defaultAlert));
+    if (Number.isFinite(n) && n > 0) out.defaultAlert = Math.min(120, n);
+    else delete out.defaultAlert;
+  }
+  return out;
+}
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];
 
 // GET /api/state lives in src/server/app.js (route 6c, localhostOrAuth +
@@ -410,7 +421,7 @@ router.put('/schedule/categories', async (req, res) => {
       return res.status(400).json({ error: 'Invalid categories data — expected an array.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.categories = categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+    schedule.categories = categories.map(pickCategory);
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     res.json(schedule.categories);
@@ -430,7 +441,7 @@ router.post('/schedule/template', async (req, res) => {
     }
     const schedule = {
       entries: entries.map((e) => ({ id: uuidv4(), ...pickScheduleEntry(e), enabled: e.enabled !== false })),
-      categories: Array.isArray(categories) ? categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS)) : [],
+      categories: Array.isArray(categories) ? categories.map(pickCategory) : [],
     };
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
@@ -466,7 +477,7 @@ router.post('/schedule/templates', async (req, res) => {
     // Sanitize entries and categories within the template
     picked.entries = picked.entries.map((e) => pickScheduleEntry(e));
     if (Array.isArray(picked.categories)) {
-      picked.categories = picked.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+      picked.categories = picked.categories.map(pickCategory);
     } else {
       picked.categories = [];
     }
@@ -498,7 +509,7 @@ router.put('/schedule/templates/:id', async (req, res) => {
       updates.entries = updates.entries.map((e) => pickScheduleEntry(e));
     }
     if (Array.isArray(updates.categories)) {
-      updates.categories = updates.categories.map((c) => pick(c, SCHEDULE_CATEGORY_FIELDS));
+      updates.categories = updates.categories.map(pickCategory);
     }
     templates[idx] = { ...templates[idx], ...updates, id: req.params.id, updatedAt: new Date().toISOString() };
     await writeJSON('schedule-templates.json', templates);

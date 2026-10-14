@@ -194,6 +194,16 @@ function CategoryManager({ categories, onUpdate, isMobile }) {
     onUpdate(categories.filter(c => c.id !== id));
   };
 
+  const handleDefaultAlertChange = (catId, value) => {
+    const n = Number(value);
+    onUpdate(categories.map(c => {
+      if (c.id !== catId) return c;
+      const next = { ...c };
+      if (n > 0) next.defaultAlert = n; else delete next.defaultAlert;
+      return next;
+    }));
+  };
+
   const handleCategoryIconChange = (catId, icon) => {
     onUpdate(categories.map(c => c.id === catId ? { ...c, icon: icon || undefined } : c));
   };
@@ -239,6 +249,17 @@ function CategoryManager({ categories, onUpdate, isMobile }) {
             }}>
               {cat.name}
             </span>
+            <select
+              value={cat.defaultAlert || 0}
+              onChange={(e) => handleDefaultAlertChange(cat.id, e.target.value)}
+              aria-label={`Default reminder for ${cat.name}`}
+              title="Reminder given to pasted items of this category that don't say 'alert N'"
+              style={{ ...inputStyle, width: 'auto', minWidth: 0, padding: '4px 6px', fontSize: '12px', flexShrink: 0 }}
+            >
+              <option value={0}>No default alert</option>
+              {[1, 2, 5, 10, 15].map(n => <option key={n} value={n}>Alert {n} min</option>)}
+              {cat.defaultAlert > 0 && ![1, 2, 5, 10, 15].includes(cat.defaultAlert) && <option value={cat.defaultAlert}>Alert {cat.defaultAlert} min</option>}
+            </select>
             <IconPicker
               value={cat.icon || ''}
               onChange={(icon) => handleCategoryIconChange(cat.id, icon)}
@@ -1192,7 +1213,7 @@ export default function ScheduleEditor({
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
               }}>
-                {entry.name}
+                {entry.name || entry.nameHe}
               </span>
 
               {!isMobile && (
