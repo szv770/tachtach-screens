@@ -39,6 +39,10 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 - **`data/auth.json` is never backed up or touched by `git pull`.** Password/TOTP reset only via `npm run reset-admin` (`scripts/reset-admin-credentials.js`), never `setup.js`.
 - No Tailwind on the kiosk, and no hard-coded fonts or colours in screen components: they paint with the design roles (CSS custom properties set by `src/screen/design/DesignRoot.jsx` from `src/shared/themes.js` and `src/shared/fontRoles.js`). The approved round-2 look uses **Rubik** (Hebrew) + **Manrope** (English/numerals) + Frank Ruhl Libre / EB Garamond (Torah text) by default, every role swappable in admin to any built-in or uploaded font. No Inter/Roboto/system sans on the display. No infinite animations, blur, backdrop-filter or blend modes on the kiosk (Pi 5 at 4K, see GOTCHAS). Spec: `docs/design/2026-10-14-mockups-r2/`.
 
+## Working with agents
+
+- **Pick the model per job to save the owner's usage:** regular coding, admin/server work, tests, docs → `model: "sonnet"` (or `haiku` for trivial chores); reserve `opus` for work that needs top quality — kiosk visual design/graphics/animation and hard debugging. Keep 1–3 agents running at once, and make them commit early (a usage-limit cutoff already cost a round).
+
 ## Need more detail?
 
 - **`docs/claude/ARCHITECTURE.md`** — request/middleware pipeline, scheduler tracks A/B/C, SSE event catalog, auth/CSRF/TOTP flow, data file inventory.
