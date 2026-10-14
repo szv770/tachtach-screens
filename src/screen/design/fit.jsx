@@ -64,8 +64,11 @@ export function Fit({ children, max = 200, min = 16, wrap = false, vcenter = fal
       dir={dir}
       className={className}
       style={{
-        whiteSpace: wrap ? 'normal' : 'nowrap', overflow: 'hidden', lineHeight: 1.12,
-        textWrap: wrap ? 'balance' : undefined, minWidth: 0,
+        // Never pass `textWrap: undefined`: React then clears `text-wrap`, which
+        // in current Chromium is part of the `white-space` shorthand and
+        // silently resets nowrap to normal (one-line Fits wrapped).
+        ...(wrap ? { whiteSpace: 'normal', textWrap: 'balance' } : { whiteSpace: 'nowrap' }),
+        overflow: 'hidden', lineHeight: 1.12, minWidth: 0,
         ...(vcenter ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
         ...style,
         fontSize: size ? `${size}px` : `${max}px`,
