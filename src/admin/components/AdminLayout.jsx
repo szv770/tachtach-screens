@@ -135,6 +135,21 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
     }
   }, [activeSection, isMobile]);
 
+  // Publish the sticky mobile header's height as --tt-header-h so a section's
+  // own sticky bar (e.g. Settings' Save) sits below it instead of under it.
+  const headerRef = useRef(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!isMobile || !headerRef.current) { root.style.setProperty('--tt-header-h', '0px'); return undefined; }
+    const el = headerRef.current;
+    const set = () => root.style.setProperty('--tt-header-h', `${el.offsetHeight}px`);
+    set();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isMobile]);
+
   if (isMobile) {
     return (
       <div style={{
@@ -144,7 +159,7 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
         background: colors.bg,
       }}>
         {/* Sticky header: logo + preview + theme + logout, and the tab nav below it */}
-        <div style={{
+        <div ref={headerRef} style={{
           position: 'sticky',
           top: 0,
           zIndex: 100,
