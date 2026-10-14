@@ -213,3 +213,17 @@ The owner wants an easy way to make **inspirational slides**: quotes, excerpts f
 - **Letter (Igros Kodesh):** letter look, with an optional header date (Hebrew and/or English), body, and signature line or source (e.g. "Igros Kodesh vol. 12 letter 4,123"). Long letters page the same way.
 - **Collections (optional, later in 2b):** group many quotes or excerpts into a collection, e.g. "Rebbe quotes". The slide then shows **one per rotation** or **one per day**, so the screen stays fresh without posting each one. Collections can be filled by pasting many entries at once, one per block, in a simple text format like the schedule paste, which also lets Claude chat prepare a batch.
 - Fonts: these layouts use the Hebrew/English font roles, including the owner's FbMazal. A per-layout "Torah text" font option, such as a classic serif or Frank Ruhl, is worth having for sichos and letters.
+
+## Phase 2c — Schedule-triggered announcements (owner request, 2026-10-14)
+
+Example from the owner: a "Shacharis now" takeover that appears by itself **while Shacharis is in session on the schedule** (or for a fixed 45 minutes), instead of being posted by hand.
+
+- **Rule type:** a new announcement `display: 'takeover'` (or slide) with `when.source = 'schedule'` and a `trigger`:
+  - `match`: a schedule category (e.g. Davening) or specific item names (e.g. Shacharis, Mincha, Maariv).
+  - `start`: N minutes before the item starts (default 0; there's an optional "in 5 min" pre-start variant).
+  - `duration`: **"until the item's end time"** (uses `endTime`, so Shacharis 7:30–8:15 runs exactly that long) or a **fixed number of minutes** (default 45), or the **next item's start**.
+  - `days`: the same repeat rules as any announcement (e.g. weekdays only, not Shabbos).
+- **Text auto-fills** from the matching item: its Hebrew and English name, start time and end time. A style like **Davening** renders "Shacharis now / שחרית עכשיו" without the owner typing anything each day.
+- **Resolved on the kiosk** from the effective per-date schedule (`getEffectiveSchedule`), so a pasted Shabbos or a changed time automatically moves the takeover. `isActive` gets a schedule-aware path, and the rest of the announcement rules (takeover conflicts, drafts, pause/resume) apply unchanged.
+- **Admin:** the composer gets "When: **Automatically from the schedule**", with the category and name pickers, start offset, and duration choice. The list shows "Auto · Davening" with the next time it will fire. One rule can cover all three tefillos.
+- Takeovers pause rotation. For a 45-minute davening takeover this is intended, and there's a setting "Allow rotation to continue every N minutes" if the owner prefers the screen to cycle during long sessions.
