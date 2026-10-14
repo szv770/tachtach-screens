@@ -82,8 +82,8 @@ export const TAKEOVER_CSS = `
 .tkr .tile.stackt .when { display: flex; gap: 16px; align-items: baseline; }
 .tkr .place { min-width: 0; max-width: 100%; }
 .tkr .place .en { font-size: calc(42px * var(--k, 1)); font-weight: 600; line-height: 1.15; }
-.tkr .place .en2 { font-size: calc(30px * var(--k, 1)); color: var(--s-dim); font-weight: 500; margin-top: 4px; line-height: 1.2; }
-.tkr .place .he { font-size: calc(34px * var(--he-scale) * var(--k, 1)); color: var(--s-dim); text-align: left; margin-top: 6px; line-height: 1.2; }
+.tkr .place .en2 { font-size: max(20px, calc(30px * var(--k, 1))); color: var(--s-dim); font-weight: 500; margin-top: 4px; line-height: 1.2; }
+.tkr .place .he { font-size: max(20px, calc(34px * var(--he-scale) * var(--k, 1))); color: var(--s-dim); text-align: left; margin-top: 6px; line-height: 1.2; }
 .tkr .center .place .he, .tkr .center .place { text-align: center; }
 .tkr .ls { display: flex; flex-direction: column; }
 .tkr .ls .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; margin-bottom: 20px; }
