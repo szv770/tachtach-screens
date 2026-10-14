@@ -45,5 +45,19 @@ The bottom notice strip appears **only when a banner is active**. Otherwise the 
 - **Lively / "hype":** items animate in one by one, plus a bit more flair. Heavier, opt-in.
 - All three must avoid continuous GPU-heavy effects (no infinite animations, blur or blend modes) on the Pi 5 at 4K. Motion happens at page transitions only.
 
+### Themes and styles (owner, 2026-10-14)
+- **Keep every existing style option** for slides and takeovers, and feel free to add more:
+  - the 11 Takeover styles: classic, grand, emergency, sleek, celebration, urgent, torah, trip, phone, memorial, hype;
+  - the 6 StyledSlide styles;
+  - the text-slide templates.
+
+  In the redesign they're restyled into the new system, not removed. New announcement layouts (event, big words, list, quick time) combine with styles, so a layout can be shown in e.g. "celebration" or "urgent" styling.
+- **Theme families with sub-themes.** Themes are grouped as **Dark** (dark, dark high-contrast, midnight, plus new ones) and **Light** (parchment, sepia, clean white, ivory, sky, plus new ones). Every new screen, layout and style must look right in every sub-theme. Mockups show at least one dark and one light sub-theme per page.
+- **Automatic day/night switching** by zmanim. Today the switch is fixed at netz (light) and shkia (dark), in screen `App.jsx` ~329-338.
+  - The admin chooses the **light-at** zman (alos / misheyakir / netz) and the **dark-at** zman (shkia / tzeis), with defaults **netz → light** and **tzeis → dark**.
+  - The admin also picks which light sub-theme and which dark sub-theme to use.
+  - The times come from the zmanim the system is configured for (location and source in Settings). If zmanim are missing, fall back to a fixed time.
+  - The switch is a smooth crossfade of colors, not a hard flip.
+
 ### Must keep working
 Themes (dark/light variants plus auto day/night), user fonts (Hebrew + English roles, including FbMazal), the 1600×900 logical canvas with uniform scaling, portrait, all admin customization, and the product rules (banners never pause rotation; takeovers always do).
