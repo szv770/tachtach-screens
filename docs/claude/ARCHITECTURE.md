@@ -17,7 +17,7 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 11. A few more `localhostOnly` kiosk-support endpoints: Google Photos album photos, RSS cache reads, screen-state report/read
 12. Static file serving (`/assets`, `/fonts`, `/uploads`, `/google-photos`) + SPA `GET /screen`, `/error`, `/admin` (admin route also has `requireAuth` + `csrfProtection`)
 13. `requireAuth` + `csrfProtection` + mutation rate limiter (60/min, skips GET/HEAD/OPTIONS) on all of `/api`
-14. `apiRouter` — the actual CRUD handlers (`src/server/routes/api.js`, ~1300 lines, one section per admin resource: slides, schedule, messages, pinned, custom-days, media, photos, RSS, style, settings, screen-control)
+14. `announcementsRouter` (`src/server/routes/announcements.js`) — `/api/announcements*` plus translating shims for the legacy `/api/messages`, `/api/pinned` and custom-slide POST (one release). Then `apiRouter` — the actual CRUD handlers (`src/server/routes/api.js`, ~1300 lines, one section per admin resource: slides, schedule, messages, pinned, custom-days, media, photos, RSS, style, settings, screen-control)
 15. 404 handler, then a global error handler (multer file-size, JSON parse errors, generic 500)
 
 ## Auth model (`src/server/auth.js`)
@@ -43,14 +43,22 @@ Double-submit cookie, HMAC-bound to the session token: `_csrf` cookie = `nonce.h
 
 - Two client pools: kiosk (`broadcast()`, max 20) and preview/admin-iframe (`broadcastToAll()` reaches both, max 10). Oldest-of-type client is evicted once its pool is full.
 - 15s heartbeat sent as a real `data:` event (`type: 'heartbeat'`) — a bare SSE comment does **not** fire the client's `onmessage`, which previously made the client think the connection was stale after 20s of no real updates and reconnect-loop.
-- Event types in the wild: `connected`, `heartbeat`, `settings-update`, `slides-update`, `messages-update`, `pinned-update`, `cache-refresh`, `screen-command` (`{action: pause|resume|blank|advance}`), `preview` (admin-iframe only, via `broadcastToAll`).
+- Event types in the wild: `connected`, `heartbeat`, `settings-update`, `slides-update`, `announcements-update` (full items array; replaces `messages-update`/`pinned-update`, which the kiosk still accepts from an old server), `cache-refresh`, `screen-command` (`{action: pause|resume|blank|advance}`), `preview` (admin-iframe only, via `broadcastToAll`).
 
 ## Data files (`data/*.json`, via `src/server/storage.js`)
 
 Atomic write: JSON → `.tmp` → `rename()`. Existing file copied to `.bak` first, **except** `auth.json` (never backed up — contains password hash/TOTP secret). On Windows/OneDrive, `rename()` can EPERM/EBUSY if the file is locked; falls back to a direct (non-atomic) write rather than crashing. File-level locking (`Map` of pending promises) serializes concurrent writes to the same file within one process.
 
-Files: `auth.json`, `settings.json`, `slides.json`, `messages.json`, `pinned.json`, `custom-days.json`, `schedule.json`, `schedule-templates.json`, `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
+Files: `auth.json`, `settings.json`, `slides.json`, `announcements.json` (`{version, items}` — every slide/banner/side note/takeover post; see `src/server/announcements-model.js`), `messages.json` + `pinned.json` (legacy, emptied by the startup migration; originals in `data/legacy/*.pre-announcements.json`), `custom-days.json`, `schedule.json`, `schedule-templates.json`, `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
 
 ## Fetchers (`src/fetchers/`)
 
 All server-side, all write into `cache.json`. `chabad.js` (zmanim RSS + Hayom Yom/Chitas/Rambam HTML scrape via `cheerio`), `hebcal.js` (Hebrew date, Omer, parsha), `sefaria.js` (Daily Rambam/Tanya calendar), `rss.js` (generic feed + field mapping), `google-photos.js` (shared-album scrape, no OAuth), `mivtzah.js` (pulls from the co-located SaaS platform), `torahcalc.js`, `browserFetch.js` (puppeteer-core-backed fetch used where a plain HTTP request gets blocked — see GOTCHAS.md re: Cloudflare).
+
+## Announcements (`src/server/announcements-*.js`, `src/shared/announcements.js`)
+
+- One file, `data/announcements.json`, for Slide / Banner / Side note / Takeover posts. Shape and whitelist: `announcements-model.js` (`look.layout` bigwords|event|list|quicktime|classic, `look.style` any of the 11 takeover styles, `content.event/list/quicktime`, `when.startsAt/expiresAt/recurrence`, `status: 'draft'`, `takeover.group` share rotation).
+- "Is it on screen now" is only ever decided by the pure `src/shared/announcements.js` (`isActive`, `status`, `nextChange`, `selectActive`, `pickTakeover`), used by kiosk, admin and server. Recurrence is wall clock in `settings.location.timezone`. Unit tests: `npm test`.
+- Startup migration (`announcements-store.js` `ensureMigrated()`, kicked off in `createApp()`, awaited by `/api/state` and the routes): idempotent, lossless, backs up originals to `data/legacy/`. It runs in code because `deploy/update.sh` restores the Pi's own `data/*.json`.
+- `/api/state` and `/api/preview-state` include `announcements` plus translated `messages`/`pinned` views for an old build (one release).
+- `cleanup.js` deletes archived items `settings.announcements.archiveDays` (default 30) after they end.
