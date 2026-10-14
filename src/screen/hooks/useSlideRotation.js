@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export function useSlideRotation(slides, messages) {
+/**
+ * @param {object[]} slides — rotation (regular slides + announcement slides)
+ * @param {{ paused?: boolean }} opts — paused: an active takeover or a
+ *   "pause everything else" announcement is showing; the timer stops and
+ *   resumes on the same slide afterwards. Banners never pause rotation.
+ */
+export function useSlideRotation(slides, { paused: externalPause = false } = {}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -21,17 +27,7 @@ export function useSlideRotation(slides, messages) {
     return true;
   });
 
-  // Check for active takeover message (pauses everything)
-  const activeTakeover = messages.find(m =>
-    m.type === 'takeover' &&
-    (!m.expiresAt || new Date(m.expiresAt) > new Date())
-  );
-
-  // Check for active board messages (replace slide content)
-  const activeBoards = messages.filter(m =>
-    m.type === 'board' &&
-    (!m.expiresAt || new Date(m.expiresAt) > new Date())
-  );
+  const activeTakeover = externalPause;
 
   const currentSlide = enabledSlides[currentIndex] || enabledSlides[0];
   // duration 0 on video slides means "play full clip, don't auto-advance"
@@ -100,8 +96,6 @@ export function useSlideRotation(slides, messages) {
     progress,
     isPaused,
     setIsPaused,
-    activeTakeover,
-    activeBoards,
     advance,
     goToSlide,
     setOverrideDuration,

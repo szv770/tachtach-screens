@@ -2,80 +2,6 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fonts, slideTransition } from '../styles/tokens.js';
 
-function BoardDisplay({ boards, tokens }) {
-  return (
-    <div style={{
-      width: '100%', height: '100%',
-      display: 'flex', flexDirection: 'column',
-      justifyContent: 'center', alignItems: 'center',
-      padding: '32px',
-    }}>
-      {boards.map(board => (
-        <div key={board.id} style={{
-          width: '100%', maxWidth: '640px',
-          padding: '28px 32px',
-          background: tokens.surface,
-          border: `1px solid ${tokens.goldBd}`,
-          borderRadius: '6px',
-          marginBottom: '16px',
-          textAlign: 'center',
-          whiteSpace: 'pre-line', // keep admin-typed line breaks
-        }}>
-          {board.target && (
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: '11px',
-              fontWeight: 600,
-              color: tokens.gold,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              marginBottom: '12px',
-              direction: 'ltr',
-              unicodeBidi: 'isolate',
-            }}>
-              {board.target}
-            </div>
-          )}
-          <div style={{
-            fontFamily: fonts.hebrewPrimary,
-            fontSize: '26px',
-            fontWeight: 500,
-            color: tokens.text,
-            lineHeight: 1.5,
-          }}>
-            {board.textHe || board.textEn || board.text}
-          </div>
-          {board.textEn && board.textHe && (
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: '15px',
-              color: tokens.dim,
-              marginTop: '10px',
-              direction: 'ltr',
-              unicodeBidi: 'isolate',
-            }}>
-              {board.textEn}
-            </div>
-          )}
-          {board.subtitle && (
-            <div style={{
-              fontFamily: fonts.englishBody,
-              fontSize: '13px',
-              color: tokens.dim,
-              marginTop: '10px',
-              direction: 'ltr',
-              unicodeBidi: 'isolate',
-              fontStyle: 'italic',
-            }}>
-              {board.subtitle}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function getLogoBlendFilter(blend, tokens) {
   if (!blend || blend === 'original') return {};
   if (blend === 'subtle') return { filter: 'none', opacity: 0.2 };
@@ -163,6 +89,8 @@ import RSSSlide from './slides/RSSSlide.jsx';
 import MivtzahLeaderboardSlide from './slides/MivtzahLeaderboardSlide.jsx';
 import MivtzahLiveEmbedSlide from './slides/MivtzahLiveEmbedSlide.jsx';
 import CountdownOverlay from './CountdownOverlay.jsx';
+import BoardDisplay from './slides/BoardSlide.jsx';
+import AnnouncementSlide from './slides/AnnouncementSlide.jsx';
 
 const SLIDE_LABELS = {
   ZMANIM: 'זמנים',
@@ -174,6 +102,7 @@ const SLIDE_LABELS = {
   IMAGE_SLIDE: 'תמונה',
   VIDEO_SLIDE: 'סרטון',
   TEXT_SLIDE: 'הודעה',
+  ANNOUNCEMENT: 'הודעה',
   PINNED_SLIDE: 'הצמדה',
   GOOGLE_PHOTOS_SLIDE: 'תמונות',
   SCHEDULE: 'סדר הישיבה',
@@ -183,22 +112,19 @@ const SLIDE_LABELS = {
   MIVTZAH_LIVE_EMBED: 'Mivtzah Live',
 };
 
-export default function SlideCarousel({ currentSlide, currentIndex, enabledSlides, progress, cache, tokens, settings, activeBoards, onVideoEnded, onRequestDuration, googleAlbums, schedule, countdown, onCountdownComplete, credit, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact' }) {
-  // Blocking ("Hold screen on this board") boards replace the slide area
-  // while active. Checked before the empty-rotation bail-out so a hold board
-  // still shows when no slides are enabled. Rotation keeps ticking
-  // underneath (it is not paused) — only Takeovers pause rotation.
-  const blockingBoards = activeBoards?.filter(b => b.blocking) || [];
-  if (blockingBoards.length > 0) {
-    return <BoardDisplay boards={blockingBoards} tokens={tokens} />;
-  }
+export default function SlideCarousel({ currentSlide, currentIndex, enabledSlides, progress, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums, schedule, countdown, onCountdownComplete, credit, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact' }) {
+  // An announcement posted with "pause everything else" (hold) replaces the
+  // slide area while it is active; App also pauses the rotation timer, so
+  // the rotation resumes on the same slide afterwards. Checked before the
+  // countdown and the empty-rotation bail-out, like the old blocking board.
+  if (hold) currentSlide = hold;
 
   // Slide-mode schedule countdown: shown in the slide area (like a board)
   // for as long as it runs, then the normal rotation reappears. It used to
   // render only when the current slide had type COUNTDOWN, which nothing
   // ever puts into rotation, so it never showed (audit bug 4). Sidebar,
   // banner and pinned notes stay visible; rotation is not paused.
-  if (countdown) {
+  if (countdown && !hold) {
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden', padding: portrait ? '44px 14px 12px' : '48px 40px 32px', boxSizing: 'border-box' }}>
         <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} />
@@ -208,7 +134,10 @@ export default function SlideCarousel({ currentSlide, currentIndex, enabledSlide
 
   if (!currentSlide) return null;
 
-  const label = currentSlide.label || currentSlide.title || SLIDE_LABELS[currentSlide.type] || '';
+  // Announcement slides carry their exact legacy chip text ('' for old custom slides).
+  const label = currentSlide.type === 'ANNOUNCEMENT'
+    ? (currentSlide.label ?? '')
+    : (currentSlide.label || currentSlide.title || SLIDE_LABELS[currentSlide.type] || '');
 
   function renderSlide(slide) {
     switch (slide.type) {
@@ -230,6 +159,7 @@ export default function SlideCarousel({ currentSlide, currentIndex, enabledSlide
       case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} />;
       case 'BOARD_SLIDE': return <BoardDisplay boards={[slide._board]} tokens={tokens} />;
+      case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} tokens={tokens} />;
       default: return null;
     }
   }
