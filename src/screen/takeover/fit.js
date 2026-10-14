@@ -154,6 +154,8 @@ export function splitLively(root) {
     if (el.dataset.orig != null || el.querySelector('br')) return;
     el.dataset.orig = el.innerHTML;
     el.innerHTML = el.textContent.split(' ').map((w, i) => `<span class="w" style="--wi:${i}">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join(' ');
+    // inline-block words cannot break at a hyphen / dash: if the split text no longer fits its fitted box, keep the plain text
+    if (el.scrollHeight > el.clientHeight + 2 || el.scrollWidth > el.clientWidth + 1) { el.innerHTML = el.dataset.orig; el.removeAttribute('data-orig'); }
   });
   root.querySelectorAll('.enter.x-lively .big, .enter.x-lively .tile .t, .enter.x-lively .tcol .t').forEach((el) => {
     if (el.dataset.orig != null) return;

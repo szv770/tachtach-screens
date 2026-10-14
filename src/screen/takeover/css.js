@@ -51,7 +51,7 @@ export const TAKEOVER_CSS = `
 .tkr .kick .he { font-size: 1.06em; font-weight: 600; }
 .tkr .center .kick { justify-content: center; }
 .tkr .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--s-line); display: inline-block; align-self: center; flex: none; }
-.tkr .w, .tkr .dg { display: inline-block; }
+.tkr .w, .tkr .dg { display: inline-block; vertical-align: top; line-height: inherit; }
 .tkr .bw { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .tkr .start .bw { align-items: flex-start; text-align: left; }
 .tkr .bw .w-he { height: 44%; width: 100%; color: var(--s-accText); text-align: center; line-height: 1.12; }
