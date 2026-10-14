@@ -4,8 +4,8 @@ import AdminLayout from './components/AdminLayout.jsx';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
-import MessageComposer from './components/MessageComposer.jsx';
-import PinnedManager from './components/PinnedManager.jsx';
+import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.jsx';
+import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import StylePanel from './components/StylePanel.jsx';
@@ -18,12 +18,14 @@ import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
 export default function App() {
   const [activeSection, setActiveSection] = useState('slides');
+  // Announcement composer (overlay): null | an item to edit | a preset for a new one.
+  const [composer, setComposer] = useState(null);
   const {
     state, loading, error, retry,
     toasts, dismissToast,
     updateSettings, updateSlides, createSlide, deleteSlide,
-    createMessage, deleteMessage,
-    createPinned, updatePinned, deletePinned,
+    createAnnouncement, updateAnnouncement, reactivateAnnouncement,
+    duplicateAnnouncement, deleteAnnouncement, fetchShabbosEnd,
     createCustomDay, deleteCustomDay,
     fetchSchedule, updateScheduleEntries, createScheduleEntry,
     updateScheduleEntry, deleteScheduleEntry, updateScheduleCategories,
@@ -90,6 +92,10 @@ export default function App() {
             settings={state?.settings || {}}
             onSaveSettings={updateSettings}
             onNavigate={setActiveSection}
+            announcements={state?.announcements || []}
+            onNewMessage={() => setComposer({ display: 'slide' })}
+            onEditAnnouncement={(item) => setComposer(item)}
+            onToggleAnnouncement={(item, enabled) => updateAnnouncement(item.id, { enabled }, enabled ? 'Resumed' : 'Paused')}
           />
         );
       case 'schedule':
@@ -110,25 +116,19 @@ export default function App() {
             onDeleteTemplate={deleteScheduleTemplate}
           />
         );
-      case 'messages':
+      case 'announcements':
         return (
-          <>
-            <MessageComposer
-              messages={state?.messages || []}
-              onCreate={createMessage}
-              onDelete={deleteMessage}
-              bannerSettings={state?.settings?.banner || {}}
-              onSaveBannerSettings={(s) => updateSettings({ ...(state?.settings || {}), banner: s })}
-            />
-            <hr style={{ border: 'none', borderTop: `1px solid ${colors.goldBd}`, margin: '28px 0' }} />
-            <PinnedManager
-              embedded
-              pinned={state?.pinned || []}
-              onCreate={createPinned}
-              onUpdate={updatePinned}
-              onDelete={deletePinned}
-            />
-          </>
+          <AnnouncementsPanel
+            announcements={state?.announcements || []}
+            settings={state?.settings || {}}
+            onSaveSettings={updateSettings}
+            onOpenComposer={setComposer}
+            onUpdate={updateAnnouncement}
+            onReactivate={reactivateAnnouncement}
+            onDuplicate={duplicateAnnouncement}
+            onDelete={deleteAnnouncement}
+            fetchShabbosEnd={fetchShabbosEnd}
+          />
         );
       case 'custom-days':
         return (
@@ -223,6 +223,18 @@ export default function App() {
       >
         {renderSection()}
       </AdminLayout>
+      {composer && (
+        <AnnouncementComposer
+          key={composer.id || 'new'}
+          initial={composer}
+          announcements={state?.announcements || []}
+          settings={state?.settings || {}}
+          onClose={() => setComposer(null)}
+          onCreate={createAnnouncement}
+          onUpdate={updateAnnouncement}
+          fetchShabbosEnd={fetchShabbosEnd}
+        />
+      )}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   );

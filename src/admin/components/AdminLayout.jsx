@@ -5,7 +5,7 @@ import useIsMobile from '../hooks/useIsMobile.js';
 const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts' },
-  { key: 'messages', en: 'Messages', desc: 'Banners, boards & takeovers' },
+  { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers' },
   { key: 'custom-days', en: 'Custom Days', desc: 'Mark special dates' },
   { key: 'images', en: 'Media', desc: 'Upload images & videos' },
   { key: 'rss-feeds', en: 'RSS Feeds', desc: 'Live news & content feeds' },
