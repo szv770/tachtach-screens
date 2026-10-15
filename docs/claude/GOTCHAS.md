@@ -2,6 +2,9 @@
 
 Read `CLAUDE.md` first. Every entry here is a bug that actually shipped and got fixed — check this before you re-introduce one of these, and check it first when something that used to work stops working.
 
+## Bidi: root `direction: ltr` + Hebrew punctuation on the wrong side
+The kiosk root (`Layout`, `ScreenScaler`, `Clock`) is `direction: ltr`. A Hebrew string rendered in an element WITHOUT its own `dir` takes the LTR paragraph direction, so trailing/leading neutral punctuation (`!` `?` `.` quotes, parentheses, `-`, `7:30`) hops to the wrong side ("מזל טוב!" showed `!` at the right). Rule: **every element that renders user/data text gets a dir from its content** -- use `<Bidi text=...>` / `bidiNodes()` (`src/screen/design/ui.jsx`, built on `src/shared/bidi.js`: `textDir`, `bidiRuns`); `Fit` does it automatically for string children. Mixed Hebrew+English strings are split into isolated `<bdi dir>` runs. Don't rely on `.tt-he` for fields that may hold English. Regression check: `node scripts/bidi-audit.mjs --base http://127.0.0.1:3000 [--seed --secs 90]` measures where the punctuation glyph sits on `/screen`. (Takeover stage text lives in `src/screen/takeover/` and is handled there.)
+
 ## Localhost-gating breaking remote/kiosk access (happened 3 times)
 
 - `0ed54af` — `GET /api/state` was `localhostOnly`, which broke remote admin entirely (the admin SPA runs on a phone/laptop over LAN or the Cloudflare Tunnel, not on the Pi itself). Fixed by introducing `localhostOrAuth` (kiosk OR valid session cookie).
