@@ -63,7 +63,7 @@ function pickTmpDir() {
 // Prefer the real ELF binaries over /usr/bin/chromium{,-browser}: on Debian /
 // Raspberry Pi OS those are shell wrappers that source /etc/chromium.d/* and
 // inject kiosk/GPU flags meant for the desktop browser, not a headless fetcher.
-const BROWSER_CANDIDATES = [
+const browserCandidates = () => [
   process.env.CHROMIUM_PATH,
   '/usr/lib/chromium/chromium',
   '/usr/lib/chromium-browser/chromium-browser',
@@ -76,7 +76,7 @@ const BROWSER_CANDIDATES = [
 ].filter(Boolean);
 
 export function findBrowserExecutable() {
-  for (const p of BROWSER_CANDIDATES) {
+  for (const p of browserCandidates()) {
     try {
       if (fs.statSync(p).isFile()) return p;
     } catch { /* not present */ }
