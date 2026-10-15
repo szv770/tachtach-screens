@@ -4,6 +4,9 @@ Not urgent individually; pick these up when touching the area (next redesign/upg
 
 ## Added 2026-10-14 (owner, after seeing the new screen + admin)
 
+### Google Photos
+- [x] **"Only doing 200 photos max" (code done 2026-10-15, NOT yet verified against real Google).** Root cause was the one-shot HTML fetch (Google lazy-loads the rest) plus a hard 200 cap. Now browser-scroll fallback + per-album `maxPhotos`. Owner: run `npm run test:google-album -- <album-url>` on the Pi and confirm the browser count exceeds the plain count; if real Google's grid doesn't yield the full album, tell us the output.
+
 ### Admin
 - [x] **Slide on/off toggles (done 2026-10-14) look stretched** ("nasty"). Fix the shared `ToggleSwitch` (admin `ui.jsx`) so the track/knob keep a fixed aspect ratio (e.g. 44×26 track, 20 knob) at every width and inside flex rows (`flex: none`, no `width: 100%` inheritance). Check mobile.
 - [x] **Claude hand-off prompt (done 2026-10-14: prompt menu, category default alerts, optional English name; announcements/quotes prompt types still to add via `PROMPT_TYPES`) (Schedule → Paste/Import) needs rework.**
