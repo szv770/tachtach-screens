@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { F, he } from '../design/ui.jsx';
+import { F, he, bidiNodes } from '../design/ui.jsx';
 import { isHebrew } from '../design/time.js';
+import { textDir } from '../../shared/bidi.js';
 
 /**
  * Rail side notes (announcements shown as "Side note"), R2 §5.3: each is a
@@ -42,7 +43,7 @@ export default function PinnedNotes({ pinned, visibility, align = 'left', style 
           <div
             key={`${n.id}-${start}`}
             className={`tt-clamp3 ${notes.length > MAX_VISIBLE ? 'tt-fadein' : ''}`}
-            dir={t.he ? 'rtl' : 'ltr'}
+            dir={textDir(t.text, t.he ? 'rtl' : 'ltr')}
             style={{
               background: 'var(--raised)', borderRadius: 24, padding: '18px 24px', width: '100%', marginBottom: 14,
               textAlign: align, whiteSpace: 'pre-line',
@@ -50,7 +51,7 @@ export default function PinnedNotes({ pinned, visibility, align = 'left', style 
               fontSize: t.he ? he(28) : 25, lineHeight: t.he ? 1.25 : 1.3, fontWeight: 500,
             }}
           >
-            {t.text}
+            {bidiNodes(t.text)}
           </div>
         );
       })}

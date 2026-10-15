@@ -1,5 +1,5 @@
 import React from 'react';
-import { Panel } from '../../design/ui.jsx';
+import { Panel, Bidi, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { isHebrew } from '../../design/time.js';
 import { gematria } from '../../../shared/limudim.js';
@@ -53,13 +53,13 @@ export default function DailyQuoteSlide({ cache }) {
         fontFamily: hb ? 'var(--f-th)' : 'var(--f-te)', fontWeight: hb ? 500 : 450, fontStyle: hb ? 'normal' : 'italic', color: 'var(--ink)',
       }}>
         <div style={{ maxWidth: hb ? '86%' : '80%', margin: '0 auto' }}>
-          {hb ? text : <><span style={mark}>“</span>{text}<span style={mark}>”</span></>}
+          {hb ? bidiNodes(text) : <><span style={mark}>“</span>{text}<span style={mark}>”</span></>}
         </div>
         {quote.source && (
           <div dir="ltr" style={{ fontStyle: 'normal', letterSpacing: 0, lineHeight: 1.3 }}>
             <div style={{ width: 56, height: 3, borderRadius: 2, background: 'var(--accentText)', margin: '38px auto 22px' }} />
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', columnGap: 18, rowGap: 4 }}>
-              <span className={srcIsHe ? 'tt-he' : undefined} style={{ fontFamily: srcIsHe ? 'var(--f-th)' : 'var(--f-te)', fontSize: srcIsHe ? 'calc(31px * var(--he-scale, 1))' : 30, color: 'var(--inkDim)', fontWeight: 500, letterSpacing: '.01em' }}>{quote.source}</span>
+              <Bidi text={quote.source} style={{ fontFamily: srcIsHe ? 'var(--f-th)' : 'var(--f-te)', fontSize: srcIsHe ? 'calc(31px * var(--he-scale, 1))' : 30, color: 'var(--inkDim)', fontWeight: 500, letterSpacing: '.01em' }} />
               {srcHe && (
                 <>
                   <span aria-hidden style={{ width: 5, height: 5, borderRadius: 3, background: 'var(--line)', alignSelf: 'center' }} />

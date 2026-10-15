@@ -2,7 +2,7 @@ import React from 'react';
 import Clock from './Clock.jsx';
 import PinnedNotes from './PinnedNotes.jsx';
 import { CreditContent, creditShown, creditSpot } from './Credit.jsx';
-import { F, he } from '../design/ui.jsx';
+import { F, he, Bidi } from '../design/ui.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { WeatherIcon, ShabbosMark, Ornament, ProgressRing } from '../design/graphics.jsx';
 import { describeWeather } from '../../shared/weatherCodes.js';
@@ -94,12 +94,12 @@ export function UpNextCard({ item, align = 'left' }) {
       {align === 'right' && eta}
       <div style={{ minWidth: 0, textAlign: align }}>
         {nameHe ? (
-          <div className="tt-he" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600, lineHeight: 1.15, textAlign: align }}>{nameHe}</div>
+          <Bidi as="div" text={nameHe} fallback="rtl" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600, lineHeight: 1.15, textAlign: align }} />
         ) : (
-          <div style={{ fontFamily: F.enD, fontSize: 36, fontWeight: 700, lineHeight: 1.15 }}>{nameEn}</div>
+          <Bidi as="div" text={nameEn} style={{ fontFamily: F.enD, fontSize: 36, fontWeight: 700, lineHeight: 1.15, textAlign: align }} />
         )}
         <div style={{ fontFamily: F.en, fontSize: 23, opacity: 0.8, marginTop: 2 }}>
-          {nameHe && nameEn ? `${nameEn} at ` : 'at '}<span className="tt-num">{t.t}</span>
+          {nameHe && nameEn ? <><Bidi text={nameEn} />{' at '}</> : 'at '}<span className="tt-num">{t.t}</span>
         </div>
       </div>
       {align !== 'right' && eta}
@@ -149,8 +149,8 @@ export default function Rail({
           {specials.map((d, i) => (
             <div key={d.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: align === 'right' ? 'row-reverse' : 'row' }}>
               {graphics !== 'off' && <Ornament size={18} style={{ color: 'var(--accent)' }} />}
-              <span style={{ fontFamily: /[א-ת]/.test(d.title) ? F.he : F.en, fontSize: /[א-ת]/.test(d.title) ? he(28) : 25, fontWeight: 600 }}>{d.title}</span>
-              {d.subtitle && <span style={{ fontFamily: F.en, fontSize: 21, color: 'var(--dim)' }}>{d.subtitle}</span>}
+              <Bidi text={d.title} style={{ fontFamily: /[א-ת]/.test(d.title) ? F.he : F.en, fontSize: /[א-ת]/.test(d.title) ? he(28) : 25, fontWeight: 600 }} />
+              {d.subtitle && <Bidi text={d.subtitle} style={{ fontFamily: F.en, fontSize: 21, color: 'var(--dim)' }} />}
             </div>
           ))}
         </div>
