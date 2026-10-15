@@ -1,5 +1,5 @@
-# Restarts the Chromium kiosk once a night, before Track B's 4:00 AM data
-# refresh. Chromium's GPU compositor has been observed to degrade after many
+# Restarts the Chromium kiosk periodically (see OnCalendar below; it used to be
+# once a night, before Track B's 4:00 AM data refresh). Chromium's GPU compositor has been observed to degrade after many
 # hours of continuous native-4K rendering (grain overlay, gradients, box
 # shadows, the whole-canvas scale transform) — symptoms range from washed-out
 # unstyled rendering to a frozen display. A nightly restart is cheap, safe
@@ -7,10 +7,16 @@
 # /screen), and keeps GPU state from ever accumulating enough degradation to
 # fail during the day.
 [Unit]
-Description=Nightly TachTach-Screens Kiosk Restart Timer
+Description=Periodic TachTach-Screens Kiosk Restart Timer
 
 [Timer]
-OnCalendar=*-*-* 03:15:00
+# Every 4 hours (not just nightly): on 2026-10-15 the GPU failed 5h12m after the
+# 03:15 restart (journal: AllocateRingBuffer / kFatalFailure flood, TV showing
+# stale/garbled tiles). Memory, /tmp, thermals and dmesg were all clean, so this
+# looks like GPU buffers degrading with uptime; restarting well inside that
+# window keeps it from happening on screen. The launcher's GPU watchdog is the
+# backup if it fails sooner. Each restart is a few seconds of blank screen.
+OnCalendar=*-*-* 03,07,11,15,19,23:15:00
 # Persistent=false on purpose. The Pi boots with a stale clock (no RTC
 # battery) and NTP then jumps it forward days/weeks; with Persistent=true that
 # jump counted as "missed 3:15 runs" and fired restarts right at boot, which

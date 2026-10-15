@@ -1,5 +1,5 @@
 [Unit]
-Description=TachTach-Screens Nightly Kiosk Restart
+Description=TachTach-Screens Periodic Kiosk Restart
 # No Requisite= on the kiosk: the nightly restart should also *recover* a
 # kiosk that has failed, not refuse to run because it isn't active.
 
