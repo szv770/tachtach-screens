@@ -26,6 +26,11 @@ function resolveMaxPhotos(albumConfig) {
   return DEFAULT_MAX_PHOTOS;
 }
 
+// The Pi also runs the kiosk's Chromium (4K, GPU): keep image resizing from
+// competing for RAM. One libvips thread, no decoded-image cache.
+sharp.cache(false);
+sharp.concurrency(1);
+
 // Track running sync jobs to prevent overlap
 const activeSyncs = new Map();
 
@@ -193,7 +198,7 @@ export async function syncAlbum(albumConfig) {
 
     // Download new photos (with concurrency limit)
     const newPhotos = [];
-    const CONCURRENT = 3;
+    const CONCURRENT = 2;
     for (let i = 0; i < newUrls.length; i += CONCURRENT) {
       const batch = newUrls.slice(i, i + CONCURRENT);
       const results = await Promise.allSettled(
