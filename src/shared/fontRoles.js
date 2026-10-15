@@ -48,12 +48,14 @@ export const BUILTIN_FONTS = [
   { name: 'Manrope', family: 'Manrope Variable', bundled: true, scripts: ['en', 'num'] },
   { name: 'Frank Ruhl Libre', family: 'Frank Ruhl Libre Variable', bundled: true, scripts: ['he', 'en', 'num'] },
   { name: 'EB Garamond', family: 'EB Garamond Variable', bundled: true, scripts: ['en', 'num'] },
+  { name: 'Suez One', family: 'Suez One', bundled: true, scripts: ['he', 'en'] },
+  { name: 'Playfair Display', family: 'Playfair Display Variable', bundled: true, scripts: ['en', 'num'] },
+  { name: 'Fraunces', family: 'Fraunces Variable', bundled: true, scripts: ['en', 'num'] },
   { name: 'Noto Serif Hebrew', family: 'Noto Serif Hebrew', google: 'Noto+Serif+Hebrew:wght@400;500;600;700', scripts: ['he'] },
   { name: 'David Libre', family: 'David Libre', google: 'David+Libre:wght@400;500;700', scripts: ['he', 'en'] },
   { name: 'Heebo', family: 'Heebo', google: 'Heebo:wght@300..800', scripts: ['he', 'en', 'num'] },
   { name: 'Assistant', family: 'Assistant', google: 'Assistant:wght@300..800', scripts: ['he', 'en', 'num'] },
   { name: 'Cormorant Garamond', family: 'Cormorant Garamond', google: 'Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400', scripts: ['en'] },
-  { name: 'Playfair Display', family: 'Playfair Display', google: 'Playfair+Display:wght@400..800', scripts: ['en', 'num'] },
   { name: 'Lora', family: 'Lora', google: 'Lora:wght@400..700', scripts: ['en', 'num'] },
 ];
 
@@ -138,4 +140,49 @@ export function legacyFontRoles(settings) {
     torahHebrew: heBody || heHead || DEFAULT_FONT_ROLES.torahHebrew,
     torahEnglish: en || DEFAULT_FONT_ROLES.torahEnglish,
   };
+}
+
+/**
+ * Font STYLE presets for takeovers + announcements (settings.announceFonts).
+ * Each maps the takeover stage's role vars; every font here is bundled from
+ * npm (src/screen/design/fonts.js), never Google Fonts, so a Wi-Fi blip can't
+ * drop the TV to system fonts. 'screen' = follow the global font roles (the
+ * owner's uploaded fonts). Numerals are always lining + tabular (css.js .num).
+ *
+ *   editorial (default)  Suez One + Playfair Display   (owner's pick "D")
+ *   modern               Rubik + Manrope               ("A", the round-2 look)
+ *   classic              Frank Ruhl Libre + Fraunces   ("B")
+ */
+export const ANNOUNCE_FONT_PRESETS = {
+  editorial: {
+    label: 'Editorial', hint: 'Suez One + Playfair Display',
+    roles: { hebrewDisplay: 'Suez One', hebrewBody: 'Frank Ruhl Libre', englishDisplay: 'Playfair Display', englishBody: 'Playfair Display', numerals: 'Playfair Display', torahHebrew: 'Frank Ruhl Libre', torahEnglish: 'Playfair Display' },
+    // Suez One has one weight (display only); smaller Hebrew lines are Frank Ruhl Libre at >= 500
+  },
+  modern: {
+    label: 'Modern', hint: 'Rubik + Manrope',
+    roles: { hebrewDisplay: 'Rubik', hebrewBody: 'Rubik', englishDisplay: 'Manrope', englishBody: 'Manrope', numerals: 'Manrope', torahHebrew: 'Frank Ruhl Libre', torahEnglish: 'EB Garamond' },
+  },
+  classic: {
+    label: 'Classic', hint: 'Frank Ruhl Libre + Fraunces',
+    roles: { hebrewDisplay: 'Frank Ruhl Libre', hebrewBody: 'Frank Ruhl Libre', englishDisplay: 'Fraunces', englishBody: 'Fraunces', numerals: 'Fraunces', torahHebrew: 'Frank Ruhl Libre', torahEnglish: 'Fraunces' },
+  },
+  screen: { label: 'Same as screen', hint: 'Follows the font roles below (your uploaded fonts)', roles: null },
+};
+export const ANNOUNCE_FONT_IDS = Object.keys(ANNOUNCE_FONT_PRESETS);
+export const DEFAULT_ANNOUNCE_FONTS = 'editorial';
+
+/** The effective preset id (unknown / unset -> editorial). */
+export function announceFontsId(settingsOrId) {
+  const v = typeof settingsOrId === 'string' ? settingsOrId : settingsOrId?.announceFonts;
+  return ANNOUNCE_FONT_IDS.includes(v) ? v : DEFAULT_ANNOUNCE_FONTS;
+}
+
+/** CSS custom properties a takeover stage sets for a preset ({} for 'screen'). */
+export function announceFontVars(id) {
+  const p = ANNOUNCE_FONT_PRESETS[announceFontsId(id)];
+  if (!p.roles) return {};
+  const vars = {};
+  for (const role of FONT_ROLES) vars[role.cssVar] = fontStack(p.roles[role.key], role.key);
+  return vars;
 }
