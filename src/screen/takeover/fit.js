@@ -27,7 +27,7 @@ function fitEl(el, heScale) {
   }
   while (b - a > 1) { const mid = (a + b) >> 1; el.style.fontSize = mid + 'px'; if (ok()) a = mid; else b = mid; }
   el.style.fontSize = a + 'px'; el.dataset.fit = a;
-  if (el.classList.contains('wrap')) settleLines(el, a, floor, ok);
+  if (el.classList.contains('wrap') && !el.querySelector('.dot')) settleLines(el, a, floor, ok);
 }
 
 /**
@@ -36,9 +36,10 @@ function fitEl(el, heScale) {
  */
 export function lineWidths(el) {
   const r = document.createRange(); r.selectNodeContents(el);
+  const fs = parseFloat(el.style.fontSize || getComputedStyle(el).fontSize) * (el.getBoundingClientRect().width / (el.offsetWidth || 1));
   const rows = [];
   for (const q of r.getClientRects()) {
-    if (q.width < 1) continue;
+    if (q.width < fs * 0.6) continue;   // stray space / dot boxes
     const row = rows.find((x) => Math.abs(x.mid - (q.top + q.height / 2)) < q.height * 0.4);
     if (row) { row.l = Math.min(row.l, q.left); row.r = Math.max(row.r, q.right); } else rows.push({ mid: q.top + q.height / 2, l: q.left, r: q.right });
   }

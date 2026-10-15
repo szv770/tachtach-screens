@@ -38,3 +38,11 @@ test('bidiRuns: Hebrew runs in an LTR string are isolated with their closing pun
   assert.deepEqual(bidiRuns('מזל טוב!'), [{ text: 'מזל טוב!', dir: null }]);   // RTL base: nothing to isolate
   assert.equal(bidiRuns('Yud-Tes Kislev (י״ט כסלו)?')[1].text, 'י״ט כסלו');
 });
+
+test('takeover model: Hebrew typed into the English field moves to the Hebrew (RTL) slot', async () => {
+  const { modelBigWords, modelEvent } = await import('../src/shared/takeoverModel.js');
+  const m = modelBigWords({ content: { bodyEn: 'מזל טוב!' } });
+  assert.deepEqual([m.he, m.en], ['מזל טוב!', '']);
+  assert.equal(modelBigWords({ content: { bodyEn: 'Mazel Tov — מזל טוב!' } }).en, 'Mazel Tov — מזל טוב!');
+  assert.equal(modelEvent({ content: { event: { title: 'מבצע תפילין — יום ה׳, 2:00 PM' } } }).he, 'מבצע תפילין — יום ה׳, 2:00 PM');
+});

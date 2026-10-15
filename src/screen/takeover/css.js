@@ -370,6 +370,9 @@ export const TAKEOVER_CSS = `
 .tkr .box [dir="rtl"] { direction: rtl; }
 .tkr .box [dir="ltr"] { direction: ltr; }
 .tkr .li .x .xl { display: block; }
+/* big words with a kicker above: give the kicker's row back from the two title budgets (stack stays inside the box) */
+.tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-he { height: 40%; }
+.tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-en { height: 23%; }
 /* ALIGNMENT RULE (README "Bilingual alignment"): start-aligned layouts put Hebrew AND English on the same start
    (left) edge, whatever their direction; centred layouts centre both on one axis. Header rows (list / sicha) are the
    one two-column exception: English flush start, Hebrew flush end; stacked in portrait both go to the start edge. */

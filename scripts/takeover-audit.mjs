@@ -10,14 +10,17 @@
  *   --base URL        server to test (default http://127.0.0.1:3000)
  *   --out DIR         screenshots, sheets and report.json (default ./takeover-audit-out)
  *   --canvas LIST     land,16x10,port  (default land = 1600x900)
- *   --len LIST        real (the designer's sample for the style), s, m, l = one word / typical / at
+ *   --len LIST        real (the designer's sample for the style), bidi (Hebrew lines ending in ! ?,
+ *                     mixed Hebrew + English + digits), s, m, l = one word / typical / at
  *                     the composer limits (default real)
  *   --styles LIST     only these styles       --layouts LIST   only these layouts
  *   --theme ID        theme (default midnight; light themes: ivory, sky, ...)
  *   --hescale N       hebrewFontScale to render with (default 1)
+ *   --fonts ID        settings.announceFonts preset: editorial (default) | modern | classic | screen
  *   --no-sheets       skip the contact sheets    --shots   save every render as a PNG
  *
- * Per render it fails on: page errors, text under its slot's min or under 20 px, a
+ * Per render it fails on: page errors, a trailing ! ? . on the wrong (right) side of a
+ * Hebrew line, an orphan last line in a wrapped headline (< 40% of the longest), text under its slot's min or under 20 px, a
  * clipped / over-full slot, a stack taller than its box, text outside the content box,
  * text touching a side graphic or the clock / ב״ה, and any animation that is not
  * transform/opacity (plus the hygiene rules in docs/claude/GOTCHAS.md "Takeover
@@ -38,6 +41,15 @@ import { fileURLToPath } from 'url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { STYLES: STYLE_LIST, LAYOUTS: LAYOUT_LIST, toItem, sampleFor } = await import(path.join(ROOT, 'src/shared/takeoverSamples.js'));
 
+/* --len bidi: Hebrew lines ending in ! / ? and mixed Hebrew + English + digits, in every slot */
+const BIDI = {
+  bigwords: { kick: ['Mazel Tov', 'מזל טוב!'], he: 'מזל טוב!', en: 'Mazel Tov to the Cohen family on the birth of a baby boy!', sub: ['Kiddush after davening!', 'קידוש אחרי התפילה!'] },
+  event: { kick: ['Important', 'חשוב!'], he: 'מבצע תפילין — יום ה׳, 2:00 PM', en: 'Mivtza Tefillin — are you coming?', when: ['Thursday', 'יום ה׳?'], time: ['2:00', 'PM'], place: { en: 'Lincoln Road', en2: 'Buses from Lot B', he: 'בלינקולן רוד!' } },
+  list: { hd: ['This week!', 'השבוע!'], items: [['Tonight', 'Farbrengen — התוועדות!', 'התוועדות בזאל!', '9:30 PM', 1], ['Thursday', 'Mivtza Tefillin?', 'מבצע תפילין — יום ה׳, 2:00 PM', '2:00 PM']] },
+  quick: { name: ['Mincha!', 'מנחה!'], times: [['1:45', 'PM']], where: ['In the zal', 'בזאל!'] },
+  quote: { he: 'מה נשמע? הכל בסדר!', en: 'How are you? All is well!', attr: ['Tanya, ch. 12', 'תניא, פרק י״ב.'] },
+};
+
 function loadPlaywright() {
   const tries = [process.env.PLAYWRIGHT_PATH, 'playwright'];
   try { tries.push(path.join(execSync('npm root -g', { encoding: 'utf8' }).trim(), 'playwright')); } catch { /* no npm */ }
@@ -48,7 +60,7 @@ function loadPlaywright() {
 }
 
 function parseArgs(argv) {
-  const o = { base: 'http://127.0.0.1:3000', out: 'takeover-audit-out', canvas: 'land', len: 'real', theme: 'midnight', hescale: 1, sheets: true, shots: false };
+  const o = { base: 'http://127.0.0.1:3000', out: 'takeover-audit-out', canvas: 'land', len: 'real', theme: 'midnight', hescale: 1, fonts: 'editorial', sheets: true, shots: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--no-sheets') o.sheets = false;
@@ -107,6 +119,34 @@ function inPage(expect) {
     for (const c of chrome) if (hit(r, c, 2)) out.fails.push(`${label} touches the clock / ב״ה`);
   }
   out.info.minFontPx = +minPx.toFixed(1);
+
+  // 3b. Hebrew punctuation side: in a Hebrew (first strong letter Hebrew) text run, a trailing ! ? . must sit
+  //     LEFT of the letter before it (it lands on the right when the run inherits the LTR stage direction)
+  { const tw = document.createTreeWalker(root.querySelector('.box'), NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      const t = n.textContent.replace(/\s+$/, '');
+      const first = /[\u0590-\u05FFA-Za-z]/.exec(t);
+      if (!first || !/[\u0590-\u05FF]/.test(first[0]) || !/[!?.]$/.test(t)) continue;
+      let j = t.length - 2; while (j >= 0 && /[\s!?.]/.test(t[j])) j--;
+      if (j < 0) continue;
+      const rr = (x, y) => { const r = document.createRange(); r.setStart(n, x); r.setEnd(n, y); return r.getBoundingClientRect(); };
+      const pr = rr(t.length - 1, t.length), qr = rr(j, j + 1);
+      if (pr.width && Math.abs(pr.top - qr.top) < pr.height * 0.5 && pr.left > qr.left) out.fails.push(`"${t.slice(-14)}": trailing "${t[t.length - 1]}" on the wrong (right) side of a Hebrew line`);
+    } }
+  // 3c. orphan last line: a wrapped headline whose last line is under 40% of its longest line
+  root.querySelectorAll('.fit.wrap').forEach((el) => {
+    if (el.dataset.over || el.querySelector(".dot")) return;   // En · He pairs may legitimately wrap the Hebrew half
+    const fs = parseFloat(getComputedStyle(el).fontSize) * (el.getBoundingClientRect().width / (el.offsetWidth || 1));
+    const r = document.createRange(); r.selectNodeContents(el);
+    const rows = [];
+    for (const q of r.getClientRects()) {
+      if (q.width < fs * 0.6) continue;   // stray space / dot boxes
+      const row = rows.find((x) => Math.abs(x.mid - (q.top + q.height / 2)) < q.height * 0.4);
+      if (row) { row.l = Math.min(row.l, q.left); row.r = Math.max(row.r, q.right); } else rows.push({ mid: q.top + q.height / 2, l: q.left, r: q.right });
+    }
+    const ws = rows.sort((x, y) => x.mid - y.mid).map((x) => x.r - x.l);
+    if (ws.length > 1 && ws[ws.length - 1] < 0.4 * Math.max(...ws)) out.fails.push(`"${el.textContent.trim().slice(-18)}": orphan last line (${Math.round(100 * ws[ws.length - 1] / Math.max(...ws))}% of the longest)`);
+  });
 
   // 4. animation hygiene
   const anims = document.getAnimations();
@@ -171,7 +211,7 @@ async function main() {
     const ctx = await browser.newContext({ viewport: { width: W, height: H } });
     for (const style of o.styleSel) for (const layout of o.layoutSel) for (const len of o.lens) {
       for (const anim of ['full']) {
-        const m = sampleFor(style, layout, len === 'real' ? null : len);
+        const m = len === 'bidi' ? (BIDI[layout] || sampleFor(style, layout)) : sampleFor(style, layout, len === 'real' ? null : len);
         const item = toItem(style, layout, m, { look: { animation: anim } });
         const page = await ctx.newPage();
         const errs = [];
@@ -180,7 +220,7 @@ async function main() {
         await page.route('**/api/state', async (route) => {
           const r = await route.fetch(); const j = await r.json();
           j.announcements = [item];
-          j.settings = { ...j.settings, theme: o.theme, themeAuto: { ...(j.settings?.themeAuto || {}), enabled: false }, hebrewFontScale: +o.hescale, fontRoles: {}, orientation: canvas === 'port' ? 'portrait' : 'landscape' };
+          j.settings = { ...j.settings, theme: o.theme, themeAuto: { ...(j.settings?.themeAuto || {}), enabled: false }, hebrewFontScale: +o.hescale, fontRoles: {}, announceFonts: o.fonts, orientation: canvas === 'port' ? 'portrait' : 'landscape' };
           await route.fulfill({ response: r, json: j });
         });
         const tag = `${canvas}/${style}/${layout}/${len}`;
