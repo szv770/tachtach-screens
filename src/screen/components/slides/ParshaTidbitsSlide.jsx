@@ -1,5 +1,5 @@
 import React from 'react';
-import { Panel, PageTitle, Empty, F } from '../../design/ui.jsx';
+import { Panel, PageTitle, Empty, F, Bidi, bidiNodes } from '../../design/ui.jsx';
 import { isHebrew } from '../../design/time.js';
 import { parshaEnglish } from '../Rail.jsx';
 
@@ -16,8 +16,8 @@ export default function ParshaTidbitsSlide({ cache }) {
             const hb = isHebrew(t.title);
             return (
               <div key={i} data-s="" style={{ '--i': i + 1, borderTop: '2px solid var(--line)', padding: '18px 0 10px', minHeight: 0, overflow: 'hidden' }}>
-                <div dir={hb ? 'rtl' : 'ltr'} style={{ fontFamily: hb ? 'var(--f-he-d)' : F.enD, fontSize: hb ? 'calc(40px * var(--he-scale))' : 40, fontWeight: 600, lineHeight: 1.15, textAlign: 'start' }}>{t.title}</div>
-                <div className="tt-clamp3" style={{ fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', lineHeight: 1.4, marginTop: 8, fontWeight: 500 }}>{t.description}</div>
+                <Bidi as="div" text={t.title} style={{ fontFamily: hb ? 'var(--f-he-d)' : F.enD, fontSize: hb ? 'calc(40px * var(--he-scale))' : 40, fontWeight: 600, lineHeight: 1.15, textAlign: 'start' }} />
+                <Bidi as="div" className="tt-clamp3" text={t.description} style={{ fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', lineHeight: 1.4, marginTop: 8, fontWeight: 500, textAlign: 'start' }} />
               </div>
             );
           })}

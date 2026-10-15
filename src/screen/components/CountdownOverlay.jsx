@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Panel, F, he } from '../design/ui.jsx';
+import { Panel, F, he, Bidi } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { ProgressRing } from '../design/graphics.jsx';
 import { isHebrew } from '../design/time.js';
@@ -55,7 +55,7 @@ function Body({ countdown, remaining }) {
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, minHeight: 0, textAlign: 'center' }}>
       <div style={{ width: '90%', flex: 'none' }}>
         <Fit max={110} dir={hb ? 'rtl' : 'ltr'} style={{ height: 130, textAlign: 'center', fontFamily: hb ? F.heD : F.enD, fontWeight: 700 }}>{name}</Fit>
-        {sub && <div style={{ fontFamily: F.en, fontSize: 34, color: 'var(--inkDim)', fontWeight: 500, marginTop: 4 }}>{sub}</div>}
+        {sub && <Bidi as="div" text={sub} style={{ fontFamily: F.en, fontSize: 34, color: 'var(--inkDim)', fontWeight: 500, marginTop: 4 }} />}
       </div>
       <div style={{ position: 'relative', width: ring, height: ring, flex: 'none', color: urgent ? 'var(--accentText)' : 'var(--ink)' }}>
         <ProgressRing size={ring} stroke={14} fraction={finished ? 1 : remaining / total} color="currentColor" track="var(--line)" />

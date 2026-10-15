@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Panel, Empty, F } from '../../design/ui.jsx';
+import { Panel, Empty, F, Bidi } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { isHebrew } from '../../design/time.js';
 
@@ -50,7 +50,7 @@ export default function RSSSlide({ slide, rssCache, rssFeeds }) {
         {(attribution || secondary) && (
           <>
             <div data-s="" style={{ '--i': 3, width: 72, height: 3, borderRadius: 2, background: 'var(--accentText)', flex: 'none' }} />
-            <div data-s="" style={{ '--i': 4, fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, flex: 'none' }}>{attribution || secondary}</div>
+            <Bidi as="div" text={attribution || secondary} data-s="" style={{ '--i': 4, fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, flex: 'none' }} />
           </>
         )}
       </div>

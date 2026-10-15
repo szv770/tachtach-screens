@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Panel, PageTitle, TimeText, F, he } from '../../design/ui.jsx';
+import { Panel, PageTitle, TimeText, F, he, Bidi, bidiNodes } from '../../design/ui.jsx';
 import { Fit, useGroupFit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { useNow } from '../../design/hooks.js';
@@ -132,7 +132,7 @@ function SpotCard({ s, role, now, nextItem, sh, stt, light, i, second }) {
       </Fit>
       {s.he && s.en && (
         <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap', marginTop: 2, overflow: 'hidden' }}>
-          <Lead s={s} size={12} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.en}</span>
+          <Lead s={s} size={12} /><Bidi text={s.en} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} />
         </div>
       )}
       {big}
@@ -222,10 +222,10 @@ function LaterStrip({ entries, light }) {
               // ("ארוחת בוקר" showed as "ארוחת בוקו"). The group fit sizes/wraps the
               // names to the column; a hair of side padding also covers glyph overshoot.
               overflow: 'visible', paddingInline: '.06em', marginInline: '-.06em',
-            }}>{name}</div>
+            }}>{bidiNodes(name)}</div>
             {s.he && s.en && (
               <div style={{ fontFamily: F.en, fontSize: le, color: c || 'var(--inkDim)', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'flex-start', gap: 9, lineHeight: 1.2 }}>
-                <span style={{ marginTop: '.42em', display: 'flex' }}><Lead s={s} size={10} past={past} /></span><span>{s.en}</span>
+                <span style={{ marginTop: '.42em', display: 'flex' }}><Lead s={s} size={10} past={past} /></span><Bidi text={s.en} />
               </div>
             )}
             {te && dense && (
@@ -252,9 +252,9 @@ function DayList({ entries, light }) {
                 <TimeText mins={s.v} size={36} width="2.72em" weight={650} ampmSize={17} ampmColor={past ? 'var(--past)' : 'var(--inkDim)'} />
                 <span style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: F.en, fontSize: 22, color: past ? 'var(--past)' : 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', fontWeight: 500 }}>
                   <Lead s={s} size={10} past={past} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.en}{s.end != null ? ` · to ${fmt12(s.end).t}` : ''}</span>
+                  <Bidi text={s.en} style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} />{s.end != null ? <span style={{ whiteSpace: 'pre' }}>{` · to ${fmt12(s.end).t}`}</span> : null}
                 </span>
-                {s.he && <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(32), fontWeight: 600, whiteSpace: 'nowrap' }}>{s.he}</span>}
+                {s.he && <Bidi text={s.he} fallback="rtl" style={{ fontFamily: F.heD, fontSize: he(32), fontWeight: 600, whiteSpace: 'nowrap' }} />}
               </div>
             );
           })}
@@ -289,8 +289,8 @@ export default function ScheduleSlide({ schedule, settings }) {
       {label && (
         <div data-s="" style={{ '--i': 0, display: 'flex', alignItems: 'baseline', justifyContent: isHebrew(label) ? 'flex-end' : 'flex-start', marginTop: -4 }}>
           {isHebrew(label)
-            ? <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600 }}>{label}</span>
-            : <span style={{ fontFamily: F.enD, fontSize: 38, fontWeight: 600, letterSpacing: '-.015em' }}>{label}</span>}
+            ? <Bidi text={label} fallback="rtl" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 600 }} />
+            : <Bidi text={label} style={{ fontFamily: F.enD, fontSize: 38, fontWeight: 600, letterSpacing: '-.015em' }} />}
         </div>
       )}
       {items.length === 0 ? (
