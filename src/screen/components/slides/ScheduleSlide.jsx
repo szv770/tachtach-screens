@@ -217,7 +217,11 @@ function LaterStrip({ entries, light }) {
             </div>
             <div ref={register(s.id || i)} dir={nameHe ? 'rtl' : 'ltr'} style={{
               fontFamily: nameHe ? F.heD : F.enD, fontWeight: 600, textAlign: 'left', whiteSpace: wraps.has(s.id || i) ? 'normal' : 'nowrap',
-              marginTop: 10, lineHeight: 1.15, fontSize: size, color: c, overflow: 'hidden',
+              marginTop: 10, lineHeight: 1.15, fontSize: size, color: c,
+              // Never clip: `overflow: hidden` cut the LAST letter of right-to-left names
+              // ("ארוחת בוקר" showed as "ארוחת בוקו"). The group fit sizes/wraps the
+              // names to the column; a hair of side padding also covers glyph overshoot.
+              overflow: 'visible', paddingInline: '.06em', marginInline: '-.06em',
             }}>{name}</div>
             {s.he && s.en && (
               <div style={{ fontFamily: F.en, fontSize: le, color: c || 'var(--inkDim)', fontWeight: 500, marginTop: 4, display: 'flex', alignItems: 'flex-start', gap: 9, lineHeight: 1.2 }}>
