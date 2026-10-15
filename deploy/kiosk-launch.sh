@@ -11,7 +11,11 @@
 #    3. Clear Chromium's "didn't shut down correctly" state and stale profile
 #       locks left behind by a power cut — otherwise Chromium can show a
 #       restore bubble over the kiosk or refuse to start ("profile in use").
-#    4. exec Chromium (whichever binary name this OS ships).
+#    4. Run Chromium (whichever binary name this OS ships) under a tiny GPU
+#       watchdog: if Chromium's GPU process falls over (the journal floods with
+#       "ContextResult::kFatalFailure ... AllocateRingBuffer() failed" and the
+#       TV paints stale/garbled tiles) we kill it and exit, and systemd's
+#       Restart=always brings up a clean kiosk within seconds.
 #
 #  Each wait is capped, then we launch anyway — systemd restarts us if
 #  Chromium can't start yet, so the worst case is a retry, never a hang.
@@ -64,7 +68,7 @@ if [ -z "$CHROMIUM" ]; then
 fi
 
 log "launching $CHROMIUM → $SCREEN_URL"
-exec "$CHROMIUM" \
+"$CHROMIUM" \
   --kiosk \
   --start-fullscreen \
   --noerrdialogs \
@@ -81,4 +85,26 @@ exec "$CHROMIUM" \
   --disable-pinch \
   --disable-dev-shm-usage \
   --autoplay-policy=no-user-gesture-required \
-  "$SCREEN_URL"
+  "$SCREEN_URL" \
+  2> >(
+    # stderr -> journal (as before) + GPU-failure watchdog
+    bad=0; since=$(date +%s)
+    while IFS= read -r line; do
+      printf '%s\n' "$line" >&2
+      case "$line" in
+        *kFatalFailure*|*"GPU process"*"exited unexpectedly"*|*"GPU process isn't usable"*)
+          now=$(date +%s)
+          if [ $((now - since)) -gt 60 ]; then bad=0; since=$now; fi
+          bad=$((bad + 1))
+          if [ "$bad" -ge 10 ]; then
+            echo "[kiosk-launch] GPU failure flood ($bad errors) - restarting Chromium" >&2
+            pkill -TERM -u "$(id -u)" -x "$(basename "$CHROMIUM")"
+            bad=0; since=$now
+          fi
+          ;;
+      esac
+    done
+  )
+rc=$?
+log "Chromium exited (code $rc) - systemd will restart the kiosk"
+exit "$rc"
