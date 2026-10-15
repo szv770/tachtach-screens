@@ -370,6 +370,10 @@ export const TAKEOVER_CSS = `
 .tkr .box [dir="rtl"] { direction: rtl; }
 .tkr .box [dir="ltr"] { direction: ltr; }
 .tkr .li .x .xl { display: block; }
+/* Lining figures everywhere in the stage (Playfair Display / Fraunces default to old-style); a Latin/time run inside a
+   Hebrew display line ("יום ה׳, 2:00 PM") takes the English display face: Hebrew display fonts (Suez One) draw old-style digits. */
+.tkr .box { font-variant-numeric: lining-nums; }
+.tkr .box .disp-he [dir="ltr"] { font-family: var(--f-disp-en); }
 /* big words with a kicker above: give the kicker's row back from the two title budgets (stack stays inside the box) */
 .tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-he { height: 40%; }
 .tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-en { height: 23%; }
