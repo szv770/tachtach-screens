@@ -126,6 +126,7 @@ export async function syncAlbum(albumConfig) {
 
   activeSyncs.set(albumId, true);
 
+  let syncProgress = null;
   try {
     console.log(`[google-photos] Starting sync for album ${albumId}`);
     const albumDir = await ensureGPDir(albumId);
@@ -146,9 +147,21 @@ export async function syncAlbum(albumConfig) {
     // Fetch current photo URLs from album
     let remoteUrls;
     try {
-      remoteUrls = await fetchGooglePhotosAlbum(albumUrl);
+      let lastWrite = 0;
+      const progress = async (patch) => {
+        if (Date.now() - lastWrite < 3000) return; // keep manifest writes cheap
+        lastWrite = Date.now();
+        existingManifest.progress = patch;
+        await writeManifest(albumId, existingManifest).catch(() => {});
+      };
+      syncProgress = progress;
+      remoteUrls = await fetchGooglePhotosAlbum(albumUrl, {
+        maxPhotos,
+        onProgress: (n) => { progress({ phase: 'listing', found: n }); },
+      });
     } catch (err) {
       existingManifest.status = 'error';
+      existingManifest.progress = null;
       existingManifest.error = err.message;
       await writeManifest(albumId, existingManifest);
       throw err;
@@ -189,6 +202,8 @@ export async function syncAlbum(albumConfig) {
       for (const result of results) {
         if (result.status === 'fulfilled') {
           newPhotos.push(result.value);
+          // 'syncing' manifest carries a running count (throttled write)
+          syncProgress?.({ phase: 'downloading', done: newPhotos.length, total: newUrls.length });
         } else {
           console.warn(`[google-photos] Failed to download photo: ${result.reason.message}`);
         }
@@ -206,6 +221,7 @@ export async function syncAlbum(albumConfig) {
       photos: allPhotos,
       photoCount: allPhotos.length,
       lastSync: new Date().toISOString(),
+      progress: null,
       status: 'ready',
       error: null,
     };
@@ -264,6 +280,7 @@ export async function getAlbumStatus(albumUrl) {
     photoCount: manifest.photoCount || 0,
     lastSync: manifest.lastSync,
     error: manifest.error,
+    progress: manifest.progress || null,
     albumId,
   };
 }

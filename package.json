@@ -15,6 +15,7 @@
     "reset-admin": "node scripts/reset-admin-credentials.js",
     "test": "node --test test/*.test.js",
     "test:hayom-yom": "node scripts/test-hayom-yom.js",
+    "test:google-album": "node scripts/test-google-album.js",
     "audit:takeovers": "node scripts/takeover-audit.mjs"
   },
   "dependencies": {
