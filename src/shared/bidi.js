@@ -48,21 +48,31 @@ export function slotDir(s, lang) {
  * dashes between them, plus the punctuation that closes it) becomes its own
  * RTL run, so "Mazel Tov — מזל טוב!" keeps the "!" at the Hebrew end.
  * Returns [{ text, dir }] with dir 'rtl' for Hebrew runs and null otherwise.
- * For an RTL paragraph nothing needs isolating (Latin runs and numbers are
- * strong/weak LTR and order themselves), so it returns one run.
+ *
+ * In an RTL paragraph the opposite is needed: a Latin run that starts with a
+ * number ("2:00 PM", "9:30–10:00", "Lot B 12") would otherwise reorder to
+ * "PM 2:00" (the digits and the letters resolve to separate levels), so each
+ * Latin/number run that contains a letter or a separator is isolated as LTR.
+ * A plain number ("2:00", "5786") orders itself and is left alone.
  */
 export function bidiRuns(s, baseDir = textDir(s)) {
   const str = String(s ?? '');
-  if (baseDir === 'rtl' || !hasHebrew(str)) return [{ text: str, dir: null }];
-  const re = /[֐-׿יִ-ﭏ](?:[֐-׿יִ-ﭏ0-9\s'"״׳־\-–—,.:;]*[֐-׿יִ-ﭏ״׳'"])?[!?.,:;…]*/g;
+  if (baseDir === 'rtl') return splitRuns(str, /[A-Za-z0-9](?:[A-Za-z0-9\s:.,'’&/+\-–]*[A-Za-z0-9])?/g, 'ltr', (t) => /[A-Za-z]/.test(t) || /\d\s*[–\-/]\s*\d/.test(t));
+  if (!hasHebrew(str)) return [{ text: str, dir: null }];
+  const re =/[֐-׿יִ-ﭏ](?:[֐-׿יִ-ﭏ0-9\s'"״׳־\-–—,.:;]*[֐-׿יִ-ﭏ״׳'"])?[!?.,:;…]*/g;
+  return splitRuns(str, re, 'rtl', () => true);
+}
+
+function splitRuns(str, re, dir, keep) {
   const out = [];
   let last = 0, m;
   while ((m = re.exec(str))) {
+    if (!keep(m[0])) continue;
     if (m.index > last) out.push({ text: str.slice(last, m.index), dir: null });
-    out.push({ text: m[0], dir: 'rtl' });
+    out.push({ text: m[0], dir });
     last = m.index + m[0].length;
   }
-  if (last < str.length) out.push({ text: str.slice(last), dir: null });
+  if (last < str.length || !out.length) out.push({ text: str.slice(last), dir: null });
   return out;
 }
 

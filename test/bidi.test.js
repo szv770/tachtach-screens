@@ -35,7 +35,16 @@ test('bidiRuns: Hebrew runs in an LTR string are isolated with their closing pun
   assert.equal(r2[1].text, 'התוועדות בזאל,');
   assert.equal(r2.map((x) => x.text).join(''), 'Farbrengen · התוועדות בזאל, 9:30 PM');
   assert.deepEqual(bidiRuns('Hello'), [{ text: 'Hello', dir: null }]);
-  assert.deepEqual(bidiRuns('מזל טוב!'), [{ text: 'מזל טוב!', dir: null }]);   // RTL base: nothing to isolate
+  assert.deepEqual(bidiRuns('מזל טוב!'), [{ text: 'מזל טוב!', dir: null }]);   // RTL base, no Latin: nothing to isolate
+});
+
+test('bidiRuns: Latin / time runs in an RTL string are isolated LTR (no "PM 2:00")', () => {
+  const r = bidiRuns('מבצע תפילין — יום ה׳, 2:00 PM');
+  assert.deepEqual(r[r.length - 1], { text: '2:00 PM', dir: 'ltr' });
+  assert.equal(r.map((x) => x.text).join(''), 'מבצע תפילין — יום ה׳, 2:00 PM');
+  assert.equal(bidiRuns('שיעור 9:30–10:00 בזאל!').find((x) => x.dir).text, '9:30–10:00');
+  assert.deepEqual(bidiRuns('יום ה׳, 2:00'), [{ text: 'יום ה׳, 2:00', dir: null }]);   // a bare time orders itself
+  assert.equal(bidiRuns('האוטובוסים במגרש B').find((x) => x.dir).text, 'B');
   assert.equal(bidiRuns('Yud-Tes Kislev (י״ט כסלו)?')[1].text, 'י״ט כסלו');
 });
 

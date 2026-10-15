@@ -31,7 +31,7 @@ const D = (s, lang) => dirAttr(slotDir(s, lang));
 /** Escaped text, Hebrew runs isolated when the line reads LTR. */
 const ex = (s, lang) => {
   const dir = slotDir(s, lang);
-  return bidiRuns(String(s ?? ''), dir).map((r) => (r.dir ? `<span dir="rtl">${esc(r.text)}</span>` : esc(r.text))).join('');
+  return bidiRuns(String(s ?? ''), dir).map((r) => (r.dir ? `<span dir="${r.dir}">${esc(r.text)}</span>` : esc(r.text))).join('');
 };
 /** Same, where admin-typed newlines become line breaks. */
 const eb = (s, lang) => String(s ?? '').split(/\r?\n/).map((line) => ex(line, lang)).join('<br>');
