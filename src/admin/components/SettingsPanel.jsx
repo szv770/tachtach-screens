@@ -3,7 +3,7 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '
 import useIsMobile from '../hooks/useIsMobile.js';
 import { ThemePicker, AutoTheme, ScreenLook, WeatherSettings } from './ScreenLookControls.jsx';
 import { diffSettings, deepMerge } from '../../shared/settingsMerge.js';
-import { notify } from '../hooks/useAdminState.js';
+import { notify, apiFetch, parseErrorMessage } from '../hooks/useAdminState.js';
 import { TimezoneField, ScheduleLanguageField, CustomThemeSection } from './SettingsExtras.jsx';
 
 function InfoIcon({ tip }) {
@@ -97,11 +97,6 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
   const updateNested = (parent, key, value) =>
     setLocal(prev => ({ ...prev, [parent]: { ...(prev[parent] || {}), [key]: value } }));
 
-  function getCsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : '';
-  }
-
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -113,24 +108,13 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
     try {
       const formData = new FormData();
       formData.append('logo', file);
-      const res = await fetch('/api/logo', {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-        credentials: 'same-origin',
-        body: formData,
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        notify(body.error || 'Logo upload failed.', 'error');
-        return;
-      }
-      const data = await res.json();
+      const data = await apiFetch('/api/logo', { method: 'POST', body: formData });
       // The server already replaced the old logo file, so save the new URL
       // right away (the screen would otherwise point at a deleted file until
       // the next "Save Settings").
       await onSave({ credit: { logo: { ...((settings.credit || {}).logo || {}), url: data.url } } }, 'Logo uploaded');
-    } catch {
-      notify('Logo upload failed.', 'error');
+    } catch (err) {
+      notify(parseErrorMessage(err) || 'Logo upload failed.', 'error');
     } finally {
       setLogoUploading(false);
       e.target.value = '';
@@ -139,11 +123,7 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
 
   const handleLogoRemove = async () => {
     try {
-      await fetch('/api/logo', {
-        method: 'DELETE',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-        credentials: 'same-origin',
-      });
+      await apiFetch('/api/logo', { method: 'DELETE' });
     } catch { /* best effort */ }
     await onSave({ credit: { logo: null } }, 'Logo removed');
   };
@@ -677,11 +657,6 @@ function TrustedDevices() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
 
-  function getCsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : '';
-  }
-
   const handleForgetDevices = async () => {
     if (!window.confirm('Forget all trusted devices? Every device — including this one — will need the full password + authenticator code on its next login.')) {
       return;
@@ -689,19 +664,10 @@ function TrustedDevices() {
     setRunning(true);
     setResult(null);
     try {
-      const res = await fetch('/api/security/forget-devices', {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-        credentials: 'same-origin',
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setResult({ error: body.error || `Failed (${res.status})` });
-      } else {
-        setResult({ success: true });
-      }
-    } catch {
-      setResult({ error: 'Connection error' });
+      await apiFetch('/api/security/forget-devices', { method: 'POST' });
+      setResult({ success: true });
+    } catch (err) {
+      setResult({ error: parseErrorMessage(err) });
     } finally {
       setRunning(false);
     }
@@ -762,32 +728,14 @@ function StorageCleanup() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
 
-  function getCsrfToken() {
-    const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-    return match ? decodeURIComponent(match[1]) : '';
-  }
-
   const handleCleanup = async () => {
     setRunning(true);
     setResult(null);
     try {
-      const res = await fetch('/api/cleanup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': getCsrfToken(),
-        },
-        credentials: 'same-origin',
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setResult({ error: body.error || `Failed (${res.status})` });
-      } else {
-        const data = await res.json();
-        setResult(data);
-      }
-    } catch {
-      setResult({ error: 'Connection error' });
+      const data = await apiFetch('/api/cleanup', { method: 'POST' });
+      setResult(data || {});
+    } catch (err) {
+      setResult({ error: parseErrorMessage(err) });
     } finally {
       setRunning(false);
     }

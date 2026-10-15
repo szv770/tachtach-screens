@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { apiFetch, parseErrorMessage } from '../hooks/useAdminState.js';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import { NumberField } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
@@ -17,11 +18,6 @@ export const EDGE_TREATMENTS = [
 ];
 
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm';
-
-function getCsrfToken() {
-  const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
 
 export default function ImageUploader({ onSlideCreated }) {
   const isMobile = useIsMobile();
@@ -46,18 +42,7 @@ export default function ImageUploader({ onSlideCreated }) {
       const formData = new FormData();
       formData.append('media', file);
 
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Upload failed (${res.status})`);
-      }
-
-      const data = await res.json();
+      const data = await apiFetch('/api/upload', { method: 'POST', body: formData });
       setResult(data);
 
       // Default videos to longer duration
@@ -65,7 +50,7 @@ export default function ImageUploader({ onSlideCreated }) {
         setDuration(45);
       }
     } catch (err) {
-      setError(err.message);
+      setError(parseErrorMessage(err));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -115,10 +100,7 @@ export default function ImageUploader({ onSlideCreated }) {
   const handleDiscard = async () => {
     if (result) {
       try {
-        await fetch(`/api/media/${result.id}`, {
-          method: 'DELETE',
-          headers: { 'X-CSRF-Token': getCsrfToken() },
-        });
+        await apiFetch(`/api/media/${result.id}`, { method: 'DELETE' });
       } catch { /* ignore */ }
     }
     setResult(null);

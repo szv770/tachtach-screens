@@ -181,7 +181,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
 
       // Create a slide for this feed
       if (onSlideCreated && newFeed) {
-        await onSlideCreated({
+        const slide = await onSlideCreated({
           type: 'RSS_SLIDE',
           rssFeedId: newFeed.id,
           rssDisplayMode: displayMode,
@@ -190,6 +190,13 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
           duration: 15,
           enabled: true,
         });
+        if (!slide) {
+          // The slide failed (a toast already says why): remove the feed we
+          // just made and keep the form open, so a retry doesn't duplicate it.
+          await apiFetch(`/api/rss/feeds/${newFeed.id}`, { method: 'DELETE' }).catch(() => {});
+          setPreviewError('The feed was not added because its slide could not be created. Please try again.');
+          return;
+        }
       }
 
       // Reset form

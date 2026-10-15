@@ -1,34 +1,47 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { deepMerge } from '../../shared/settingsMerge.js';
-
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : '';
 }
 
+/** An API failure that remembers its HTTP status (0 = couldn't reach the server). */
+export class ApiError extends Error {
+  constructor(message, status = 0) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 /**
- * Parse a server error response into a human-readable message.
+ * Parse a server error into a human-readable message. Uses the HTTP status
+ * carried by ApiError (the message itself is the server's own text, so
+ * sniffing it for "401" never matched).
  */
-function parseErrorMessage(err) {
-  // Try to extract a JSON error message from the response body
-  const raw = err.message || 'Unknown error';
+export function parseErrorMessage(err) {
+  const raw = err?.message || 'Unknown error';
+  if (err?.status === 401) return 'Session expired. Please log in again.';
+  if (err?.status === 413) return 'File too large. Maximum size is 50 MB.';
+  if (err?.status === 403 && (!raw || /^403\b/.test(raw))) return 'Permission denied. Please refresh the page.';
   try {
     const parsed = JSON.parse(raw);
     if (parsed.error) return parsed.error;
   } catch {
     // not JSON — use as-is
   }
-  // Clean up common HTTP error patterns
-  if (raw.includes('401')) return 'Session expired. Please log in again.';
-  if (raw.includes('403')) return 'Permission denied. Please refresh the page.';
-  if (raw.includes('413')) return 'File too large. Maximum size is 50 MB.';
-  if (raw.includes('Failed to fetch') || raw.includes('NetworkError'))
-    return 'Cannot reach the server. Check your connection.';
   return raw;
 }
 
+// One redirect is enough; every request in flight will fail with a 401 at once.
+let sessionExpired = false;
+
+/**
+ * Fetch JSON from the admin API with the CSRF header, a single stale-cookie
+ * retry, and expired-session handling. `options.body` may be a FormData (file
+ * uploads) — the browser then sets the multipart Content-Type itself.
+ */
 export async function apiFetch(path, options = {}, _retried = false) {
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
+  const headers = { ...(isForm ? {} : { 'Content-Type': 'application/json' }), ...options.headers };
   const method = (options.method || 'GET').toUpperCase();
   if (method !== 'GET') {
     headers['X-CSRF-Token'] = getCsrfToken();
@@ -37,7 +50,7 @@ export async function apiFetch(path, options = {}, _retried = false) {
   try {
     res = await fetch(path, { ...options, headers, credentials: 'same-origin' });
   } catch (networkErr) {
-    throw new Error('Cannot reach the server. Check your connection.');
+    throw new ApiError('Cannot reach the server. Check your connection.', 0);
   }
   // The server refreshes the _csrf cookie on every response, including a 403
   // CSRF failure — so a single retry with the fresh cookie always recovers
@@ -48,6 +61,13 @@ export async function apiFetch(path, options = {}, _retried = false) {
       return apiFetch(path, options, true);
     }
   }
+  if (res.status === 401) {
+    if (!sessionExpired) {
+      sessionExpired = true;
+      window.location.assign('/login');
+    }
+    throw new ApiError('Session expired. Please log in again.', 401);
+  }
   if (!res.ok) {
     const body = await res.text();
     let errorMsg;
@@ -57,7 +77,7 @@ export async function apiFetch(path, options = {}, _retried = false) {
     } catch {
       errorMsg = body;
     }
-    throw new Error(errorMsg || `${res.status} ${res.statusText}`);
+    throw new ApiError(errorMsg || `${res.status} ${res.statusText}`, res.status);
   }
   const text = await res.text();
   return text ? JSON.parse(text) : null;
@@ -79,12 +99,18 @@ export function notify(message, type = 'success') {
   if (toastSink) toastSink(message, type);
 }
 
+function sameJson(a, b) {
+  if (a === b) return true;
+  try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }
+}
+
 export default function useAdminState() {
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
   const toastTimers = useRef({});
+  const savesInFlight = useRef(0); // saves awaiting the server — a background refetch waits for these
 
   // Add a toast notification that auto-dismisses after 6 seconds
   const addToast = useCallback((message, type = 'error', action = null) => {
@@ -121,6 +147,7 @@ export default function useAdminState() {
    * Returns true on success, false on failure.
    */
   const withErrorHandling = useCallback(async (actionName, fn, successMsg) => {
+    savesInFlight.current++;
     try {
       await fn();
       if (successMsg) addToast(successMsg, 'success');
@@ -130,6 +157,8 @@ export default function useAdminState() {
       addToast(`${actionName}: ${msg}`, 'error');
       console.error(`[Admin] ${actionName} failed:`, err);
       return false;
+    } finally {
+      savesInFlight.current--;
     }
   }, [addToast]);
 
@@ -139,10 +168,21 @@ export default function useAdminState() {
       setError(null);
       const data = await apiFetch('/api/state');
       // Map nested schedule data to flat keys for component consumption
-      setState({
+      const next = {
         ...data,
         scheduleEntries: data.schedule?.entries || [],
         scheduleCategories: data.schedule?.categories || [],
+      };
+      // Merge onto what we have (keys fetched lazily, e.g. scheduleTemplates,
+      // survive) and keep the old reference for anything unchanged, so panels
+      // that rebase on a prop change don't churn on a no-op refetch.
+      setState(prev => {
+        if (!prev) return next;
+        const merged = { ...prev };
+        for (const key of Object.keys(next)) {
+          merged[key] = sameJson(prev[key], next[key]) ? prev[key] : next[key];
+        }
+        return merged;
       });
     } catch (err) {
       if (!opts.silent) setError(parseErrorMessage(err));
@@ -152,6 +192,22 @@ export default function useAdminState() {
   }, []);
 
   useEffect(() => { fetchState(); }, [fetchState]);
+
+  // Pick up changes made on another device or tab: when this tab comes back to
+  // the foreground after a while, quietly refetch (never mid-save, so an
+  // optimistic edit can't be overwritten by an older response).
+  useEffect(() => {
+    let hiddenAt = 0;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+      if (hiddenAt && Date.now() - hiddenAt > 30000 && savesInFlight.current === 0) {
+        fetchState({ silent: true });
+      }
+      hiddenAt = 0;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [fetchState]);
 
   // Sequence counters so only the LATEST in-flight save may write the server's
   // response back into state. Without this, rapid successive saves (e.g. two
@@ -218,10 +274,17 @@ export default function useAdminState() {
   const deleteSlide = useCallback(async (id) => {
     return withErrorHandling('Delete slide', async () => {
       await apiFetch(`/api/slides/${id}`, { method: 'DELETE' });
-      setState(prev => ({
-        ...prev,
-        slides: (prev.slides || []).filter(s => s.id !== id),
-      }));
+      // The server also deletes the announcement behind an ANNOUNCEMENT slide.
+      setState(prev => {
+        const gone = (prev.slides || []).find(s => s.id === id);
+        return {
+          ...prev,
+          slides: (prev.slides || []).filter(s => s.id !== id),
+          announcements: gone?.type === 'ANNOUNCEMENT' && gone.announcementId
+            ? (prev.announcements || []).filter(a => a.id !== gone.announcementId)
+            : prev.announcements,
+        };
+      });
     }, 'Slide deleted');
   }, [withErrorHandling]);
 
@@ -488,7 +551,7 @@ export default function useAdminState() {
   const refresh = useCallback(async () => {
     return withErrorHandling('Refresh data', async () => {
       await apiFetch('/api/refresh', { method: 'POST' });
-      await fetchState();
+      await fetchState({ silent: true }); // keep the panel (and unsaved edits) mounted
     }, 'Data refreshed');
   }, [withErrorHandling, fetchState]);
 
@@ -504,7 +567,7 @@ export default function useAdminState() {
     error,
     toasts,
     dismissToast,
-    retry: fetchState,
+    retry: () => fetchState(), // never forward the click event as `opts`
     updateSettings,
     updateSlides,
     createSlide,

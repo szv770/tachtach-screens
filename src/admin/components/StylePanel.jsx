@@ -4,12 +4,7 @@ import useIsMobile from '../hooks/useIsMobile.js';
 import { FontRoles } from './ScreenLookControls.jsx';
 import { resolveFontRoles, fontStack, ANNOUNCE_FONT_PRESETS, ANNOUNCE_FONT_IDS, announceFontsId } from '../../shared/fontRoles.js';
 import '../../screen/design/fonts.js';
-import { notify } from '../hooks/useAdminState.js';
-
-function getCsrfToken() {
-  const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
-  return match ? decodeURIComponent(match[1]) : '';
-}
+import { notify, apiFetch, parseErrorMessage } from '../hooks/useAdminState.js';
 
 export default function StylePanel({ settings, onSave }) {
   const isMobile = useIsMobile();
@@ -41,8 +36,7 @@ export default function StylePanel({ settings, onSave }) {
 
   // Fetch uploaded fonts list
   useEffect(() => {
-    fetch('/api/fonts', { credentials: 'same-origin' })
-      .then(r => r.json())
+    apiFetch('/api/fonts')
       .then(data => {
         if (Array.isArray(data)) setUploadedFonts(data);
       })
@@ -80,22 +74,11 @@ export default function StylePanel({ settings, onSave }) {
       const formData = new FormData();
       formData.append('font', file);
 
-      const res = await fetch('/api/fonts', {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Upload failed (${res.status})`);
-      }
-
-      const entry = await res.json();
+      const entry = await apiFetch('/api/fonts', { method: 'POST', body: formData });
       setUploadedFonts(prev => [...prev, entry]);
       notify(`Font "${entry.name}" uploaded — pick it below`);
     } catch (err) {
-      setUploadError(err.message);
+      setUploadError(parseErrorMessage(err));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -104,11 +87,7 @@ export default function StylePanel({ settings, onSave }) {
 
   const handleDeleteFont = async (id) => {
     try {
-      const res = await fetch(`/api/fonts/${id}`, {
-        method: 'DELETE',
-        headers: { 'X-CSRF-Token': getCsrfToken() },
-      });
-      if (!res.ok) throw new Error(`Delete failed (${res.status})`);
+      await apiFetch(`/api/fonts/${id}`, { method: 'DELETE' });
       notify('Font removed');
       setUploadedFonts(prev => prev.filter(f => f.id !== id));
 
@@ -119,7 +98,7 @@ export default function StylePanel({ settings, onSave }) {
       }
       setDirty(true);
     } catch (err) {
-      notify(`Remove font: ${err.message}`, 'error');
+      notify(`Remove font: ${parseErrorMessage(err)}`, 'error');
     }
   };
 

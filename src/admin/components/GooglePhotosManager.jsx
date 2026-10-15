@@ -100,9 +100,11 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
         }),
       });
 
-      // Create a slide entry for this album
+      // Create a slide entry for this album. createSlide reports failure by
+      // returning null (it already showed a toast) — don't claim success and
+      // don't leave an album with no slide behind (a retry would duplicate it).
       if (onSlideCreated) {
-        await onSlideCreated({
+        const slide = await onSlideCreated({
           type: 'GOOGLE_PHOTOS_SLIDE',
           googleAlbumId: album.id,
           displayMode,
@@ -115,6 +117,12 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
           label: 'Google Photos',
           enabled: true,
         });
+        if (!slide) {
+          await apiFetch(`/api/google-album/${album.id}`, { method: 'DELETE' }).catch(() => {});
+          loadAlbums();
+          setError('The album was not added because its slide could not be created. Check your connection and try again.');
+          return;
+        }
       }
 
       setSuccess('Album connected! Photos are syncing...');
