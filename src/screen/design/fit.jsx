@@ -1,3 +1,5 @@
+import { textDir } from '../../shared/bidi.js';
+import { bidiNodes } from './ui.jsx';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
 /**
@@ -36,6 +38,8 @@ export function Fit({ children, max = 200, min = 16, wrap = false, vcenter = fal
   const ref = useRef(null);
   const innerRef = useRef(null);
   const [size, setSize] = useState(null);
+  const isStr = typeof children === 'string';
+  const autoDir = dir || (isStr ? textDir(children, 'ltr') : undefined);
   const text = typeof children === 'string' ? children : JSON.stringify(React.Children.map(children, (c) => (typeof c === 'string' ? c : c?.key)));
   const ok = useCallback(() => {
     const el = ref.current, inner = innerRef.current;
@@ -61,7 +65,7 @@ export function Fit({ children, max = 200, min = 16, wrap = false, vcenter = fal
   return (
     <Tag
       ref={ref}
-      dir={dir}
+      dir={autoDir}
       className={className}
       style={{
         // Never pass `textWrap: undefined`: React then clears `text-wrap`, which
@@ -70,12 +74,13 @@ export function Fit({ children, max = 200, min = 16, wrap = false, vcenter = fal
         ...(wrap ? { whiteSpace: 'normal', textWrap: 'balance' } : { whiteSpace: 'nowrap' }),
         overflow: 'hidden', lineHeight: 1.12, minWidth: 0,
         ...(vcenter ? { display: 'flex', alignItems: 'center', justifyContent: 'center' } : null),
+        ...(autoDir === 'rtl' && !style?.textAlign ? { textAlign: 'left' } : null),
         ...style,
         fontSize: size ? `${size}px` : `${max}px`,
       }}
       {...rest}
     >
-      {vcenter ? <div ref={innerRef} style={{ width: '100%', textAlign: 'inherit' }}>{children}</div> : children}
+      {vcenter ? <div ref={innerRef} style={{ width: '100%', textAlign: 'inherit' }}>{isStr ? bidiNodes(children) : children}</div> : isStr ? bidiNodes(children) : children}
     </Tag>
   );
 }

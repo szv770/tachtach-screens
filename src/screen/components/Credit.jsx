@@ -1,5 +1,5 @@
 import React from 'react';
-import { F } from '../design/ui.jsx';
+import { F, Bidi } from '../design/ui.jsx';
 
 /**
  * Credit line + logo (settings.credit). Owner request (docs/BACKLOG.md): the
@@ -82,7 +82,7 @@ export function CreditContent({ credit, spot = 'corner', align = 'left', maxWidt
   const corner = spot === 'corner';
   const textPx = corner ? 17 : TEXT[credit?.size] || 20;
   const textEl = credit?.text ? (
-    <span style={{ fontFamily: F.en, fontSize: textPx, fontWeight: 500, color: 'var(--dim)', lineHeight: 1.25, whiteSpace: corner ? 'nowrap' : 'normal', letterSpacing: '.01em' }}>{credit.text}</span>
+    <Bidi text={credit.text} style={{ fontFamily: F.en, fontSize: textPx, fontWeight: 500, color: 'var(--dim)', lineHeight: 1.25, whiteSpace: corner ? 'nowrap' : 'normal', letterSpacing: '.01em' }} />
   ) : null;
   const logoEl = logo?.url ? <LogoImage logo={logo} height={height} maxWidth={maxWidth} /> : null;
   if (!textEl && !logoEl) return null;

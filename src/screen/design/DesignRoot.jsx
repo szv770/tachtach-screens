@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { baseTheme, baseRoles } from '../../shared/themes.js';
-import { fontRoleVars, hebrewScale } from '../../shared/fontRoles.js';
+import { fontRoleVars, hebrewScale, announceFontsId } from '../../shared/fontRoles.js';
 import { ensureGlobalCss } from './globalCss.js';
 import { applyUploadedFonts, applyGoogleFonts } from './fonts.js';
 
@@ -27,7 +27,7 @@ export function useDesign() {
 
 const FALLBACK = {
   light: false, motion: 'smooth', graphics: 'rich', upNext: false, heScale: 1,
-  themeId: 'dark', phase: 'day', portrait: false, railSide: 'left', inRoot: false,
+  themeId: 'dark', phase: 'day', portrait: false, railSide: 'left', inRoot: false, announceFonts: 'editorial',
 };
 
 export const MOTIONS = ['smooth', 'minimal', 'lively'];
@@ -57,8 +57,8 @@ export default function DesignRoot({
 
   const ctx = useMemo(() => ({
     light, motion: opts.motion, graphics: opts.graphics, upNext, heScale: hebrewScale(settings),
-    themeId: theme.id, phase, portrait, railSide: opts.railSide, inRoot: true,
-  }), [light, opts.motion, opts.graphics, upNext, settings.hebrewFontScale, theme.id, phase, portrait, opts.railSide]); // eslint-disable-line react-hooks/exhaustive-deps
+    themeId: theme.id, phase, portrait, railSide: opts.railSide, inRoot: true, announceFonts: announceFontsId(settings),
+  }), [light, opts.motion, opts.graphics, upNext, settings.hebrewFontScale, theme.id, phase, portrait, opts.railSide, settings.announceFonts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <DesignContext.Provider value={ctx}>

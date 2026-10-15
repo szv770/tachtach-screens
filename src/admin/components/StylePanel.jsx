@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { FontRoles } from './ScreenLookControls.jsx';
-import { resolveFontRoles, fontStack } from '../../shared/fontRoles.js';
+import { resolveFontRoles, fontStack, ANNOUNCE_FONT_PRESETS, ANNOUNCE_FONT_IDS, announceFontsId } from '../../shared/fontRoles.js';
 import '../../screen/design/fonts.js';
 import { notify } from '../hooks/useAdminState.js';
 
@@ -22,6 +22,16 @@ export default function StylePanel({ settings, onSave }) {
   const [uploadError, setUploadError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [announceFonts, setAnnounceFonts] = useState(announceFontsId(settings));
+  useEffect(() => { setAnnounceFonts(announceFontsId(settings)); }, [settings?.announceFonts]);
+
+  // Message & takeover font style: saved on click (PATCH of this one key).
+  const pickAnnounceFonts = async (id) => {
+    const prev = announceFonts;
+    setAnnounceFonts(id);
+    const ok = await onSave({ announceFonts: id });
+    if (!ok) setAnnounceFonts(prev);
+  };
 
   // Sync from settings prop when it changes externally
   useEffect(() => {
@@ -164,6 +174,42 @@ export default function StylePanel({ settings, onSave }) {
       }}>
         Style
       </h2>
+
+      {/* Message & takeover font style (settings.announceFonts) */}
+      <div style={sectionStyle}>
+        <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '18px', fontWeight: 600, color: colors.text, marginBottom: '6px' }}>
+          Message &amp; takeover font style
+        </h3>
+        <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, marginBottom: '14px', lineHeight: 1.5 }}>
+          The type used by announcements and full-screen takeovers. Every style ships with the screen (works offline). "Same as screen" uses the font roles below, including your uploaded fonts.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
+          {ANNOUNCE_FONT_IDS.map((id) => {
+            const p = ANNOUNCE_FONT_PRESETS[id];
+            const r = p.roles || roleFonts;
+            const on = announceFonts === id;
+            return (
+              <button
+                key={id} type="button" onClick={() => !on && pickAnnounceFonts(id)} aria-pressed={on}
+                style={{
+                  textAlign: 'left', cursor: 'pointer', minHeight: '44px', padding: '14px 16px', borderRadius: '8px',
+                  background: colors.bg, color: colors.text, border: `2px solid ${on ? colors.gold : colors.muted}`,
+                }}
+              >
+                <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', fontWeight: 600, color: on ? colors.gold : colors.dim, marginBottom: '8px' }}>
+                  {p.label}{id === 'editorial' ? ' (default)' : ''} · <span style={{ fontWeight: 400 }}>{p.hint}</span>
+                </div>
+                <div dir="rtl" style={{ fontFamily: fontStack(r.hebrewDisplay, 'hebrewDisplay'), fontSize: '34px', lineHeight: 1.15, textAlign: 'left' }}>מזל טוב!</div>
+                <div style={{ fontFamily: fontStack(r.englishDisplay, 'englishDisplay'), fontSize: '19px', fontWeight: 600, lineHeight: 1.3, margin: '4px 0 6px' }}>Mazel Tov to the Cohen family!</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px' }}>
+                  <span style={{ fontFamily: fontStack(r.numerals, 'numerals'), fontVariantNumeric: 'lining-nums tabular-nums', fontFeatureSettings: '"lnum" 1, "tnum" 1', fontSize: '28px', fontWeight: 700 }}>9:30<span style={{ fontSize: '13px', marginLeft: '4px' }}>PM</span></span>
+                  <span dir="rtl" style={{ fontFamily: fontStack(r.hebrewBody, 'hebrewBody'), fontSize: '16px', fontWeight: 500, color: colors.dim }}>התוועדות בזאל</span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Font Selection */}
       <div style={sectionStyle}>

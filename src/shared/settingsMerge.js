@@ -41,6 +41,8 @@ export const SETTINGS_KEYS = Object.freeze([
   'rail', 'layout', 'motion', 'graphics', 'weather', 'zmanimLayout', 'scheduleLayout',
   // Kiosk redesign: font role assignments, one-time theme migration marker.
   'fontRoles', 'themeVersion',
+  // Message & takeover font style: editorial | modern | classic | screen
+  'announceFonts',
   // Legacy stray keys — accepted so normalizeSettingsKeys() can fold them.
   'zipCode', 'chabadLocationId', 'trackA', 'trackBTime',
 ]);

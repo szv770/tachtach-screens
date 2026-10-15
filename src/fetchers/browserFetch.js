@@ -63,7 +63,7 @@ function pickTmpDir() {
 // Prefer the real ELF binaries over /usr/bin/chromium{,-browser}: on Debian /
 // Raspberry Pi OS those are shell wrappers that source /etc/chromium.d/* and
 // inject kiosk/GPU flags meant for the desktop browser, not a headless fetcher.
-const BROWSER_CANDIDATES = [
+const browserCandidates = () => [
   process.env.CHROMIUM_PATH,
   '/usr/lib/chromium/chromium',
   '/usr/lib/chromium-browser/chromium-browser',
@@ -76,7 +76,7 @@ const BROWSER_CANDIDATES = [
 ].filter(Boolean);
 
 export function findBrowserExecutable() {
-  for (const p of BROWSER_CANDIDATES) {
+  for (const p of browserCandidates()) {
     try {
       if (fs.statSync(p).isFile()) return p;
     } catch { /* not present */ }
@@ -157,73 +157,115 @@ export function fetchRenderedHTML(url, opts = {}) {
   return serialize(() => fetchRenderedHTMLNow(url, opts));
 }
 
-async function fetchRenderedHTMLNow(url, opts) {
-  const { timeoutMs = 30000, waitForSelector } = opts;
+const DEFAULT_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
+
+/**
+ * Launch headless Chromium with the writable TMPDIR/HOME/profile handling above.
+ * Returns { browser, profileDir, executablePath }; throws (err.code
+ * 'NO_BROWSER' when no binary exists). Callers must go through serialize().
+ */
+async function launchBrowserNow() {
   const executablePath = findBrowserExecutable();
   if (!executablePath) {
-    console.error('[browserFetch] no Chromium/Chrome binary found — set CHROMIUM_PATH env var');
-    return null;
+    const e = new Error('no Chromium/Chrome binary found — set CHROMIUM_PATH env var');
+    e.code = 'NO_BROWSER';
+    throw e;
   }
-
-  let browser;
-  let profileDir;
+  ensureDirs();
+  const profileDir = fs.mkdtempSync(path.join(PROFILE_ROOT, `${crypto.randomBytes(2).toString('hex')}-`));
   try {
-    ensureDirs();
-    profileDir = fs.mkdtempSync(path.join(PROFILE_ROOT, `${crypto.randomBytes(2).toString('hex')}-`));
+    const browser = await puppeteer.launch({
+      executablePath,
+      headless: true,
+      userDataDir: profileDir,
+      timeout: 60000, // a cold Chromium start on a Pi can be slow
+      env: browserEnv(),
+      args: BROWSER_ARGS,
+    });
+    return { browser, profileDir, executablePath };
+  } catch (err) {
+    logLaunchDiagnostics(executablePath);
+    fs.rm(profileDir, { recursive: true, force: true }, () => {});
+    throw err;
+  }
+}
+
+/**
+ * Generic helper: run `fn(page, browser)` in a fresh headless-Chromium page
+ * (serialised with every other browserFetch use). Cleans up the browser and
+ * profile afterwards. THROWS on failure — callers decide how to fall back.
+ * @param {(page: import('puppeteer-core').Page, browser: any) => Promise<any>} fn
+ * @param {{ userAgent?: string, viewport?: {width:number,height:number} }} [opts]
+ */
+export function withBrowserPage(fn, opts = {}) {
+  return serialize(async () => {
+    const { browser, profileDir } = await launchBrowserNow();
     try {
-      browser = await puppeteer.launch({
-        executablePath,
-        headless: true,
-        userDataDir: profileDir,
-        timeout: 60000, // a cold Chromium start on a Pi can be slow
-        env: browserEnv(),
-        args: BROWSER_ARGS,
-      });
-    } catch (err) {
-      logLaunchDiagnostics(executablePath);
-      throw err;
+      const page = await browser.newPage();
+      await page.setUserAgent(opts.userAgent || DEFAULT_UA);
+      if (opts.viewport) await page.setViewport(opts.viewport);
+      return await fn(page, browser);
+    } finally {
+      await browser.close().catch(() => {});
+      fs.rm(profileDir, { recursive: true, force: true }, () => {});
     }
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-    );
-    const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+  });
+}
 
-    const start = Date.now();
-    let title = '';
-    while (Date.now() - start < timeoutMs) {
-      try {
-        title = await page.title();
-        if (!CHALLENGE_TITLE_RE.test(title)) break;
-      } catch { /* mid-navigation after the challenge clears — retry */ }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    if (CHALLENGE_TITLE_RE.test(title)) {
-      console.error(`[browserFetch] Cloudflare challenge did not clear within ${timeoutMs}ms for ${url} (initial HTTP ${resp?.status() ?? '?'})`);
-      return null;
-    }
+async function fetchRenderedHTMLNow(url, opts) {
+  const { timeoutMs = 30000, waitForSelector } = opts;
+  try {
+    return await withBrowserPageNow(async (page) => {
+      const resp = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
 
-    if (waitForSelector) {
-      await page.waitForSelector(waitForSelector, { timeout: 10000 }).catch(() => {
-        console.warn(`[browserFetch] "${waitForSelector}" not found on ${url} (title: "${title}")`);
-      });
-    }
-
-    // The challenge redirect can still be settling; retry a destroyed context.
-    for (let i = 0; i < 3; i++) {
-      try {
-        return await page.content();
-      } catch (err) {
-        if (i === 2) throw err;
+      const start = Date.now();
+      let title = '';
+      while (Date.now() - start < timeoutMs) {
+        try {
+          title = await page.title();
+          if (!CHALLENGE_TITLE_RE.test(title)) break;
+        } catch { /* mid-navigation after the challenge clears — retry */ }
         await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-    }
-    return null;
+      if (CHALLENGE_TITLE_RE.test(title)) {
+        console.error(`[browserFetch] Cloudflare challenge did not clear within ${timeoutMs}ms for ${url} (initial HTTP ${resp?.status() ?? '?'})`);
+        return null;
+      }
+
+      if (waitForSelector) {
+        await page.waitForSelector(waitForSelector, { timeout: 10000 }).catch(() => {
+          console.warn(`[browserFetch] "${waitForSelector}" not found on ${url} (title: "${title}")`);
+        });
+      }
+
+      // The challenge redirect can still be settling; retry a destroyed context.
+      for (let i = 0; i < 3; i++) {
+        try {
+          return await page.content();
+        } catch (err) {
+          if (i === 2) throw err;
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+      return null;
+    });
   } catch (err) {
-    console.error(`[browserFetch] failed (${executablePath}): ${err.message}`);
+    console.error(`[browserFetch] failed: ${err.message}`);
     return null;
+  }
+}
+
+// Same as withBrowserPage but without re-entering the serial queue (we are
+// already inside serialize() when fetchRenderedHTMLNow runs).
+async function withBrowserPageNow(fn) {
+  const { browser, profileDir } = await launchBrowserNow();
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(DEFAULT_UA);
+    return await fn(page, browser);
   } finally {
-    if (browser) await browser.close().catch(() => {});
-    if (profileDir) fs.rm(profileDir, { recursive: true, force: true }, () => {});
+    await browser.close().catch(() => {});
+    fs.rm(profileDir, { recursive: true, force: true }, () => {});
   }
 }

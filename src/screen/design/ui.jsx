@@ -2,6 +2,22 @@ import React from 'react';
 import { useDesign } from './DesignRoot.jsx';
 import { fmt12 } from './time.js';
 import { styleVars } from './announceStyles.js';
+import { textDir, bidiRuns, isMixed } from '../../shared/bidi.js';
+
+/**
+ * Text with the right direction decided by CONTENT, not the kiosk's LTR root
+ * (GOTCHAS: bidi). Mixed Hebrew/English text gets each language run isolated
+ * so "Mazel Tov! מזל טוב!" keeps both "!" on their own word's trailing side.
+ */
+export function bidiNodes(text) {
+  const s = String(text ?? '');
+  if (!isMixed(s)) return s;
+  return bidiRuns(s).map((r, i) => <bdi key={i} dir={r.dir}>{r.text}</bdi>);
+}
+export function Bidi({ text, children, as: Tag = 'span', fallback = 'ltr', style, ...rest }) {
+  const t = text ?? children;
+  return <Tag dir={textDir(t, fallback)} style={{ unicodeBidi: 'isolate', ...style }} {...rest}>{bidiNodes(t)}</Tag>;
+}
 
 /**
  * Primitives of the round-2 system (docs/design/2026-10-14-mockups-r2/

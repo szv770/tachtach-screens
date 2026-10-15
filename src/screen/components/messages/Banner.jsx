@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { F, he } from '../../design/ui.jsx';
+import { F, he, Bidi } from '../../design/ui.jsx';
 import { isHebrew } from '../../design/time.js';
 
 /**
@@ -46,9 +46,9 @@ export default function Banner({ banners, bannerSettings }) {
       {parts.map((p, i) => (
         <React.Fragment key={i}>
           {i > 0 && <Dot />}
-          {p.en && <span style={{ fontFamily: isHebrew(p.en) ? F.he : F.en, fontSize: isHebrew(p.en) ? he(30) : 30, fontWeight: 500 }}>{p.en}</span>}
+          {p.en && <Bidi text={p.en} style={{ fontFamily: isHebrew(p.en) ? F.he : F.en, fontSize: isHebrew(p.en) ? he(30) : 30, fontWeight: 500 }} />}
           {p.en && p.he && <Dot />}
-          {p.he && <span className="tt-he" style={{ fontFamily: F.he, fontSize: he(30), fontWeight: 500 }}>{p.he}</span>}
+          {p.he && <Bidi text={p.he} fallback="rtl" style={{ fontFamily: F.he, fontSize: he(30), fontWeight: 500 }} />}
         </React.Fragment>
       ))}
     </span>
