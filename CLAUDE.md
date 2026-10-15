@@ -41,7 +41,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 
 ## Working with agents
 
-- **Pick the model per job to save the owner's usage:** regular coding, admin/server work, tests, docs → `model: "sonnet"` (or `haiku` for trivial chores); reserve `opus` for work that needs top quality — kiosk visual design/graphics/animation and hard debugging. Keep 1–3 agents running at once, and make them commit early (a usage-limit cutoff already cost a round).
+- **Keep agent usage small (owner priority).** Do small things yourself (read/search/edit/test). Delegate only chunky work, with a tight brief and a scope limit ("sample, don't exhaustively test"). Model per job: tiny lookups/checks → `haiku`; regular coding, admin/server work, tests, docs → `sonnet`; `opus` only for hard visual design/graphics/animation or hard logic/debugging. Max 1–2 agents at a time, 3 only if all are small. Tell agents to commit early (usage-limit cutoffs have cost rounds), to look at screenshots sparingly (images are expensive), and to prefer programmatic checks over screenshot sheets.
 
 ## Need more detail?
 
