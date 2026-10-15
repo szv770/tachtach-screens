@@ -8,6 +8,7 @@ import { renderArt } from './art.js';
 import { LAYOUT_HTML } from './layouts.js';
 import { fitAll, splitLively, showPage, DEFAULT_PAGE_SECONDS } from './fit.js';
 import { ensureTakeoverCss } from './css.js';
+import { announceFontVars } from '../../shared/fontRoles.js';
 
 /**
  * One takeover "stage" at a virtual W x H canvas (round-3b design,
@@ -30,9 +31,12 @@ function clockText(clock) {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, animation }) {
+export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, animation, fonts }) {
   ensureTakeoverCss();
-  const { light, motion } = useDesign();
+  const { light, motion, announceFonts } = useDesign();
+  // Message & takeover font style (settings.announceFonts): role vars on the stage root.
+  const fontPreset = fonts || announceFonts;
+  const fontVars = useMemo(() => announceFontVars(fontPreset), [fontPreset]);
   const rootRef = useRef(null);
   const style = renderStyleId(item.look?.style);
   const S = styleOf(style);
@@ -45,7 +49,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     const m = modelFor(item, layout);
     return { r, html: LAYOUT_HTML[layout](m) };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, style, w, h, light]);
+  }, [key, style, w, h, light, fontPreset]);
 
   // The entrance plays once on mount (not on every keystroke in the admin preview).
   const [enterNow, setEnterNow] = useState(entrance && anim !== 'off');
@@ -101,8 +105,8 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
 
   return (
     <div
-      ref={rootRef} className="tkr" style={{ width: w, height: h }}
-      data-style={style} data-layout={layout} data-anim={anim}
+      ref={rootRef} className="tkr" style={{ width: w, height: h, ...fontVars }}
+      data-style={style} data-fonts={fontPreset} data-layout={layout} data-anim={anim}
       data-box={JSON.stringify(r.box)} data-art={JSON.stringify(r.artRects)}
     >
       <div className={cls} style={{ width: w, height: h }}>

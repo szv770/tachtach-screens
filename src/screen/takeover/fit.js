@@ -27,6 +27,50 @@ function fitEl(el, heScale) {
   }
   while (b - a > 1) { const mid = (a + b) >> 1; el.style.fontSize = mid + 'px'; if (ok()) a = mid; else b = mid; }
   el.style.fontSize = a + 'px'; el.dataset.fit = a;
+  if (el.classList.contains('wrap') && !el.querySelector('.dot')) settleLines(el, a, floor, ok);
+}
+
+/**
+ * Lines of a text element: [{ w }] per visual line (layout-independent ratios, so
+ * screen px from getClientRects are fine here). Exported for the audit's orphan check.
+ */
+export function lineWidths(el) {
+  const r = document.createRange(); r.selectNodeContents(el);
+  const fs = parseFloat(el.style.fontSize || getComputedStyle(el).fontSize) * (el.getBoundingClientRect().width / (el.offsetWidth || 1));
+  const rows = [];
+  for (const q of r.getClientRects()) {
+    if (q.width < fs * 0.6) continue;   // stray space / dot boxes
+    const row = rows.find((x) => Math.abs(x.mid - (q.top + q.height / 2)) < q.height * 0.4);
+    if (row) { row.l = Math.min(row.l, q.left); row.r = Math.max(row.r, q.right); } else rows.push({ mid: q.top + q.height / 2, l: q.left, r: q.right });
+  }
+  return rows.sort((x, y) => x.mid - y.mid).map((x) => x.r - x.l);
+}
+
+/** A last line under 40% of the longest one (a lone "boy!") reads as a mistake. */
+export const isOrphan = (ws) => ws.length > 1 && ws[ws.length - 1] < 0.4 * Math.max(...ws);
+
+/**
+ * Balance-aware settle (round "type", 2026-10-15): text-wrap: balance evens the
+ * lines, but a size can still leave a lone last word or one line too many. Step the
+ * size down (at most 12%, never under the slot min) until the last line is not an
+ * orphan, preferring a size that saves a whole line when that is within reach.
+ */
+function settleLines(el, a, floor, ok) {
+  const base = lineWidths(el);
+  if (base.length < 2) return;
+  const lo = Math.max(floor, Math.round(a * 0.88));
+  const want = (ws) => !isOrphan(ws) && (base.length < 3 || ws.length < base.length);
+  for (let s = a - 2; s >= lo; s -= 2) {
+    el.style.fontSize = s + 'px';
+    const ws = lineWidths(el);
+    if (ok() && want(ws)) { el.dataset.fit = s; return; }
+  }
+  if (!isOrphan(base)) { el.style.fontSize = a + 'px'; return; }
+  for (let s = a - 2; s >= lo; s -= 2) {
+    el.style.fontSize = s + 'px';
+    if (ok() && !isOrphan(lineWidths(el))) { el.dataset.fit = s; return; }
+  }
+  el.style.fontSize = a + 'px';
 }
 
 /** Split text into pages at a FIXED reading size (sicha / letter bodies). */
@@ -36,7 +80,7 @@ function paginate(root, page) {
     const paras = (el.dataset.text || '').split('|');
     const words = paras.map((p, i) => p.split(' ').filter(Boolean).map((w, j) => ({ w, br: j === 0 && i > 0 }))).flat();
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const build = (arr) => '<p>' + arr.map((x, k) => (x.br && k > 0 ? '</p><p>' : '') + esc(x.w)).join(' ').replace(/<p> /g, '<p>') + '</p>';
+    const build = (arr) => '<p dir="auto">' + arr.map((x, k) => (x.br && k > 0 ? '</p><p dir="auto">' : '') + esc(x.w)).join(' ').replace(/<p dir="auto"> /g, '<p dir="auto">') + '</p>';
     const pages = []; let i = 0;
     while (i < words.length) {
       let j = i + 1; el.innerHTML = build(words.slice(i, j));
@@ -151,7 +195,8 @@ function unsplit(root) {
 /** lively extras: split big words / digits so they reveal one by one (entrance only). */
 export function splitLively(root) {
   root.querySelectorAll('.enter.x-lively .w-he, .enter.x-lively .w-en, .enter.x-lively .h-he, .enter.x-lively .h-en, .enter.x-lively .q-he').forEach((el) => {
-    if (el.dataset.orig != null || el.querySelector('br')) return;
+    // skip text with line breaks or isolated Hebrew runs: inline-block words would lose the bidi order
+    if (el.dataset.orig != null || el.querySelector('br, [dir]')) return;
     el.dataset.orig = el.innerHTML;
     el.innerHTML = el.textContent.split(' ').map((w, i) => `<span class="w" style="--wi:${i}">${w.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</span>`).join(' ');
     // inline-block words cannot break at a hyphen / dash: if the split text no longer fits its fitted box, keep the plain text

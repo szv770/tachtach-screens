@@ -63,6 +63,8 @@ export function modelBigWords(item) {
   const en = hasHead ? S(c.headlineEn) : S(c.bodyEn);
   const enParts = [hasHead ? S(c.bodyEn) : '', S(c.subtitle), has(c.attribution) ? `— ${S(c.attribution)}` : ''].filter(Boolean);
   const heSub = hasHead ? S(c.bodyHe) : '';
+  // Hebrew typed into the English field (and no Hebrew line): draw it in the Hebrew slot (RTL, Hebrew display font)
+  if (!he && /^[^A-Za-z]*[\u0590-\u05FF]/.test(en)) return { kick: kickOf(c), he: en, en: '', sub: enParts.length || heSub ? [enParts.join(' · '), heSub] : null };
   return { kick: kickOf(c), he, en, sub: enParts.length || heSub ? [enParts.join(' · '), heSub] : null };
 }
 
@@ -73,8 +75,10 @@ export function modelEvent(item) {
   if (dayEn && !dayHe && isHeb(dayEn)) { dayHe = dayEn; dayEn = ''; }
   const time = splitTime(e.time);
   const place = has(e.place) || has(e.placeHe) || has(e.place2) ? { en: S(e.place), en2: S(e.place2), he: S(e.placeHe) } : null;
+  let tHe = S(e.titleHe), tEn = S(e.title);
+  if (!tHe && isHeb(tEn) && /^[^A-Za-z]*[\u0590-\u05FF]/.test(tEn)) { tHe = tEn; tEn = ''; }
   return {
-    kick: kickOf(c), he: S(e.titleHe), en: S(e.title),
+    kick: kickOf(c), he: tHe, en: tEn,
     when: dayEn || dayHe ? [dayEn, dayHe] : null, time, place,
   };
 }

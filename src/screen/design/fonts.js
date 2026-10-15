@@ -12,6 +12,13 @@ import '@fontsource-variable/rubik';
 import '@fontsource-variable/manrope';
 import '@fontsource-variable/frank-ruhl-libre';
 import '@fontsource-variable/eb-garamond';
+// Message & takeover font styles (settings.announceFonts, src/shared/fontRoles.js
+// ANNOUNCE_FONT_PRESETS): bundled too, never Google Fonts (offline-safe).
+import '@fontsource/suez-one';
+import '@fontsource-variable/playfair-display';
+import '@fontsource-variable/playfair-display/wght-italic.css';
+import '@fontsource-variable/fraunces';
+import '@fontsource-variable/fraunces/wght-italic.css';
 import { googleFamiliesFor } from '../../shared/fontRoles.js';
 
 function styleEl(attr) {

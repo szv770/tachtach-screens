@@ -30,6 +30,8 @@ export const TAKEOVER_CSS = `
   --sheet: var(--raised);
   --f-disp-he: var(--f-he-disp); --f-disp-en: var(--f-en-disp); --f-big: var(--f-num);
   --disp-w: 700; --en-w: 600; --tile-w: 700; --qt-w: 300; --en-track: -.03em;
+  /* SPACING SCALE (8 px base on the 1600x900 canvas): every gap between headline / sub line / tile / place uses these */
+  --sp1: 8px; --sp2: 16px; --sp3: 24px; --sp4: 32px; --sp5: 48px; --sp6: 64px;
   position: relative; overflow: hidden; background: var(--s-bg); color: var(--s-ink);
 }
 .tkr .stage.light { --s-dim: color-mix(in srgb, var(--s-ink) 74%, transparent); }
@@ -47,7 +49,7 @@ export const TAKEOVER_CSS = `
 .tkr .fit.nw { white-space: nowrap; }
 .tkr .disp-he { font-family: var(--f-disp-he); font-weight: var(--disp-w); direction: rtl; font-synthesis: none; }
 .tkr .disp-en { font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: var(--en-track); }
-.tkr .kick { font-size: 34px; font-weight: 600; color: var(--s-accText); display: flex; gap: 22px; align-items: baseline; margin-bottom: 10px; white-space: nowrap; }
+.tkr .kick { font-size: 34px; font-weight: 600; color: var(--s-accText); display: flex; gap: 22px; align-items: baseline; margin-bottom: var(--sp2); white-space: nowrap; }
 .tkr .kick .he { font-size: 1.06em; font-weight: 600; }
 .tkr .center .kick { justify-content: center; }
 .tkr .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--s-line); display: inline-block; align-self: center; flex: none; }
@@ -56,9 +58,9 @@ export const TAKEOVER_CSS = `
 .tkr .start .bw { align-items: flex-start; text-align: left; }
 .tkr .bw .w-he { height: 44%; width: 100%; color: var(--s-accText); text-align: center; line-height: 1.12; }
 .tkr .start .bw .w-he { text-align: left; }
-.tkr .bw .w-en { height: 26%; width: 96%; font-weight: var(--en-w); letter-spacing: -.02em; margin-top: 10px; line-height: 1.16; font-family: var(--f-disp-en); text-align: center; }
+.tkr .bw .w-en { height: 26%; width: 96%; font-weight: var(--en-w); letter-spacing: -.02em; margin-top: var(--sp2); line-height: 1.16; font-family: var(--f-disp-en); text-align: center; }
 .tkr .start .bw .w-en { width: 100%; text-align: left; }
-.tkr .bw .sub { margin-top: 24px; width: 100%; max-height: 110px; font-size: 32px; color: var(--s-dim); font-weight: 500; text-align: center; line-height: 1.3; }
+.tkr .bw .sub { margin-top: var(--sp3); width: 100%; max-height: 110px; font-size: 32px; color: var(--s-dim); font-weight: 500; text-align: center; line-height: 1.3; }
 .tkr .start .bw .sub { text-align: left; }
 .tkr .bw .sub .he { font-size: 1.06em; }
 .tkr .ev { display: flex; flex-direction: column; }
@@ -68,9 +70,9 @@ export const TAKEOVER_CSS = `
 .tkr .center .ev .titles { align-items: center; text-align: center; }
 .tkr .center .ev .h-he { text-align: center; width: 100%; }
 .tkr .center .ev .h-en { width: 100%; }
-.tkr .ev .foot { flex: none; display: flex; align-items: center; gap: 44px; }
+.tkr .ev .foot { flex: none; display: flex; align-items: center; gap: var(--sp5); padding-top: var(--sp3); }
 .tkr .center .ev .foot { justify-content: center; }
-.tkr .narrow .ev .foot { flex-direction: column; align-items: flex-start; gap: 18px; }
+.tkr .narrow .ev .foot { flex-direction: column; align-items: flex-start; gap: var(--sp2); }
 .tkr .center.narrow .ev .foot { align-items: center; }
 .tkr .tile { background: var(--s-fill); color: var(--s-fillInk); border-radius: 30px; padding: 22px 40px 26px; display: flex; align-items: center; gap: 34px; flex: none; }
 .tkr .tile .day { font-size: 38px; font-weight: 600; line-height: 1.15; white-space: nowrap; }
@@ -82,11 +84,11 @@ export const TAKEOVER_CSS = `
 .tkr .tile.stackt .when { display: flex; gap: 16px; align-items: baseline; }
 .tkr .place { min-width: 0; max-width: 100%; }
 .tkr .place .en { font-size: calc(42px * var(--k, 1)); font-weight: 600; line-height: 1.15; }
-.tkr .place .en2 { font-size: max(20px, calc(30px * var(--k, 1))); color: var(--s-dim); font-weight: 500; margin-top: 4px; line-height: 1.2; }
-.tkr .place .he { font-size: max(20px, calc(34px * var(--he-scale) * var(--k, 1))); color: var(--s-dim); text-align: left; margin-top: 6px; line-height: 1.2; }
+.tkr .place .en2 { font-size: max(20px, calc(30px * var(--k, 1))); color: var(--s-dim); font-weight: 500; margin-top: var(--sp1); line-height: 1.2; }
+.tkr .place .he { font-size: max(20px, calc(34px * var(--he-scale) * var(--k, 1))); color: var(--s-dim); font-weight: 500; text-align: left; margin-top: var(--sp1); line-height: 1.2; }
 .tkr .center .place .he, .tkr .center .place { text-align: center; }
 .tkr .ls { display: flex; flex-direction: column; }
-.tkr .ls .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; margin-bottom: 20px; }
+.tkr .ls .hd { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp4); margin-bottom: var(--sp3); }
 .tkr .ls .hd .en { flex: 1 1 56%; min-width: 0; line-height: 1.15; }
 .tkr .ls .hd .he { flex: 0 1 38%; min-width: 0; line-height: 1.15; color: var(--s-accText); text-align: left; }
 .tkr .ls .items { flex: 1; display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
@@ -114,9 +116,9 @@ export const TAKEOVER_CSS = `
 .tkr .qt .big .pre { font-size: .2em; font-weight: 500; letter-spacing: 0; margin-right: .25em; color: var(--s-dim); }
 .tkr .qt .was { font-size: 34px; color: var(--s-dim); font-weight: 500; margin-top: -4px; display: flex; gap: 14px; align-items: baseline; }
 .tkr .qt .was s { text-decoration-thickness: 3px; color: var(--s-dim); }
-.tkr .qt .where { font-size: 36px; color: var(--s-dim); font-weight: 500; margin-top: 18px; max-width: 100%; line-height: 1.25; text-align: inherit; }
+.tkr .qt .where { font-size: 36px; color: var(--s-dim); font-weight: 500; margin-top: var(--sp3); max-width: 100%; line-height: 1.25; text-align: inherit; }
 .tkr .qt .where .he { font-size: 1.04em; }
-.tkr .times { display: flex; width: 100%; margin: 28px 0 6px; }
+.tkr .times { display: flex; width: 100%; margin: var(--sp4) 0 var(--sp1); }
 .tkr .port .times { flex-direction: column; gap: 14px; }
 .tkr .tcol { flex: 1; min-width: 0; padding: 4px 44px 0; }
 .tkr .start .tcol:first-child { padding-left: 0; }
@@ -132,19 +134,19 @@ export const TAKEOVER_CSS = `
 .tkr .tcol .t small { font-size: .26em; font-weight: 500; letter-spacing: 0; margin-left: .16em; }
 .tkr .qq { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .tkr .qq .q-he { width: 94%; height: 42%; font-family: var(--f-th-he); font-weight: 500; direction: rtl; text-align: center; line-height: 1.22; }
-.tkr .qq .q-en { width: 86%; height: 22%; font-family: var(--f-th-en); font-style: italic; font-weight: 400; color: var(--s-dim); line-height: 1.25; margin-top: 18px; text-align: center; }
-.tkr .qq .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: 30px 0 22px; flex: none; }
+.tkr .qq .q-en { width: 86%; height: 22%; font-family: var(--f-th-en); font-style: italic; font-weight: 400; color: var(--s-dim); line-height: 1.25; margin-top: var(--sp3); text-align: center; }
+.tkr .qq .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: var(--sp4) 0 var(--sp3); flex: none; }
 .tkr .qq .attr { font-size: 30px; color: var(--s-dim); font-weight: 500; max-width: 100%; text-align: center; }
 .tkr .qq .attr .he { font-family: var(--f-th-he); font-size: 1.06em; }
 .tkr .sc { display: flex; flex-direction: column; }
 .tkr .port .hd > * { flex: 0 0 auto !important; }
 .tkr .port .hd { flex-direction: column; align-items: stretch !important; gap: 6px !important; }
-.tkr .sc .hd { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--s-line); }
+.tkr .sc .hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp3); padding-bottom: var(--sp3); border-bottom: 2px solid var(--s-line); }
 .tkr .sc .hd .en { flex: 1 1 58%; min-width: 0; font-family: var(--f-th-en); font-weight: 600; letter-spacing: -.01em; }
 .tkr .sc .hd .he { flex: 0 1 38%; min-width: 0; font-family: var(--f-th-he); font-weight: 500; color: var(--s-accText); text-align: left; }
-.tkr .sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: 26px; font-family: var(--f-th-en); font-size: 38px; line-height: 1.5; font-weight: 400; text-wrap: pretty; }
+.tkr .sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: var(--sp3); font-family: var(--f-th-en); font-size: 38px; line-height: 1.5; font-weight: 400; text-wrap: pretty; }
 .tkr .sc .body p + p { margin-top: .6em; }
-.tkr .ft { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 16px; font-size: 26px; color: var(--s-dim); font-weight: 500; }
+.tkr .ft { display: flex; align-items: center; justify-content: space-between; gap: var(--sp3); margin-top: var(--sp2); font-size: 26px; color: var(--s-dim); font-weight: 500; }
 .tkr .ft > span:first-child { min-width: 0; }
 .tkr .ft .pg { display: flex; align-items: center; gap: 14px; flex: none; }
 .tkr .ft .pg i { width: 34px; height: 5px; border-radius: 3px; background: var(--s-line); }
@@ -341,7 +343,7 @@ export const TAKEOVER_CSS = `
 .tkr .tile.dayonly { padding: 22px 40px 26px; }
 .tkr .tile.dayonly .day { font-size: 64px; font-weight: 700; }
 .tkr .tile.dayonly .day.he { font-size: calc(56px * var(--he-scale)); }
-.tkr .li .x.hx { direction: rtl; font-family: var(--f-he); font-size: calc(var(--lf, 42) * 1px * var(--he-scale)); font-weight: 600; text-align: right; }
+.tkr .li .x.hx { direction: rtl; font-family: var(--f-he); font-size: calc(var(--lf, 42) * 1px * var(--he-scale)); font-weight: 600; text-align: left; }
 .tkr .li .x .en2 { display: block; font-size: max(20px, calc(var(--lf, 42) * .7px)); font-weight: 500; color: var(--s-dim); margin-top: 2px; }
 .tkr .sc .body.rtl, .tkr .lt.ltr .body { direction: rtl; }
 .tkr .sc .body.rtl { font-family: var(--f-th-he); font-size: calc(38px * var(--he-scale)); line-height: 1.55; text-align: right; }
@@ -360,6 +362,30 @@ export const TAKEOVER_CSS = `
   .tkr .stage .lp[data-loop="kRipple"], .tkr .stage .lp[data-loop="kRing"] { opacity: 0; }
   .tkr .stage .lp[data-loop="kRise"] { transform: translateY(calc(var(--ry) * .5)); opacity: var(--ro, .9); }
 }
+
+/* ── type round (2026-10-15): bidi, bilingual alignment, wrapping ──
+   BIDI: every text run carries dir="rtl|ltr" from its content (layouts.js + src/shared/bidi.js) and isolates,
+   so a Hebrew line's trailing "!" / "?" sits at its LEFT end inside the LTR stage. */
+.tkr .box [dir] { unicode-bidi: isolate; }
+.tkr .box [dir="rtl"] { direction: rtl; }
+.tkr .box [dir="ltr"] { direction: ltr; }
+.tkr .li .x .xl { display: block; }
+/* Lining figures everywhere in the stage (Playfair Display / Fraunces default to old-style); a Latin/time run inside a
+   Hebrew display line ("יום ה׳, 2:00 PM") takes the English display face: Hebrew display fonts (Suez One) draw old-style digits. */
+.tkr .box { font-variant-numeric: lining-nums; }
+.tkr .box .disp-he [dir="ltr"] { font-family: var(--f-disp-en); }
+/* big words with a kicker above: give the kicker's row back from the two title budgets (stack stays inside the box) */
+.tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-he { height: 40%; }
+.tkr .bw:not(.only-he):not(.only-en) .kick ~ .w-en { height: 23%; }
+/* ALIGNMENT RULE (README "Bilingual alignment"): start-aligned layouts put Hebrew AND English on the same start
+   (left) edge, whatever their direction; centred layouts centre both on one axis. Header rows (list / sicha) are the
+   one two-column exception: English flush start, Hebrew flush end; stacked in portrait both go to the start edge. */
+.tkr .start .box :is(.bw, .ev, .qt, .ls) [dir] { text-align: left; }
+.tkr .center .box :is(.bw, .ev, .qt, .qq) [dir] { text-align: center; }
+.tkr .box .lyt .hd > .he[dir] { text-align: right; }
+.tkr .port .box .lyt .hd > .he[dir] { text-align: left; }
+/* WRAPPING: headlines balance (fit.js also steps down a little to avoid a lone last word); smaller lines wrap "pretty". */
+.tkr .place > *, .tkr .li .x > *, .tkr .li .x.hx, .tkr .tcol .lab > * { text-wrap: pretty; }
 `;
 
 let injected = false;

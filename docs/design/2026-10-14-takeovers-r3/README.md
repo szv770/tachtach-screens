@@ -63,6 +63,19 @@ What the audit found and fixed in 3b: Hebrew/English titles shrinking too early 
 
 **16:10 and portrait.** Side graphics (emergency, phone, memorial, shabbos, siyum, schedule, chanukah, purim, lagbaomer) are vertically centred on 16:10 and become a **top band** in portrait (content below, centred). Full-bleed graphics (frames, bunting, frieze, confetti, rays, scroll, arch) regenerate from the canvas size. In portrait the scroll becomes a tall vertical scroll and mivtzoim ripples rise from the bottom. See `shots/sheet-canvases.png`.
 
+## Bilingual alignment, bidi and spacing (type round, 2026-10-15)
+
+Rule per layout (enforced in `src/screen/takeover/css.js`, "type round" block):
+
+| Layout | Rule |
+|---|---|
+| bigwords, event, quick in a **start** style | Hebrew and English on the same left edge, one measure; tile labels (day En over day He) left on the tile's grid; place lines (En, second line, He) left, 8 px apart |
+| bigwords, event, quick, quote in a **centre** style | every line, both languages, centred on one axis |
+| list | rows: day column / text column / time column on one grid; Hebrew-only rows start on the same left edge as English rows; header row is the one two-column exception (English flush left, Hebrew flush right; stacked left in portrait) |
+| sicha / letter | body direction from its language (Hebrew body right-aligned, paginated); footer LTR |
+
+Every text run carries `dir` from its content (`src/shared/bidi.js`), so Hebrew punctuation sits at the Hebrew end and `2:00 PM` stays in order inside Hebrew. Spacing scale: 8 px base (`--sp1` 8, `--sp2` 16, `--sp3` 24, `--sp4` 32, `--sp5` 48, `--sp6` 64) for kicker -> headline (16), headline He -> En (16), title -> sub line / where (24), titles -> foot (24), tile <-> place (48), place lines (8). Headlines `text-wrap: balance` + the fit's orphan step-down; smaller lines `text-wrap: pretty`. Font presets: `settings.announceFonts` (editorial default / modern / classic / screen), see GOTCHAS.
+
 ## Redesigns requested in 3b
 
 **urgent (the "!" fixed).** There is no floating corner mark any more. A 78 px amber **bar is part of the frame** (it follows the frame's rounded corners, full height, inside the 10 px ring) and the glyph, a 50 px ring with a stem and a dot cut into the bar in the dark ink, sits **on the same line as the kicker** ("Important / חשוב", or the first title line when there is no kicker). The glyph is positioned from the measured kicker after fitting, so it stays aligned at any text size. Entrance: bar grows from the top (scaleY .55 to 1, 520 ms), glyph pops with a small overshoot at 420 ms. Ambient: the ring breathes (opacity .6 to 1, 3.4 s) and the glyph pulses (scale 1 to 1.1, 2.2 s): attention without alarm.
