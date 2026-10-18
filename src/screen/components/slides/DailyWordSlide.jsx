@@ -151,7 +151,7 @@ export default function DailyWordSlide({ dailyWords, dateISO, portrait: portrait
   const convoBlock = convo.length > 0 && (
     <Fit key={`c|${key}`} vcenter wrap max={portrait ? 38 : 34} min={20} dir="ltr" style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', alignItems: align, lineHeight: 1.32 }}>
       <div data-s="" style={{ '--i': 4 }}>{blockLabel('In conversation')}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '.45em' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '.45em', paddingBottom: 6 /* Fit tolerates 2px of overflow; keep it inside the bubble gap, not the bubble */ }}>
         {convo.map((t, k) => <Bubble key={k} text={t} i={5 + k} side={k % 2 ? 'right' : 'left'} tinted={k === convo.length - 1 && convo.length > 1} />)}
       </div>
     </Fit>
