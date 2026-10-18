@@ -20,6 +20,9 @@ export const LIMITS = { word: 60, transliteration: 60, pronunciation: 60, partOf
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+// The rafe (U+05BF, the little bar above a pe/bet/kaf) is YIVO-only; Chabad print
+// leaves it out and it reads as a stray mark on top of the letter, so it is dropped.
+const noRafe = (v) => String(v ?? '').replace(/\u05BF/g, '');
 
 let counter = 0;
 const newId = () => `w_${Date.now().toString(36)}_${(counter++).toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -27,7 +30,7 @@ const newId = () => `w_${Date.now().toString(36)}_${(counter++).toString(36)}_${
 /** Clean one word. Returns { word } or { error } (needs the word itself, a transliteration or meaning). */
 export function normalizeWord(input) {
   if (!input || typeof input !== 'object') return { error: 'not an object' };
-  const word = str(input.word ?? input.yiddish ?? input.hebrew, LIMITS.word);
+  const word = str(noRafe(input.word ?? input.yiddish ?? input.hebrew), LIMITS.word);
   const transliteration = str(input.transliteration ?? input.translit ?? input.romanization, LIMITS.transliteration);
   const meaning = str(input.meaning ?? input.english ?? input.translation, LIMITS.meaning);
   if (!word && !transliteration) return { error: 'needs a word or a transliteration' };
@@ -169,7 +172,7 @@ export const DAILY_WORD_PROMPT = `You are helping fill the "Daily Word" page of 
 Write {N} more {LANGUAGE} words that students would enjoy and actually use. Mix everyday words with Chabad/yeshiva ones.
 Reply with ONLY a JSON list, no commentary. One object per word:
 {
-  "word": "the word in Hebrew letters (YIVO spelling for Yiddish)",
+  "word": "the word in Hebrew letters, Chabad-style Yiddish spelling: use pasekh alef (אַ) and komets alef (אָ) where needed, but NO rafe (the bar above פ)",
   "transliteration": "English letters, e.g. nakhes",
   "pronunciation": "easy respelling, stressed syllable in CAPS, e.g. NAH-khes",
   "partOfSpeech": "noun | verb | adjective | adverb | interjection | phrase",

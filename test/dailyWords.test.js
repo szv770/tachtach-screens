@@ -83,3 +83,10 @@ test('splitEmphasis', () => {
   assert.deepEqual(splitEmphasis('plain'), [{ text: 'plain', em: false }]);
   assert.deepEqual(splitEmphasis(''), []);
 });
+
+test('the rafe (bar above pe) is stripped from words, seed included', () => {
+  const r = normalizeWord({ word: 'פֿאַרברענגען', transliteration: 'farbrengen', meaning: 'm' });
+  assert.equal(r.word.word, 'פאַרברענגען');
+  assert.ok(!SEED_WORDS.some((w) => w.word.includes('\u05BF')), 'no rafe in the seed list');
+  assert.ok(SEED_WORDS.some((w) => w.word.includes('\u05B7')), 'pasekh alef (patah under the alef) is still there');
+});
