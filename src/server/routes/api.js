@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir } from 'fs/promises';
 import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
+import { readDailyWords } from './daily-words.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { getScreenState, setScreenState } from '../screenState.js';
 import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
@@ -1350,6 +1351,7 @@ router.get('/preview-state', async (req, res) => {
       schedule: getEffectiveSchedule(schedule, scheduleDates, dateStr),
       scheduleDates: scheduleDates ?? {},
       rssFeeds: rssFeeds ?? [],
+      dailyWords: await readDailyWords(), // so the date preview shows that day's word
       _previewDate: dateStr,
     });
   } catch (err) {
