@@ -65,7 +65,7 @@ function pick(obj, allowedFields) {
 // sends and what VideoSlide/ImageSlide read. They were missing here, so every
 // new video slide was saved without its URL (blank on screen) and image edge
 // treatment / blurred backdrop were silently dropped.
-const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'announcementId'];
+const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'announcementId'];
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];

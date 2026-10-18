@@ -23,7 +23,7 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
     if (s.type === 'PIRKEI_AVOS' && dayOfWeek !== 6) return false;
     // Live embed with no URL configured yet has nothing to show — keep it out of rotation
     // (same idea as the disabled check above) rather than displaying a placeholder to the audience.
-    if (s.type === 'MIVTZAH_LIVE_EMBED' && !(s.embedUrl || '').trim()) return false;
+    if ((s.type === 'MIVTZAH_LIVE_EMBED' || s.type === 'WEB_PAGE') && !(s.embedUrl || '').trim()) return false;
     return true;
   });
 

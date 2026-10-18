@@ -17,6 +17,7 @@ import RSSSlide from './slides/RSSSlide.jsx';
 import WeatherSlide from './slides/WeatherSlide.jsx';
 import MivtzahLeaderboardSlide from './slides/MivtzahLeaderboardSlide.jsx';
 import MivtzahLiveEmbedSlide from './slides/MivtzahLiveEmbedSlide.jsx';
+import WebPageSlide from './slides/WebPageSlide.jsx';
 import CountdownOverlay from './CountdownOverlay.jsx';
 import AnnouncementSlide from './slides/AnnouncementSlide.jsx';
 
@@ -44,7 +45,7 @@ function legacyItem(slide) {
   };
 }
 
-const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED']);
+const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED', 'WEB_PAGE']);
 
 const VARIANTS = {
   smooth: { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.48, ease: [0.22, 0.7, 0.2, 1] } }, exit: { opacity: 0, transition: { duration: 0.26, ease: 'easeIn' } } },
@@ -90,6 +91,7 @@ export default function SlideCarousel({
       case 'WEATHER': return <WeatherSlide cache={cache} settings={settings} />;
       case 'MIVTZAH_LEADERBOARD': return <MivtzahLeaderboardSlide cache={cache} tokens={tokens} />;
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
+      case 'WEB_PAGE': return <WebPageSlide slide={slide} />;
       case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
       case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} onRequestDuration={onRequestDuration} />;

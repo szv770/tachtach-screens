@@ -13,6 +13,7 @@ import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
 import dailyWordsRouter, { readDailyWords } from './routes/daily-words.js';
+import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
@@ -392,6 +393,7 @@ export function createApp() {
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api', announcementsRouter);
   app.use('/api', dailyWordsRouter);
+  app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
 
