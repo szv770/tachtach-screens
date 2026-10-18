@@ -63,6 +63,17 @@ export const AUTH_CSS = `
       margin-bottom: 0.25rem;
     }
 
+    /* The ת"ח ת"ח mark — a small signature under the wordmark on the sign-in
+       page only (not invite/sign-in-link pages), not an explanation. */
+    .title-mark {
+      font-family: 'Noto Serif Hebrew', serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: rgba(212, 168, 75, 0.55);
+      letter-spacing: 0.3em;
+      margin-bottom: 0.6rem;
+    }
+
     .title-english {
       font-family: 'EB Garamond', Georgia, serif;
       font-size: 1.1rem;
@@ -305,6 +316,7 @@ const CLIENT_BUSY = `
 
 export function loginPage({ askUsername = false } = {}) {
   return `${HEAD('TachTach-Screens — Sign in')}
+    <p class="title-mark">ת״ח ת״ח</p>
     <p class="title-english">Admin Access</p>
 
     <form id="passwordForm" data-first autocomplete="on">
