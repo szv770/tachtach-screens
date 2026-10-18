@@ -5,8 +5,10 @@ import useIsMobile from '../hooks/useIsMobile.js';
 import { ZMANIM_DISPLAY } from '../../shared/constants.js';
 import { DISPLAY_MODES as IMAGE_DISPLAY_MODES, EDGE_TREATMENTS } from './ImageUploader.jsx';
 import { status as announcementStatus, primaryText, selectActive } from '../../shared/announcements.js';
+import { normalizeWebUrl } from '../../shared/embedCheck.js';
+import { apiFetch } from '../hooks/useAdminState.js';
 
-const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
+const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'DAILY_WORD', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED', 'WEB_PAGE'];
 
 const BUILT_IN_LABELS = {
   ZMANIM: 'Zmanim',
@@ -14,13 +16,17 @@ const BUILT_IN_LABELS = {
   HAYOM_YOM: 'Hayom Yom',
   PIRKEI_AVOS: 'Pirkei Avos',
   DAILY_QUOTE: 'Daily Quote',
+  DAILY_WORD: 'Daily Word',
   PARSHA_TIDBITS: 'Parsha Tidbits',
   SCHEDULE: 'Schedule / Seder',
   WEATHER: 'Weather',
   RSS_SLIDE: 'RSS Feed',
   MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard',
   MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen (embed)',
+  WEB_PAGE: 'Web page (show a website)',
 };
+
+const isEmbed = (slide) => slide.type === 'MIVTZAH_LIVE_EMBED' || slide.type === 'WEB_PAGE';
 
 const LIMUDIM_ITEMS = [
   { key: 'chumash',   label: 'Chumash' },
@@ -38,6 +44,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
   const [limudimExpanded, setLimudimExpanded] = useState(null); // slide index or null
   const [embedExpanded, setEmbedExpanded] = useState(null); // slide index or null
   const [embedUrlDraft, setEmbedUrlDraft] = useState('');
+  const [probe, setProbe] = useState(null); // { loading } | { framable, reason } | { error }
   const [imageExpanded, setImageExpanded] = useState(null); // slide index or null
   const [confirmDelete, setConfirmDelete] = useState(null); // slide object or null
   // Drag state. Rows are only made draggable while the mouse is down on the
@@ -88,6 +95,22 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
       i === index ? { ...s, embedUrl: url.trim() || undefined } : s
     );
     onUpdate(updated);
+  };
+
+  const handleEmbedField = (index, patch) => {
+    onUpdate(slides.map((s, i) => (i === index ? { ...s, ...patch } : s)));
+  };
+
+  // Web page slide: normalise the address, save it, then ask the Pi whether the
+  // site allows being shown in a frame (X-Frame-Options / CSP frame-ancestors).
+  const handleWebSave = async (index, draft) => {
+    const url = normalizeWebUrl(draft);
+    if (!url) { setProbe({ error: 'Enter a full web address, like https://charidy.com/miami+' }); return; }
+    setEmbedUrlDraft(url);
+    handleEmbedUrl(index, url);
+    setProbe({ loading: true });
+    try { setProbe(await apiFetch(`/api/embed-probe?url=${encodeURIComponent(url)}`)); }
+    catch (err) { setProbe({ error: err.message }); }
   };
 
   const handleMoveUp = (index) => {
@@ -258,7 +281,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
               }}>
                 {getLabel(slide)}
               </span>
-              {slide.type === 'MIVTZAH_LIVE_EMBED' && !slide.embedUrl && (
+              {isEmbed(slide) && !slide.embedUrl && (
                 <span style={{
                   padding: '2px 8px',
                   borderRadius: '3px',
@@ -318,7 +341,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                     />
                     <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted }}>s</span>
                   </div>
-                  {(slide.type === 'IMAGE_SLIDE' || slide.type === 'VIDEO_SLIDE' || slide.type === 'GOOGLE_PHOTOS_SLIDE' || slide.type === 'MIVTZAH_LIVE_EMBED') && (
+                  {(slide.type === 'IMAGE_SLIDE' || slide.type === 'VIDEO_SLIDE' || slide.type === 'GOOGLE_PHOTOS_SLIDE' || isEmbed(slide)) && (
                     <label title="Fullscreen — hides the clock/date panel and shows the media edge-to-edge" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -343,12 +366,12 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   )}
                 </>
               )}
-              {slide.type === 'MIVTZAH_LIVE_EMBED' && (
+              {isEmbed(slide) && (
                 <button
                   onClick={() => {
                     const opening = embedExpanded !== idx;
                     setEmbedExpanded(opening ? idx : null);
-                    if (opening) setEmbedUrlDraft(slide.embedUrl || '');
+                    if (opening) { setEmbedUrlDraft(slide.embedUrl || ''); setProbe(null); }
                   }}
                   title="Configure the Live Screen embed URL"
                   style={{
@@ -609,8 +632,8 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
               </div>
             )}
 
-            {/* Mivtzah Live Embed config panel */}
-            {slide.type === 'MIVTZAH_LIVE_EMBED' && embedExpanded === idx && (
+            {/* Embed config panel (Mivtzah live screen / generic Web page) */}
+            {isEmbed(slide) && embedExpanded === idx && (
               <div style={{
                 marginTop: '12px',
                 padding: '14px',
@@ -619,24 +642,75 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                 border: `1px solid ${colors.muted}`,
               }}>
                 <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '10px' }}>
-                  Paste the public URL of the mivtzah-app "Live Screen" page (the Vercel-hosted embeddable view).
-                  This slide shows that page full-bleed in an iframe — any visual changes happen on the mivtzah-app side, no updates needed here.
+                  {slide.type === 'WEB_PAGE'
+                    ? 'Paste the address of any website. The page loads fresh every time this slide comes up. Tip: for a Charidy campaign, add a + to the end of the link (charidy.com/miami+) for the version made for big screens. Turn on "Fullscreen" for this slide to hide the side rail and give the page the whole screen.'
+                    : 'Paste the public URL of the mivtzah-app "Live Screen" page (the Vercel-hosted embeddable view). This slide shows that page full-bleed in an iframe — any visual changes happen on the mivtzah-app side, no updates needed here.'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                   <input
-                    type="url"
+                    type="text"
+                    inputMode="url"
                     value={embedUrlDraft}
                     onChange={(e) => setEmbedUrlDraft(e.target.value)}
-                    placeholder="https://your-mivtzah-app.vercel.app/live"
-                    style={{ ...inputStyle, flex: 1, minWidth: '220px' }}
+                    placeholder={slide.type === 'WEB_PAGE' ? 'https://charidy.com/miami+' : 'https://your-mivtzah-app.vercel.app/live'}
+                    style={{ ...inputStyle, flex: 1, minWidth: '220px', direction: 'ltr' }}
                   />
                   <button
                     style={{ ...buttonPrimary, minHeight: '38px' }}
-                    onClick={() => handleEmbedUrl(idx, embedUrlDraft)}
+                    onClick={() => (slide.type === 'WEB_PAGE' ? handleWebSave(idx, embedUrlDraft) : handleEmbedUrl(idx, embedUrlDraft))}
                   >
-                    Save
+                    {slide.type === 'WEB_PAGE' ? 'Save & check' : 'Save'}
                   </button>
                 </div>
+                {slide.type === 'WEB_PAGE' && probe && (
+                  <div style={{
+                    marginTop: '8px', padding: '8px 10px', borderRadius: '4px',
+                    fontFamily: adminFonts.englishBody, fontSize: '12px', lineHeight: 1.5,
+                    background: probe.error || probe.framable === false ? colors.dangerBg : colors.bg,
+                    color: probe.error || probe.framable === false ? colors.danger : colors.dim,
+                    border: `1px solid ${probe.error || probe.framable === false ? colors.danger : colors.muted}`,
+                  }}>
+                    {probe.loading && 'Checking the site…'}
+                    {probe.error && probe.error}
+                    {!probe.loading && !probe.error && (
+                      <>
+                        {probe.framable === true && '✓ '}
+                        {probe.framable === false && '✗ This site will not show in a slide. '}
+                        {probe.framable === null && '? '}
+                        {probe.reason}
+                      </>
+                    )}
+                  </div>
+                )}
+                {slide.type === 'WEB_PAGE' && (
+                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '12px', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Reload while showing
+                      <select
+                        value={slide.webRefreshSec || 0}
+                        onChange={(e) => handleEmbedField(idx, { webRefreshSec: Number(e.target.value) || undefined })}
+                        style={{ ...inputStyle, minHeight: '34px', width: 'auto' }}
+                      >
+                        <option value={0}>Never (page updates itself)</option>
+                        <option value={30}>every 30 seconds</option>
+                        <option value={60}>every minute</option>
+                        <option value={120}>every 2 minutes</option>
+                        <option value={300}>every 5 minutes</option>
+                        <option value={600}>every 10 minutes</option>
+                      </select>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      Page size
+                      <select
+                        value={slide.webZoom || 100}
+                        onChange={(e) => handleEmbedField(idx, { webZoom: Number(e.target.value) === 100 ? undefined : Number(e.target.value) })}
+                        style={{ ...inputStyle, minHeight: '34px', width: 'auto' }}
+                      >
+                        {[50, 60, 70, 80, 90, 100, 110, 125, 150].map((z) => <option key={z} value={z}>{z}%</option>)}
+                      </select>
+                    </label>
+                  </div>
+                )}
                 {slide.embedUrl && (
                   <div style={{
                     fontFamily: adminFonts.englishBody,
@@ -680,7 +754,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   />
                   <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted }}>s</span>
                 </div>
-                {(slide.type === 'IMAGE_SLIDE' || slide.type === 'VIDEO_SLIDE' || slide.type === 'GOOGLE_PHOTOS_SLIDE' || slide.type === 'MIVTZAH_LIVE_EMBED') && (
+                {(slide.type === 'IMAGE_SLIDE' || slide.type === 'VIDEO_SLIDE' || slide.type === 'GOOGLE_PHOTOS_SLIDE' || isEmbed(slide)) && (
                   <label title="Fullscreen" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', flexShrink: 0, minHeight: '36px' }}>
                     <input
                       type="checkbox"

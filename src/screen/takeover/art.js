@@ -79,7 +79,20 @@ const twinkles = (G, seed, n, color, rmin = 5, rmax = 11, region = [0, 0, W, Mat
 /* ═════════════ ART — one function per style; returns layers.  G = {W,H,port,box:[l,t,r,b],light} ═════════════ */
 const ART = {
   classic(G) {
-    return `<div class="panelbg"></div>` + layer(W / 2 - 52, 28, 104, 10, `<rect x="${W / 2 - 52}" y="28" width="104" height="7" rx="3.5" style="fill:var(--s-acc)"/>`, null, { k: 'kBreathe', d: 4.5, vars: { o0: .45 } });
+    /* The everyday default: a calm, centred card. Theme-driven (accent at low
+       opacity, so it follows dark/light and the owner's accent), static except
+       the tiny top bar's slow breathe. Halo behind the text, ornament below. */
+    const cx = W / 2, cy = Math.round(H * .46), r1 = Math.round(Math.min(W, H) * .33), r2 = Math.round(Math.min(W, H) * .44);
+    const halo = `<circle cx="${cx}" cy="${cy}" r="${r2}" style="fill:none;stroke:var(--s-acc);stroke-width:1.5;opacity:.10"/>
+      <circle cx="${cx}" cy="${cy}" r="${r1}" style="fill:none;stroke:var(--s-acc);stroke-width:2;opacity:.16"/>
+      <path d="M${cx} ${cy - r1 - 9} l9 9 l-9 9 l-9 -9Z" style="fill:var(--s-acc);opacity:.5"/>`;
+    const oy = H - 92, orn = `<path d="M${cx - 150} ${oy} H${cx - 22} M${cx + 22} ${oy} H${cx + 150}" style="stroke:var(--s-acc);stroke-width:1.6;opacity:.45"/>
+      <path d="M${cx} ${oy - 8} l8 8 l-8 8 l-8 -8Z" style="fill:var(--s-acc);opacity:.7"/>
+      <circle cx="${cx - 168}" cy="${oy}" r="2.6" style="fill:var(--s-acc);opacity:.45"/><circle cx="${cx + 168}" cy="${oy}" r="2.6" style="fill:var(--s-acc);opacity:.45"/>`;
+    return `<div class="panelbg"></div>`
+      + layer(cx - r2 - 4, cy - r2 - 4, 2 * r2 + 8, 2 * r2 + 8, halo, { an: 'aFade', dur: 900, d: 200 })
+      + layer(cx - 180, oy - 12, 360, 24, orn, { an: 'aFade', dur: 700, d: 450 })
+      + layer(cx - 52, 28, 104, 10, `<rect x="${cx - 52}" y="28" width="104" height="7" rx="3.5" style="fill:var(--s-acc)"/>`, null, { k: 'kBreathe', d: 4.5, vars: { o0: .45 } });
   },
 
   grand(G) {

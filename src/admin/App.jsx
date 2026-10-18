@@ -13,6 +13,7 @@ import ImageUploader from './components/ImageUploader.jsx';
 import GooglePhotosManager from './components/GooglePhotosManager.jsx';
 import RSSManager from './components/RSSManager.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
+import DailyWordPanel from './components/DailyWordPanel.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
@@ -133,6 +134,8 @@ export default function App() {
             fetchShabbosEnd={fetchShabbosEnd}
           />
         );
+      case 'daily-word':
+        return <DailyWordPanel />;
       case 'custom-days':
         return (
           <CustomDaysEditor

@@ -227,6 +227,9 @@ function AppContent() {
       case 'schedule-dates-update':
         setState(prev => prev ? { ...prev, scheduleDates: data } : prev);
         break;
+      case 'daily-words-update':
+        setState(prev => prev ? { ...prev, dailyWords: data } : prev);
+        break;
       case 'rss-update':
         if (data?.feedId) {
           setRssCache(prev => ({ ...prev, [data.feedId]: data }));
@@ -405,6 +408,8 @@ function AppContent() {
         credit={settings.credit}
         rssCache={rssCache}
         rssFeeds={state?.rssFeeds || []}
+        dailyWords={state?.dailyWords}
+        dateISO={scheduleDateISO}
         portrait={isPortrait}
         portraitLayout={settings.portraitLayout || 'compact'}
       />

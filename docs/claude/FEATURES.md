@@ -20,6 +20,7 @@ Hooks: `useSSE.js`, `useSlideRotation.js` (timer only), `useAnnouncements.js`, `
 | Hayom Yom (standalone) | `HayomYomSlide.jsx` | Fixed-size Torah-text reading look, paginated, duration grows with pages |
 | Pirkei Avos | `PirkeiAvosSlide.jsx` | Seasonal — visibility computed in `src/shared/pirkeiAvos.js` (Pesach→Rosh Hashana window only) |
 | Daily Quote | `DailyQuoteSlide.jsx` | The owner's "Tanya page": quote in the Torah-text role on a reading measure, rule + source centred with it, Hebrew source added for known sources (`hebrewSource()`) |
+| Daily Word (`DAILY_WORD`) | `DailyWordSlide.jsx` | One Yiddish word a day (`pickDailyWord`, `src/shared/dailyWords.js`): hero word in the Torah-text Hebrew role (nikud-safe line box), transliteration + pronunciation (CAPS syllable heavy) + part-of-speech chip, Meaning + optional origin note, "In conversation" bubbles with the `*word*` in the accent; landscape two columns, portrait stacked, every block auto-fits; faint first-letter graphic follows `graphics` |
 | Parsha Tidbits | `ParshaTidbitsSlide.jsx` | |
 | Schedule | `ScheduleSlide.jsx` | `settings.scheduleLayout` `timeline` (Now\|Next spotlight, day ribbon, later strip) or `list`. Shows the schedule `App.jsx` resolved for today / `?previewDate=` via `getEffectiveSchedule` (`src/shared/scheduleResolution.js`): the date's own schedule from `schedule-dates.json`, else enabled weekly `schedule.json` entries for that weekday. Shows the date's label under the title. Icons from `src/shared/ScheduleIcons.jsx` (16 SVGs) |
 | Google Photos | `GooglePhotosSlide.jsx` | Fetches via localhost-only `/api/google-album/:id/photos` |
@@ -30,6 +31,7 @@ Hooks: `useSSE.js`, `useSlideRotation.js` (timer only), `useAnnouncements.js`, `
 | Legacy text / styled / pinned / board rows | (in `SlideCarousel.jsx`) | `TextSlide`, `StyledSlide`, `PinnedSlide`, `BoardSlide`, `Takeover.jsx` were retired; raw legacy rows render as Big words via `AnnouncementSlide` |
 | Mivtzah Leaderboard | `MivtzahLeaderboardSlide.jsx` | Talks to the Mivtzah SaaS platform's data, not a raw embed |
 | Mivtzah Live Embed | `MivtzahLiveEmbedSlide.jsx` | Just an iframe to the SaaS platform's `/live` page — any visual change to it happens in `saas-admin`/`saas-server`, not here |
+| Web page (`WEB_PAGE`) | `WebPageSlide.jsx` | Any website in an iframe (e.g. a Charidy campaign's `/miami+` screen version). New iframe + `_tt` cache-bust every time the slide comes up, optional reload every `webRefreshSec`, `webZoom` %, per-slide Fullscreen hides the rail. Admin 'Save & check' calls `GET /api/embed-probe` (`routes/embed-probe.js`, SSRF-guarded, `src/shared/embedCheck.js`) to warn when a site forbids framing (X-Frame-Options / CSP frame-ancestors) |
 
 ### Messages (`src/screen/components/messages/`) — all driven by announcements (`data/announcements.json`)
 

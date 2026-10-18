@@ -8,6 +8,7 @@ import HayomYomSlide from './slides/HayomYomSlide.jsx';
 import ImageSlide from './slides/ImageSlide.jsx';
 import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
+import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
@@ -16,6 +17,7 @@ import RSSSlide from './slides/RSSSlide.jsx';
 import WeatherSlide from './slides/WeatherSlide.jsx';
 import MivtzahLeaderboardSlide from './slides/MivtzahLeaderboardSlide.jsx';
 import MivtzahLiveEmbedSlide from './slides/MivtzahLiveEmbedSlide.jsx';
+import WebPageSlide from './slides/WebPageSlide.jsx';
 import CountdownOverlay from './CountdownOverlay.jsx';
 import AnnouncementSlide from './slides/AnnouncementSlide.jsx';
 
@@ -43,7 +45,7 @@ function legacyItem(slide) {
   };
 }
 
-const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED']);
+const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED', 'WEB_PAGE']);
 
 const VARIANTS = {
   smooth: { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.48, ease: [0.22, 0.7, 0.2, 1] } }, exit: { opacity: 0, transition: { duration: 0.26, ease: 'easeIn' } } },
@@ -54,6 +56,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
+  dailyWords, dateISO,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -75,6 +78,7 @@ export default function SlideCarousel({
       case 'HAYOM_YOM': return <HayomYomSlide cache={cache} tokens={tokens} settings={settings} onRequestDuration={onRequestDuration} />;
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
+      case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'VIDEO_SLIDE': return <VideoSlide slide={slide} tokens={tokens} onEnded={onVideoEnded} />;
@@ -87,6 +91,7 @@ export default function SlideCarousel({
       case 'WEATHER': return <WeatherSlide cache={cache} settings={settings} />;
       case 'MIVTZAH_LEADERBOARD': return <MivtzahLeaderboardSlide cache={cache} tokens={tokens} />;
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
+      case 'WEB_PAGE': return <WebPageSlide slide={slide} />;
       case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
       case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} onRequestDuration={onRequestDuration} />;
