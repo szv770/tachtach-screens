@@ -18,3 +18,6 @@ data/schedule-blocks.json
 data/zmanim-dates.json
 data/announcements.json
 data/legacy/
+
+# Local kiosk https key + certificate, generated on the Pi (src/server/localTls.js)
+data/tls/

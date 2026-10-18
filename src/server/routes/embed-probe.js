@@ -10,6 +10,7 @@ import { Router } from 'express';
 import dns from 'dns/promises';
 import fetch from 'node-fetch';
 import { normalizeWebUrl, evaluateFramePolicy, isPrivateAddress } from '../../shared/embedCheck.js';
+import { kioskOrigin, isLocalTlsEnabled } from '../localTls.js';
 
 const UA = 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const MAX_REDIRECTS = 5;
@@ -46,7 +47,11 @@ router.get('/embed-probe', async (req, res) => {
   try {
     const { status, headers, finalUrl } = await fetchHeaders(url);
     const blockedByBotWall = (status === 403 || status === 429 || status === 503) && (headers['cf-mitigated'] || /cloudflare/i.test(headers.server || ''));
-    const policy = evaluateFramePolicy(headers);
+    const origin = kioskOrigin();
+    // An https kiosk cannot show an http:// page in a frame (mixed content).
+    const policy = isLocalTlsEnabled() && new URL(finalUrl).protocol === 'http:'
+      ? { framable: false, reason: 'This address starts with http://, which the screen (served over https) will block. Use the https:// version of the address.' }
+      : evaluateFramePolicy(headers, origin);
     res.json({
       url: finalUrl, status,
       // null = could not tell (the server-side check hit a bot wall; the TV's browser usually gets through)

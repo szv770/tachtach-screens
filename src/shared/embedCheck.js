@@ -28,12 +28,39 @@ export function withCacheBust(url, stamp = Date.now()) {
   } catch { return url; }
 }
 
+/** Does a CSP frame-ancestors source expression allow a page at `parent` (a URL origin string) to frame? */
+function ancestorSourceMatches(src, parent) {
+  const t = String(src).toLowerCase();
+  if (t === "'none'") return false;
+  if (t === '*') return /^https?:$/.test(parent.protocol);
+  if (t === "'self'") return false; // 'self' = the framed site's own origin, never us
+  if (/^[a-z][a-z0-9+.-]*:$/.test(t)) {
+    // scheme-source: https: allows https parents only; http: allows http and https
+    if (t === 'http:') return parent.protocol === 'http:' || parent.protocol === 'https:';
+    return parent.protocol === t;
+  }
+  // host-source: [scheme://]host[:port][/path]
+  const m = t.match(/^(?:([a-z][a-z0-9+.-]*):\/\/)?(\*\.)?([^:/*]+)(?::(\d+|\*))?(?:\/.*)?$/);
+  if (!m) return false;
+  const [, scheme, wild, host, port] = m;
+  if (scheme && scheme + ':' !== parent.protocol && !(scheme === 'http' && parent.protocol === 'https:')) return false;
+  const ph = parent.hostname.toLowerCase();
+  if (wild ? !ph.endsWith('.' + host) : ph !== host) return false;
+  if (port && port !== '*' && port !== (parent.port || (parent.protocol === 'https:' ? '443' : '80'))) return false;
+  return true;
+}
+
 /**
- * headers: lower-cased header map. Returns { framable: true|false, reason }.
- * `ourOrigin` (optional) lets SAMEORIGIN / ALLOW-FROM / frame-ancestors that
- * name our own origin count as allowed.
+ * headers: lower-cased header map. parentOrigin: the origin of the page that
+ * will do the framing (the TV's kiosk page, e.g. https://127.0.0.1:3443).
+ * Returns { framable: true|false, reason }.
+ *
+ * Every frame-ancestors source is matched against the parent's real scheme and
+ * host: `frame-ancestors 'self' https:` (Charidy) allows an https kiosk but NOT
+ * an http one, so the kiosk is served over local https (src/server/localTls.js).
  */
-export function evaluateFramePolicy(headers = {}, ourOrigin = null) {
+export function evaluateFramePolicy(headers = {}, parentOrigin = 'https://127.0.0.1:3443') {
+  const parent = new URL(parentOrigin);
   const xfo = String(headers['x-frame-options'] || '').trim().toLowerCase();
   const csp = String(headers['content-security-policy'] || '');
   const fa = csp.split(',').flatMap((p) => p.split(';')).map((d) => d.trim())
@@ -41,15 +68,16 @@ export function evaluateFramePolicy(headers = {}, ourOrigin = null) {
 
   if (fa) {
     const sources = fa.replace(/^frame-ancestors\s*/i, '').split(/\s+/).filter(Boolean);
-    const ok = sources.includes('*') || sources.includes('https:') || (ourOrigin && sources.includes(ourOrigin));
-    if (!ok) return { framable: false, reason: `The site's Content-Security-Policy frame-ancestors is "${sources.join(' ') || "'none'"}", so browsers will not show it inside another page.` };
+    if (!sources.some((src) => ancestorSourceMatches(src, parent))) {
+      return { framable: false, reason: `The site's Content-Security-Policy says only "${sources.join(' ') || "'none'"}" may show it in a frame, and this screen (${parent.origin}) is not on that list.` };
+    }
   }
   if (xfo) {
     if (xfo.startsWith('deny')) return { framable: false, reason: 'The site sends X-Frame-Options: DENY, so browsers will not show it inside another page.' };
     if (xfo.startsWith('sameorigin')) return { framable: false, reason: 'The site sends X-Frame-Options: SAMEORIGIN, so only its own pages may embed it.' };
     if (xfo.startsWith('allow-from')) {
       const from = xfo.replace(/^allow-from\s*/, '');
-      if (!(ourOrigin && from === ourOrigin.toLowerCase())) return { framable: false, reason: `The site only allows embedding from ${from}.` };
+      if (from.replace(/\/$/, '') !== parent.origin.toLowerCase()) return { framable: false, reason: `The site only allows embedding from ${from}.` };
     }
   }
   return { framable: true, reason: 'The site does not forbid being shown in a frame.' };
