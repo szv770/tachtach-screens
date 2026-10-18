@@ -1,4 +1,5 @@
 import fetch from "node-fetch";
+import { normalizeCheshvan } from "../shared/constants.js";
 
 const UA = "Mozilla/5.0 (compatible; TachTach-Screens/1.0)";
 
@@ -24,6 +25,7 @@ export async function fetchHebrewDate(date) {
     // The ב may carry niqqud marks (shva, dagesh, etc.) in the range U+0590–U+05CF
     let hebrew = data.hebrew || "";
     hebrew = hebrew.replace(/\s+ב[\u0590-\u05CF]*(?=[א-ת])/, ' ');
+    hebrew = normalizeCheshvan(hebrew);
 
     return {
       hebrew,

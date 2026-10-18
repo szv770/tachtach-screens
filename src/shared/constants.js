@@ -1,3 +1,14 @@
+// Chabad.org sources (Hayom Yom, Tanya, Hebcal converter, etc.) spell the
+// 8th month "מר-חשון"/"מרחשון"/"מרחשוון" (Mar-Cheshvan). The school wants it
+// shown everywhere as plain "חשון" — normalize any niqqud/maqaf/spacing
+// variant wherever Hebrew text is pulled in from an external source.
+const MARCHESHVAN_RE = /מ[֐-׏]*ר[֐-׏]*[\s־-]?[֐-׏]*ח[֐-׏]*ש[֐-׏]*(?:ו[֐-׏]*){1,2}ן[֐-׏]*/g;
+
+export function normalizeCheshvan(str) {
+  if (!str) return str;
+  return String(str).replace(MARCHESHVAN_RE, 'חשון');
+}
+
 export const RSS_MAP = {
   "Dawn (Alot Hashachar)": "alotHaShachar",
   "Earliest Tallit and Tefillin (Misheyakir)": "misheyakir",
