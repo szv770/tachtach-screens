@@ -7,3 +7,14 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>
 );
+
+// Lets the admin install to the phone's home screen and run full-screen.
+// Scoped to /admin/ even though the file is served from the root, since the
+// default service worker scope is the directory containing the script URL.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { scope: '/admin/' }).catch((err) => {
+      console.warn('[admin] service worker registration failed:', err.message);
+    });
+  });
+}

@@ -53,14 +53,14 @@ export const AUTH_CSS = `
       text-align: center;
     }
 
-    .title-hebrew {
-      font-family: 'Noto Serif Hebrew', serif;
-      font-size: 3.5rem;
-      font-weight: 700;
-      color: #D4A84B;
-      letter-spacing: 0.02em;
-      line-height: 1.2;
-      margin-bottom: 0.25rem;
+    .brand {
+      margin: 0 auto 0.75rem;
+      line-height: 0;
+    }
+
+    .brand img {
+      width: 176px;
+      height: 176px;
     }
 
     .title-english {
@@ -213,7 +213,7 @@ const HEAD = (title) => `<!DOCTYPE html>
 </head>
 <body>
   <div class="login-container">
-    <h1 class="title-hebrew">תחתך</h1>
+    <h1 class="brand"><img src="/icons/logo-mark.png" width="176" height="176" alt='ת"ח ת"ח'></h1>
 `;
 
 const TOTP_FORMS = `

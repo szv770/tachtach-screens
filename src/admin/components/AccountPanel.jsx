@@ -230,6 +230,92 @@ function DevicesSection() {
   );
 }
 
+const urlB64ToBytes = (b64) => {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+};
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const standalone = () => window.matchMedia?.('(display-mode: standalone)').matches || navigator.standalone === true;
+
+/** Alerts on this phone: screen offline / zmanim stale, via web push (src/server/push.js). */
+function AlertsSection() {
+  const supported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  const [on, setOn] = useState(null); // null = checking
+  const toggle = useAction();
+  const test = useAction();
+
+  React.useEffect(() => {
+    if (!supported) return;
+    let alive = true;
+    navigator.serviceWorker.ready
+      .then((reg) => reg.pushManager.getSubscription())
+      .then((sub) => { if (alive) setOn(!!sub); })
+      .catch(() => { if (alive) setOn(false); });
+    return () => { alive = false; };
+  }, [supported]);
+
+  const enable = () => toggle.run(async () => {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') throw new Error('Notifications are blocked for this app. Allow them in your phone settings, then try again.');
+    const { publicKey } = await apiFetch('/api/push/status');
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription())
+      || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToBytes(publicKey) });
+    await apiFetch('/api/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub.toJSON() }) });
+    setOn(true);
+  }, 'Alerts are on for this phone.');
+
+  const disable = () => toggle.run(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await apiFetch('/api/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: sub.endpoint }) });
+      await sub.unsubscribe();
+    }
+    setOn(false);
+  }, 'Alerts are off for this phone.');
+
+  const sendTest = () => test.run(() => apiFetch('/api/push/test', { method: 'POST' }), 'Sent. It should arrive in a few seconds.');
+
+  let content;
+  if (!supported) {
+    content = (
+      <p style={body}>
+        {isIOS() && !standalone()
+          ? 'On an iPhone, alerts only work from the installed app: tap Share, then “Add to Home Screen”, open TachTach from your home screen, and come back here.'
+          : 'This browser can’t receive alerts. Try Chrome or Safari, or install the app to your home screen.'}
+      </p>
+    );
+  } else {
+    content = (
+      <>
+        <p style={{ ...body, marginBottom: '12px' }}>
+          Get a notification on this phone when the screen goes offline for a few minutes (and when it’s back), or the zmanim stop updating.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {on ? (
+            <>
+              <button type="button" style={{ ...buttonSecondary, ...touch }} disabled={toggle.busy} onClick={disable}>Turn off alerts</button>
+              <button type="button" style={{ ...buttonPrimary, ...touch }} disabled={test.busy} onClick={sendTest}>Send a test alert</button>
+            </>
+          ) : (
+            <button type="button" style={{ ...buttonPrimary, ...touch }} disabled={on === null || toggle.busy} onClick={enable}>Turn on alerts</button>
+          )}
+        </div>
+        <Note msg={toggle.msg} />
+        <Note msg={test.msg} />
+      </>
+    );
+  }
+  return (
+    <div style={card}>
+      <h3 style={h3}>Alerts on this phone</h3>
+      {content}
+    </div>
+  );
+}
+
 export default function AccountPanel({ me, onChanged }) {
   if (!me) return <p style={body}>Loading…</p>;
   return (
@@ -239,6 +325,7 @@ export default function AccountPanel({ me, onChanged }) {
       <NameSection key={me.name} me={me} onChanged={onChanged} />
       <PasswordSection me={me} onChanged={onChanged} />
       <TwoStepSection me={me} onChanged={onChanged} />
+      <AlertsSection />
       <DevicesSection />
     </div>
   );

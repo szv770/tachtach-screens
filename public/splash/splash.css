@@ -1,0 +1,99 @@
+/* Start-up animation for the kiosk and the admin app (see splash.js).
+   The ת"ח ת"ח envelope builds itself from pre-rendered layers
+   (scripts/generate-admin-icons.mjs): sealed envelope → seal lifts → flap
+   flips open → card rises → lettering appears → seal stamps back down →
+   one gold shine across the letters. Transforms and opacity only, every
+   animation runs once (kiosk rule: no infinite animation, blur or blend). */
+
+#tt-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 46%, rgba(212, 168, 75, 0.13), rgba(212, 168, 75, 0) 55%), #12100C;
+  transition: opacity 0.45s ease;
+}
+.tt-nosplash #tt-splash { display: none; }
+#tt-splash.tt-out { opacity: 0; pointer-events: none; }
+#tt-splash.tt-out .tt-stage { transform: scale(1.04); transition: transform 0.45s ease; }
+
+.tt-stage {
+  position: relative;
+  width: var(--tt-splash-size, min(70vw, 44vh));
+  aspect-ratio: 1 / 1;
+  opacity: 0; /* stays hidden until every layer has loaded */
+}
+.tt-stage img,
+.tt-stage .tt-shine { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+/* Card rises out of the pocket; nothing below the envelope's bottom edge shows. */
+.tt-card-clip { position: absolute; inset: 0; clip-path: inset(0 0 10.16% 0); }
+.tt-card-move { position: absolute; inset: 0; transform: translateY(64%); }
+.tt-letters { opacity: 0; }
+
+/* Both flaps hinge on the envelope's top edge (y 232 of 512). */
+.tt-flap-open { transform: scaleY(0); transform-origin: 50% 45.3125%; }
+.tt-flap-closed { transform-origin: 50% 45.3125%; }
+.tt-seal { transform-origin: 50% 69.53%; }
+
+.tt-shine {
+  overflow: hidden;
+  -webkit-mask: url(/splash/shine-mask.webp) center / 100% 100% no-repeat;
+  mask: url(/splash/shine-mask.webp) center / 100% 100% no-repeat;
+}
+.tt-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 26%;
+  background: linear-gradient(80deg, rgba(255, 247, 220, 0) 0%, rgba(255, 247, 220, 0.8) 50%, rgba(255, 247, 220, 0) 100%);
+}
+
+.tt-play .tt-stage { animation: tt-in 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+.tt-play .tt-seal { animation: tt-seal 2.6s linear forwards; }
+.tt-play .tt-flap-closed { animation: tt-fold 0.3s 0.8s ease-in forwards; }
+.tt-play .tt-flap-open { animation: tt-unfold 0.32s 1.1s ease-out forwards; }
+.tt-play .tt-card-move { animation: tt-rise 0.75s 1.25s cubic-bezier(0.2, 0.9, 0.25, 1.06) forwards; }
+.tt-play .tt-letters { animation: tt-letters 0.45s 1.9s ease-out forwards; }
+.tt-play .tt-shine::before { animation: tt-shine 0.7s 2.45s ease-in-out forwards; }
+
+@keyframes tt-in {
+  from { opacity: 0; transform: translateY(4%) scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+/* One timeline for the seal: sits on the closed flap, lifts away as the
+   envelope opens, then stamps back down once the card is out. */
+@keyframes tt-seal {
+  0%, 23% { opacity: 1; transform: scale(1); animation-timing-function: ease-in; }
+  33% { opacity: 0; transform: scale(1.3); }
+  86% { opacity: 0; transform: scale(1.7); animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0); }
+  95% { opacity: 1; transform: scale(0.93); animation-timing-function: ease-out; }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes tt-fold { to { transform: scaleY(0); } }
+@keyframes tt-unfold { to { transform: scaleY(1); } }
+@keyframes tt-rise { to { transform: translateY(0); } }
+@keyframes tt-letters {
+  from { opacity: 0; transform: translateY(1.2%); }
+  to { opacity: 1; transform: none; }
+}
+/* Sweeps right to left, the way ת"ח reads. */
+@keyframes tt-shine { to { transform: translateX(-500%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-flap-closed { display: none; }
+  .tt-flap-open, .tt-card-move { transform: none; }
+  .tt-letters { opacity: 1; }
+  .tt-play .tt-stage { animation: tt-fade 0.5s ease forwards; }
+  .tt-play .tt-seal,
+  .tt-play .tt-flap-closed,
+  .tt-play .tt-flap-open,
+  .tt-play .tt-card-move,
+  .tt-play .tt-letters,
+  .tt-play .tt-shine::before { animation: none; }
+}
+@keyframes tt-fade { from { opacity: 0; } to { opacity: 1; } }

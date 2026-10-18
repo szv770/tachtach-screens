@@ -25,7 +25,7 @@ export function canOpenSection(role, key) {
 }
 
 /** Content areas an editor may change. */
-const EDITOR_WRITE = /^\/api\/(announcements|messages|pinned|slides|custom-days|daily-words|schedule|google-album|rss|upload|images|media|screen|preview|refresh)(\/|$)/;
+const EDITOR_WRITE = /^\/api\/(announcements|messages|pinned|slides|custom-days|daily-words|schedule|google-album|rss|upload|images|media|screen|preview|refresh|push)(\/|$)/;
 /** Areas only admins may even read. */
 const ADMIN_READ = /^\/api\/(team|activity)(\/|$)/;
 /** Per-person endpoints any signed-in role may use on their own account. */

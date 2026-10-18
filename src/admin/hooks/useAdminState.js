@@ -317,6 +317,22 @@ export default function useAdminState() {
     return ok;
   }, [withErrorHandling, addToast, dismissToast, restoreAnnouncement]);
 
+  /**
+   * Posts an announcement with no intermediate "Posted" toast of its own —
+   * instead shows a louder confirmation with an Undo action (deletes it
+   * straight back out). Used by the Quick Announcement fast path.
+   */
+  const quickPostAnnouncement = useCallback(async (data) => {
+    const created = await createAnnouncement(data, null);
+    if (created) {
+      const toastId = addToast('Posted to screen', 'success', {
+        label: 'Undo',
+        onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); },
+      });
+    }
+    return created;
+  }, [createAnnouncement, addToast, dismissToast, deleteAnnouncement]);
+
   const fetchShabbosEnd = useCallback(async () => {
     try { return await apiFetch('/api/announcements/shabbos-end'); } catch { return { available: false }; }
   }, []);
@@ -523,6 +539,7 @@ export default function useAdminState() {
     reactivateAnnouncement,
     duplicateAnnouncement,
     deleteAnnouncement,
+    quickPostAnnouncement,
     fetchShabbosEnd,
     createCustomDay,
     updateCustomDay,

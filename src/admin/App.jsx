@@ -9,6 +9,7 @@ import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
 import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
+import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import StylePanel from './components/StylePanel.jsx';
@@ -46,6 +47,7 @@ export default function App() {
   }, [role, setRouteSection]);
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
+  const [quickOpen, setQuickOpen] = useState(false);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };
@@ -54,7 +56,7 @@ export default function App() {
     toasts, dismissToast,
     updateSettings, updateSlides, createSlide, deleteSlide,
     createAnnouncement, updateAnnouncement, reactivateAnnouncement,
-    duplicateAnnouncement, deleteAnnouncement, fetchShabbosEnd,
+    duplicateAnnouncement, deleteAnnouncement, quickPostAnnouncement, fetchShabbosEnd,
     createCustomDay, updateCustomDay, deleteCustomDay,
     fetchSchedule, updateScheduleEntries, createScheduleEntry,
     updateScheduleEntry, deleteScheduleEntry, updateScheduleCategories,
@@ -62,6 +64,9 @@ export default function App() {
     fetchScheduleTemplates, saveScheduleTemplate, updateScheduleTemplate, deleteScheduleTemplate,
     refresh, screenCommand,
   } = useAdminState();
+
+  // Start-up animation (public/splash/) fades out once the panel can render.
+  useEffect(() => { if (!loading && meReady) window.ttSplash?.done(); }, [loading, meReady]);
 
   if (loading || !meReady) {
     return (
@@ -271,6 +276,40 @@ export default function App() {
         {renderSection()}
       </AdminLayout>
       {tourOpen && <WelcomeTour onClose={closeTour} onGo={setActiveSection} />}
+      {!tourOpen && canOpenSection(role, 'announcements') && (
+        <button
+          type="button"
+          onClick={() => setQuickOpen(true)}
+          aria-label="Quick announcement"
+          title="Quick announcement"
+          style={{
+            position: 'fixed',
+            right: 'calc(16px + env(safe-area-inset-right))',
+            bottom: 'calc(16px + env(safe-area-inset-bottom))',
+            zIndex: 900,
+            width: '56px',
+            height: '56px',
+            borderRadius: '50%',
+            border: `1px solid ${colors.goldBd}`,
+            background: colors.gold,
+            color: '#1a1304',
+            fontSize: '26px',
+            lineHeight: 1,
+            fontFamily: adminFonts.englishBody,
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 18px rgba(0,0,0,.45)',
+          }}
+        >
+          {'+'}
+        </button>
+      )}
+      {quickOpen && (
+        <QuickAnnounceSheet
+          onClose={() => setQuickOpen(false)}
+          onPost={quickPostAnnouncement}
+        />
+      )}
       {composer && (
         <AnnouncementComposer
           key={composer.id || 'new'}

@@ -1,7 +1,7 @@
 import fetch from "node-fetch";
 import { XMLParser } from "fast-xml-parser";
 import * as cheerio from "cheerio";
-import { RSS_MAP } from "../shared/constants.js";
+import { RSS_MAP, normalizeCheshvan } from "../shared/constants.js";
 import { fetchRenderedHTML } from "./browserFetch.js";
 
 const UA = "Mozilla/5.0 (compatible; TachTach-Screens/1.0)";
@@ -170,7 +170,7 @@ export function parseHayomYom(html) {
 
   if (!hayomEn) hayomEn = enParts.slice(0, 5).join(' ');
 
-  return { hayomHe, hayomEn };
+  return { hayomHe: normalizeCheshvan(hayomHe), hayomEn };
 }
 
 /**
@@ -373,19 +373,19 @@ export async function fetchDailyQuote() {
     // Try em-dash — most authoritative separator
     const lastEmDash = raw.lastIndexOf('—');
     if (lastEmDash > 0) {
-      return { text: raw.slice(0, lastEmDash).trim(), source: raw.slice(lastEmDash + 1).trim() };
+      return { text: normalizeCheshvan(raw.slice(0, lastEmDash).trim()), source: raw.slice(lastEmDash + 1).trim() };
     }
     // Try " -- " (double hyphen with surrounding spaces — Chabad.org common format)
     const doubleDash = raw.lastIndexOf(' -- ');
     if (doubleDash > 0) {
-      return { text: raw.slice(0, doubleDash).trim(), source: raw.slice(doubleDash + 4).trim() };
+      return { text: normalizeCheshvan(raw.slice(0, doubleDash).trim()), source: raw.slice(doubleDash + 4).trim() };
     }
     // Try en-dash
     const lastEnDash = raw.lastIndexOf('–');
     if (lastEnDash > 0) {
-      return { text: raw.slice(0, lastEnDash).trim(), source: raw.slice(lastEnDash + 1).trim() };
+      return { text: normalizeCheshvan(raw.slice(0, lastEnDash).trim()), source: raw.slice(lastEnDash + 1).trim() };
     }
-    return { text: raw, source: '' };
+    return { text: normalizeCheshvan(raw), source: '' };
   } catch (err) {
     console.error("[chabad] fetchDailyQuote failed:", err.message);
     return null;
@@ -446,12 +446,12 @@ export function parseDailyStudyHebrewRSS(xml) {
   }
 
   return {
-    chumashHe: clean(findItem('Daily Chumash with Rashi')),
-    tehillimHe: clean(findItem('Daily Tehilim - Psalms')),
-    tanyaHe: clean(findItem('Daily Tanya')),
-    rambam1He,
-    rambam3He,
-    seferHamitzvotHe,
+    chumashHe: normalizeCheshvan(clean(findItem('Daily Chumash with Rashi'))),
+    tehillimHe: normalizeCheshvan(clean(findItem('Daily Tehilim - Psalms'))),
+    tanyaHe: normalizeCheshvan(clean(findItem('Daily Tanya'))),
+    rambam1He: normalizeCheshvan(rambam1He),
+    rambam3He: normalizeCheshvan(rambam3He),
+    seferHamitzvotHe: normalizeCheshvan(seferHamitzvotHe),
   };
 }
 
@@ -505,8 +505,8 @@ export function parseTanyaExcerpt(html) {
 
     if (heWords.length >= 6) {
       return {
-        tanyaFirstWords: heWords.slice(0, 8).join(' '),
-        tanyaLastWords:  heWords.slice(-8).join(' '),
+        tanyaFirstWords: normalizeCheshvan(heWords.slice(0, 8).join(' ')),
+        tanyaLastWords:  normalizeCheshvan(heWords.slice(-8).join(' ')),
       };
     }
   }
@@ -537,8 +537,8 @@ export function parseTanyaExcerpt(html) {
 
     if (heWords.length >= 6) {
       return {
-        tanyaFirstWords: heWords.slice(0, 8).join(' '),
-        tanyaLastWords:  heWords.slice(-8).join(' '),
+        tanyaFirstWords: normalizeCheshvan(heWords.slice(0, 8).join(' ')),
+        tanyaLastWords:  normalizeCheshvan(heWords.slice(-8).join(' ')),
       };
     }
   }
