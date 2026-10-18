@@ -170,8 +170,9 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .li .t mark{background:var(--gold-soft);color:inherit;border-radius:3px;padding:0 1px}
 .li .d{font-size:12.5px;color:var(--text-2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .li .chev{color:var(--text-3)}
-.mini-act{height:32px;min-width:44px;padding:0 10px;border-radius:var(--r-pill);background:var(--sunken);font-size:12px;font-weight:700;display:grid;place-items:center}
+.mini-act{position:relative;height:36px;min-width:44px;padding:0 10px;border-radius:var(--r-pill);background:var(--sunken);font-size:12px;font-weight:700;display:grid;place-items:center}
 
+.mini-act:after{content:"";position:absolute;inset:-4px -2px}
 /* Template chips + blanks */
 .tpl{display:flex;flex-direction:column;gap:8px}
 .tpl-row{display:flex;align-items:center;gap:10px;min-height:52px;padding:6px 14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line);font-size:15px;font-weight:600;text-align:left}
@@ -180,9 +181,9 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .fill{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:17px;font-weight:600;padding:14px;border-radius:var(--r-md);background:var(--surface-2);border:1px solid var(--line);margin-top:6px}
 .fill input{height:44px;border-radius:10px;border:2px solid var(--accent);background:var(--surface);padding:0 10px;width:150px;font-weight:700}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{min-height:40px;padding:0 14px;border-radius:var(--r-pill);border:1px solid var(--line-strong);font-size:14px;font-weight:600;display:inline-flex;align-items:center}
+.chip{min-height:44px;padding:0 14px;border-radius:var(--r-pill);border:1px solid var(--line-strong);font-size:14px;font-weight:600;display:inline-flex;align-items:center}
 .chip.on{background:var(--text);color:var(--bg);border-color:var(--text)}
-.btn{min-height:52px;border-radius:var(--r-md);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn{white-space:nowrap;min-height:52px;border-radius:var(--r-md);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
 .btn.pri{background:var(--accent);color:var(--accent-ink)}
 .btn.sec{background:var(--sunken);color:var(--text)}
 .btn.sm{min-height:44px;font-size:14px;width:auto;padding:0 16px;border-radius:var(--r-sm)}
@@ -241,7 +242,7 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .toggle:after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform var(--t-base) var(--ease)}
 .toggle.on{background:var(--ok)} .toggle.on:after{transform:translateX(20px)}
 .sc{display:flex;background:var(--sunken);border-radius:10px;padding:2px}
-.sc button{flex:1;min-height:40px;border-radius:8px;font-size:13px;font-weight:700;color:var(--text-2)}
+.sc button{flex:1;min-height:44px;border-radius:8px;font-size:13px;font-weight:700;color:var(--text-2)}
 .sc button.on{background:var(--surface);color:var(--text);box-shadow:var(--e1)}
 
 /* ---------- Desktop ---------- */
@@ -272,17 +273,17 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
 .ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px}
 .ph h1{font-family:var(--f-display);font-weight:600;font-size:34px;letter-spacing:-.015em}
 .ph p{color:var(--text-2);font-size:14px;margin-top:4px}
-.dgrid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1);padding:20px}
 .card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
 .card-h h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
 .card-h .link{min-height:32px;font-size:13px}
-.onnow{display:flex;gap:16px}
+.onnow{display:flex;gap:20px;align-items:flex-start}
 .onnow .mini-tv{width:208px}
 .kv{display:flex;flex-direction:column;gap:10px;flex:1;min-width:0}
 .kv .r{display:flex;gap:10px;align-items:baseline;font-size:13.5px}
 .kv .r span:first-child{width:92px;color:var(--text-3);font-weight:600;flex:none}
-.kv .r span:last-child{font-weight:600;min-width:0}
+.kv .r span:last-child{font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .big-time{font-family:var(--f-display);font-size:44px;font-weight:600;letter-spacing:-.02em;line-height:1}
 .health .hr{display:flex;align-items:center;gap:10px;min-height:40px;font-size:13.5px;border-top:1px solid var(--line)}
 .health .hr:first-of-type{border-top:0}
@@ -585,7 +586,7 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
         <div class="ph"><div><h1>Good afternoon, Shmuel</h1><p>Sunday, October 18 · <span lang="he" dir="rtl">ז׳ חשון תשפ״ז</span> · Parshas Lech Lecha</p></div>
           <div style="display:flex;gap:8px"><button class="btn sec sm"><svg class="i"><use href="#i-clock"/></svg>Change tomorrow</button><button class="btn pri sm"><svg class="i"><use href="#i-plus"/></svg>New message</button></div></div>
         <div class="dgrid">
-          <section class="card">
+          <section class="card" style="grid-column:1/-1">
             <div class="card-h"><h2><span class="dot"></span>On the screen now</h2><button class="link">All slides</button></div>
             <div class="onnow">
               <div class="mini-tv"><div class="rail"><b style="font-size:16px">4:12</b><i></i><i></i></div><div class="pan"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
@@ -602,6 +603,13 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
             <div style="display:flex;align-items:flex-end;gap:16px"><div class="big-time">4:45</div><div><div style="font-weight:800;font-size:17px">Mincha</div><div style="color:var(--text-3);font-size:13px" lang="he" dir="rtl">מנחה</div></div></div>
             <div style="color:var(--text-2);font-size:13.5px;margin-top:12px">Now in session: <b>Afternoon Seder</b> until 6:30 · alert shows 5 min before</div>
           </section>
+          <section class="card health">
+            <div class="card-h"><h2>Health</h2><span class="pill warn">1 to check</span></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Screen online · 3840 × 2160 landscape</span></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Zmanim updated today 6:02 AM</span></div>
+            <div class="hr"><span class="dot" style="background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)"></span><span class="grow">News feed “COL Headlines” failed twice</span><button class="mini-act">Retry</button></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Storage 41% used</span></div>
+          </section>
           <section class="card freeze">
             <div class="card-h"><h2>Pause the screen</h2><span class="pill mute">Playing normally</span></div>
             <div class="modes">
@@ -610,16 +618,9 @@ svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-widt
               <button class="mode"><span class="sw" style="background:#221d17"><svg class="i" style="color:#EFE3C0"><use href="#i-pause"/></svg></span>Freeze</button>
               <button class="mode"><span class="sw"><span class="term">&gt; back soon_</span></span>Message</button>
             </div>
-            <div style="display:flex;gap:8px;align-items:center"><div class="chips"><span class="chip">30 min</span><span class="chip on">Until tomorrow</span><span class="chip">Until I turn on</span></div><button class="btn pri sm" style="margin-left:auto">Pause now</button></div>
+            <div class="chips"><span class="chip">30 min</span><span class="chip on">Until tomorrow</span><span class="chip">Until I turn on</span><button class="btn pri sm" style="margin-left:auto">Pause now</button></div>
           </section>
-          <section class="card health">
-            <div class="card-h"><h2>Health</h2><span class="pill warn">1 to check</span></div>
-            <div class="hr"><span class="dot"></span><span class="grow">Screen online · 3840 × 2160 landscape</span></div>
-            <div class="hr"><span class="dot"></span><span class="grow">Zmanim updated today 6:02 AM</span></div>
-            <div class="hr"><span class="dot" style="background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)"></span><span class="grow">News feed “COL Headlines” failed twice</span><button class="mini-act">Retry</button></div>
-            <div class="hr"><span class="dot"></span><span class="grow">Storage 41% used</span></div>
-          </section>
-          <section class="card act" style="grid-column:1/-1">
+          <section class="card act">
             <div class="card-h"><h2>Recent changes</h2><button class="link">Full history</button></div>
             <div class="ar"><span class="avatar" style="width:28px;height:28px;font-size:11px">RS</span><span class="grow"><b>R. Schurder</b> posted “Night Seder starts at a new time”</span><span class="when">12 min ago</span><button class="mini-act">Undo</button></div>
             <div class="ar"><span class="avatar" style="width:28px;height:28px;font-size:11px">DK</span><span class="grow"><b>Dovid K.</b> added 84 photos to “Shabbaton”</span><span class="when">Fri</span><button class="mini-act">Undo</button></div>
