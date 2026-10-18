@@ -10,6 +10,7 @@ import { readJSON, writeJSON } from './storage.js';
  */
 export const LATE_BUILTINS = [
   { id: 'weather', type: 'WEATHER', label: 'Weather', duration: 12, enabled: false, order: 101 },
+  { id: 'daily-word', type: 'DAILY_WORD', label: 'Daily Word', duration: 15, enabled: false, order: 102 },
 ];
 
 export function addMissingBuiltins(slides) {

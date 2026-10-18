@@ -83,3 +83,20 @@ test('splitEmphasis', () => {
   assert.deepEqual(splitEmphasis('plain'), [{ text: 'plain', em: false }]);
   assert.deepEqual(splitEmphasis(''), []);
 });
+
+test('the rafe (bar above pe) is stripped from words, seed included', () => {
+  const r = normalizeWord({ word: 'פֿאַרברענגען', transliteration: 'farbrengen', meaning: 'm' });
+  assert.equal(r.word.word, 'פאַרברענגען');
+  assert.ok(!SEED_WORDS.some((w) => w.word.includes('\u05BF')), 'no rafe in the seed list');
+  assert.ok(SEED_WORDS.some((w) => w.word.includes('\u05B7')), 'pasekh alef (patah under the alef) is still there');
+});
+
+test('English spelling is ch-style: kh becomes ch in imports and edits (Chaver, Nachas)', () => {
+  const r = normalizeWord({ word: 'חבר', transliteration: 'khaver', pronunciation: 'khah-VER', meaning: 'A Khaver is a friend.', context: 'The kh in Bach.', convo: ['Who is he?', 'My *khaver*, Khaim.'] });
+  assert.equal(r.word.transliteration, 'chaver');
+  assert.equal(r.word.pronunciation, 'chah-VER');
+  assert.equal(r.word.meaning, 'A Chaver is a friend.');
+  assert.equal(r.word.context, 'The ch in Bach.');
+  assert.equal(r.word.convo[1].text, 'My *chaver*, Chaim.');
+  assert.ok(!SEED_WORDS.some((w) => /kh/i.test([w.transliteration, w.pronunciation, w.meaning, w.context, ...w.convo.map((c) => c.text)].join(' '))), 'no kh left in the seed');
+});

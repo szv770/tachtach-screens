@@ -7,7 +7,7 @@
  * Data lives in data/daily-words.json via /api/daily-words; the kiosk picks the
  * word with the shared pure rules in src/shared/dailyWords.js.
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import { apiFetch } from '../hooks/useAdminState.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
@@ -26,6 +26,9 @@ const small = { fontFamily: adminFonts.englishBody, fontSize: '12px', color: col
 
 function WordForm({ initial, onSave, onCancel, busy }) {
   const [w, setW] = useState(() => ({ ...blank(), ...initial, convo: [0, 1].map((i) => ({ text: initial?.convo?.[i]?.text || '' })), showOn: initial?.showOn || '' }));
+  const rootRef = useRef(null);
+  // Opened from anywhere in a long list: bring the form into view.
+  useEffect(() => { rootRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, []);
   const set = (k, v) => setW((p) => ({ ...p, [k]: v }));
   const setLine = (i, text) => setW((p) => ({ ...p, convo: p.convo.map((l, j) => (j === i ? { text } : l)) }));
   const check = normalizeWord({ ...w, convo: w.convo.filter((l) => l.text.trim()) });
@@ -35,12 +38,12 @@ function WordForm({ initial, onSave, onCancel, busy }) {
     </label>
   );
   return (
-    <div style={{ ...card, borderColor: colors.gold }}>
+    <div ref={rootRef} style={{ ...card, borderColor: colors.gold, margin: '10px 0' }}>
       <h3 style={h3}>{initial?.id ? 'Edit word' : 'Add a word'}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
         {field('word', 'Word in Hebrew letters', { dir: 'rtl', style: { fontSize: '20px', fontFamily: adminFonts.hebrewPrimary }, placeholder: 'נחת' })}
-        {field('transliteration', 'In English letters', { placeholder: 'nakhes' })}
-        {field('pronunciation', 'How to say it (stressed part in CAPS)', { placeholder: 'NAH-khes' })}
+        {field('transliteration', 'In English letters', { placeholder: 'nachas' })}
+        {field('pronunciation', 'How to say it (stressed part in CAPS)', { placeholder: 'NAH-chas' })}
         <label style={label}>Part of speech
           <select value={w.partOfSpeech} onChange={(e) => set('partOfSpeech', e.target.value)} style={inputStyle}>
             {POS.map((p) => <option key={p} value={p}>{p || '—'}</option>)}
@@ -60,7 +63,7 @@ function WordForm({ initial, onSave, onCancel, busy }) {
       <div style={{ ...small, margin: '10px 0 4px' }}>Using it in conversation. Put the word in *asterisks* to highlight it.</div>
       {[0, 1].map((i) => (
         <input key={i} value={w.convo[i].text} onChange={(e) => setLine(i, e.target.value)} style={{ ...inputStyle, marginBottom: '6px' }} maxLength={LIMITS.convoLine}
-          placeholder={i === 0 ? 'How was your son’s bar mitzvah?' : 'We’re *shepping* so much *nakhes*.'} />
+          placeholder={i === 0 ? 'How was your son’s bar mitzvah?' : 'We’re *shepping* so much *nachas*.'} />
       ))}
       {check.error && (w.word || w.transliteration || w.meaning) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>{check.error}</div>}
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
@@ -120,6 +123,20 @@ export default function DailyWordPanel() {
     } catch (e) { setImportInfo({ error: e.message }); } finally { setBusy(false); }
   };
 
+  const renderForm = (initial) => (
+    <WordForm
+      key={initial ? initial.id : 'new'}
+      initial={initial}
+      busy={busy}
+      onCancel={() => setEditing(null)}
+      onSave={async (w) => {
+        const exists = words.some((x) => x.id === w.id);
+        const next = exists ? words.map((x) => (x.id === w.id ? w : x)) : [...words, w];
+        if (await save({ ...file, words: next }, exists ? 'Word saved.' : 'Word added.')) setEditing(null);
+      }}
+    />
+  );
+
   if (error && !file) return <div style={{ ...small, color: colors.danger }}>{error} <button style={buttonSecondary} onClick={load}>Retry</button></div>;
   if (!file) return <div style={small}>Loading…</div>;
 
@@ -152,28 +169,15 @@ export default function DailyWordPanel() {
         </div>
       </div>
 
-      {editing && (
-        <WordForm
-          key={editing === 'new' ? 'new' : editing.id}
-          initial={editing === 'new' ? null : editing}
-          busy={busy}
-          onCancel={() => setEditing(null)}
-          onSave={async (w) => {
-            const exists = words.some((x) => x.id === w.id);
-            const next = exists ? words.map((x) => (x.id === w.id ? w : x)) : [...words, w];
-            if (await save({ ...file, words: next }, exists ? 'Word saved.' : 'Word added.')) setEditing(null);
-          }}
-        />
-      )}
-
       <div style={card}>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>The list</h3>
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search" style={{ ...inputStyle, maxWidth: '200px' }} />
           <button style={{ ...buttonPrimary, minHeight: '38px' }} onClick={() => setEditing('new')}>+ Add a word</button>
         </div>
+        {editing === 'new' && renderForm(null)}
         {shown.length === 0 && <div style={small}>Nothing matches.</div>}
-        {shown.map(({ w, i }) => (
+        {shown.map(({ w, i }) => (editing && editing !== 'new' && editing.id === w.id ? <React.Fragment key={w.id}>{renderForm(editing)}</React.Fragment> : (
           <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, opacity: w.enabled === false ? 0.5 : 1, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             <ToggleSwitch on={w.enabled !== false} label={`Show ${w.transliteration || w.word}`} onChange={(on) => save({ ...file, words: words.map((x) => (x.id === w.id ? { ...x, enabled: on } : x)) })} />
             <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{w.word}</span>
@@ -183,10 +187,10 @@ export default function DailyWordPanel() {
             </div>
             <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, -1)} disabled={busy || i === 0} title="Earlier in the order" aria-label="Move up">↑</button>
             <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, 1)} disabled={busy || i === words.length - 1} title="Later in the order" aria-label="Move down">↓</button>
-            <button style={{ ...buttonSecondary, minHeight: '32px' }} onClick={() => { setEditing(w); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Edit</button>
+            <button style={{ ...buttonSecondary, minHeight: '32px' }} onClick={() => setEditing(w)}>Edit</button>
             <button style={{ ...buttonDanger, minHeight: '32px' }} onClick={() => setConfirmDel(w)}>Delete</button>
           </div>
-        ))}
+        )))}
       </div>
 
       <div style={card}>

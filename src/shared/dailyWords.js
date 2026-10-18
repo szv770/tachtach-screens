@@ -20,6 +20,11 @@ export const LIMITS = { word: 60, transliteration: 60, pronunciation: 60, partOf
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+// The rafe (U+05BF, the little bar above a pe/bet/kaf) is YIVO-only; Chabad print
+// leaves it out and it reads as a stray mark on top of the letter, so it is dropped.
+/** English spelling is Chabad-style: ch, not kh (Chaver, Nachas). Case-preserving. */
+const chStyle = (v) => String(v ?? '').replace(/KH/g, 'CH').replace(/Kh/g, 'Ch').replace(/kh/g, 'ch');
+const noRafe = (v) => String(v ?? '').replace(/\u05BF/g, '');
 
 let counter = 0;
 const newId = () => `w_${Date.now().toString(36)}_${(counter++).toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -27,15 +32,15 @@ const newId = () => `w_${Date.now().toString(36)}_${(counter++).toString(36)}_${
 /** Clean one word. Returns { word } or { error } (needs the word itself, a transliteration or meaning). */
 export function normalizeWord(input) {
   if (!input || typeof input !== 'object') return { error: 'not an object' };
-  const word = str(input.word ?? input.yiddish ?? input.hebrew, LIMITS.word);
-  const transliteration = str(input.transliteration ?? input.translit ?? input.romanization, LIMITS.transliteration);
-  const meaning = str(input.meaning ?? input.english ?? input.translation, LIMITS.meaning);
+  const word = str(noRafe(input.word ?? input.yiddish ?? input.hebrew), LIMITS.word);
+  const transliteration = str(chStyle(input.transliteration ?? input.translit ?? input.romanization), LIMITS.transliteration);
+  const meaning = str(chStyle(input.meaning ?? input.english ?? input.translation), LIMITS.meaning);
   if (!word && !transliteration) return { error: 'needs a word or a transliteration' };
   if (!meaning) return { error: `"${word || transliteration}" needs a meaning` };
   let convoIn = input.convo ?? input.conversation ?? input.example ?? [];
   if (typeof convoIn === 'string') convoIn = convoIn.split(/\n+/);
   const convo = (Array.isArray(convoIn) ? convoIn : [])
-    .map((l) => str(typeof l === 'string' ? l : l?.text, LIMITS.convoLine))
+    .map((l) => str(chStyle(typeof l === 'string' ? l : l?.text), LIMITS.convoLine))
     .filter(Boolean)
     .slice(0, 4)
     .map((text) => ({ text }));
@@ -47,10 +52,10 @@ export function normalizeWord(input) {
     language: str(input.language, 30) || DEFAULT_LANGUAGE,
     word,
     transliteration,
-    pronunciation: str(input.pronunciation ?? input.pronounce, LIMITS.pronunciation),
+    pronunciation: str(chStyle(input.pronunciation ?? input.pronounce), LIMITS.pronunciation),
     partOfSpeech: str(input.partOfSpeech ?? input.pos, LIMITS.partOfSpeech),
     meaning,
-    context: str(input.context ?? input.note ?? input.origin, LIMITS.context),
+    context: str(chStyle(input.context ?? input.note ?? input.origin), LIMITS.context),
     convo,
     tags: tagsIn.map((t) => str(t, LIMITS.tag)).filter(Boolean).slice(0, LIMITS.tags),
   };
@@ -169,9 +174,9 @@ export const DAILY_WORD_PROMPT = `You are helping fill the "Daily Word" page of 
 Write {N} more {LANGUAGE} words that students would enjoy and actually use. Mix everyday words with Chabad/yeshiva ones.
 Reply with ONLY a JSON list, no commentary. One object per word:
 {
-  "word": "the word in Hebrew letters (YIVO spelling for Yiddish)",
-  "transliteration": "English letters, e.g. nakhes",
-  "pronunciation": "easy respelling, stressed syllable in CAPS, e.g. NAH-khes",
+  "word": "the word in Hebrew letters, Chabad-style Yiddish spelling: use pasekh alef (אַ) and komets alef (אָ) where needed, but NO rafe (the bar above פ)",
+  "transliteration": "English letters with ch (never kh), e.g. nachas, chaver",
+  "pronunciation": "easy respelling, stressed syllable in CAPS, ch as in Bach, e.g. NAH-ches",
   "partOfSpeech": "noun | verb | adjective | adverb | interjection | phrase",
   "meaning": "one clear sentence",
   "context": "one or two short sentences: where it comes from or how it feels",

@@ -97,6 +97,13 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
     onUpdate(updated);
   };
 
+  // New Slide → Web page: create the slide, then open its address panel.
+  const addWebPage = async () => {
+    const at = slides.length;
+    const created = await onCreate?.({ type: 'WEB_PAGE', label: 'Web page', duration: 30, enabled: true });
+    if (created) { setEmbedExpanded(at); setEmbedUrlDraft(''); setProbe(null); }
+  };
+
   const handleEmbedField = (index, patch) => {
     onUpdate(slides.map((s, i) => (i === index ? { ...s, ...patch } : s)));
   };
@@ -140,6 +147,11 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
   };
 
   const getLabel = (slide) => {
+    if (slide.type === 'WEB_PAGE') {
+      let host = '';
+      try { host = new URL(slide.embedUrl).hostname.replace(/^www\./, ''); } catch { /* not set yet */ }
+      return slide.label && slide.label !== 'Web page' ? slide.label : (host ? `Web page · ${host}` : 'Web page (no address yet)');
+    }
     if (BUILT_IN_TYPES.includes(slide.type)) return BUILT_IN_LABELS[slide.type] || slide.type;
     if (slide.type === 'VIDEO_SLIDE') return slide.label || 'Video';
     if (slide.type === 'IMAGE_SLIDE') return slide.label || 'Image';
@@ -180,6 +192,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
             }}>
               {[
                 { label: 'Message', sub: 'Text, event, list or time — opens the composer', go: () => onNewMessage?.() },
+                { label: 'Web page', sub: 'Show any website, e.g. a live fundraiser screen', go: () => addWebPage() },
                 { label: 'Image or video', sub: 'Upload in Media', go: () => onNavigate?.('images') },
                 { label: 'Google Photos album', sub: 'In Media', go: () => onNavigate?.('images') },
                 { label: 'RSS feed', sub: 'In RSS Feeds', go: () => onNavigate?.('rss-feeds') },
@@ -366,6 +379,19 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   )}
                 </>
               )}
+              {slide.type === 'DAILY_WORD' && (
+                <button
+                  onClick={() => onNavigate?.('daily-word')}
+                  title="Open the Daily Word page: edit, add or pin words"
+                  style={{
+                    background: 'transparent', border: `1px solid ${colors.muted}`, borderRadius: '4px', color: colors.dim,
+                    fontSize: '13px', cursor: 'pointer', padding: isMobile ? '6px 14px' : '3px 10px',
+                    minHeight: isMobile ? '44px' : '28px', fontFamily: adminFonts.englishBody,
+                  }}
+                >
+                  Edit words
+                </button>
+              )}
               {isEmbed(slide) && (
                 <button
                   onClick={() => {
@@ -466,7 +492,7 @@ export default function SlideManager({ slides = [], onUpdate, onCreate, onDelete
                   Edit
                 </button>
               )}
-              {!BUILT_IN_TYPES.includes(slide.type) && (
+              {(!BUILT_IN_TYPES.includes(slide.type) || slide.type === 'WEB_PAGE') && (
                 <button
                   onClick={() => setConfirmDelete(slide)}
                   title="Delete this slide"

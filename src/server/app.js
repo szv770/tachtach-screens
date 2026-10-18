@@ -167,9 +167,12 @@ export function createApp() {
   // ── 1. Body parsing ──────────────────────────────────────────────────
   // /api/schedule/dates* and /blocks* parse their own bodies (256 kB — a
   // pasted multi-week schedule is bigger than 16 kB); see routes/schedule-dates.js.
+  // /api/daily-words does too (512 kB): the whole word list is saved at once and
+  // is ~20 kB, so the 16 kB cap here made every edit fail with "request entity
+  // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
   app.use((req, res, next) => (
-    /^\/api\/schedule\/(dates|blocks)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+    /^\/api\/(schedule\/(dates|blocks)|daily-words)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
   ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
