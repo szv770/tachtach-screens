@@ -24,6 +24,8 @@
 set -u
 
 SCREEN_URL="${SCREEN_URL:-http://127.0.0.1:3000/screen}"
+HTTPS_SCREEN_URL="${HTTPS_SCREEN_URL:-https://127.0.0.1:3443/screen}"
+EXTRA_FLAGS=()
 UID_NUM="$(id -u)"
 
 log() { echo "[kiosk-launch] $*"; }
@@ -43,6 +45,19 @@ for i in $(seq 1 120); do
     break
   fi
   [ "$i" -eq 1 ] && log "waiting for TachTach server at $SCREEN_URL..."
+  sleep 1
+done
+
+# Prefer the loopback https address: websites that only let https pages frame
+# them (e.g. Charidy) can then be shown by a Web page slide. Self-signed cert,
+# accepted for localhost only. Falls back to plain http if it is not answering.
+for i in 1 2 3 4 5; do
+  if curl -kfs -o /dev/null --max-time 3 "$HTTPS_SCREEN_URL"; then
+    SCREEN_URL="$HTTPS_SCREEN_URL"
+    EXTRA_FLAGS=(--allow-insecure-localhost)
+    log "using local https: $SCREEN_URL"
+    break
+  fi
   sleep 1
 done
 
@@ -84,6 +99,7 @@ log "launching $CHROMIUM → $SCREEN_URL"
   --overscroll-history-navigation=0 \
   --disable-pinch \
   --disable-dev-shm-usage \
+  ${EXTRA_FLAGS[@]+"${EXTRA_FLAGS[@]}"} \
   --autoplay-policy=no-user-gesture-required \
   "$SCREEN_URL" \
   2> >(

@@ -1,11 +1,25 @@
 import { createApp } from './src/server/app.js';
+import https from 'https';
 import { ensureDataDir } from './src/server/storage.js';
+import { ensureLocalCert, LOCAL_TLS_PORT, setLocalTlsEnabled } from './src/server/localTls.js';
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
 await ensureDataDir();
 const app = createApp();
+
+// Loopback-only https for the kiosk (see src/server/localTls.js). Started before
+// the http listener logs, so the launcher can rely on it once http answers.
+const tls = await ensureLocalCert();
+if (tls) {
+  const secure = https.createServer(tls, app);
+  secure.on('error', (err) => { setLocalTlsEnabled(false); console.warn(`[tls] https listener failed: ${err.message}`); });
+  secure.listen(LOCAL_TLS_PORT, '127.0.0.1', () => {
+    setLocalTlsEnabled(true);
+    console.log(`  Kiosk (https, loopback only): https://127.0.0.1:${LOCAL_TLS_PORT}/screen`);
+  });
+}
 
 app.listen(PORT, HOST, () => {
   console.log(`TachTach-Screens running on http://${HOST}:${PORT}`);
