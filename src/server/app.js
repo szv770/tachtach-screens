@@ -12,6 +12,7 @@ import screenRouter from './routes/screen.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
+import dailyWordsRouter, { readDailyWords } from './routes/daily-words.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
@@ -206,7 +207,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -217,6 +218,7 @@ export function createApp() {
         readJSON('rss-feeds.json'),
         readJSON('fonts.json'),
         readScheduleDates(),
+        readDailyWords(),
       ]);
       res.json({
         cache: cache ?? {},
@@ -231,6 +233,8 @@ export function createApp() {
         // Per-date schedule overrides (schedule-dates.json). Must be here or
         // the kiosk's state refetch would drop SSE schedule-dates-update data.
         scheduleDates: scheduleDates ?? {},
+        // Daily Word list ({ order, words }); the kiosk picks today's word from it.
+        dailyWords,
         // Running schedule countdown alert (or null), so a kiosk that
         // reconnects/reloads mid-countdown still shows it. Not persisted.
         countdown: getActiveCountdown(),
@@ -387,6 +391,7 @@ export function createApp() {
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api', announcementsRouter);
+  app.use('/api', dailyWordsRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
 

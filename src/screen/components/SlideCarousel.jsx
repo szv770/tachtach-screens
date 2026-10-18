@@ -8,6 +8,7 @@ import HayomYomSlide from './slides/HayomYomSlide.jsx';
 import ImageSlide from './slides/ImageSlide.jsx';
 import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
+import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
@@ -54,6 +55,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
+  dailyWords, dateISO,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -75,6 +77,7 @@ export default function SlideCarousel({
       case 'HAYOM_YOM': return <HayomYomSlide cache={cache} tokens={tokens} settings={settings} onRequestDuration={onRequestDuration} />;
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
+      case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'VIDEO_SLIDE': return <VideoSlide slide={slide} tokens={tokens} onEnded={onVideoEnded} />;

@@ -6,7 +6,7 @@ import { ZMANIM_DISPLAY } from '../../shared/constants.js';
 import { DISPLAY_MODES as IMAGE_DISPLAY_MODES, EDGE_TREATMENTS } from './ImageUploader.jsx';
 import { status as announcementStatus, primaryText, selectActive } from '../../shared/announcements.js';
 
-const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
+const BUILT_IN_TYPES = ['ZMANIM', 'LIMUDIM', 'HAYOM_YOM', 'PIRKEI_AVOS', 'DAILY_QUOTE', 'DAILY_WORD', 'PARSHA_TIDBITS', 'SCHEDULE', 'WEATHER', 'MIVTZAH_LEADERBOARD', 'MIVTZAH_LIVE_EMBED'];
 
 const BUILT_IN_LABELS = {
   ZMANIM: 'Zmanim',
@@ -14,6 +14,7 @@ const BUILT_IN_LABELS = {
   HAYOM_YOM: 'Hayom Yom',
   PIRKEI_AVOS: 'Pirkei Avos',
   DAILY_QUOTE: 'Daily Quote',
+  DAILY_WORD: 'Daily Word',
   PARSHA_TIDBITS: 'Parsha Tidbits',
   SCHEDULE: 'Schedule / Seder',
   WEATHER: 'Weather',
