@@ -25,7 +25,11 @@ function useRefit(fit, ref) {
       ro.observe(ref.current);
     }
     document.fonts?.ready?.then(run).catch(() => {});
-    return () => { alive = false; ro?.disconnect(); };
+    // unicode-range subsets (e.g. a Hebrew face) load lazily, after `ready`
+    // has already resolved: re-fit when a late face arrives, or the size
+    // chosen against the fallback font's metrics sticks.
+    document.fonts?.addEventListener?.('loadingdone', run);
+    return () => { alive = false; ro?.disconnect(); document.fonts?.removeEventListener?.('loadingdone', run); };
   }, [fit, ref]);
 }
 
