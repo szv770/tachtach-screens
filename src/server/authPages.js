@@ -4,12 +4,6 @@
  */
 
 export const AUTH_CSS = `
-    @font-face {
-      font-family: 'TachTachMark';
-      src: url('/icons/tachtach-mark.ttf') format('truetype');
-      font-display: swap;
-    }
-
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -59,14 +53,14 @@ export const AUTH_CSS = `
       text-align: center;
     }
 
-    .title-hebrew {
-      font-family: 'TachTachMark', 'Noto Serif Hebrew', serif;
-      font-size: 4rem;
-      font-weight: 400;
-      color: #D4A84B;
-      letter-spacing: 0.04em;
-      line-height: 1.3;
-      margin-bottom: 0.25rem;
+    .brand {
+      margin: 0 auto 0.75rem;
+      line-height: 0;
+    }
+
+    .brand img {
+      width: 176px;
+      height: 176px;
     }
 
     .title-english {
@@ -219,7 +213,7 @@ const HEAD = (title) => `<!DOCTYPE html>
 </head>
 <body>
   <div class="login-container">
-    <h1 class="title-hebrew">ת"ח ת"ח</h1>
+    <h1 class="brand"><img src="/icons/logo-mark.png" width="176" height="176" alt='ת"ח ת"ח'></h1>
 `;
 
 const TOTP_FORMS = `
