@@ -37,6 +37,9 @@ export default function ScreenControls({ onCommand, onRefresh }) {
   return (
     <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${colors.muted}` }}>
       {/* Screen control buttons */}
+      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+        Real screen (the TV)
+      </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '8px' : '6px', marginBottom: '12px' }}>
         <button style={{ ...btnStyle, opacity: busy === 'pause' ? 0.5 : 1 }} onClick={() => handleCommand('pause')} disabled={busy !== null}>Pause</button>
         <button style={{ ...btnStyle, opacity: busy === 'resume' ? 0.5 : 1 }} onClick={() => handleCommand('resume')} disabled={busy !== null}>Resume</button>

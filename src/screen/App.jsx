@@ -310,6 +310,41 @@ function AppContent() {
       .catch(() => {});
   }, []); // mount only
 
+  // Admin Live Preview remote control. The admin page (same origin) drives only THIS
+  // preview iframe — it never touches the real TV — and gets the slide list back to
+  // show "Slide 3 of 9". Commands: next / prev / pause / resume / goto(index).
+  useEffect(() => {
+    if (!_isPreview || _isDatePreview) return undefined;
+    const onMessage = (e) => {
+      const m = e.data;
+      if (e.origin !== window.location.origin || e.source !== window.parent || m?.tachtach !== 'preview-control') return;
+      const sr = slideRotationRef.current;
+      const n = sr.enabledSlides.length;
+      if (!n) return;
+      switch (m.action) {
+        case 'next': sr.advance(); break;
+        case 'prev': sr.goToSlide((sr.currentIndex - 1 + n) % n); break;
+        case 'pause': sr.setIsPaused(true); break;
+        case 'resume': sr.setIsPaused(false); break;
+        case 'goto': if (Number.isInteger(m.index)) sr.goToSlide(m.index); break;
+        default: break;
+      }
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  const previewSlideKey = slideRotation.enabledSlides.map((s) => s.id).join('|');
+  useEffect(() => {
+    if (!_isPreview || _isDatePreview || window.parent === window) return;
+    window.parent.postMessage({
+      tachtach: 'preview-state',
+      index: slideRotation.currentIndex,
+      paused: slideRotation.isPaused,
+      slides: slideRotation.enabledSlides.map((s) => ({ id: s.id, type: s.type, label: s.label || '', url: s.embedUrl || '' })),
+    }, window.location.origin);
+  }, [slideRotation.currentIndex, slideRotation.isPaused, previewSlideKey]);
+
   // ── Design: theme (manual, or zmanim day/night), fonts, rail, layout ──────
   const settings = state?.settings || {};
   const todayZmanim = state?.cache?.zmanim?.today || {};

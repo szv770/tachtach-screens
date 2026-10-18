@@ -1,12 +1,51 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { colors, adminFonts } from '../styles/admin-tokens.js';
+import { colors, adminFonts, buttonSecondary, inputStyle } from '../styles/admin-tokens.js';
+import useIsMobile from '../hooks/useIsMobile.js';
 
 const KIOSK_W = 1920;
 const KIOSK_H = 1080;
 
+const TYPE_NAMES = {
+  ZMANIM: 'Zmanim', LIMUDIM: 'Limudim', HAYOM_YOM: 'Hayom Yom', PIRKEI_AVOS: 'Pirkei Avos',
+  DAILY_QUOTE: 'Daily Quote', DAILY_WORD: 'Daily Word', PARSHA_TIDBITS: 'Parsha Tidbits',
+  SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'RSS Feed', MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard',
+  MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen', VIDEO_SLIDE: 'Video', IMAGE_SLIDE: 'Image',
+  GOOGLE_PHOTOS_SLIDE: 'Google Photos', ANNOUNCEMENT: 'Message',
+};
+
+function slideName(s) {
+  if (s.type === 'WEB_PAGE') {
+    try { return `Web page · ${new URL(s.url).hostname.replace(/^www\./, '')}`; } catch { return 'Web page'; }
+  }
+  if (s.type === 'ANNOUNCEMENT') return s.label || 'Message';
+  return TYPE_NAMES[s.type] || s.label || 'Slide';
+}
+
+/**
+ * The preview is its own copy of the screen (iframe) that follows the real TV.
+ * The buttons under it only move THIS preview, through postMessage: the TV is
+ * never touched (use Screen Controls for that).
+ */
 export default function LivePreview() {
   const containerRef = useRef(null);
+  const frameRef = useRef(null);
+  const isMobile = useIsMobile();
   const [scale, setScale] = useState(0.18);
+  const [info, setInfo] = useState({ index: 0, paused: false, slides: [] });
+
+  useEffect(() => {
+    const onMessage = (e) => {
+      const m = e.data;
+      if (e.origin !== window.location.origin || e.source !== frameRef.current?.contentWindow || m?.tachtach !== 'preview-state') return;
+      setInfo({ index: m.index || 0, paused: !!m.paused, slides: Array.isArray(m.slides) ? m.slides : [] });
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
+  const send = (action, extra = {}) => {
+    frameRef.current?.contentWindow?.postMessage({ tachtach: 'preview-control', action, ...extra }, window.location.origin);
+  };
 
   useEffect(() => {
     function measure() {
@@ -46,6 +85,7 @@ export default function LivePreview() {
         }}
       >
         <iframe
+          ref={frameRef}
           src="/screen?preview=true"
           title="Screen Preview"
           style={{
@@ -60,6 +100,36 @@ export default function LivePreview() {
           }}
         />
       </div>
+
+      {/* Preview-only controls: jump through slides without waiting for the timer */}
+      {info.slides.length > 0 && (() => {
+        const btn = isMobile
+          ? { ...buttonSecondary, padding: '8px 12px', fontSize: '14px', minHeight: '44px' }
+          : { ...buttonSecondary, padding: '5px 10px', fontSize: '12px' };
+        return (
+          <div style={{ marginTop: '8px' }}>
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <button type="button" style={btn} onClick={() => send('prev')} aria-label="Previous slide">‹ Prev</button>
+              <button type="button" style={btn} onClick={() => send(info.paused ? 'resume' : 'pause')}>{info.paused ? 'Play' : 'Pause'}</button>
+              <button type="button" style={btn} onClick={() => send('next')} aria-label="Next slide">Next ›</button>
+              <span style={{ marginLeft: 'auto', fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, whiteSpace: 'nowrap' }}>
+                {Math.min(info.index + 1, info.slides.length)} / {info.slides.length}
+              </span>
+            </div>
+            <select
+              value={Math.min(info.index, info.slides.length - 1)}
+              onChange={(e) => send('goto', { index: Number(e.target.value) })}
+              aria-label="Jump to slide"
+              style={{ ...inputStyle, marginTop: '6px', width: '100%', fontSize: isMobile ? '16px' : '12px', minHeight: isMobile ? '44px' : undefined, padding: '5px 8px' }}
+            >
+              {info.slides.map((s, i) => <option key={s.id || i} value={i}>{i + 1}. {slideName(s)}</option>)}
+            </select>
+            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '10px', color: colors.muted, marginTop: '4px' }}>
+              Preview only — the real screen isn’t affected.
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
