@@ -14,7 +14,8 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
   return (
     <div style={isMobile ? {
       position: 'fixed',
-      bottom: 'calc(12px + env(safe-area-inset-bottom))',
+      // Sits above the Quick Announcement button (56px + its 16px margin) so the button stays tappable.
+      bottom: 'calc(84px + env(safe-area-inset-bottom))',
       left: '12px',
       right: '12px',
       zIndex: 9999,

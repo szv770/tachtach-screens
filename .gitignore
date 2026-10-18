@@ -24,4 +24,6 @@ data/tls/
 data/users.json
 # Web-push VAPID private key + phone subscriptions (src/server/push.js)
 data/push.json
+# Saved quick-send messages (edited in the admin)
+data/quick-templates.json
 data/activity.json

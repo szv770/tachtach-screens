@@ -308,6 +308,7 @@ export default function App() {
         <QuickAnnounceSheet
           onClose={() => setQuickOpen(false)}
           onPost={quickPostAnnouncement}
+          tz={state?.settings?.location?.timezone || undefined}
         />
       )}
       {composer && (

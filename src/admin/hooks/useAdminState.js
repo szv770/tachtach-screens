@@ -322,10 +322,10 @@ export default function useAdminState() {
    * instead shows a louder confirmation with an Undo action (deletes it
    * straight back out). Used by the Quick Announcement fast path.
    */
-  const quickPostAnnouncement = useCallback(async (data) => {
+  const quickPostAnnouncement = useCallback(async (data, message = 'Posted to screen') => {
     const created = await createAnnouncement(data, null);
     if (created) {
-      const toastId = addToast('Posted to screen', 'success', {
+      const toastId = addToast(message, 'success', {
         label: 'Undo',
         onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); },
       });
