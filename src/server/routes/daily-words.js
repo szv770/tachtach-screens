@@ -9,7 +9,7 @@
 import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
-import { normalizeDailyWordsFile, normalizeWords, parseWordsText, LIMITS } from '../../shared/dailyWords.js';
+import { normalizeDailyWordsFile, normalizeWords, parseWordsText, recordShownWord, forKiosk, LIMITS } from '../../shared/dailyWords.js';
 import { SEED_WORDS } from '../../shared/dailyWordsSeed.js';
 
 export const FILE = 'daily-words.json';
@@ -25,8 +25,39 @@ const withLock = (fn) => { const run = chain.then(fn, fn); chain = run.catch(() 
 async function save(file) {
   const clean = normalizeDailyWordsFile(file);
   await writeJSON(FILE, clean);
-  broadcast('daily-words-update', clean);
+  broadcast('daily-words-update', forKiosk(clean));
   return clean;
+}
+
+/** Local YYYY-MM-DD in the screen's timezone (settings.timezone, else the Pi's). */
+export async function todayISO(now = new Date()) {
+  let tz;
+  try { tz = (await readJSON('settings.json'))?.timezone; } catch { /* default */ }
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: tz || undefined, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  } catch {
+    return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+  }
+}
+
+/**
+ * Archive today's word: the first time a day is seen, the word that shows is
+ * written to history (and a pin for that day is cleared). Safe to call often.
+ */
+export async function recordTodaysWord() {
+  return withLock(async () => {
+    const cur = await readDailyWords();
+    const { file, changed } = recordShownWord(cur, await todayISO());
+    if (changed) await save(file);
+    return changed;
+  });
+}
+
+/** Record at startup and every 10 minutes (covers midnight; unref'd so it never blocks exit). */
+export function startDailyWordRecorder() {
+  const run = () => recordTodaysWord().catch((err) => console.error('[daily-word] record failed:', err.message));
+  setTimeout(run, 3000).unref?.();
+  setInterval(run, 10 * 60 * 1000).unref?.();
 }
 
 const router = Router();
@@ -43,7 +74,7 @@ router.put('/daily-words', async (req, res) => {
     if (!Array.isArray(body.words)) return res.status(400).json({ error: 'words must be a list.' });
     const { words, errors } = normalizeWords(body.words);
     if (errors.length) return res.status(400).json({ error: `Word ${errors[0].index + 1}: ${errors[0].error}`, errors });
-    res.json(await withLock(() => save({ order: body.order, words })));
+    res.json(await withLock(async () => save({ order: body.order, words, history: (await readDailyWords()).history })));
   } catch { res.status(500).json({ error: 'Failed to save the word list.' }); }
 });
 
@@ -61,7 +92,7 @@ router.post('/daily-words/import', async (req, res) => {
       const words = (mode === 'replace' ? fresh : [...cur.words, ...fresh]).slice(0, LIMITS.words);
       const result = { added: fresh.length, skipped, invalid: parsed.errors, total: words.length };
       if (dryRun) return { ...result, dryRun: true };
-      return { ...result, file: await save({ order: cur.order, words }) };
+      return { ...result, file: await save({ order: cur.order, words, history: cur.history }) };
     });
     res.json(out);
   } catch { res.status(500).json({ error: 'Import failed.' }); }

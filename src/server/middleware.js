@@ -12,7 +12,9 @@ export async function requireAuth(req, res, next) {
     if (req.originalUrl.startsWith('/api/')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
-    return res.redirect(302, '/login');
+    // Remember an /admin/<section> deep link so login can send the user back to it.
+    const back = /^\/admin(\/[a-z0-9-]+)?\/?$/.test(req.path) ? req.path.replace(/\/$/, '') : null;
+    return res.redirect(302, back && back !== '/admin' ? `/login?next=${encodeURIComponent(back)}` : '/login');
   }
 
   next();

@@ -13,7 +13,7 @@ import { apiFetch } from '../hooks/useAdminState.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
 import { useSnackbar, useCopy } from './schedule/scheduleShared.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
-import { pickDailyWord, normalizeWord, DAILY_WORD_PROMPT, LIMITS } from '../../shared/dailyWords.js';
+import { pickDailyWord, normalizeWord, upcomingWords, archiveRows, pinWord, addDaysISO, DAILY_WORD_PROMPT, LIMITS } from '../../shared/dailyWords.js';
 import { toISODate } from '../../shared/scheduleResolution.js';
 
 const POS = ['', 'noun', 'verb', 'adjective', 'adverb', 'interjection', 'phrase'];
@@ -83,7 +83,9 @@ export default function DailyWordPanel() {
   const [editing, setEditing] = useState(null); // word | 'new' | null
   const [confirmDel, setConfirmDel] = useState(null);
   const [filter, setFilter] = useState('');
-  const [previewDate, setPreviewDate] = useState(() => toISODate(new Date()));
+  const todayStr = toISODate(new Date());
+  const [view, setView] = useState('upcoming'); // 'upcoming' | 'archive' | 'all'
+  const [showAgain, setShowAgain] = useState(null); // { id, date } while choosing a day for an archived word
   const [pasteText, setPasteText] = useState('');
   const [importInfo, setImportInfo] = useState(null);
   const [promptN, setPromptN] = useState(20);
@@ -103,7 +105,10 @@ export default function DailyWordPanel() {
   };
 
   const words = file?.words || [];
-  const today = useMemo(() => pickDailyWord(file, previewDate), [file, previewDate]);
+  const today = useMemo(() => pickDailyWord(file, todayStr), [file, todayStr]);
+  const upcoming = useMemo(() => (file ? upcomingWords(file, todayStr, 14) : []), [file, todayStr]);
+  const archive = useMemo(() => (file ? archiveRows(file) : []), [file]);
+  const lastShown = useMemo(() => { const m = {}; (file ? archiveRows(file) : []).forEach((r) => { if (r.entry.id && !m[r.entry.id]) m[r.entry.id] = r.date; }); return m; }, [file]);
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();
     return words.map((w, i) => ({ w, i })).filter(({ w }) => !q || [w.word, w.transliteration, w.meaning, ...(w.tags || [])].join(' ').toLowerCase().includes(q));
@@ -143,22 +148,11 @@ export default function DailyWordPanel() {
   return (
     <div>
       <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold, margin: '0 0 6px' }}>Daily Word</h2>
-      <p style={{ ...small, margin: '0 0 16px' }}>A new word every day for the Daily Word slide (add it from Slides → Add built-in slide). {words.filter((w) => w.enabled !== false).length} words on the list.</p>
+      <p style={{ ...small, margin: '0 0 16px' }}>A new word every day for the Daily Word slide (switch that slide on in Slides). {words.filter((w) => w.enabled !== false).length} words on the list.</p>
 
       <div style={card}>
-        <h3 style={h3}>Which word shows when</h3>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <label style={label}>Preview a day
-            <input type="date" value={previewDate} onChange={(e) => setPreviewDate(e.target.value || toISODate(new Date()))} style={inputStyle} />
-          </label>
-          <label style={label}>Order
-            <select value={file.order} disabled={busy} onChange={(e) => save({ ...file, order: e.target.value }, 'Order saved.')} style={inputStyle}>
-              <option value="sequential">In list order, one a day</option>
-              <option value="shuffle">Shuffled (no repeats until every word was shown)</option>
-            </select>
-          </label>
-        </div>
-        <div style={{ marginTop: '12px', display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+        <h3 style={h3}>Showing today</h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
           {today ? (
             <>
               <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '34px', color: colors.text }}>{today.word}</span>
@@ -167,8 +161,82 @@ export default function DailyWordPanel() {
             </>
           ) : <span style={small}>No words are enabled yet.</span>}
         </div>
+        <label style={{ ...label, marginTop: '12px', maxWidth: '420px' }}>Order
+          <select value={file.order} disabled={busy} onChange={(e) => save({ ...file, order: e.target.value }, 'Order saved.')} style={inputStyle}>
+            <option value="sequential">In list order, one a day</option>
+            <option value="shuffle">Shuffled (no repeats until every word was shown)</option>
+          </select>
+        </label>
+        <div style={{ ...small, marginTop: '8px' }}>A word moves to the Archive the day it is shown, and comes around again once the whole list has been shown.</div>
       </div>
 
+      <div style={{ display: 'flex', gap: '6px', margin: '0 0 14px', flexWrap: 'wrap' }} role="tablist">
+        {[['upcoming', 'Coming up'], ['archive', `Archive (${archive.length})`], ['all', `All words (${words.length})`]].map(([key, text]) => (
+          <button key={key} role="tab" aria-selected={view === key} onClick={() => setView(key)}
+            style={{ ...buttonSecondary, minHeight: '38px', background: view === key ? colors.goldBg : 'transparent', border: `1px solid ${view === key ? colors.gold : colors.muted}`, color: view === key ? colors.gold : colors.dim }}>
+            {text}
+          </button>
+        ))}
+      </div>
+
+      {view === 'upcoming' && (
+        <div style={card}>
+          <h3 style={h3}>The next two weeks</h3>
+          <p style={{ ...small, margin: '0 0 8px' }}>This is what will show each day. Pick a different word for any day and it is pinned there.</p>
+          {upcoming.map((u, i) => (
+            <div key={u.date} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+              <span style={{ ...small, minWidth: '96px', color: i === 0 ? colors.gold : colors.dim }}>{i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : new Date(`${u.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+              <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{u.word?.word}</span>
+              <div style={{ flex: 1, minWidth: '150px' }}>
+                <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{u.word?.transliteration} <span style={{ color: colors.dim }}>· {u.word?.pronunciation}</span>{u.pinned && <span style={{ color: colors.gold }}> · pinned</span>}</div>
+                <div style={small}>{u.word?.meaning}</div>
+              </div>
+              {u.locked
+                ? <span style={{ ...small, whiteSpace: 'nowrap' }}>{i === 0 ? 'on screen now' : 'locked'}</span>
+                : (
+                  <select aria-label={`Word for ${u.date}`} value={u.pinned ? u.word.id : ''} disabled={busy} style={{ ...inputStyle, minHeight: '34px', width: 'auto', maxWidth: '190px' }}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      if (!id) { save({ ...file, words: words.map((w) => (w.showOn === u.date ? (({ showOn, ...rest }) => rest)(w) : w)) }, 'Back to automatic.'); return; }
+                      save(pinWord(file, id, u.date), 'Pinned.');
+                    }}>
+                    <option value="">Automatic</option>
+                    {words.filter((w) => w.enabled !== false).map((w) => <option key={w.id} value={w.id}>{w.transliteration || w.word}</option>)}
+                  </select>
+                )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === 'archive' && (
+        <div style={card}>
+          <h3 style={h3}>Archive: words already shown</h3>
+          {archive.length === 0 && <div style={small}>Nothing yet. Each day's word is saved here once it has been on the screen.</div>}
+          {archive.map((r) => (
+            <div key={r.date} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+              <span style={{ ...small, minWidth: '110px' }}>{new Date(`${r.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{r.entry.word}</span>
+              <div style={{ flex: 1, minWidth: '150px' }}>
+                <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{r.entry.transliteration} <span style={{ color: colors.dim }}>· {r.entry.pronunciation}</span></div>
+                <div style={small}>{r.entry.meaning}</div>
+              </div>
+              {showAgain && showAgain.key === r.date ? (
+                <span style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <input type="date" min={addDaysISO(todayStr, 1)} value={showAgain.date} onChange={(e) => setShowAgain({ ...showAgain, date: e.target.value })} style={{ ...inputStyle, minHeight: '34px', width: 'auto' }} />
+                  <button style={{ ...buttonPrimary, minHeight: '34px' }} disabled={busy || !showAgain.date} onClick={async () => { if (await save(pinWord(file, r.live.id, showAgain.date), 'Pinned. It will show again that day.')) setShowAgain(null); }}>Pin</button>
+                  <button style={{ ...buttonSecondary, minHeight: '34px' }} onClick={() => setShowAgain(null)}>Cancel</button>
+                </span>
+              ) : r.live
+                ? <button style={{ ...buttonSecondary, minHeight: '32px' }} onClick={() => setShowAgain({ key: r.date, date: addDaysISO(todayStr, 1) })}>Show again…</button>
+                : <span style={small} title="This word was deleted from the list">removed from list</span>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view === 'all' && (
+        <>
       <div style={card}>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>The list</h3>
@@ -182,7 +250,7 @@ export default function DailyWordPanel() {
             <ToggleSwitch on={w.enabled !== false} label={`Show ${w.transliteration || w.word}`} onChange={(on) => save({ ...file, words: words.map((x) => (x.id === w.id ? { ...x, enabled: on } : x)) })} />
             <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{w.word}</span>
             <div style={{ flex: 1, minWidth: '160px' }}>
-              <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{w.transliteration} <span style={{ color: colors.dim }}>· {w.pronunciation}</span>{w.showOn && <span style={{ color: colors.gold }}> · pinned {w.showOn}</span>}</div>
+              <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{w.transliteration} <span style={{ color: colors.dim }}>· {w.pronunciation}</span>{w.showOn && <span style={{ color: colors.gold }}> · pinned {w.showOn}</span>}{lastShown[w.id] && <span style={{ color: colors.dim }}> · last shown {lastShown[w.id]}</span>}</div>
               <div style={small}>{w.meaning}</div>
             </div>
             <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, -1)} disabled={busy || i === 0} title="Earlier in the order" aria-label="Move up">↑</button>
@@ -217,6 +285,9 @@ export default function DailyWordPanel() {
           </div>
         )}
       </div>
+
+        </>
+      )}
 
       {confirmDel && (
         <ConfirmDialog

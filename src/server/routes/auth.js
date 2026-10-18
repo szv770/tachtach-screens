@@ -70,11 +70,17 @@ function setTrustedDeviceCookie(req, res, token) {
 
 // ─── GET /login ──────────────────────────────────────────────────────────────
 
+/** Where to go after login: only an /admin or /admin/<section> path, never an arbitrary URL. */
+export function safeNext(next) {
+  const n = String(next || '');
+  return /^\/admin(\/[a-z0-9-]+)?$/.test(n) ? n : '/admin';
+}
+
 router.get('/login', async (req, res) => {
   // If already authenticated, redirect to admin
   const token = req.cookies?.tachtach_session;
   if (token && (await validateSession(token))) {
-    return res.redirect('/admin');
+    return res.redirect(safeNext(req.query.next));
   }
 
   res.send(loginPage());
@@ -480,6 +486,11 @@ function loginPage() {
   </div>
 
   <script>
+    // Return to the /admin/<section> the user came from (validated; default /admin).
+    const NEXT_URL = (function () {
+      const n = new URLSearchParams(window.location.search).get('next') || '';
+      return /^[/]admin([/][a-z0-9-]+)?$/.test(n) ? n : '/admin';
+    })();
     const passwordForm = document.getElementById('passwordForm');
     const passwordInput = document.getElementById('password');
     const passwordBtn = document.getElementById('passwordBtn');
@@ -551,7 +562,7 @@ function loginPage() {
         }
 
         if (data.status === 'authenticated') {
-          window.location.href = '/admin';
+          window.location.href = NEXT_URL;
         } else if (data.status === 'totp_setup_required') {
           qrImage.src = data.qrDataUrl;
           totpSecretText.textContent = data.secret;
@@ -593,7 +604,7 @@ function loginPage() {
         const data = await res.json();
 
         if (res.ok && data.success) {
-          window.location.href = '/admin';
+          window.location.href = NEXT_URL;
         } else {
           showError(data.error || 'Invalid code.');
         }
@@ -627,7 +638,7 @@ function loginPage() {
         const data = await res.json();
 
         if (res.ok && data.success) {
-          window.location.href = '/admin';
+          window.location.href = NEXT_URL;
         } else {
           showError(data.error || 'Invalid code.');
         }
