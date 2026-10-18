@@ -21,3 +21,5 @@ data/legacy/
 
 # Local kiosk https key + certificate, generated on the Pi (src/server/localTls.js)
 data/tls/
+data/users.json
+data/activity.json
