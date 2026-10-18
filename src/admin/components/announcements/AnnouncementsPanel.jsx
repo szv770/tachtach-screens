@@ -213,6 +213,12 @@ export default function AnnouncementsPanel({
                     {st === 'draft' ? 'Draft — not on screen' : describeTiming(item, now, { tz })}
                   </span>
                 </div>
+                {item.createdBy && (
+                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted, marginTop: '3px' }}>
+                    Posted by {item.createdBy}
+                    {item.updatedBy && item.updatedBy !== item.createdBy ? ` · edited by ${item.updatedBy}` : ''}
+                  </div>
+                )}
               </div>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>

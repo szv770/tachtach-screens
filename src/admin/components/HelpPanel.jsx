@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { colors, adminFonts, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { ToggleSwitch } from './ui.jsx';
-import { SCREEN_PARTS, GLOSSARY, START_STEPS, TOPICS } from '../help/helpContent.js';
+import { SCREEN_PARTS, GLOSSARY, START_STEPS as ALL_STEPS, TOPICS } from '../help/helpContent.js';
+import { canOpenSection } from '../../shared/permissions.js';
 
 const DONE_KEY = 'tachtach-help-done';
 const card = { background: colors.panel, border: `1px solid ${colors.muted}`, borderRadius: '8px', padding: '16px', marginBottom: '16px' };
@@ -17,7 +18,9 @@ function loadDone() {
   try { return JSON.parse(localStorage.getItem(DONE_KEY) || '{}') || {}; } catch { return {}; }
 }
 
-export default function HelpPanel({ onNavigate, onTour }) {
+export default function HelpPanel({ onNavigate, onTour, role }) {
+  // Editors don't see checklist steps (or "Take me there" buttons) for admin-only tabs.
+  const START_STEPS = ALL_STEPS.filter((s) => canOpenSection(role, s.go));
   const [done, setDone] = useState(loadDone);
   const [open, setOpen] = useState(null);
   const toggle = (id) => {
@@ -79,7 +82,7 @@ export default function HelpPanel({ onNavigate, onTour }) {
               {isOpen && (
                 <div style={{ padding: '0 0 12px' }}>
                   <ol style={{ ...body, margin: '0 0 10px', paddingLeft: '20px' }}>{t.body.map((line, k) => <li key={k} style={{ marginBottom: '4px' }}>{line}</li>)}</ol>
-                  <button style={{ ...buttonSecondary, minHeight: '34px' }} onClick={() => onNavigate(t.go)}>Take me there</button>
+                  {canOpenSection(role, t.go) && <button style={{ ...buttonSecondary, minHeight: '34px' }} onClick={() => onNavigate(t.go)}>Take me there</button>}
                 </div>
               )}
             </div>
