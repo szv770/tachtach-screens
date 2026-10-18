@@ -22,21 +22,39 @@ async function assertPublic(u) {
   if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) throw new Error('That address is on a private network.');
 }
 
-async function fetchHeaders(startUrl) {
-  let url = startUrl;
-  for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    await assertPublic(new URL(url));
-    const res = await fetch(url, { method: 'GET', redirect: 'manual', timeout: 12000, headers: { 'User-Agent': UA, Accept: 'text/html,*/*' } });
-    res.body?.destroy?.();
-    if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
-      url = new URL(res.headers.get('location'), url).toString();
-      continue;
+/**
+ * Headers of the final page (follows up to MAX_REDIRECTS, re-checking every hop).
+ * node-fetch v3 has no `timeout` option, so an AbortController bounds the whole
+ * thing: a site that never answers must not hold the admin request open until the
+ * Cloudflare tunnel gives up on it (that surfaced as a raw "502 Bad gateway" page).
+ * `guard` is injectable for tests only.
+ */
+export async function fetchHeaders(startUrl, { guard = assertPublic, timeoutMs = 10000 } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    let url = startUrl;
+    for (let i = 0; i <= MAX_REDIRECTS; i++) {
+      await guard(new URL(url));
+      const res = await fetch(url, { method: 'GET', redirect: 'manual', signal: ctrl.signal, headers: { 'User-Agent': UA, Accept: 'text/html,*/*' } });
+      // We only need the headers: drop the body without letting a stream error escape.
+      res.body?.on?.('error', () => {});
+      res.body?.destroy?.();
+      if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
+        url = new URL(res.headers.get('location'), url).toString();
+        continue;
+      }
+      const headers = {};
+      res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
+      return { status: res.status, headers, finalUrl: url };
     }
-    const headers = {};
-    res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
-    return { status: res.status, headers, finalUrl: url };
+    throw new Error('Too many redirects.');
+  } catch (err) {
+    if (ctrl.signal.aborted) throw new Error('The site took too long to answer (over 10 seconds).');
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  throw new Error('Too many redirects.');
 }
 
 const router = Router();

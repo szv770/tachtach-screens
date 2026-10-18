@@ -9,18 +9,6 @@ const HOST = process.env.HOST || '0.0.0.0';
 await ensureDataDir();
 const app = createApp();
 
-// Loopback-only https for the kiosk (see src/server/localTls.js). Started before
-// the http listener logs, so the launcher can rely on it once http answers.
-const tls = await ensureLocalCert();
-if (tls) {
-  const secure = https.createServer(tls, app);
-  secure.on('error', (err) => { setLocalTlsEnabled(false); console.warn(`[tls] https listener failed: ${err.message}`); });
-  secure.listen(LOCAL_TLS_PORT, '127.0.0.1', () => {
-    setLocalTlsEnabled(true);
-    console.log(`  Kiosk (https, loopback only): https://127.0.0.1:${LOCAL_TLS_PORT}/screen`);
-  });
-}
-
 app.listen(PORT, HOST, () => {
   console.log(`TachTach-Screens running on http://${HOST}:${PORT}`);
   console.log(`  Kiosk:  http://localhost:${PORT}/screen`);
@@ -35,3 +23,16 @@ app.listen(PORT, HOST, () => {
     console.warn('[security] If behind a reverse proxy, set TRUST_PROXY=1 and configure "trust proxy" for correct IP detection.');
   }
 });
+
+// Loopback-only https for the kiosk (see src/server/localTls.js). Started AFTER the
+// http listener so a slow or failing openssl can never keep the server (and the
+// Cloudflare tunnel in front of it) from answering.
+ensureLocalCert().then((tls) => {
+  if (!tls) return;
+  const secure = https.createServer(tls, app);
+  secure.on('error', (err) => { setLocalTlsEnabled(false); console.warn(`[tls] https listener failed: ${err.message}`); });
+  secure.listen(LOCAL_TLS_PORT, '127.0.0.1', () => {
+    setLocalTlsEnabled(true);
+    console.log(`  Kiosk (https, loopback only): https://127.0.0.1:${LOCAL_TLS_PORT}/screen`);
+  });
+}).catch((err) => console.warn(`[tls] Local HTTPS setup failed: ${err.message}`));

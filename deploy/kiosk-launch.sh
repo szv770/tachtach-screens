@@ -51,8 +51,9 @@ done
 # Prefer the loopback https address: websites that only let https pages frame
 # them (e.g. Charidy) can then be shown by a Web page slide. Self-signed cert,
 # accepted for localhost only. Falls back to plain http if it is not answering.
-for i in 1 2 3 4 5; do
-  if curl -kfs -o /dev/null --max-time 3 "$HTTPS_SCREEN_URL"; then
+# (First start only: the server creates the certificate just after it begins answering on http, so give it up to ~25 s.)
+for i in $(seq 1 25); do
+  if curl -kfs -o /dev/null --max-time 2 "$HTTPS_SCREEN_URL"; then
     SCREEN_URL="$HTTPS_SCREEN_URL"
     EXTRA_FLAGS=(--allow-insecure-localhost)
     log "using local https: $SCREEN_URL"

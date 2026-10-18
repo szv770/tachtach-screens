@@ -27,6 +27,11 @@ function parseErrorMessage(err) {
   return raw;
 }
 
+/** Plain-English text for "the server behind the tunnel did not answer". */
+export function friendlyGatewayError(status) {
+  return `The screen's server is not answering right now (error ${status}). If it was just updated or restarted, wait a minute and try again. If it keeps happening, check the Pi is on and run: sudo systemctl status tachtach-server`;
+}
+
 export async function apiFetch(path, options = {}, _retried = false) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   const method = (options.method || 'GET').toUpperCase();
@@ -56,6 +61,10 @@ export async function apiFetch(path, options = {}, _retried = false) {
       errorMsg = parsed.error || body;
     } catch {
       errorMsg = body;
+    }
+    // A proxy/tunnel error page (Cloudflare's "502 Bad gateway" etc.) is HTML: never show it raw.
+    if (/^\s*<(!doctype|html)/i.test(String(errorMsg)) || res.status === 502 || res.status === 503 || res.status === 504 || res.status >= 520) {
+      throw new Error(friendlyGatewayError(res.status));
     }
     throw new Error(errorMsg || `${res.status} ${res.statusText}`);
   }
