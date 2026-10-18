@@ -112,13 +112,15 @@ test('weather: Open-Meteo fixture normalizes; geocoders parse', () => {
   assert.match(openMeteoUrl(1, 2, 'C', 'America/New_York'), /temperature_unit=celsius/);
 });
 
-test('built-in WEATHER slide is added once', () => {
+test('late built-in slides (WEATHER, DAILY_WORD) are added once, disabled, at the end', () => {
   const rows = [{ id: 'zmanim', type: 'ZMANIM' }];
   const a = addMissingBuiltins(rows);
-  assert.equal(a.added.length, 1);
-  assert.equal(a.slides.at(-1).type, 'WEATHER');
-  assert.equal(a.slides.at(-1).enabled, false);
-  assert.equal(addMissingBuiltins(a.slides).added.length, 0);
+  assert.deepEqual(a.added.map((x) => x.type).sort(), ['DAILY_WORD', 'WEATHER']);
+  assert.ok(a.slides.slice(1).every((x) => x.enabled === false), 'added rows start disabled');
+  assert.equal(a.slides[0].type, 'ZMANIM', 'existing rows keep their place');
+  assert.equal(addMissingBuiltins(a.slides).added.length, 0, 'idempotent');
+  // a row the owner already has (any id) is never duplicated
+  assert.equal(addMissingBuiltins([...rows, { id: 'x', type: 'DAILY_WORD' }, { id: 'y', type: 'WEATHER' }]).added.length, 0);
 });
 
 test('isScheduleSlideOn: schedule slide disabled/removed turns schedule updates off', async () => {
