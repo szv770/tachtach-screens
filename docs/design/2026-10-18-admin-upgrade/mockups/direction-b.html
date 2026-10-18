@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Direction B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Rubik:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ DIRECTION B — "STUDIO" ============
+   Cool neutral canvas, one indigo action colour, each of the 5 areas owns a hue
+   (Screen sky, Schedule green, Announce orange, Settings violet). Floating pill
+   tab bar, big rounded cards, Plus Jakarta Sans throughout, Rubik for Hebrew. */
+:root{
+  --bg:#F1F3F8; --surface:#FFFFFF; --surface-2:#F7F8FC; --sunken:#E7EAF2;
+  --text:#0F1729; --text-2:#4A5568; --text-3:#8A94A8;
+  --line:rgba(15,23,41,.08); --line-strong:rgba(15,23,41,.16);
+  --accent:#4054E8; --accent-ink:#FFFFFF; --accent-soft:#E6E9FF;
+  --gold:#B7791F; --gold-soft:#FDF0D8;
+  --a-screen:#0EA5E9; --a-screen-soft:#E0F4FD; --a-sched:#12A26B; --a-sched-soft:#DDF5EA;
+  --a-ann:#F2711C; --a-ann-soft:#FFEADB; --a-look:#8B5CF6; --a-look-soft:#EFE7FF;
+  --ok:#12A26B; --ok-soft:#DDF5EA; --warn:#D97706; --warn-soft:#FDEFD6; --danger:#E5484D;
+  --scrim:rgba(15,23,41,.42);
+  --e1:0 1px 2px rgba(15,23,41,.05),0 2px 8px rgba(15,23,41,.04);
+  --e2:0 8px 24px rgba(15,23,41,.08),0 2px 6px rgba(15,23,41,.05);
+  --e3:0 24px 64px rgba(15,23,41,.20),0 6px 16px rgba(15,23,41,.08);
+  --page:#DFE3EC; --frame:#0F1729;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0A0D14; --surface:#141924; --surface-2:#1A2030; --sunken:#0E121B;
+  --text:#EEF2F9; --text-2:#A9B3C7; --text-3:#6B7690;
+  --line:rgba(238,242,249,.07); --line-strong:rgba(238,242,249,.15);
+  --accent:#7C8CFF; --accent-ink:#0A0D14; --accent-soft:rgba(124,140,255,.16);
+  --gold:#F5B94A; --gold-soft:rgba(245,185,74,.14);
+  --a-screen:#38BDF8; --a-screen-soft:rgba(56,189,248,.14); --a-sched:#34D399; --a-sched-soft:rgba(52,211,153,.14);
+  --a-ann:#FB923C; --a-ann-soft:rgba(251,146,60,.15); --a-look:#A78BFA; --a-look-soft:rgba(167,139,250,.15);
+  --ok:#34D399; --ok-soft:rgba(52,211,153,.14); --warn:#FBBF24; --warn-soft:rgba(251,191,36,.14); --danger:#F87171;
+  --scrim:rgba(0,0,0,.6);
+  --e1:0 0 0 1px rgba(238,242,249,.05),0 2px 6px rgba(0,0,0,.35);
+  --e2:0 0 0 1px rgba(238,242,249,.06),0 10px 28px rgba(0,0,0,.45);
+  --e3:0 0 0 1px rgba(238,242,249,.08),0 30px 70px rgba(0,0,0,.65);
+  --page:#05070B; --frame:#262C3A;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0A0D14; --surface:#141924; --surface-2:#1A2030; --sunken:#0E121B;
+  --text:#EEF2F9; --text-2:#A9B3C7; --text-3:#6B7690;
+  --line:rgba(238,242,249,.07); --line-strong:rgba(238,242,249,.15);
+  --accent:#7C8CFF; --accent-ink:#0A0D14; --accent-soft:rgba(124,140,255,.16);
+  --gold:#F5B94A; --gold-soft:rgba(245,185,74,.14);
+  --a-screen:#38BDF8; --a-screen-soft:rgba(56,189,248,.14); --a-sched:#34D399; --a-sched-soft:rgba(52,211,153,.14);
+  --a-ann:#FB923C; --a-ann-soft:rgba(251,146,60,.15); --a-look:#A78BFA; --a-look-soft:rgba(167,139,250,.15);
+  --ok:#34D399; --ok-soft:rgba(52,211,153,.14); --warn:#FBBF24; --warn-soft:rgba(251,191,36,.14); --danger:#F87171;
+  --scrim:rgba(0,0,0,.6);
+  --e1:0 0 0 1px rgba(238,242,249,.05),0 2px 6px rgba(0,0,0,.35);
+  --e2:0 0 0 1px rgba(238,242,249,.06),0 10px 28px rgba(0,0,0,.45);
+  --e3:0 0 0 1px rgba(238,242,249,.08),0 30px 70px rgba(0,0,0,.65);
+  --page:#05070B; --frame:#262C3A;
+  color-scheme:dark;
+}
+:root{
+  --r-xs:10px; --r-sm:14px; --r-md:18px; --r-lg:24px; --r-xl:32px; --r-pill:999px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
+  --f-ui:'Plus Jakarta Sans',system-ui,sans-serif; --f-display:'Plus Jakarta Sans',system-ui,sans-serif; --f-he:'Rubik',sans-serif;
+  --t-fast:120ms; --t-base:200ms; --t-sheet:380ms; --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--page);color:var(--text);font-family:var(--f-ui);-webkit-font-smoothing:antialiased}
+body{overflow-x:hidden}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+svg.i{width:20px;height:20px;flex:none;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+[lang="he"]{font-family:var(--f-he)}
+/* area colour helpers */
+.ar-screen{--ac:var(--a-screen);--acs:var(--a-screen-soft)} .ar-sched{--ac:var(--a-sched);--acs:var(--a-sched-soft)}
+.ar-ann{--ac:var(--a-ann);--acs:var(--a-ann-soft)} .ar-look{--ac:var(--a-look);--acs:var(--a-look-soft)}
+.ar-home{--ac:var(--accent);--acs:var(--accent-soft)}
+
+/* ---------- Presentation chrome ---------- */
+.deck{max-width:1560px;margin:0 auto;padding:24px 16px 80px}
+.deck-head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:24px}
+.deck-head h1{font-weight:800;font-size:30px;letter-spacing:-.025em}
+.deck-head p{color:var(--text-2);font-size:14px;max-width:640px;margin-top:4px;line-height:1.5}
+.seg{display:inline-flex;background:var(--sunken);border-radius:var(--r-pill);padding:4px;gap:2px}
+.seg button{min-height:36px;padding:0 14px;border-radius:var(--r-pill);font-size:13px;font-weight:700;color:var(--text-2)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.deck h2.sec{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-3);font-weight:800;margin:32px 0 14px}
+.row{display:flex;flex-wrap:wrap;gap:28px 24px;align-items:flex-start}
+.shot{flex:0 1 410px;min-width:0}
+.shot-label{font-size:13px;font-weight:700;color:var(--text-2);margin-bottom:10px}
+.scaler{width:100%;overflow:hidden;position:relative}
+.scaler>.stage{transform-origin:0 0;position:absolute;top:0;left:0}
+.desk-shot{width:100%}
+
+/* ---------- Phone ---------- */
+.phone{width:410px;height:864px;border:10px solid var(--frame);border-radius:58px;background:var(--bg);position:relative;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,.18)}
+.phone .sb{height:50px;display:flex;align-items:center;justify-content:space-between;padding:6px 32px 0;font-size:15px;font-weight:700}
+.phone .sb .isl{width:120px;height:34px;background:#000;border-radius:20px;position:absolute;left:135px;top:10px}
+.phone .sb .sbi{display:flex;gap:6px;align-items:center}
+.phone .sb .bat{width:24px;height:11px;border:1.5px solid currentColor;border-radius:3px;position:relative}
+.phone .sb .bat:after{content:"";position:absolute;inset:1.5px;right:5px;background:currentColor;border-radius:1px}
+.scroll{position:absolute;top:50px;left:0;right:0;bottom:0;overflow:hidden;padding:0 16px}
+
+.lt{padding:8px 4px 14px}
+.lt .eyebrow{font-size:13px;color:var(--text-3);font-weight:700;display:flex;gap:6px;align-items:center}
+.lt h1{font-weight:800;font-size:30px;letter-spacing:-.03em;line-height:1.1;margin-top:4px}
+.lt-top{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.iconbtn{width:44px;height:44px;border-radius:var(--r-pill);display:grid;place-items:center;color:var(--text)}
+.iconbtn.filled{background:var(--sunken)}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--a-look));color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px}
+
+.search{display:flex;align-items:center;gap:10px;height:48px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--e1);padding:0 16px;color:var(--text-3);font-size:16px;font-weight:500}
+.search.focus{box-shadow:0 0 0 2px var(--accent),var(--e2);color:var(--text)}
+
+.now{display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,#1B2340,#0F1729);color:#EEF2F9;border-radius:var(--r-lg);padding:14px;box-shadow:var(--e2);margin:14px 0 18px}
+.now .k{color:#9FB0FF!important}
+.now .s{color:#B9C2D6!important}
+.now svg.chev{color:#B9C2D6!important}
+.mini-tv{width:96px;aspect-ratio:16/9;border-radius:10px;background:#0B0E15;flex:none;display:flex;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.mini-tv .rail{width:28%;background:#141A28;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.mini-tv .rail b{color:#EEF2F9;font-size:9px;font-weight:800}
+.mini-tv .rail i{width:60%;height:2px;background:#3a4560;border-radius:2px}
+.mini-tv .pan{flex:1;margin:4px;border-radius:5px;background:#1A2134;padding:5px;display:flex;flex-direction:column;gap:3px}
+.mini-tv .pan i{height:3px;border-radius:2px;background:#7C8CFF}
+.mini-tv .pan i:nth-child(2n){opacity:.45;width:70%}
+.now .meta{flex:1;min-width:0}
+.now .k,.k{font-size:11.5px;color:var(--text-3);font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.now .v{font-size:17px;font-weight:800;margin-top:3px;letter-spacing:-.01em}
+.now .s{font-size:13px;color:var(--text-2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;box-shadow:0 0 0 3px var(--ok-soft)}
+.pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:var(--r-pill);font-size:12px;font-weight:800}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)} .pill.gold{background:var(--accent-soft);color:var(--accent)}
+.pill.mute{background:var(--sunken);color:var(--text-2)}
+
+/* Tiles: colour-coded by area, solid icon squircles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{--ac:var(--accent);--acs:var(--accent-soft);background:var(--surface);border-radius:var(--r-lg);padding:16px;min-height:124px;box-shadow:var(--e1);display:flex;flex-direction:column;justify-content:space-between;text-align:left}
+.tile .ic{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:var(--ac);color:#fff}
+.tile h3{font-size:16px;font-weight:800;letter-spacing:-.015em;margin-top:14px}
+.tile p{font-size:13px;color:var(--text-2);margin-top:3px;line-height:1.35;font-weight:500}
+.tile.hero{grid-column:1/-1;background:var(--accent);color:var(--accent-ink);min-height:92px;flex-direction:row;align-items:center;gap:14px;justify-content:flex-start;box-shadow:0 12px 28px color-mix(in srgb,var(--accent) 35%,transparent)}
+.tile.hero .ic{background:rgba(255,255,255,.2);color:inherit;width:50px;height:50px;border-radius:16px}
+.tile.hero h3{margin:0;font-size:18px} .tile.hero p{color:inherit;opacity:.85}
+.group-h{font-size:12px;font-weight:800;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;margin:22px 4px 10px}
+
+/* Floating pill tab bar */
+.tabbar{position:absolute;left:14px;right:14px;bottom:24px;height:68px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--e3);display:grid;grid-template-columns:repeat(5,1fr);padding:0 6px;align-items:center}
+.tab{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:10.5px;font-weight:800;color:var(--text-3);min-height:56px;border-radius:var(--r-pill)}
+.tab.on{color:var(--accent)}
+.tab.on svg.i{background:var(--accent-soft);border-radius:var(--r-pill);width:44px;padding:3px 10px;height:28px}
+.tab svg.i{width:24px;height:24px}
+.fab{width:56px;height:56px;border-radius:20px;background:var(--text);color:var(--bg);display:grid;place-items:center;margin:0 auto;transform:rotate(0)}
+.fab svg.i{width:28px;height:28px;stroke-width:2.6}
+
+.toast{position:absolute;left:16px;right:16px;bottom:104px;background:var(--text);color:var(--bg);border-radius:var(--r-pill);padding:0 6px 0 20px;height:54px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--e3);font-size:14px;font-weight:700}
+.toast button{min-height:44px;padding:0 16px;border-radius:var(--r-pill);background:var(--accent);color:var(--accent-ink);font-weight:800}
+
+.scrim{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:absolute;left:8px;right:8px;bottom:8px;background:var(--surface);border-radius:var(--r-xl);box-shadow:var(--e3);padding:8px 16px 22px}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--line-strong);margin:0 auto 8px}
+.sheet-h{display:flex;justify-content:space-between;align-items:center;min-height:44px}
+.sheet-h h2{font-weight:800;font-size:22px;letter-spacing:-.02em}
+.link{color:var(--accent);font-weight:800;font-size:15px;min-height:44px;padding:0 6px;display:inline-flex;align-items:center}
+
+/* Search results: cards, not inset lists */
+.glist{display:flex;flex-direction:column;gap:6px}
+.glist-h{font-size:12px;font-weight:800;color:var(--text-3);letter-spacing:.08em;text-transform:uppercase;margin:16px 4px 8px;display:flex;justify-content:space-between}
+.li{display:flex;align-items:center;gap:12px;min-height:60px;padding:8px 12px;background:var(--surface);border-radius:var(--r-md);box-shadow:var(--e1)}
+.li .ic{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--sunken);color:var(--text-2);flex:none}
+.li .tx{flex:1;min-width:0}
+.li .t{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .t mark{background:none;color:var(--accent);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}
+.li .d{font-size:12.5px;color:var(--text-3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.li .chev{color:var(--text-3)}
+.mini-act{position:relative;height:36px;min-width:52px;padding:0 12px;border-radius:var(--r-pill);background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:800;display:grid;place-items:center}
+.mini-act:after{content:"";position:absolute;inset:-4px -2px}
+
+.tpl{display:flex;flex-direction:column;gap:8px}
+.tpl-row{display:flex;align-items:center;gap:8px;min-height:54px;padding:6px 16px;border-radius:var(--r-md);background:var(--surface-2);font-size:15px;font-weight:700;text-align:left;border:2px solid transparent}
+.tpl-row.sel{border-color:var(--accent);background:var(--accent-soft)}
+.blank{display:inline-block;padding:1px 8px;border-radius:8px;border:1.5px dashed var(--a-ann);color:var(--a-ann);font-weight:800}
+.fill{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:18px;font-weight:800;padding:14px 16px;border-radius:var(--r-md);background:var(--surface-2);margin-top:8px;letter-spacing:-.01em}
+.fill input{height:46px;border-radius:12px;border:2px solid var(--accent);background:var(--surface);padding:0 12px;width:150px;font-weight:800}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{min-height:44px;padding:0 16px;border-radius:var(--r-pill);background:var(--sunken);font-size:14px;font-weight:700;display:inline-flex;align-items:center;color:var(--text-2)}
+.chip.on{background:var(--accent);color:var(--accent-ink)}
+.kinds .chip{flex:none}
+.btn{white-space:nowrap;min-height:54px;border-radius:var(--r-pill);font-size:16px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn.sec{background:var(--sunken);color:var(--text)}
+.btn.sm{min-height:44px;font-size:14px;width:auto;padding:0 18px}
+.preview-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.qm{aspect-ratio:16/9;border-radius:12px;display:grid;place-items:center;text-align:center;padding:8px;font-weight:800;font-size:12px;line-height:1.25}
+.qm.dk{background:#0F1424;color:#EEF2F9;box-shadow:inset 0 0 0 1px rgba(124,140,255,.4)}
+.qm.lt2{background:#F4F6FB;color:#0F1729;box-shadow:inset 0 0 0 1px rgba(64,84,232,.3)}
+.qm small{display:block;font-size:8px;font-weight:700;opacity:.55;margin-top:3px;letter-spacing:.08em;text-transform:uppercase}
+
+.nav{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin:0 -8px}
+.nav .back{display:flex;align-items:center;gap:2px;color:var(--text);font-weight:800;font-size:15px;min-height:44px;padding:0 14px 0 8px;background:var(--surface);border-radius:var(--r-pill);box-shadow:var(--e1);margin-left:8px}
+.nav .ttl{font-weight:800;font-size:16px}
+.steps{display:flex;gap:6px;margin:12px 4px 0}
+.steps i{flex:1;height:6px;border-radius:3px;background:var(--line-strong)} .steps i.on{background:var(--a-screen)}
+
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ccard{--ac:var(--a-screen);--acs:var(--a-screen-soft);background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1);overflow:hidden;text-align:left;display:flex;flex-direction:column;padding:6px}
+.ccard .art{height:78px;display:grid;place-items:center;background:var(--acs);color:var(--ac);border-radius:18px}
+.ccard .art svg.i{width:30px;height:30px}
+.ccard .bd{padding:10px 8px 6px}
+.ccard h3{font-size:15px;font-weight:800;letter-spacing:-.01em}
+.ccard p{font-size:12.5px;color:var(--text-2);margin-top:2px;line-height:1.35;font-weight:500}
+.ccard.big{grid-column:1/-1;flex-direction:row}
+.ccard.big .art{width:104px;height:auto}
+.ccard.big .bd{flex:1;padding:8px 10px}
+.ccard:nth-child(2){--ac:var(--a-ann);--acs:var(--a-ann-soft)}
+.ccard:nth-child(5){--ac:var(--a-look);--acs:var(--a-look-soft)}
+.vchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.vchips span{font-size:11px;font-weight:800;padding:3px 9px;border-radius:var(--r-pill);background:var(--sunken);color:var(--text-2)}
+
+.coll{background:var(--surface);border-radius:var(--r-md);box-shadow:var(--e1);margin-bottom:8px;overflow:hidden}
+.coll-h{display:flex;align-items:center;gap:12px;min-height:66px;padding:10px 16px;width:100%;text-align:left}
+.coll-h .tx{flex:1;min-width:0}
+.coll-h .t{font-size:15px;font-weight:800}
+.coll-h .sum{font-size:13px;color:var(--a-look);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:700}
+.coll-h .chev{color:var(--text-3);transition:transform var(--t-base) var(--ease);transform:rotate(90deg)}
+.coll.open .coll-h .chev{transform:rotate(-90deg)}
+.coll-b{padding:0 16px 16px}
+.field{margin-top:4px}
+.field label{font-size:13px;font-weight:700;color:var(--text-2);display:block;margin-bottom:6px}
+.input{height:50px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--surface-2);padding:0 14px;width:100%;font-size:16px;font-weight:600;display:flex;align-items:center}
+.input.dirty{border-color:var(--accent)}
+.hint{font-size:12.5px;color:var(--text-3);margin-top:6px;font-weight:500}
+.edited-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block;margin-left:6px;vertical-align:middle}
+
+.savebar{position:absolute;left:14px;right:14px;bottom:104px;background:var(--accent);color:var(--accent-ink);border-radius:var(--r-pill);padding:7px 7px 7px 20px;display:flex;align-items:center;gap:6px;box-shadow:0 14px 32px color-mix(in srgb,var(--accent) 40%,transparent)}
+.savebar .tx{flex:1;font-size:14px;font-weight:800}
+.savebar .tx small{display:block;font-weight:600;opacity:.75;font-size:12px}
+.savebar .rv{min-height:44px;padding:0 14px;font-weight:800;font-size:14px;color:inherit;opacity:.85}
+.savebar .sv{min-height:44px;padding:0 20px;border-radius:var(--r-pill);background:var(--accent-ink);color:var(--accent);font-weight:800;font-size:14px}
+
+.toggle{width:51px;height:31px;border-radius:16px;background:var(--line-strong);position:relative;flex:none}
+.toggle:after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform var(--t-base) var(--ease)}
+.toggle.on{background:var(--accent)} .toggle.on:after{transform:translateX(20px)}
+.sc{display:flex;background:var(--sunken);border-radius:var(--r-pill);padding:3px}
+.sc button{flex:1;min-height:44px;border-radius:var(--r-pill);font-size:13px;font-weight:800;color:var(--text-2)}
+.sc button.on{background:var(--surface);color:var(--text);box-shadow:var(--e1)}
+
+/* ---------- Desktop: floating panels on a canvas ---------- */
+.desk{width:1440px;height:900px;background:var(--bg);display:grid;grid-template-columns:268px 1fr 380px;gap:0;border-radius:18px;overflow:hidden;box-shadow:0 0 0 1px var(--line-strong),0 30px 70px rgba(0,0,0,.22);position:relative}
+.side{margin:12px 0 12px 12px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1);padding:14px 10px;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.site{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-md);background:var(--surface-2);margin-bottom:10px;text-align:left;border:1px dashed var(--line-strong)}
+.logo{width:36px;height:36px;border-radius:12px;background:linear-gradient(160deg,#F7EED8,#E3D2A8);display:grid;place-items:center;position:relative;flex:none}
+.logo b{font-family:var(--f-he);font-weight:600;color:#8A6A1C;font-size:12px}
+.logo:after{content:"";position:absolute;right:-3px;bottom:-3px;width:13px;height:13px;border-radius:50%;background:#B4322A;box-shadow:0 0 0 2px var(--surface)}
+.site .t{font-weight:800;font-size:14px} .site .d{font-size:12px;color:var(--text-3);font-weight:600}
+.navg{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text-3);padding:14px 10px 6px;display:flex;align-items:center;gap:8px}
+.navg:before{content:"";width:8px;height:8px;border-radius:3px;background:var(--ac,var(--text-3))}
+.ni{display:flex;align-items:center;gap:10px;min-height:38px;padding:0 10px;border-radius:12px;font-size:14px;font-weight:700;color:var(--text-2);text-align:left;width:100%}
+.ni:hover{background:var(--surface-2)}
+.ni.on{background:var(--accent);color:var(--accent-ink)}
+.ni.on svg.i{color:inherit}
+.ni .chev{margin-left:auto;color:var(--text-3);width:16px;height:16px}
+.ni.on .chev{color:inherit}
+.ni.sub{padding-left:40px;min-height:34px;font-size:13.5px}
+.ni .cnt{margin-left:auto;font-size:11.5px;font-weight:800;color:var(--text-3);background:var(--sunken);padding:1px 8px;border-radius:var(--r-pill)}
+.side-foot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--text-2);font-weight:600}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.topbar{height:72px;display:flex;align-items:center;gap:12px;padding:12px 24px 0}
+.topbar .search{flex:1;max-width:580px;height:44px;font-size:14px}
+.kbd{margin-left:auto;font-size:11px;font-weight:800;background:var(--sunken);border-radius:8px;padding:3px 8px;color:var(--text-3)}
+.me{display:flex;align-items:center;gap:8px;height:44px;padding:0 14px 0 5px;border-radius:var(--r-pill);background:var(--surface);box-shadow:var(--e1);font-size:13.5px;font-weight:800}
+.me .avatar{width:34px;height:34px}
+.content{padding:20px 24px;overflow:hidden;flex:1}
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;gap:16px}
+.ph h1{font-weight:800;font-size:32px;letter-spacing:-.03em}
+.ph p{color:var(--text-2);font-size:14px;margin-top:4px;font-weight:500}
+.dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+.card{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--e1);padding:18px 20px}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card-h h2{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;letter-spacing:-.01em}
+.card-h .link{min-height:32px;font-size:13px}
+.onnow{display:flex;gap:20px;align-items:flex-start}
+.onnow .mini-tv{width:168px;border-radius:14px}
+.kv{display:flex;flex-direction:column;gap:7px;flex:1;min-width:0}
+.kv .r{display:flex;gap:10px;align-items:baseline;font-size:13.5px}
+.kv .r span:first-child{width:92px;color:var(--text-3);font-weight:700;flex:none}
+.kv .r span:last-child{font-weight:700;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.big-time{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--a-sched)}
+.health .hr{display:flex;align-items:center;gap:10px;min-height:40px;font-size:13.5px;font-weight:600}
+.health .hr .grow{flex:1}
+.freeze .modes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.mode{background:var(--surface-2);border:2px solid transparent;border-radius:var(--r-md);padding:8px;text-align:left;font-size:13px;font-weight:800;display:flex;flex-direction:column;gap:8px}
+.mode .sw{height:32px;border-radius:10px;background:#000;display:grid;place-items:center}
+.mode.on{border-color:var(--accent);background:var(--accent-soft)}
+.term{font-family:ui-monospace,Menlo,monospace;color:#7CFC9A;font-size:9px}
+.act .ar{display:flex;align-items:center;gap:10px;min-height:44px;font-size:13.5px;font-weight:500}
+.act .ar .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.act .ar .when{color:var(--text-3);font-size:12px;font-weight:700}
+.card.ar-sched{box-shadow:inset 0 4px 0 var(--a-sched),var(--e1)}
+.card.ar-screen{box-shadow:inset 0 4px 0 var(--a-screen),var(--e1)}
+
+.pv{margin:12px;background:#0F1424;color:#EEF2F9;border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;gap:14px;overflow:hidden;box-shadow:var(--e2)}
+.pv h3{font-size:11.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#8592B0;display:flex;justify-content:space-between;align-items:center}
+.pv .card{background:#182038;color:#B9C2D6;box-shadow:none}
+.pv .card b{color:#EEF2F9!important}
+.tv{aspect-ratio:16/9;border-radius:14px;background:#06080E;display:flex;padding:6px;gap:6px;box-shadow:0 0 0 1px rgba(255,255,255,.08)}
+.tv .rl{width:27%;border-radius:8px;background:#121829;padding:8px 6px;color:#EEF2F9;display:flex;flex-direction:column;gap:5px}
+.tv .rl .clk{font-weight:800;font-size:22px;letter-spacing:-.03em;line-height:1}
+.tv .rl .clk small{font-size:9px;font-weight:700;opacity:.7}
+.tv .rl .hd{font-family:var(--f-he);font-size:9px;opacity:.85}
+.tv .rl .par{font-family:var(--f-he);font-size:8.5px;background:rgba(124,140,255,.2);color:#A9B5FF;padding:2px 5px;border-radius:4px;align-self:flex-start}
+.tv .rl .up{margin-top:auto;font-size:7.5px;border-top:1px solid rgba(255,255,255,.12);padding-top:4px;opacity:.85}
+.tv .pn{flex:1;border-radius:10px;background:#18203A;padding:8px 10px;color:#EEF2F9;display:flex;flex-direction:column}
+.tv .pn .h{font-family:var(--f-he);font-size:12px;color:#A9B5FF;text-align:center;margin-bottom:4px}
+.tv .pn .zr{display:flex;justify-content:space-between;font-size:8.5px;padding:2.5px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.tv .pn .zr span:first-child{font-family:var(--f-he)}
+.tv .pn .zr.on{color:#A9B5FF;font-weight:800}
+.ctrls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.ctrls button{min-height:42px;border-radius:var(--r-pill);background:#1D2642;color:#EEF2F9;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px}
+.upnext{display:flex;flex-direction:column;gap:2px}
+.upnext .ur{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:12px;font-size:13px;font-weight:700;color:#B9C2D6}
+.upnext .ur.on{background:#1D2642;color:#EEF2F9}
+.upnext .ur .n{width:20px;color:#6B7690;font-size:12px}
+.upnext .ur .s{margin-left:auto;font-size:12px;color:#6B7690}
+.pv .pill.ok{background:rgba(52,211,153,.15);color:#34D399}
+.pv>div:last-child{color:#6B7690!important}
+
+.paused{grid-column:1/-1;height:56px;margin:12px 12px 0;border-radius:var(--r-pill);background:#0F1729;color:#EEF2F9;display:flex;align-items:center;gap:12px;padding:0 6px 0 22px;font-size:14px;font-weight:700;box-shadow:var(--e2)}
+:root[data-theme="dark"] .paused{background:#1D2642}
+.paused .resume{margin-left:auto;min-height:44px;padding:0 24px;border-radius:var(--r-pill);background:#34D399;color:#04210F;font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px}
+.desk.has-pause{grid-template-rows:68px 1fr}
+
+.wz-steps{display:flex;gap:6px;margin-bottom:20px;background:var(--surface);padding:6px;border-radius:var(--r-pill);box-shadow:var(--e1)}
+.wz-steps .st{flex:1;display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:var(--r-pill);font-size:13px;font-weight:800;color:var(--text-3)}
+.wz-steps .st b{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--sunken);font-size:12px}
+.wz-steps .st.done{color:var(--text-2)} .wz-steps .st.done b{background:var(--a-sched);color:#fff}
+.wz-steps .st.cur{color:var(--text);background:var(--a-sched-soft)} .wz-steps .st.cur b{background:var(--a-sched);color:#fff}
+.daytabs{display:flex;gap:8px;margin-bottom:14px}
+.blk{display:grid;grid-template-columns:8px 1fr 150px 150px 44px;gap:14px;align-items:center;min-height:50px;padding:0 14px;border-top:1px solid var(--line)}
+.blk:first-child{border-top:0}
+.blk .bar{width:8px;height:8px;border-radius:50%}
+.blk .nm{font-weight:800;font-size:14.5px;display:flex;gap:10px;align-items:baseline}
+.blk .nm [lang="he"]{color:var(--text-3);font-weight:500;font-size:14px}
+.tinput{height:42px;border-radius:12px;background:var(--surface-2);border:2px solid var(--line);display:flex;align-items:center;padding:0 12px;font-size:14px;font-weight:800;gap:8px;color:var(--text)}
+.tinput small{color:var(--text-3);font-weight:700;font-size:11px}
+.wz-foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-tv" viewBox="0 0 24 24"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM15.5 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-chevd" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-img" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h9"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M18 6v12l-9-6zM6 6v12"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M6 6v12l9-6zM18 6v12"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M19 19v2H6"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></symbol>
+  <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 22 9.7C22 6 17.5 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10" cy="7" r="1"/><circle cx="15" cy="7" r="1"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 4 14h7l-1 7 9-11h-7z"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+  <symbol id="i-rss" viewBox="0 0 24 24"><path d="M5 19h.01M5 12a7 7 0 0 1 7 7M5 5a14 14 0 0 1 14 14"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m15 4 1 2 2 1-2 1-1 2-1-2-2-1 2-1zM4 20 14 10M18 13l.7 1.3L20 15l-1.3.7L18 17l-.7-1.3L16 15l1.3-.7z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+</svg>
+
+<div class="deck">
+  <header class="deck-head">
+    <div>
+      <h1>Direction B — “Studio”</h1>
+      <p>Cool, crisp canvas with one indigo action colour; each area owns a hue (Screen sky · Schedule green · Announce orange · Settings violet) so people learn where they are by colour. Floating pill tab bar, chunky cards, one bold sans. Announce lives behind the “+”; Settings gets its own tab.</p>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button data-th="auto" aria-pressed="true">Follow system</button>
+      <button data-th="light" aria-pressed="false">Light</button>
+      <button data-th="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <h2 class="sec">Mobile · 390 × 844</h2>
+  <div class="row">
+
+    <!-- M1 HOME -->
+    <div class="shot"><div class="shot-label">1 · Home tiles, tab bar, “+” and an Undo toast</div>
+    <div class="scaler" data-w="410" data-h="904"><div class="stage">
+    <div class="phone">
+      <div class="sb"><span>4:12</span><span class="isl"></span><span class="sbi">5G <span class="bat"></span></span></div>
+      <div class="scroll">
+        <div class="lt">
+          <div class="lt-top">
+            <div class="eyebrow">Sunday · <span lang="he" dir="rtl">ז׳ חשון</span></div>
+            <div style="display:flex;gap:4px"><button class="iconbtn" aria-label="Help"><svg class="i"><use href="#i-help"/></svg></button><button class="iconbtn" aria-label="My account"><span class="avatar">SV</span></button></div>
+          </div>
+          <h1>Good afternoon, Shmuel</h1>
+        </div>
+        <div class="search"><svg class="i"><use href="#i-search"/></svg>Search settings, slides, help…</div>
+        <div class="now">
+          <div class="mini-tv"><div class="rail"><b>4:12</b><i></i><i></i></div><div class="pan"><i></i><i></i><i></i><i></i></div></div>
+          <div class="meta"><div class="k"><span class="dot"></span>&nbsp; On the screen now</div><div class="v">Zmanim board</div><div class="s">Next: Mincha 4:45 · in 33 min</div></div>
+          <svg class="i chev" style="color:var(--text-3)"><use href="#i-chev"/></svg>
+        </div>
+        <div class="tiles">
+          <button class="tile hero"><span class="ic"><svg class="i"><use href="#i-bolt"/></svg></span><span><h3>Post a quick message</h3><p>“Yossi, please call home” in two taps</p></span></button>
+          <button class="tile ar-screen"><span class="ic"><svg class="i"><use href="#i-tv"/></svg></span><span><h3>Slides</h3><p>11 playing · 2 off</p></span></button>
+          <button class="tile ar-sched"><span class="ic"><svg class="i"><use href="#i-cal"/></svg></span><span><h3>Today</h3><p>Afternoon Seder until 6:30</p></span></button>
+          <button class="tile ar-sched"><span class="ic"><svg class="i"><use href="#i-clock"/></svg></span><span><h3>Change tomorrow</h3><p>Mon · regular day</p></span></button>
+          <button class="tile ar-home"><span class="ic"><svg class="i"><use href="#i-pause"/></svg></span><span><h3>Pause the screen</h3><p>Blank, logo or freeze</p></span></button>
+          <button class="tile ar-screen"><span class="ic"><svg class="i"><use href="#i-book"/></svg></span><span><h3>Daily Word</h3><p lang="he" dir="rtl" style="text-align:left">נחת</p></span></button>
+          <button class="tile ar-ann"><span class="ic"><svg class="i"><use href="#i-mega"/></svg></span><span><h3>Messages</h3><p>3 on screen now</p></span></button>
+        </div>
+      </div>
+      <div class="toast">Weather slide turned off <button>Undo</button></div>
+      <nav class="tabbar">
+        <button class="tab on"><svg class="i"><use href="#i-home"/></svg>Home</button>
+        <button class="tab"><svg class="i"><use href="#i-tv"/></svg>Screen</button>
+        <button class="tab" aria-label="New"><span class="fab"><svg class="i"><use href="#i-plus"/></svg></span></button>
+        <button class="tab"><svg class="i"><use href="#i-cal"/></svg>Schedule</button>
+        <button class="tab"><svg class="i"><use href="#i-gear"/></svg>Settings</button>
+      </nav>
+    </div></div></div></div>
+
+    <!-- M2 SEARCH -->
+    <div class="shot"><div class="shot-label">2 · Global search, mixed results</div>
+    <div class="scaler" data-w="410" data-h="904"><div class="stage">
+    <div class="phone">
+      <div class="sb"><span>4:12</span><span class="isl"></span><span class="sbi">5G <span class="bat"></span></span></div>
+      <div class="scroll">
+        <div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+          <div class="search focus" style="flex:1"><svg class="i"><use href="#i-search"/></svg>time</div>
+          <button class="link">Cancel</button>
+        </div>
+        <div class="glist-h"><span>On the screen</span></div>
+        <div class="glist">
+          <div class="li"><span class="ic" style="background:var(--accent-soft);color:var(--accent)"><svg class="i"><use href="#i-mega"/></svg></span><div class="tx"><div class="t">Night Seder starts at a new <mark>time</mark></div><div class="d">Announcement · showing now · by R. Schurder</div></div><button class="mini-act">Pause</button></div>
+          <div class="li"><span class="ic"><svg class="i"><use href="#i-cal"/></svg></span><div class="tx"><div class="t">Mincha · 1:45 PM</div><div class="d">Weekly schedule · Sun–Thu · <mark>time</mark> block</div></div><button class="mini-act">Edit</button></div>
+        </div>
+        <div class="glist-h"><span>Settings</span></div>
+        <div class="glist">
+          <div class="li"><span class="ic"><svg class="i"><use href="#i-gear"/></svg></span><div class="tx"><div class="t"><mark>Time</mark> zone</div><div class="d">Look &amp; Settings › Location &amp; time</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="ic"><svg class="i"><use href="#i-tv"/></svg></span><div class="tx"><div class="t">Slide <mark>time</mark> on screen</div><div class="d">Screen › Rotation · now 12 sec</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="ic"><svg class="i"><use href="#i-clock"/></svg></span><div class="tx"><div class="t">Clock: 12 or 24 hour <mark>time</mark></div><div class="d">Look &amp; Settings › Layout › Side rail</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+        </div>
+        <div class="glist-h"><span>Quick actions</span></div>
+        <div class="glist">
+          <div class="li"><span class="ic" style="background:var(--gold-soft);color:var(--gold)"><svg class="i"><use href="#i-bolt"/></svg></span><div class="tx"><div class="t">“<span class="blank">Seder</span> moved to <span class="blank"><mark>time</mark></span>”</div><div class="d">Quick message template · shared</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+          <div class="li"><span class="ic" style="background:var(--gold-soft);color:var(--gold)"><svg class="i"><use href="#i-clock"/></svg></span><div class="tx"><div class="t">Change tomorrow’s <mark>time</mark>s</div><div class="d">Schedule › One day</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+        </div>
+        <div class="glist-h"><span>Help</span></div>
+        <div class="glist">
+          <div class="li"><span class="ic"><svg class="i"><use href="#i-help"/></svg></span><div class="tx"><div class="t">How do I change a seder <mark>time</mark>?</div><div class="d">2 min read</div></div><svg class="i chev"><use href="#i-chev"/></svg></div>
+        </div>
+      </div>
+    </div></div></div></div>
+
+    <!-- M3 QUICK MESSAGE SHEET -->
+    <div class="shot"><div class="shot-label">3 · “+” → Quick message sheet (template with blanks)</div>
+    <div class="scaler" data-w="410" data-h="904"><div class="stage">
+    <div class="phone">
+      <div class="sb"><span>4:12</span><span class="isl"></span><span class="sbi">5G <span class="bat"></span></span></div>
+      <div class="scroll"><div class="lt"><div class="lt-top"><div class="eyebrow">Sunday</div></div><h1>Good afternoon, Shmuel</h1></div></div>
+      <div class="scrim"></div>
+      <div class="sheet" style="top:84px">
+        <div class="grab"></div>
+        <div class="sheet-h"><h2>Quick message</h2><button class="iconbtn filled" aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+        <div class="chips kinds" style="flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:4px -16px 10px;padding:0 16px;-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent)" aria-label="What to post (scrolls sideways)"><span class="chip on">Quick message</span><span class="chip">Announcement</span><span class="chip">Banner</span><span class="chip">Takeover</span><span class="chip">Letter</span></div>
+        <div class="sc" style="margin:0 0 10px"><button class="on">My templates</button><button>Shared</button></div>
+        <div class="tpl">
+          <button class="tpl-row sel"><span class="blank">Bochur</span> please call home</button>
+          <button class="tpl-row"><span class="blank">Bochur</span> come to the Menahel</button>
+        </div>
+        <div class="fill"><input value="Yossi Katz" aria-label="Bochur"> please call home</div>
+        <div class="preview-pair">
+          <div class="qm dk">Yossi Katz<br>please call home<small>Dark screen</small></div>
+          <div class="qm lt2">Yossi Katz<br>please call home<small>Light screen</small></div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--text-2);margin:14px 0 8px">Show it for</div>
+        <div class="chips"><span class="chip">5 min</span><span class="chip on">15 min</span><span class="chip">1 hour</span><span class="chip">Until I remove</span></div>
+        <div style="margin-top:16px"><button class="btn pri"><svg class="i"><use href="#i-check"/></svg>Post to screen</button></div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px"><button class="link">Save as template</button><button class="link" style="color:var(--text-2)">Manage messages</button></div>
+      </div>
+    </div></div></div></div>
+
+    <!-- M4 NEW SLIDE -->
+    <div class="shot"><div class="shot-label">4 · Screen › New slide, step 1 of 2</div>
+    <div class="scaler" data-w="410" data-h="904"><div class="stage">
+    <div class="phone">
+      <div class="sb"><span>4:12</span><span class="isl"></span><span class="sbi">5G <span class="bat"></span></span></div>
+      <div class="scroll">
+        <div class="nav"><button class="back"><svg class="i"><use href="#i-back"/></svg>Slides</button><span class="ttl">New slide</span><button class="link" style="color:var(--text-3)">Cancel</button></div>
+        <div class="steps"><i class="on"></i><i></i></div>
+        <div class="lt" style="padding-top:14px"><div class="eyebrow">Step 1 of 2</div><h1 style="font-size:28px">What kind of slide?</h1></div>
+        <div class="cgrid">
+          <button class="ccard big"><span class="art"><svg class="i"><use href="#i-img"/></svg></span><span class="bd"><h3>Photo, video or file</h3><p>Upload or pick from your library. Best size for your screen: 3840 × 2160.</p><span class="vchips"><span>Image</span><span>Video</span><span>PDF</span><span>Photo album</span></span></span></button>
+          <button class="ccard"><span class="art"><svg class="i"><use href="#i-text"/></svg></span><span class="bd"><h3>Message</h3><p>Words on screen, any style</p></span></button>
+          <button class="ccard"><span class="art"><svg class="i"><use href="#i-globe"/></svg></span><span class="bd"><h3>Web page</h3><p>Charidy, live boards</p></span></button>
+          <button class="ccard"><span class="art"><svg class="i"><use href="#i-rss"/></svg></span><span class="bd"><h3>News feed</h3><p>Headlines from a site</p></span></button>
+          <button class="ccard"><span class="art"><svg class="i"><use href="#i-book"/></svg></span><span class="bd"><h3>Built-in page</h3><p>Zmanim, Chitas, Hayom Yom, Weather…</p></span></button>
+        </div>
+        <div class="glist-h" style="margin-top:20px"><span>Recently added by your team</span></div>
+        <div class="glist"><div class="li"><span class="ic"><svg class="i"><use href="#i-img"/></svg></span><div class="tx"><div class="t">Shabbaton photos</div><div class="d">Photo album · Fri by Dovid</div></div><svg class="i chev"><use href="#i-chev"/></svg></div></div>
+      </div>
+    </div></div></div></div>
+
+    <!-- M5 SETTINGS -->
+    <div class="shot"><div class="shot-label">5 · Settings page: closed collapsibles + Save bar</div>
+    <div class="scaler" data-w="410" data-h="904"><div class="stage">
+    <div class="phone">
+      <div class="sb"><span>4:12</span><span class="isl"></span><span class="sbi">5G <span class="bat"></span></span></div>
+      <div class="scroll">
+        <div class="nav"><button class="back"><svg class="i"><use href="#i-back"/></svg>Settings</button><span></span><span style="width:44px"></span></div>
+        <div class="lt" style="padding-top:4px"><h1 style="font-size:28px">Location &amp; time</h1></div>
+        <div class="coll"><button class="coll-h"><span class="tx"><div class="t">Location</div><div class="sum">Miami Beach, FL · from zip 33140</div></span><svg class="i chev"><use href="#i-chev"/></svg></button></div>
+        <div class="coll open"><button class="coll-h" aria-expanded="true"><span class="tx"><div class="t">Show location as <span class="edited-dot"></span></div><div class="sum">Changed — not saved yet</div></span><svg class="i chev"><use href="#i-chev"/></svg></button>
+          <div class="coll-b">
+            <div class="field"><label>Name shown on the screen</label><div class="input dirty">Beis Medrash · North Miami Beach</div><div class="hint">Leave empty to use the city from your zip code.</div></div>
+          </div></div>
+        <div class="coll"><button class="coll-h"><span class="tx"><div class="t">Time zone</div><div class="sum">Eastern (New York)</div></span><svg class="i chev"><use href="#i-chev"/></svg></button></div>
+        <div class="coll"><button class="coll-h"><span class="tx"><div class="t">Day / night switch</div><div class="sum">Light at netz · dark at shkia</div></span><svg class="i chev"><use href="#i-chev"/></svg></button></div>
+        <div class="coll"><button class="coll-h"><span class="tx"><div class="t">Clock style</div><div class="sum">12 hour · seconds hidden</div></span><svg class="i chev"><use href="#i-chev"/></svg></button></div>
+        <div class="coll"><button class="coll-h"><span class="tx"><div class="t">Hebrew date</div><div class="sum" style="display:flex;gap:6px"><span>Shown on rail ·</span><span lang="he" dir="rtl">ז׳ חשון תשפ״ז</span></div></span><svg class="i chev"><use href="#i-chev"/></svg></button></div>
+      </div>
+      <div class="savebar"><div class="tx">Unsaved changes<small>1 setting edited</small></div><button class="rv">Revert</button><button class="sv">Save</button></div>
+      <nav class="tabbar">
+        <button class="tab"><svg class="i"><use href="#i-home"/></svg>Home</button>
+        <button class="tab"><svg class="i"><use href="#i-tv"/></svg>Screen</button>
+        <button class="tab" aria-label="New"><span class="fab"><svg class="i"><use href="#i-plus"/></svg></span></button>
+        <button class="tab"><svg class="i"><use href="#i-cal"/></svg>Schedule</button>
+        <button class="tab on"><svg class="i"><use href="#i-gear"/></svg>Settings</button>
+      </nav>
+    </div></div></div></div>
+  </div>
+
+  <h2 class="sec">Desktop · 1440 × 900</h2>
+  <div class="shot-label">6 · Home dashboard with live preview</div>
+  <div class="scaler desk-shot" data-w="1440" data-h="900"><div class="stage">
+  <div class="desk">
+    <aside class="side">
+      <button class="site"><span class="logo"><b lang="he">ת״ח</b></span><span style="flex:1;min-width:0"><div class="t">Main Beis Medrash</div><div class="d">1 screen · online</div></span><svg class="i" style="color:var(--text-3);width:16px"><use href="#i-chevd"/></svg></button>
+      <button class="ni on"><svg class="i"><use href="#i-home"/></svg>Home</button>
+      <div class="navg" style="--ac:var(--a-screen)">Screen</div>
+      <button class="ni"><svg class="i"><use href="#i-tv"/></svg>Slides<span class="cnt">11</span></button>
+      <button class="ni"><svg class="i"><use href="#i-img"/></svg>Media<svg class="i chev"><use href="#i-chev"/></svg></button>
+      <button class="ni"><svg class="i"><use href="#i-book"/></svg>Daily Word</button>
+      <div class="navg" style="--ac:var(--a-sched)">Schedule</div>
+      <button class="ni"><svg class="i"><use href="#i-cal"/></svg>Week</button>
+      <button class="ni"><svg class="i"><use href="#i-clock"/></svg>By date &amp; custom days</button>
+      <div class="navg" style="--ac:var(--a-ann)">Announce</div>
+      <button class="ni"><svg class="i"><use href="#i-mega"/></svg>Messages<span class="cnt">3 live</span></button>
+      <button class="ni"><svg class="i"><use href="#i-bolt"/></svg>Quick messages</button>
+      <button class="ni"><svg class="i"><use href="#i-doc"/></svg>Banners, takeovers &amp; letters<svg class="i chev"><use href="#i-chev"/></svg></button>
+      <div class="navg" style="--ac:var(--a-look)">Look &amp; Settings</div>
+      <button class="ni"><svg class="i"><use href="#i-palette"/></svg>Style &amp; themes</button>
+      <button class="ni"><svg class="i"><use href="#i-pin"/></svg>Location &amp; time</button>
+      <button class="ni"><svg class="i"><use href="#i-users"/></svg>Team &amp; security</button>
+      <div class="side-foot"><span style="display:flex;gap:8px;align-items:center"><span class="dot"></span>Screen online</span><span>v2.4</span></div>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="search"><svg class="i"><use href="#i-search"/></svg>Search settings, slides, schedule, help…<span class="kbd">Ctrl K</span></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+          <button class="iconbtn" aria-label="Help"><svg class="i"><use href="#i-help"/></svg></button>
+          <button class="me"><span class="avatar">SV</span>Shmuel Vogel <span class="pill gold" style="height:20px">Admin</span></button>
+        </div>
+      </div>
+      <div class="content">
+        <div class="ph"><div><h1>Good afternoon, Shmuel</h1><p>Sunday, October 18 · <span lang="he" dir="rtl">ז׳ חשון תשפ״ז</span> · Parshas Lech Lecha</p></div>
+          <div style="display:flex;gap:8px"><button class="btn sec sm"><svg class="i"><use href="#i-clock"/></svg>Change tomorrow</button><button class="btn pri sm"><svg class="i"><use href="#i-plus"/></svg>New message</button></div></div>
+        <div class="dgrid">
+          <section class="card ar-screen" style="grid-column:1/-1">
+            <div class="card-h"><h2><span class="dot"></span>On the screen now</h2><button class="link">All slides</button></div>
+            <div class="onnow">
+              <div class="mini-tv" style="width:168px"><div class="rail"><b style="font-size:16px">4:12</b><i></i><i></i></div><div class="pan"><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+              <div class="kv">
+                <div class="r"><span>Slide</span><span>Zmanim board · 3 of 11</span></div>
+                <div class="r"><span>Messages</span><span><span lang="he" dir="rtl">מלוה מלכה במוצאי שבת</span> +2</span></div>
+                <div class="r"><span>Banner</span><span>Night Seder starts 7:45 this week</span></div>
+                <div class="r"><span>Refreshed</span><span>2 min ago</span></div>
+              </div>
+            </div>
+          </section>
+          <section class="card ar-sched">
+            <div class="card-h"><h2>Up next</h2><span class="pill ok">in 33 min</span></div>
+            <div style="display:flex;align-items:flex-end;gap:16px"><div class="big-time">4:45</div><div><div style="font-weight:800;font-size:17px">Mincha</div><div style="color:var(--text-3);font-size:13px" lang="he" dir="rtl">מנחה</div></div></div>
+            <div style="color:var(--text-2);font-size:13.5px;margin-top:12px">Now in session: <b>Afternoon Seder</b> until 6:30 · alert shows 5 min before</div>
+          </section>
+          <section class="card health">
+            <div class="card-h"><h2>Health</h2><span class="pill warn">1 to check</span></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Screen online · 3840 × 2160 landscape</span></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Zmanim updated today 6:02 AM</span></div>
+            <div class="hr"><span class="dot" style="background:var(--warn);box-shadow:0 0 0 3px var(--warn-soft)"></span><span class="grow">News feed “COL Headlines” failed twice</span><button class="mini-act">Retry</button></div>
+            <div class="hr"><span class="dot"></span><span class="grow">Storage 41% used</span></div>
+          </section>
+          <section class="card freeze">
+            <div class="card-h"><h2>Pause the screen</h2><span class="pill mute">Playing normally</span></div>
+            <div class="modes">
+              <button class="mode"><span class="sw"></span>Blank</button>
+              <button class="mode on"><span class="sw" style="background:#16130F"><span lang="he" style="color:#D4A84B;font-size:13px">ת״ח ת״ח</span></span>Logo only</button>
+              <button class="mode"><span class="sw" style="background:#221d17"><svg class="i" style="color:#EFE3C0"><use href="#i-pause"/></svg></span>Freeze</button>
+              <button class="mode"><span class="sw"><span class="term">&gt; back soon_</span></span>Message</button>
+            </div>
+            <div class="chips"><span class="chip">30 min</span><span class="chip on">Until tomorrow</span><span class="chip">Until I turn on</span><button class="btn pri sm" style="margin-left:auto">Pause now</button></div>
+          </section>
+          <section class="card act">
+            <div class="card-h"><h2>Recent changes</h2><button class="link">Full history</button></div>
+            <div class="ar"><span class="avatar" style="width:28px;height:28px;font-size:11px">RS</span><span class="grow"><b>R. Schurder</b> posted “Night Seder starts at a new time”</span><span class="when">12 min ago</span><button class="mini-act">Undo</button></div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <aside class="pv">
+      <h3>Live preview <span class="pill ok" style="letter-spacing:0;text-transform:none"><span class="dot"></span>Live</span></h3>
+      <div class="tv">
+        <div class="rl"><div class="clk">4:12<small> PM</small></div><div class="hd" lang="he" dir="rtl">ז׳ חשון תשפ״ז</div><div style="font-size:8px;opacity:.7">Sun, Oct 18</div><div class="par" lang="he" dir="rtl">פרשת לך לך</div><div class="up">Up next · Mincha 4:45</div></div>
+        <div class="pn"><div class="h" lang="he" dir="rtl">זמני היום</div>
+          <div class="zr"><span lang="he">עלות השחר</span><span>5:58</span></div><div class="zr"><span lang="he">הנץ החמה</span><span>7:20</span></div><div class="zr"><span lang="he">סוף זמן ק״ש</span><span>10:12</span></div><div class="zr on"><span lang="he">מנחה גדולה</span><span>1:36</span></div><div class="zr"><span lang="he">שקיעה</span><span>6:51</span></div><div class="zr"><span lang="he">צאת הכוכבים</span><span>7:35</span></div></div>
+      </div>
+      <div class="ctrls"><button><svg class="i"><use href="#i-prev"/></svg>Prev</button><button><svg class="i"><use href="#i-pause"/></svg>Pause</button><button>Next<svg class="i"><use href="#i-next"/></svg></button></div>
+      <h3 style="margin-top:6px">Coming up in rotation</h3>
+      <div class="upnext">
+        <div class="ur on"><span class="n">3</span>Zmanim board<span class="s">now</span></div>
+        <div class="ur"><span class="n">4</span>Hayom Yom<span class="s">0:12</span></div>
+        <div class="ur"><span class="n">5</span>Chitas &amp; Rambam<span class="s">0:24</span></div>
+        <div class="ur"><span class="n">6</span>Shabbaton photos<span class="s">0:36</span></div>
+        <div class="ur"><span class="n">7</span>Daily Word · <span lang="he">נחת</span><span class="s">0:48</span></div>
+      </div>
+      <div style="margin-top:auto;font-size:12px;color:var(--text-3)">Preview only — buttons here don’t change the real screen.</div>
+    </aside>
+  </div></div></div>
+
+  <div class="shot-label" style="margin-top:28px">7 · Schedule first-run wizard (step 2) — with the always-visible “screen paused” bar</div>
+  <div class="scaler desk-shot" data-w="1440" data-h="900"><div class="stage">
+  <div class="desk has-pause">
+    <div class="paused"><svg class="i"><use href="#i-pause"/></svg>The screen is paused · showing the logo only · until tomorrow 7:00 AM<button class="resume"><svg class="i"><use href="#i-play"/></svg>Resume screen</button></div>
+    <aside class="side">
+      <button class="site"><span class="logo"><b lang="he">ת״ח</b></span><span style="flex:1;min-width:0"><div class="t">Main Beis Medrash</div><div class="d">1 screen · paused</div></span><svg class="i" style="color:var(--text-3);width:16px"><use href="#i-chevd"/></svg></button>
+      <button class="ni"><svg class="i"><use href="#i-home"/></svg>Home</button>
+      <div class="navg" style="--ac:var(--a-screen)">Screen</div>
+      <button class="ni"><svg class="i"><use href="#i-tv"/></svg>Slides<span class="cnt">11</span></button>
+      <button class="ni"><svg class="i"><use href="#i-img"/></svg>Media<svg class="i chev"><use href="#i-chev"/></svg></button>
+      <div class="navg" style="--ac:var(--a-sched)">Schedule</div>
+      <button class="ni on"><svg class="i"><use href="#i-cal"/></svg>Week<svg class="i chev" style="transform:rotate(90deg)"><use href="#i-chev"/></svg></button>
+      <button class="ni sub" style="color:var(--text)">Build my schedule</button>
+      <button class="ni sub">Paste from AI</button>
+      <button class="ni"><svg class="i"><use href="#i-clock"/></svg>By date &amp; custom days</button>
+      <div class="navg" style="--ac:var(--a-ann)">Announce</div>
+      <button class="ni"><svg class="i"><use href="#i-mega"/></svg>Messages</button>
+      <button class="ni"><svg class="i"><use href="#i-bolt"/></svg>Quick messages</button>
+      <div class="navg" style="--ac:var(--a-look)">Look &amp; Settings</div>
+      <button class="ni"><svg class="i"><use href="#i-palette"/></svg>Style &amp; themes</button>
+      <button class="ni"><svg class="i"><use href="#i-users"/></svg>Team &amp; security</button>
+    </aside>
+    <main class="main">
+      <div class="topbar">
+        <div class="search"><svg class="i"><use href="#i-search"/></svg>Search settings, slides, schedule, help…<span class="kbd">Ctrl K</span></div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center"><button class="iconbtn" aria-label="Help"><svg class="i"><use href="#i-help"/></svg></button><button class="me"><span class="avatar">SV</span>Shmuel Vogel <span class="pill gold" style="height:20px">Admin</span></button></div>
+      </div>
+      <div class="content">
+        <div class="ph"><div><h1>Build my year schedule</h1><p>Set up a normal week once. You can change single days later.</p></div><button class="btn sec sm"><svg class="i"><use href="#i-wand"/></svg>Paste from AI instead</button></div>
+        <div class="wz-steps">
+          <div class="st done"><b><svg class="i" style="width:14px"><use href="#i-check"/></svg></b>Pick your days</div>
+          <div class="st cur"><b>2</b>Add the blocks</div>
+          <div class="st"><b>3</b>Reminders on screen</div>
+          <div class="st"><b>4</b>Check &amp; save</div>
+        </div>
+        <div class="daytabs"><div class="sc" style="width:420px"><button class="on">Sunday – Thursday</button><button>Friday</button><button>Shabbos</button></div><span style="margin-left:auto;align-self:center;color:var(--text-2);font-size:13px">9 blocks · 7:30 AM – 9:45 PM</span></div>
+        <section class="card" style="padding:6px 0">
+          <div class="blk"><span class="bar" style="background:#7A6BD1"></span><span class="nm">Shacharis <span lang="he" dir="rtl">שחרית</span></span><span class="tinput">7:30 AM</span><span class="tinput"><small>no end</small></span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:#C98A2B"></span><span class="nm">Breakfast</span><span class="tinput">8:30 AM</span><span class="tinput">9:10 AM</span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:var(--a-sched)"></span><span class="nm">Morning Seder <span lang="he" dir="rtl">סדר א׳</span></span><span class="tinput">9:15 AM</span><span class="tinput">1:00 PM</span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:#7A6BD1"></span><span class="nm">Mincha <span lang="he" dir="rtl">מנחה</span></span><span class="tinput">1:45 PM</span><span class="tinput"><small>no end</small></span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:var(--a-sched)"></span><span class="nm">Afternoon Seder <span lang="he" dir="rtl">סדר ב׳</span></span><span class="tinput">3:00 PM</span><span class="tinput">6:30 PM</span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:#C98A2B"></span><span class="nm">Supper</span><span class="tinput">6:30 PM</span><span class="tinput">7:15 PM</span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk"><span class="bar" style="background:var(--a-sched)"></span><span class="nm">Night Seder <span lang="he" dir="rtl">סדר ג׳</span></span><span class="tinput" style="border-color:var(--a-sched)">7:45 PM</span><span class="tinput">9:30 PM</span><button class="iconbtn"><svg class="i"><use href="#i-dots"/></svg></button></div>
+          <div class="blk" style="grid-template-columns:1fr"><button class="link" style="justify-self:start"><svg class="i"><use href="#i-plus"/></svg>&nbsp;Add a block</button></div>
+        </section>
+        <div class="wz-foot"><button class="btn sec sm"><svg class="i"><use href="#i-back"/></svg>Back</button><div style="display:flex;gap:8px;align-items:center"><span style="color:var(--text-3);font-size:13px">Saved as you go</span><button class="btn pri sm">Continue to reminders<svg class="i"><use href="#i-chev"/></svg></button></div></div>
+      </div>
+    </main>
+    <aside class="pv">
+      <h3>How it will look</h3>
+      <div class="tv">
+        <div class="rl"><div class="clk">4:12<small> PM</small></div><div class="hd" lang="he" dir="rtl">ז׳ חשון תשפ״ז</div><div class="par" lang="he" dir="rtl">פרשת לך לך</div><div class="up">Up next · Supper 6:30</div></div>
+        <div class="pn"><div class="h">Today’s Schedule</div>
+          <div class="zr"><span>Shacharis</span><span>7:30</span></div><div class="zr"><span>Morning Seder</span><span>9:15–1:00</span></div><div class="zr"><span>Mincha</span><span>1:45</span></div><div class="zr on"><span>Afternoon Seder</span><span>3:00–6:30</span></div><div class="zr"><span>Supper</span><span>6:30</span></div><div class="zr"><span>Night Seder</span><span>7:45–9:30</span></div></div>
+      </div>
+      <div class="card" style="padding:16px;font-size:13.5px;color:var(--text-2);line-height:1.5"><b style="color:var(--text)">Tip</b> — a “block” is anything with a clock time: davening, seder, meals. You’ll choose which ones show a countdown in the next step.</div>
+    </aside>
+  </div></div></div>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, btns=document.querySelectorAll('[data-th]');
+  function set(t){ if(t==='auto') delete root.dataset.theme; else root.dataset.theme=t;
+    btns.forEach(function(b){b.setAttribute('aria-pressed', String(b.dataset.th===t));}); }
+  btns.forEach(function(b){ b.addEventListener('click', function(){ set(b.dataset.th); }); });
+  var sc=document.querySelectorAll('.scaler');
+  function fit(){ sc.forEach(function(s){ var w=+s.dataset.w,h=+s.dataset.h,k=Math.min(1,s.clientWidth/w);
+    s.firstElementChild.style.transform='scale('+k+')'; s.style.height=(h*k)+'px'; }); }
+  window.addEventListener('resize', fit); fit();
+  // collapsibles toggle
+  document.querySelectorAll('.coll-h').forEach(function(h){ h.addEventListener('click', function(){ h.parentNode.classList.toggle('open'); }); });
+})();
+</script>
+</body>
+</html>
