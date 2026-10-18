@@ -42,8 +42,8 @@ function WordForm({ initial, onSave, onCancel, busy }) {
       <h3 style={h3}>{initial?.id ? 'Edit word' : 'Add a word'}</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
         {field('word', 'Word in Hebrew letters', { dir: 'rtl', style: { fontSize: '20px', fontFamily: adminFonts.hebrewPrimary }, placeholder: 'נחת' })}
-        {field('transliteration', 'In English letters', { placeholder: 'nakhes' })}
-        {field('pronunciation', 'How to say it (stressed part in CAPS)', { placeholder: 'NAH-khes' })}
+        {field('transliteration', 'In English letters', { placeholder: 'nachas' })}
+        {field('pronunciation', 'How to say it (stressed part in CAPS)', { placeholder: 'NAH-chas' })}
         <label style={label}>Part of speech
           <select value={w.partOfSpeech} onChange={(e) => set('partOfSpeech', e.target.value)} style={inputStyle}>
             {POS.map((p) => <option key={p} value={p}>{p || '—'}</option>)}
@@ -63,7 +63,7 @@ function WordForm({ initial, onSave, onCancel, busy }) {
       <div style={{ ...small, margin: '10px 0 4px' }}>Using it in conversation. Put the word in *asterisks* to highlight it.</div>
       {[0, 1].map((i) => (
         <input key={i} value={w.convo[i].text} onChange={(e) => setLine(i, e.target.value)} style={{ ...inputStyle, marginBottom: '6px' }} maxLength={LIMITS.convoLine}
-          placeholder={i === 0 ? 'How was your son’s bar mitzvah?' : 'We’re *shepping* so much *nakhes*.'} />
+          placeholder={i === 0 ? 'How was your son’s bar mitzvah?' : 'We’re *shepping* so much *nachas*.'} />
       ))}
       {check.error && (w.word || w.transliteration || w.meaning) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>{check.error}</div>}
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
