@@ -7,6 +7,8 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
+import pushRouter from './routes/push.js';
+import { startPushMonitor } from './push.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
@@ -132,6 +134,12 @@ export function createApp() {
         await initRSSSchedulers();
       } catch (rssErr) {
         console.error('[rss] Startup error:', rssErr.message);
+      }
+      // Phone alerts: screen offline / zmanim stale (src/server/push.js)
+      try {
+        await startPushMonitor();
+      } catch (pushErr) {
+        console.error('[push] Startup error:', pushErr.message);
       }
       // Initialize Mivtzah leaderboard scheduler
       try {
@@ -409,6 +417,7 @@ export function createApp() {
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api', teamRouter);
+  app.use('/api', pushRouter);
   app.use('/api', announcementsRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', embedProbeRouter);

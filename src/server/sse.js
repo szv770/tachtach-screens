@@ -93,6 +93,15 @@ export function sendToClient(clientId, type, data) {
 }
 
 /**
+ * Number of connected real screens (everything except admin Live Preview).
+ */
+export function getKioskClientCount() {
+  let n = 0;
+  for (const [, c] of clients) if (!c.isPreview) n++;
+  return n;
+}
+
+/**
  * Return the current number of connected SSE clients.
  */
 export function getClientCount() {
