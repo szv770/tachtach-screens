@@ -301,6 +301,14 @@ export function createApp() {
       immutable: true,
     }));
 
+    // The service worker script must never sit behind a long cache — the
+    // browser's own update check is what notices a new version, and a stale
+    // cached copy would silently block that for days.
+    app.get('/sw.js', (_req, res) => {
+      res.set('Cache-Control', 'no-cache');
+      res.sendFile(path.join(DIST_DIR, 'sw.js'));
+    });
+
     // Serve files Vite copied from public/ (e.g. grain.png) at the dist
     // root. Registered after the more specific mounts above/below so it
     // only catches requests nothing else claims first.
