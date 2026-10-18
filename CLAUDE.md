@@ -54,6 +54,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 
 Append one line per notable fix/feature when you ship it — newest on top. Keep each entry to one line.
 
+- 2026-10-18 — Daily Word page designed (`DailyWordSlide.jsx`): huge nikud-safe hero word, say-it line with stressed syllable, meaning + origin note, conversation bubbles with the word in the accent; auto-fits long/short words, no context/convo, landscape + portrait. `Fit` now re-fits on `document.fonts` `loadingdone` (lazily loaded Hebrew subsets were fitted against fallback metrics). Note: `/api/preview-state` does not send `dailyWords`, so the date preview shows no Daily Word.
 - 2026-10-15 — Kiosk GPU watchdog: `deploy/kiosk-launch.sh` restarts Chromium within seconds when the journal floods with `AllocateRingBuffer`/`kFatalFailure` (stale/garbled TV tiles seen again at 08:27, hours after the nightly restart). See GOTCHAS.md.
 - 2026-10-15 — Kiosk restart timer now every 4 h (was nightly): the GPU failed 5h12m after the last restart with all memory/thermal/kernel checks clean. See GOTCHAS.md.
 - 2026-10-15 — Bidi fix: Hebrew `!`/`?`/quotes/parens landed on the wrong side because the kiosk root is `direction: ltr`; text now gets its dir from content (`src/shared/bidi.js`, `Bidi`/`bidiNodes` in `design/ui.jsx`, `Fit` auto-dir; banner, side notes, up-next, schedule, credit, rail, quote, RSS, tidbits); `scripts/bidi-audit.mjs`. See GOTCHAS.md.
