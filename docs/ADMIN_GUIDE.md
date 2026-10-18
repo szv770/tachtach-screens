@@ -16,7 +16,8 @@ This guide covers everything you need to know to manage your TachTach kiosk disp
 8. [RSS Feeds](#rss-feeds)
 9. [Style (Themes & Fonts)](#style)
 10. [Settings](#settings)
-11. [Troubleshooting](#troubleshooting)
+11. [Team & Logins](#team--logins)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -32,16 +33,16 @@ http://<your-pi-ip-address>:3000/admin
 
 Replace `<your-pi-ip-address>` with the actual IP address of your Raspberry Pi (e.g., `192.168.1.50`).
 
-You will be prompted for the admin password that was set during initial setup.
+You will be prompted to sign in. The first person (set up by `node setup.js`) is the admin, username `admin`; once more people exist, the sign-in page also asks for a username. See [Team & Logins](#team--logins).
 
 ### From the Kiosk Screen Itself
 
 If you are standing at the TV running the kiosk:
 
 1. Tap the **top-left corner** of the screen (a tiny 10x10 pixel area) **5 times within 2 seconds**
-2. A password dialog will appear
-3. Enter the admin password
-4. The admin panel will open in a new window
+2. The sign-in page opens in a new window
+3. Sign in as usual (username and password, plus your 2-step code if you use one)
+4. You land in the admin panel
 
 ### Light and Dark Mode
 
@@ -499,6 +500,35 @@ Toggle what appears on the kiosk display:
 
 ---
 
+## Team & Logins
+
+Everyone who edits the screens gets their own login, so you can see who posted what and take someone's access away without changing anyone else's.
+
+**Two roles**
+
+| | Admin | Editor |
+|---|---|---|
+| Post announcements, edit slides, schedule, Daily Word, custom days, media, feeds, screen controls | ✓ | ✓ |
+| Change Settings and Style | ✓ | – |
+| Add / remove people, see the activity list | ✓ | – |
+| 2-step code (authenticator app) | required | optional (their own choice) |
+
+**Adding someone** (admins only): open **Team → Add person**, type their name and pick a role. You get a one-time **invite link** (good for 7 days) — copy it or share it on WhatsApp. They open it, choose a password, and they're in. Editors can instead skip the password and just use sign-in links.
+
+**Someone forgot their password:** on **Team**, open their menu → **Sign-in link**. It works once and lasts an hour; send it to them. (An invite link works too and lets them pick a new password.)
+
+**Lost phone / authenticator:** Team → their menu → **Reset 2-step**. Admins are walked through setting it up again on their next sign-in.
+
+**Someone leaves:** Team → **Remove**. They're signed out immediately. **Sign out everywhere** does the same without removing them.
+
+**My account** (everyone): change your name and password, turn 2-step on or off (editors), sign out other devices, and forget trusted devices.
+
+**Activity** (Team → Activity): a plain list of who changed what and when. Announcements also show "Posted by …".
+
+If the last admin is locked out, use the command line on the Pi: `npm run reset-admin -- --list` shows everyone, `npm run reset-admin -- --user <username> --reset-password` fixes a password.
+
+---
+
 ## Troubleshooting
 
 ### The screen is blank or shows an error
@@ -546,8 +576,9 @@ cd ~/tachtach-screens
 npm run reset-admin
 ```
 
-This opens a menu to reset the password only, TOTP/2FA only (if you lost your
-authenticator device), or both — touching nothing else in `data/`. See
+This opens a menu to reset the password only, 2-step only (if you lost your
+authenticator device), or both — touching nothing else in `data/`. With several
+people, add `--user <username>` (see them with `npm run reset-admin -- --list`). See
 [`docs/FULL_SETUP_GUIDE.md`](FULL_SETUP_GUIDE.md#8-if-you-ever-forget-the-admin-password-or-lose-your-2fa-device)
 for full details. (Replace `~` with your actual home directory if it's not
 picked up automatically over SSH.)

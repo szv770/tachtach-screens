@@ -17,7 +17,7 @@ The kiosk root (`Layout`, `ScreenScaler`, `Clock`) is `direction: ltr`. A Hebrew
 
 `app.js` deliberately runs `csrfProtection` on `GET /api/state` (not just on POST/PUT/DELETE). Removing that means the `_csrf` cookie doesn't exist until the *first failing* mutation response sets it — so the first save after opening the admin panel always 403s with "CSRF validation failed" and looks like the change silently reverted. If you see that symptom, check whether `csrfProtection` still runs on the state-fetch route.
 
-## Session rewrite storm (fixed in `auth.js`)
+## Session rewrite storm (fixed; now in `users.js`)
 
 Rolling the session expiry on *every* validated request rewrote `auth.json` on every single API call. On the Pi this wears the SD card; on Windows dev machines it raced the atomic-rename write, so a `readAuth()` landing mid-rename saw `ENOENT`, got the default empty session, and the request 401'd — surfacing as intermittent "Unauthorized" toasts right after loading the admin panel for no reason. Fix: only rewrite once the remaining session time has drifted by more than an hour. Don't revert to per-request rewriting.
 
@@ -134,3 +134,13 @@ The owner explicitly **relaxed the "no infinite animations" rule for takeovers a
 ## Settings saves are PATCH, not PUT (2026-10-14)
 
 Every panel used to PUT the whole settings object from its own stale copy, so the last save reverted other panels' keys. `updateSettings(patch)` now PATCHes only the keys passed; the server deep-merges (`src/shared/settingsMerge.js`). Don't spread the whole `settings` prop into a save, and add any new top-level setting to `SETTINGS_KEYS` or the server returns 400. Also: `SLIDE_FIELDS` in `api.js` is a whitelist, so a field the admin sends but isn't listed is silently dropped (this had blanked every new video slide).
+
+## Multiple logins (users.json) — things that bit or nearly bit
+
+- **Link previews spend links.** WhatsApp/iMessage/Slack fetch any URL you paste. `/invite/<t>` and `/signin/<t>` therefore *show* a page on GET and only a POST consumes the token. Don't "simplify" this to a GET redirect.
+- **Lockouts must not be shared across people.** The first design locked per address (5 failures → 1 h), which would have let one mistyped password lock the whole school (one tunnel address). Now: loose per-address limit + tight per person+address limit.
+- **A used 2-step code must not work twice** (`lastTotpStep`), and `window: 1` tolerates a phone clock that is ~30 s off. Tests generate the next-step code with `authenticator.clone({epoch})`.
+- **Editor permissions are an allow-list, not a deny-list.** A new `/api` write route is admin-only until it's added to `EDITOR_WRITE` in `src/shared/permissions.js` (+ a line in `test/permissions.test.js`). The admin UI uses the same file to hide tabs, but hiding is cosmetic; the server enforces.
+- **Don't drop the invite on a typo.** The invite POST validates the password *before* consuming the link.
+- Migration: first start after upgrading reads `auth.json` once into `users.json` (owner = admin "admin"; their cookie keeps working). `auth.json` stays on disk, ignored.
+

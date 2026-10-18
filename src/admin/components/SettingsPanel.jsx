@@ -683,7 +683,7 @@ function TrustedDevices() {
   }
 
   const handleForgetDevices = async () => {
-    if (!window.confirm('Forget all trusted devices? Every device — including this one — will need the full password + authenticator code on its next login.')) {
+    if (!window.confirm('Forget your trusted devices? Every device you have signed in on — including this one — will ask for your password and 2-step code on its next sign-in. Other people’s logins are not affected.')) {
       return;
     }
     setRunning(true);
@@ -716,10 +716,11 @@ function TrustedDevices() {
         marginBottom: '12px',
         lineHeight: 1.6,
       }}>
-        Devices that verified your authenticator code once are remembered for 30 days and skip
-        straight to just a password on later logins. If a trusted device is lost or stolen, forget
-        all of them immediately — every device, including this one, will need the full
-        password + code again next time.
+        This is for your own sign-ins only; other people on the Team are not affected (they
+        can do the same under My account). Devices where you entered your 2-step code are remembered
+        for 30 days and skip straight to just a password. If one of yours is lost or stolen, forget
+        them all: every device you use, including this one, will need your password + code again next
+        time. You can also do this from My account.
       </p>
       <button
         onClick={handleForgetDevices}
@@ -732,7 +733,7 @@ function TrustedDevices() {
           cursor: running ? 'wait' : 'pointer',
         }}
       >
-        {running ? 'Forgetting...' : 'Forget All Trusted Devices'}
+        {running ? 'Forgetting...' : 'Forget my trusted devices'}
       </button>
       {result?.success && (
         <p style={{
@@ -741,7 +742,7 @@ function TrustedDevices() {
           color: colors.gold,
           marginTop: '10px',
         }}>
-          Done. Every device will need the full password + authenticator code on its next login.
+          Done. Each of your devices will ask for your password + 2-step code on its next sign-in.
         </p>
       )}
       {result?.error && (

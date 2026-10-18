@@ -86,6 +86,7 @@ router.post('/announcements', async (req, res) => {
     const created = await withLock(async () => {
       const items = await loadItems();
       const item = createItem(patch, { id: uuidv4() });
+      if (req.user?.name) item.createdBy = item.updatedBy = req.user.name;
       applyResolve(item, items, req.body?.resolve);
       items.push(item);
       await saveItems(items);
@@ -103,6 +104,8 @@ router.put('/announcements/:id', async (req, res) => {
       const idx = items.findIndex((i) => i.id === req.params.id);
       if (idx === -1) throw notFound();
       const item = validateForSave(mergeItem(items[idx], patch));
+      if (req.user?.name) item.updatedBy = req.user.name;
+      if (items[idx].createdBy) item.createdBy = items[idx].createdBy;
       applyResolve(item, items, req.body?.resolve);
       items[idx] = item;
       await saveItems(items);
@@ -164,6 +167,7 @@ router.post('/announcements/:id/duplicate', async (req, res) => {
       dup.updatedAt = nowIso;
       dup.status = 'draft';
       dup.enabled = true;
+      if (req.user?.name) dup.createdBy = dup.updatedBy = req.user.name;
       delete dup.legacy;
       if (dup.takeover) dup.takeover.group = null;
       items.push(dup);

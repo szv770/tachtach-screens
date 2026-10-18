@@ -105,7 +105,7 @@ sudo -u "$PI_USER" npm ci --production=false
 sudo -u "$PI_USER" npm run build
 
 # Run initial setup if not already done
-if [ ! -f "$PROJECT_DIR/data/auth.json" ]; then
+if [ ! -f "$PROJECT_DIR/data/users.json" ] && [ ! -f "$PROJECT_DIR/data/auth.json" ]; then
   echo ""
   echo "  No admin password set yet. Running setup..."
   sudo -u "$PI_USER" node setup.js

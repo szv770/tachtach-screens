@@ -77,8 +77,9 @@ reachable from the whole internet, not just your password.
 ## 8. If you ever forget the admin password (or lose your 2FA device)
 
 Don't re-run `node setup.js` — it wipes your slides/settings. Instead, use the
-committed reset script, which only ever touches `data/auth.json` and only the
-specific field(s) you ask it to reset:
+committed reset script, which only ever touches `data/users.json` and only the
+person and field(s) you ask it to reset (add `--user <username>` to pick someone;
+`--list` shows who has a login):
 
 ```bash
 cd /home/pi/tachtach-screens

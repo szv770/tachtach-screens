@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts, setAdminTheme, getAdminThemeName } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
+import { canOpenSection, ROLE_LABEL } from '../../shared/permissions.js';
 
 export const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
@@ -12,8 +13,72 @@ export const navItems = [
   { key: 'rss-feeds', en: 'RSS Feeds', desc: 'Live news & content feeds' },
   { key: 'style', en: 'Style', desc: 'Fonts & typography' },
   { key: 'settings', en: 'Settings', desc: 'Location, theme & layout' },
+  { key: 'team', en: 'Team', desc: 'People who can sign in' },
+  { key: 'account', en: 'My account', desc: 'Your name, password & 2-step' },
   { key: 'help', en: 'Help', desc: 'Learn the basics' },
 ];
+
+/** Small "Admin" / "Editor" pill. */
+export function RoleChip({ role, style }) {
+  const admin = role === 'admin';
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '1px 8px',
+      borderRadius: '999px',
+      fontFamily: adminFonts.englishBody,
+      fontSize: '11px',
+      fontWeight: 600,
+      letterSpacing: '0.3px',
+      lineHeight: '16px',
+      color: admin ? colors.gold : colors.dim,
+      background: admin ? colors.goldBg : colors.surface,
+      border: `1px solid ${admin ? colors.goldBd : colors.border}`,
+      whiteSpace: 'nowrap',
+      ...style,
+    }}>
+      {ROLE_LABEL[role] || role}
+    </span>
+  );
+}
+
+/** Who is signed in: name + role, tap to open My account. */
+function WhoAmI({ me, onOpen, compact }) {
+  if (!me) return null;
+  return (
+    <button
+      onClick={onOpen}
+      title="Open My account"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: compact ? '0' : '8px 20px',
+        margin: 0,
+        width: compact ? 'auto' : '100%',
+        minHeight: compact ? '24px' : undefined,
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        textAlign: 'left',
+        flexWrap: 'wrap',
+      }}
+    >
+      <span style={{
+        fontFamily: adminFonts.englishBody,
+        fontSize: compact ? '13px' : '14px',
+        color: colors.text,
+        maxWidth: '150px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}>
+        {me.name}
+      </span>
+      <RoleChip role={me.role} />
+    </button>
+  );
+}
 
 function handleLogout() {
   const csrfMatch = document.cookie.match(/(^| )_csrf=([^;]+)/);
@@ -123,8 +188,10 @@ function MobilePreviewSheet({ open, onClose, children }) {
   );
 }
 
-export default function AdminLayout({ activeSection, onSectionChange, children, preview }) {
+export default function AdminLayout({ activeSection, onSectionChange, children, preview, me }) {
   const isMobile = useIsMobile();
+  // Only the tabs this person's role may open (the server enforces it too).
+  const items = navItems.filter((n) => canOpenSection(me?.role, n.key));
   const [previewOpen, setPreviewOpen] = useState(false);
   const navRef = useRef(null);
 
@@ -176,12 +243,15 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
             paddingTop: 'calc(10px + env(safe-area-inset-top))',
             borderBottom: `1px solid ${colors.muted}`,
           }}>
-            <div style={{
-              fontFamily: adminFonts.hebrewDisplay,
-              fontSize: '20px',
-              color: colors.gold,
-            }}>
-              TachTach
+            <div style={{ minWidth: 0 }}>
+              <div style={{
+                fontFamily: adminFonts.hebrewDisplay,
+                fontSize: '20px',
+                color: colors.gold,
+              }}>
+                TachTach
+              </div>
+              <WhoAmI me={me} compact onOpen={() => onSectionChange('account')} />
             </div>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
@@ -247,7 +317,7 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
               borderBottom: `1px solid ${colors.muted}`,
               scrollbarWidth: 'none',
             }}>
-              {navItems.map(item => {
+              {items.map(item => {
                 const active = activeSection === item.key;
                 return (
                   <button
@@ -333,7 +403,7 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
         </div>
 
         <nav style={{ flex: 1 }}>
-          {navItems.map(item => {
+          {items.map(item => {
             const active = activeSection === item.key;
             return (
               <button
@@ -375,6 +445,9 @@ export default function AdminLayout({ activeSection, onSectionChange, children, 
           })}
         </nav>
 
+        <div style={{ borderTop: `1px solid ${colors.muted}`, marginTop: '8px', paddingTop: '8px' }}>
+          <WhoAmI me={me} onOpen={() => onSectionChange('account')} />
+        </div>
         <button
           onClick={() => setAdminTheme(getAdminThemeName() === 'dark' ? 'light' : 'dark')}
           style={{

@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import useSectionRoute from './hooks/useSectionRoute.js';
-import useAdminState from './hooks/useAdminState.js';
+import useAdminState, { notify } from './hooks/useAdminState.js';
+import useMe from './hooks/useMe.js';
+import { canOpenSection } from '../shared/permissions.js';
 import AdminLayout, { navItems } from './components/AdminLayout.jsx';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
@@ -16,6 +18,8 @@ import RSSManager from './components/RSSManager.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
+import TeamPanel from './components/TeamPanel.jsx';
+import AccountPanel from './components/AccountPanel.jsx';
 import WelcomeTour from './components/WelcomeTour.jsx';
 import { TOUR_KEY } from './help/helpContent.js';
 import ToastContainer from './components/ToastContainer.jsx';
@@ -25,7 +29,21 @@ import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 const SECTION_KEYS = navItems.map((n) => n.key);
 
 export default function App() {
-  const [activeSection, setActiveSection] = useSectionRoute(SECTION_KEYS, 'slides');
+  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'slides');
+  const { me, ready: meReady, refreshMe } = useMe();
+  const role = me?.role;
+  // A section this person's role can't open (e.g. an editor following a /admin/team
+  // link) shows Slides instead, and the address bar is tidied without a Back-button trap.
+  const activeSection = canOpenSection(role, routeSection) ? routeSection : 'slides';
+  useEffect(() => {
+    if (!meReady || activeSection === routeSection) return;
+    window.history.replaceState({ section: activeSection }, '', `/admin/${activeSection}`);
+    setRouteSection(activeSection);
+  }, [meReady, activeSection, routeSection, setRouteSection]);
+  const setActiveSection = useCallback((key) => {
+    if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return; }
+    setRouteSection(key);
+  }, [role, setRouteSection]);
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
@@ -45,7 +63,7 @@ export default function App() {
     refresh, screenCommand,
   } = useAdminState();
 
-  if (loading) {
+  if (loading || !meReady) {
     return (
       <div style={{
         minHeight: '100vh',
@@ -147,7 +165,11 @@ export default function App() {
       case 'daily-word':
         return <DailyWordPanel />;
       case 'help':
-        return <HelpPanel onNavigate={setActiveSection} onTour={() => setTourOpen(true)} />;
+        return <HelpPanel role={role} onNavigate={setActiveSection} onTour={() => setTourOpen(true)} />;
+      case 'team':
+        return <TeamPanel />;
+      case 'account':
+        return <AccountPanel me={me} onChanged={refreshMe} />;
       case 'custom-days':
         return (
           <CustomDaysEditor
@@ -244,6 +266,7 @@ export default function App() {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         preview={previewSlot}
+        me={me}
       >
         {renderSection()}
       </AdminLayout>

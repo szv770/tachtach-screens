@@ -5,7 +5,8 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { setupCheck, requireAuth, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
+import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
+import teamRouter from './routes/team.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
@@ -186,7 +187,7 @@ export function createApp() {
   // ── 4. Rate limiter on POST /login and the TOTP verification steps ──
   const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5,                    // 5 requests per window per IP
+    max: 40,                   // per IP: a whole school can share one address; real brute-force limits are in routes/auth.js
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Too many login attempts. Try again in 15 minutes.' },
@@ -194,6 +195,8 @@ export function createApp() {
   app.post('/login', loginLimiter);
   app.post('/login/totp', loginLimiter);
   app.post('/login/totp-setup', loginLimiter);
+  app.post('/invite/:token', loginLimiter);
+  app.post('/signin/:token', loginLimiter);
 
   // ── 5. Auth routes (GET/POST /login, POST /logout) — before requireAuth ─
   app.use(authRouter);
@@ -392,11 +395,12 @@ export function createApp() {
     skip: (req) => ['GET', 'HEAD', 'OPTIONS'].includes(req.method),
     message: { error: 'Too many requests. Please slow down.' },
   });
-  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter);
+  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, enforceRole, logActivity);
 
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
+  app.use('/api', teamRouter);
   app.use('/api', announcementsRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', embedProbeRouter);
