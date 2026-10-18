@@ -1,10 +1,12 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl" translate="no">
+<html lang="he" dir="rtl" translate="no" data-splash="always">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="google" content="notranslate">
   <title>TachTach-Screens</title>
+  <link rel="stylesheet" href="/splash/splash.css">
+  <script src="/splash/splash.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -13,6 +15,22 @@
   </style>
 </head>
 <body>
+  <!-- Start-up animation (public/splash/). Removed by splash.js once the app is ready. -->
+  <div id="tt-splash" aria-hidden="true" style="--tt-splash-size: min(60vw, 40vh)">
+    <div class="tt-stage">
+      <img src="/splash/back.webp" alt="">
+      <img class="tt-flap-open" src="/splash/flap-open.webp" alt="">
+      <div class="tt-card-clip"><div class="tt-card-move">
+        <img src="/splash/card.webp" alt="">
+        <img class="tt-letters" src="/splash/letters.webp" alt="">
+        <div class="tt-shine"></div>
+      </div></div>
+      <img src="/splash/pocket.webp" alt="">
+      <img class="tt-flap-closed" src="/splash/flap-closed.webp" alt="">
+      <img class="tt-seal" src="/splash/seal.webp" alt="">
+    </div>
+    <img src="/splash/shine-mask.webp" alt="" style="display:none">
+  </div>
   <div id="root"></div>
   <script type="module" src="./main.jsx"></script>
 </body>

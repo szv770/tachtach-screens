@@ -9,8 +9,13 @@
 // the letters fall back to a default serif. The font is committed next to
 // this script, so the one-time setup is just:
 //   sudo cp scripts/assets/LiaHalel.ttf /usr/share/fonts/truetype/ && sudo fc-cache -f
+//
+// It also renders each <!--layer:name--> section of the SVG on its own into
+// public/splash/<name>.webp — the pieces the start-up animation moves
+// (public/splash/splash.css). Layers marked display="none" exist only for the
+// animation (closed flap, shine mask) and are switched on for their render.
 import sharp from 'sharp';
-import { readFile } from 'fs/promises';
+import { readFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,4 +39,17 @@ const variants = [
 for (const v of variants) {
   await sharp(Buffer.from(v.svg), { density: 384 }).resize(v.size, v.size).png().toFile(join(iconsDir, v.file));
   console.log(`wrote ${v.file} (${v.size}x${v.size})`);
+}
+
+const splashDir = join(__dirname, '..', 'public', 'splash');
+await mkdir(splashDir, { recursive: true });
+const svgOpen = svg.match(/<svg[^>]*>/)[0];
+const defs = svg.match(/<defs>[\s\S]*<\/defs>/)[0];
+const layers = [...svg.matchAll(/<!--layer:([a-z-]+)-->([\s\S]*?)<!--\/layer-->/g)];
+if (!layers.length) throw new Error('admin-icon.svg has no <!--layer:...--> sections');
+for (const [, name, body] of layers) {
+  const layerSvg = `${svgOpen}${defs}${body.replace(/ display="none"/g, '')}</svg>`;
+  await sharp(Buffer.from(layerSvg), { density: 288 }).resize(1024, 1024)
+    .webp({ quality: 88, alphaQuality: 100 }).toFile(join(splashDir, `${name}.webp`));
+  console.log(`wrote splash/${name}.webp`);
 }

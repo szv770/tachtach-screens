@@ -189,6 +189,9 @@ function AppContent() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Start-up animation (public/splash/) fades out once the first state is in.
+  useEffect(() => { if (!loading) window.ttSplash?.done(); }, [loading]);
+
   // SSE event handler
   const handleSSE = useCallback((event) => {
     const { type, data } = event;

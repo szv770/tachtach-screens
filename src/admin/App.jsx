@@ -65,6 +65,9 @@ export default function App() {
     refresh, screenCommand,
   } = useAdminState();
 
+  // Start-up animation (public/splash/) fades out once the panel can render.
+  useEffect(() => { if (!loading && meReady) window.ttSplash?.done(); }, [loading, meReady]);
+
   if (loading || !meReady) {
     return (
       <div style={{
