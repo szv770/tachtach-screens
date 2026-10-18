@@ -4,6 +4,7 @@ import useIsMobile from '../hooks/useIsMobile.js';
 import { canOpenSection, ROLE_LABEL } from '../../shared/permissions.js';
 
 export const navItems = [
+  { key: 'home', en: 'Home', desc: 'What’s on the screen now' },
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts' },
   { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers' },

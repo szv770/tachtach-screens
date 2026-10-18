@@ -7,6 +7,7 @@ import AdminLayout, { navItems } from './components/AdminLayout.jsx';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
+import HomePanel from './components/HomePanel.jsx';
 import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
@@ -30,12 +31,12 @@ import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 const SECTION_KEYS = navItems.map((n) => n.key);
 
 export default function App() {
-  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'slides');
+  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'home');
   const { me, ready: meReady, refreshMe } = useMe();
   const role = me?.role;
   // A section this person's role can't open (e.g. an editor following a /admin/team
   // link) shows Slides instead, and the address bar is tidied without a Back-button trap.
-  const activeSection = canOpenSection(role, routeSection) ? routeSection : 'slides';
+  const activeSection = canOpenSection(role, routeSection) ? routeSection : 'home';
   useEffect(() => {
     if (!meReady || activeSection === routeSection) return;
     window.history.replaceState({ section: activeSection }, '', `/admin/${activeSection}`);
@@ -116,6 +117,19 @@ export default function App() {
 
   const renderSection = () => {
     switch (activeSection) {
+      case 'home':
+        return (
+          <HomePanel
+            state={state}
+            onQuick={() => setQuickOpen(true)}
+            onEdit={(item) => item && setComposer(item)}
+            onPause={(id) => updateAnnouncement(id, { enabled: false }, 'Paused')}
+            onRemove={deleteAnnouncement}
+            onGo={setActiveSection}
+            screenCommand={screenCommand}
+            refresh={refresh}
+          />
+        );
       case 'slides':
         return (
           <SlideManager

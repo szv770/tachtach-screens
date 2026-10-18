@@ -2,7 +2,7 @@
   "name": "TachTach Admin",
   "short_name": "TachTach",
   "description": "Control the TachTach screen — announcements, schedule, and slides.",
-  "start_url": "/admin/slides",
+  "start_url": "/admin/home",
   "scope": "/admin/",
   "display": "standalone",
   "orientation": "portrait",

@@ -9,6 +9,7 @@ import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, local
 import teamRouter from './routes/team.js';
 import pushRouter from './routes/push.js';
 import quickTemplatesRouter from './routes/quick-templates.js';
+import statusRouter from './routes/status.js';
 import { startPushMonitor } from './push.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
@@ -420,6 +421,7 @@ export function createApp() {
   app.use('/api', teamRouter);
   app.use('/api', pushRouter);
   app.use('/api', quickTemplatesRouter);
+  app.use('/api', statusRouter);
   app.use('/api', announcementsRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', embedProbeRouter);
