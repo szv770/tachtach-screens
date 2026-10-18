@@ -4,6 +4,12 @@
  */
 
 export const AUTH_CSS = `
+    @font-face {
+      font-family: 'TachTachMark';
+      src: url('/icons/tachtach-mark.ttf') format('truetype');
+      font-display: swap;
+    }
+
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
@@ -54,12 +60,12 @@ export const AUTH_CSS = `
     }
 
     .title-hebrew {
-      font-family: 'Suez One', 'Noto Serif Hebrew', serif;
-      font-size: 3.5rem;
+      font-family: 'TachTachMark', 'Noto Serif Hebrew', serif;
+      font-size: 4rem;
       font-weight: 400;
       color: #D4A84B;
-      letter-spacing: 0.02em;
-      line-height: 1.2;
+      letter-spacing: 0.04em;
+      line-height: 1.3;
       margin-bottom: 0.25rem;
     }
 
@@ -208,12 +214,12 @@ const HEAD = (title) => `<!DOCTYPE html>
   <title>${esc(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&family=Noto+Serif+Hebrew:wght@400;700&family=EB+Garamond:wght@400;500&family=Suez+One&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&family=Noto+Serif+Hebrew:wght@400;700&family=EB+Garamond:wght@400;500&display=swap" rel="stylesheet">
   <style>${AUTH_CSS}</style>
 </head>
 <body>
   <div class="login-container">
-    <h1 class="title-hebrew">ת״ח ת״ח</h1>
+    <h1 class="title-hebrew">ת"ח ת"ח</h1>
 `;
 
 const TOTP_FORMS = `

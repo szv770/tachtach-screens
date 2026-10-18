@@ -1,5 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="104" fill="#12100C"/>
-  <text x="256" y="238" text-anchor="middle" font-family="Suez One" font-size="160" fill="#D4A84B" direction="rtl">ת״ח</text>
-  <text x="256" y="402" text-anchor="middle" font-family="Suez One" font-size="160" fill="#D4A84B" direction="rtl">ת״ח</text>
+  <circle cx="256" cy="256" r="196" fill="none" stroke="#D4A84B" stroke-width="6" opacity="0.85"/>
+  <circle cx="256" cy="256" r="182" fill="none" stroke="#D4A84B" stroke-width="1.5" opacity="0.45"/>
+  <text x="256" y="232" text-anchor="middle" font-family="LiaHalel" font-size="138" fill="#D4A84B" direction="rtl">ת"ח</text>
+  <line x1="186" y1="256" x2="326" y2="256" stroke="#D4A84B" stroke-width="3" opacity="0.6"/>
+  <text x="256" y="378" text-anchor="middle" font-family="LiaHalel" font-size="138" fill="#D4A84B" direction="rtl">ת"ח</text>
 </svg>
