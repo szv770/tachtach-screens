@@ -17,7 +17,7 @@
 import { STYLE_IDS as IDS, normalizeStyleId, renderStyleId } from '../../shared/takeoverStyles.js';
 
 export const STYLES = {
-  classic:     { layout: 'event',    box: [104, 104, 112, 96],  pbox: [90, 90, 130, 120],  align: 'start',  ent: 'rise' },
+  classic:     { layout: 'event',    box: [130, 130, 130, 150], pbox: [90, 90, 150, 150],  align: 'center', ent: 'rise' },
   grand:       { layout: 'event',    box: [150, 150, 124, 112], pbox: [120, 120, 150, 140], align: 'center', ent: 'calm', chrome: { top: 72, side: 100 } },
   emergency:   { layout: 'bigwords', box: [500, 96, 100, 90],   bb: [50, 250, 450, 650], pbox: null, align: 'start',  ent: 'snap', chrome: { top: 50 } },
   sleek:       { layout: 'quick',    box: [96, 96, 110, 130],   pbox: [80, 80, 140, 150],  align: 'start',  ent: 'rise' },

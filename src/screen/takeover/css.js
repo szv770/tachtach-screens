@@ -157,7 +157,8 @@ export const TAKEOVER_CSS = `
 .tkr .lt .body { flex: 1; min-height: 0; overflow: hidden; font-family: var(--f-th-he); font-size: calc(35px * var(--he-scale)); line-height: 1.6; text-align: right; text-wrap: pretty; }
 .tkr .lt .close { font-family: var(--f-th-he); font-size: calc(36px * var(--he-scale)); font-weight: 700; text-align: left; margin-top: 20px; }
 .tkr .lt .ft { direction: ltr; }
-.tkr .st-classic .panelbg { position: absolute; inset: 28px; border-radius: 40px; background: var(--raised); z-index: 0; }
+.tkr .st-classic .panelbg { position: absolute; inset: 28px; border-radius: 40px; z-index: 0;
+  background: radial-gradient(ellipse 70% 62% at 50% 44%, color-mix(in srgb, var(--s-acc) 9%, var(--raised)), var(--raised) 72%); }
 .tkr .stage.light.st-classic { --s-fill: color-mix(in srgb, var(--s-acc) 88%, #000); }
 .tkr .st-grand { --s-bg: color-mix(in srgb, #000 26%, var(--bg)); --s-acc: #D6AF5C; --s-onacc: #1A1408;
   --f-disp-he: var(--f-th-he); --f-disp-en: var(--f-th-en); --f-big: var(--f-th-en); --disp-w: 600; --en-w: 600; --tile-w: 500; --en-track: -.01em; }

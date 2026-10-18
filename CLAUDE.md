@@ -54,6 +54,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 
 Append one line per notable fix/feature when you ship it — newest on top. Keep each entry to one line.
 
+- 2026-10-18 — Default message look (`classic`, used whenever no style is picked) is now centred, theme-driven and has a faint halo + ornament (was a plain left-aligned card); Daily Word admin tab (`DailyWordPanel.jsx`: preview a day, order, add/edit/pin/disable, paste-import with a Claude prompt).
 - 2026-10-18 — **Web page slide** (`WEB_PAGE`, `WebPageSlide.jsx`): shows any website (built for a Charidy `/miami+` fundraiser screen) fresh every time it comes up (new iframe + `_tt` param), optional timed reload + zoom, admin 'Save & check' probe for sites that forbid framing (`/api/embed-probe`). **Daily Word** foundation: `src/shared/dailyWords.js` (+ 45-word Yiddish seed, deterministic word-of-the-day, paste import), `/api/daily-words`, `dailyWords` in `/api/state` + SSE `daily-words-update`, `DAILY_WORD` slide type. See FEATURES.md.
 - 2026-10-15 — Kiosk GPU watchdog: `deploy/kiosk-launch.sh` restarts Chromium within seconds when the journal floods with `AllocateRingBuffer`/`kFatalFailure` (stale/garbled TV tiles seen again at 08:27, hours after the nightly restart). See GOTCHAS.md.
 - 2026-10-15 — Kiosk restart timer now every 4 h (was nightly): the GPU failed 5h12m after the last restart with all memory/thermal/kernel checks clean. See GOTCHAS.md.

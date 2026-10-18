@@ -6,6 +6,7 @@ const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts' },
   { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers' },
+  { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day' },
   { key: 'custom-days', en: 'Custom Days', desc: 'Mark special dates' },
   { key: 'images', en: 'Media', desc: 'Upload images & videos' },
   { key: 'rss-feeds', en: 'RSS Feeds', desc: 'Live news & content feeds' },
