@@ -2,6 +2,7 @@ import readline from 'readline/promises';
 import { stdin as input, stdout as output } from 'process';
 import bcrypt from 'bcrypt';
 import { readJSON, writeJSON, ensureDataDir } from './src/server/storage.js';
+import users from './src/server/users.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -63,7 +64,7 @@ console.log('');
 await ensureDataDir();
 
 // Check if setup has already been run
-const existingAuth = await readJSON('auth.json');
+const existingAuth = (await readJSON('users.json')) || (await readJSON('auth.json'));
 if (existingAuth) {
   const overwrite = await ask('Setup has already been run. Overwrite? (y/N)', 'N');
   if (overwrite.toLowerCase() !== 'y') {
@@ -88,12 +89,8 @@ console.log('');
 // ── 3. Write data files ───────────────────────────────────────────────
 console.log('Writing configuration files...');
 
-await writeJSON('auth.json', {
-  passwordHash,
-  session: null,
-  lockouts: {},
-});
-console.log('  ✓ data/auth.json');
+await users.bootstrapAdmin({ passwordHash });
+console.log('  ✓ data/users.json (you are the admin; username: admin)');
 
 await writeJSON('settings.json', {
   location: {

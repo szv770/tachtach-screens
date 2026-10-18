@@ -28,6 +28,8 @@ export const INVITE_MS = 7 * DAY;
 export const SIGNIN_LINK_MS = 60 * 60 * 1000;
 const ROLL_INTERVAL_MS = 60 * 60 * 1000;
 const TOTP_ISSUER = 'TachTach-Screens';
+// One 30 s step either side tolerates a phone clock that is a little off; each step still works only once.
+const totp = authenticator.clone({ window: 1 });
 
 export const LINK_KINDS = ['invite', 'signin'];
 
@@ -447,7 +449,7 @@ export function createUserStore({
     if (!u.totpSecret || !codeOk(code)) return null;
     let delta;
     try {
-      delta = authenticator.checkDelta(code, u.totpSecret);
+      delta = totp.checkDelta(code, u.totpSecret);
     } catch {
       return null;
     }
@@ -591,7 +593,15 @@ export function createUserStore({
     });
   }
 
+  /** CLI recovery: forget every failed-attempt counter. */
+  async function clearAllFailures() {
+    await tx(async (d) => {
+      d.lockouts = {};
+    });
+  }
+
   return {
+    clearAllFailures,
     ensureMigrated, bootstrapAdmin, isSetupComplete,
     listUsers, userCount, getUser, getPublicUser, createUser, updateUser, removeUser, markLogin,
     hashPassword, setPassword, setPasswordHash, verifyLogin,

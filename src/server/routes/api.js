@@ -16,7 +16,7 @@ import { initCountdowns } from '../countdown.js';
 import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
-import { forgetAllTrustedDevices } from '../auth.js';
+import users from '../users.js';
 import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
@@ -605,7 +605,7 @@ router.post('/cleanup', async (_req, res) => {
 
 router.post('/security/forget-devices', async (req, res) => {
   try {
-    await forgetAllTrustedDevices();
+    await users.forgetTrustedDevices(req.user.id);
     // Also clear the requesting browser's own trusted-device cookie —
     // otherwise it looks trusted client-side until it happens to try again.
     res.clearCookie('tachtach_trusted_device', { path: '/' });

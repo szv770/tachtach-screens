@@ -1,14 +1,33 @@
 import crypto from 'crypto';
-import { validateSession, checkSetupComplete } from './auth.js';
+import users from './users.js';
+import activity, { describe as describeAction } from './activity.js';
+import { canDo, normalizeApiPath } from '../shared/permissions.js';
+
+/** The signed-in person for a session cookie, or null. Never includes secrets. */
+export async function userForRequest(req) {
+  const token = req.cookies?.tachtach_session;
+  if (!token) return null;
+  const s = await users.getSession(token);
+  if (!s) return null;
+  const { id, username, name, role } = s.user;
+  return { id, username, name, role };
+}
+
+/** Setup is done once somebody can sign in; picks up an old single-owner auth.json on first look. */
+export async function checkSetupComplete() {
+  if (await users.isSetupComplete()) return true;
+  await users.ensureMigrated();
+  return users.isSetupComplete();
+}
 
 /**
  * Require a valid session cookie. Unauthenticated API requests get 401 JSON;
  * all other requests are redirected to /login.
  */
 export async function requireAuth(req, res, next) {
-  const token = req.cookies?.tachtach_session;
+  const user = await userForRequest(req);
 
-  if (!token || !(await validateSession(token))) {
+  if (!user) {
     if (req.originalUrl.startsWith('/api/')) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -17,6 +36,33 @@ export async function requireAuth(req, res, next) {
     return res.redirect(302, back && back !== '/admin' ? `/login?next=${encodeURIComponent(back)}` : '/login');
   }
 
+  req.user = user;
+  next();
+}
+
+/**
+ * After requireAuth on /api: an editor may only reach what permissions.js lists.
+ * Fails closed — a route nobody listed is admin-only for writes.
+ */
+export function enforceRole(req, res, next) {
+  const path = req.originalUrl.split('?')[0];
+  if (!req.user || !canDo(req.user.role, req.method, path)) {
+    return res.status(403).json({ error: 'Your role can’t do that. Ask an admin.' });
+  }
+  next();
+}
+
+const NOT_LOGGED = /^\/api\/(preview|team|account|me)(\/|$)/;
+/** One line in the activity log for every successful change (never the request body). */
+export function logActivity(req, res, next) {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
+  const path = normalizeApiPath(req.originalUrl.split('?')[0]);
+  if (NOT_LOGGED.test(path)) return next();
+  const user = req.user;
+  res.on('finish', () => {
+    if (res.statusCode >= 400) return;
+    activity.record({ user, action: describeAction(req.method, path) }).catch((e) => console.error('[activity]', e.message));
+  });
   next();
 }
 
@@ -44,8 +90,7 @@ export async function localhostOrAuth(req, res, next) {
     return next();
   }
 
-  const token = req.cookies?.tachtach_session;
-  if (token && (await validateSession(token))) {
+  if (await userForRequest(req)) {
     return next();
   }
 
