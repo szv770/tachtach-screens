@@ -15,16 +15,22 @@ import GooglePhotosManager from './components/GooglePhotosManager.jsx';
 import RSSManager from './components/RSSManager.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
+import HelpPanel from './components/HelpPanel.jsx';
+import WelcomeTour from './components/WelcomeTour.jsx';
+import { TOUR_KEY } from './help/helpContent.js';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
-// Admin sections that have their own URL (/admin/<key>); 'help' is the in-app guide.
-const SECTION_KEYS = [...navItems.map((n) => n.key), 'help'];
+// Admin sections that have their own URL (/admin/<key>).
+const SECTION_KEYS = navItems.map((n) => n.key);
 
 export default function App() {
   const [activeSection, setActiveSection] = useSectionRoute(SECTION_KEYS, 'slides');
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
+  // First visit in this browser: show the welcome tour once (remembered in localStorage).
+  const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
+  const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };
   const {
     state, loading, error, retry,
     toasts, dismissToast,
@@ -140,6 +146,8 @@ export default function App() {
         );
       case 'daily-word':
         return <DailyWordPanel />;
+      case 'help':
+        return <HelpPanel onNavigate={setActiveSection} onTour={() => setTourOpen(true)} />;
       case 'custom-days':
         return (
           <CustomDaysEditor
@@ -239,6 +247,7 @@ export default function App() {
       >
         {renderSection()}
       </AdminLayout>
+      {tourOpen && <WelcomeTour onClose={closeTour} onGo={setActiveSection} />}
       {composer && (
         <AnnouncementComposer
           key={composer.id || 'new'}

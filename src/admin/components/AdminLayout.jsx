@@ -12,6 +12,7 @@ export const navItems = [
   { key: 'rss-feeds', en: 'RSS Feeds', desc: 'Live news & content feeds' },
   { key: 'style', en: 'Style', desc: 'Fonts & typography' },
   { key: 'settings', en: 'Settings', desc: 'Location, theme & layout' },
+  { key: 'help', en: 'Help', desc: 'Learn the basics' },
 ];
 
 function handleLogout() {
