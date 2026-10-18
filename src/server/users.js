@@ -120,7 +120,7 @@ export function createUserStore({
     d.links = d.links.filter((l) => Date.parse(l.expiresAt) + DAY > t);
     d.preauth = d.preauth.filter(alive);
     for (const [k, e] of Object.entries(d.lockouts)) {
-      if (e.lockedUntil && Date.parse(e.lockedUntil) <= t) delete d.lockouts[k];
+      if (e.lockedUntil ? Date.parse(e.lockedUntil) <= t : !e.at || Date.parse(e.at) + 2 * 60 * 60 * 1000 <= t) delete d.lockouts[k];
     }
   }
 
@@ -580,8 +580,11 @@ export function createUserStore({
   }
   async function recordFailure(key, { max = 5, lockMs = 60 * 60 * 1000 } = {}) {
     return tx(async (d) => {
-      const e = d.lockouts[key] || { count: 0, lockedUntil: null };
+      const e = d.lockouts[key] || { count: 0, lockedUntil: null, at: null };
+      // A few slips spread over a long time are not an attack: the count restarts after one lock period.
+      if (!e.lockedUntil && e.at && Date.parse(e.at) + lockMs <= now()) e.count = 0;
       e.count += 1;
+      e.at = iso(now());
       if (e.count >= max) e.lockedUntil = iso(now() + lockMs);
       d.lockouts[key] = e;
       return e.count >= max;

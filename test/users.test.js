@@ -247,6 +247,17 @@ test('lockouts: locks at the limit, expires, clears', async () => {
   assert.equal(await store.recordFailure('user:x', { max: 2, lockMs: 1000 }), false);
 });
 
+test('lockout counters restart after a quiet period and old ones are pruned', async () => {
+  const { store, box, raw } = await withAdmin();
+  for (let i = 0; i < 4; i++) await store.recordFailure('user:a|1', { max: 5, lockMs: 15 * 60 * 1000 });
+  box.clock += 16 * 60 * 1000;
+  assert.equal(await store.recordFailure('user:a|1', { max: 5, lockMs: 15 * 60 * 1000 }), false, 'count restarted');
+  await store.recordFailure('user:old|1');
+  box.clock += 3 * 3600 * 1000;
+  await store.createUser({ name: 'Trigger Write' });
+  assert.deepEqual(Object.keys(raw().lockouts), [], 'stale counters removed');
+});
+
 test('public listing never leaks secrets', async () => {
   const { store, admin } = await withAdmin();
   await store.createSession(admin.id);

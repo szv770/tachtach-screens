@@ -8,9 +8,9 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 2. Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
 3. `Cache-Control: no-store` on `/login`, `/admin`, `/api` (prevents a cached auth response looking like a logout)
 4. `express.json({ limit: '16kb' })` — skipped for `/api/schedule/{dates,blocks}*`, which parse their own bodies at 256 kB (`routes/schedule-dates.js`) — then `cookie-parser`
-5. `setupCheck` — 503 setup page for everything except `/login` + static assets until `data/auth.json` has a password hash
-6. Login rate limiter (5/15min) on `POST /login`, `/login/totp`, `/login/totp-setup`
-7. `authRouter` (login/logout/TOTP endpoints)
+5. `setupCheck` — 503 setup page for everything except `/login` + static assets until `data/users.json` has an admin (an old single-owner `data/auth.json` is migrated into it on first look)
+6. Login rate limiter (40/15min per IP — a school shares one address; the real brute-force limits are per-person in `routes/auth.js`) on `POST /login`, `/login/totp`, `/login/totp-setup`, `/invite/:token`, `/signin/:token`
+7. `authRouter` (login/logout/TOTP, `/invite/:token`, `/signin/:token`)
 8. `localhostOrAuth` gate on `/screen` and `/stream`
 9. `screenRouter` mounted on `/stream` (SSE)
 10. `GET /api/state` — `localhostOrAuth` + `csrfProtection` (CSRF middleware runs here specifically to issue the `_csrf` cookie on load, not to validate — see below)
@@ -21,13 +21,17 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 15. `announcementsRouter` (`src/server/routes/announcements.js`) — `/api/announcements*` plus translating shims for the legacy `/api/messages`, `/api/pinned` and custom-slide POST (one release). Then `apiRouter` — the actual CRUD handlers (`src/server/routes/api.js`, ~1300 lines, one section per admin resource: slides, schedule, messages, pinned, custom-days, media, photos, RSS, style, settings, screen-control)
 15. 404 handler, then a global error handler (multer file-size, JSON parse errors, generic 500)
 
-## Auth model (`src/server/auth.js`)
+## Auth model (`src/server/users.js`, `routes/auth.js`, `routes/team.js`)
 
-- Single admin user, `data/auth.json`: `{ passwordHash, session, lockouts, totpSecret, totpEnabled, pendingAuth }`.
-- Login is **two-step**: password → short-lived `pendingAuth` token (5 min) → TOTP code → real session. Mandatory since 2026-07-18; first login after `setup.js` shows a QR enrollment step instead.
-- Session: 256-bit random token, 30-day rolling expiry, 90-day absolute max. Rolling only rewrites the file if the remaining time has dropped by more than an hour — rewriting on every request wore the SD card and raced concurrent requests on Windows (see GOTCHAS.md).
-- Lockout: 5 failed attempts per IP → 1 hour lock. Cleared automatically once expired, or explicitly on a successful reset.
-- Reset path is `scripts/reset-admin-credentials.js` (`npm run reset-admin`), interactive menu or `--reset-password`/`--reset-totp` flags. Touches only `auth.json` fields, never `setup.js`'s full wipe.
+- **People** live in `data/users.json` (never backed up, gitignored): `{ users[], links[], preauth[], lockouts{} }`. Each user: `id, username, name, role (admin|editor), passwordHash|null, totpSecret/totpEnabled, trustedDevices[], sessions[]`. `createUserStore({read,write,now})` takes injectable storage (tests in `test/users.test.js`); every write goes through one `tx()` queue.
+- **Everything looked up by a token is stored only as a SHA-256 hash**: sessions (many per person), trusted devices, invite/sign-in links, pre-auth. The raw value exists only in the cookie / link.
+- **Roles** (`src/shared/permissions.js`, shared by server + admin UI): admin = everything; editor = day-to-day content only. `enforceRole` (middleware, after `requireAuth` on `/api`) is **fail-closed**: an editor's write is allowed only if the path is on the `EDITOR_WRITE` allow-list; `/api/team` and `/api/activity` are admin-only even to read; `/api/me` and `/api/account/*` are for everyone. Paths are normalised (case, `//`, `%xx`, trailing `/`) before matching.
+- **Login**: username (box only shown when >1 person) + password → if the person has 2-step on: `preauth` (5 min, stage `totp`) → code → session (skipped on a device holding a valid trusted-device cookie); admins without 2-step are walked through QR enrolment (stage `enroll`); editors without 2-step get a session straight away. 2-step is mandatory for admins, optional for editors. Codes accept ±1 step and a step can only be used once.
+- **Invite link** (`/invite/<token>`, 7 days, single use): the person chooses a password (editors may skip it and use sign-in links only). **Sign-in link** (`/signin/<token>`, 60 min, single use): for a forgotten password; **GET only shows a confirm button, only the POST spends the link** (WhatsApp/iMessage previews fetch URLs). A new link of the same kind replaces the older unused one. The admin hands links over themselves (Team tab → copy / WhatsApp) — the server sends no email.
+- **Lockouts**: per address 20 failures → 1 h; per person+address 8 failures → 15 min (so nobody can lock a colleague out from another address); counters restart after a quiet period and are pruned. Password-change / 2-step-off from a live session are throttled too.
+- **Sessions**: 256-bit token, 30-day rolling (file rewritten at most hourly), 90-day absolute, up to 20 per person. Role change, password reset, "sign out everywhere", 2-step reset and removal all end sessions.
+- **Activity log** `data/activity.json` (ring buffer of 500): `logActivity` middleware records every successful non-GET `/api` call as one plain-English line (`describe()` in `src/server/activity.js`; never request bodies) plus explicit lines for team actions and sign-ins. Announcements also carry `createdBy`/`updatedBy` display names.
+- **Reset path**: `scripts/reset-admin-credentials.js` (`npm run reset-admin`; `--list`, `--user <username>`, `--reset-password`, `--reset-totp`); touches only `users.json`. Migration from the old `auth.json` keeps the owner's session and trusted devices.
 
 ## CSRF (`src/server/middleware.js` → `csrfProtection`)
 
@@ -48,9 +52,9 @@ Double-submit cookie, HMAC-bound to the session token: `_csrf` cookie = `nonce.h
 
 ## Data files (`data/*.json`, via `src/server/storage.js`)
 
-Atomic write: JSON → `.tmp` → `rename()`. Existing file copied to `.bak` first, **except** `auth.json` (never backed up — contains password hash/TOTP secret). On Windows/OneDrive, `rename()` can EPERM/EBUSY if the file is locked; falls back to a direct (non-atomic) write rather than crashing. File-level locking (`Map` of pending promises) serializes concurrent writes to the same file within one process.
+Atomic write: JSON → `.tmp` → `rename()`. Existing file copied to `.bak` first, **except** `auth.json`/`users.json` (never backed up — contain password hashes/TOTP secrets). On Windows/OneDrive, `rename()` can EPERM/EBUSY if the file is locked; falls back to a direct (non-atomic) write rather than crashing. File-level locking (`Map` of pending promises) serializes concurrent writes to the same file within one process.
 
-Files: `auth.json`, `settings.json`, `slides.json`, `announcements.json` (`{version, items}` — every slide/banner/side note/takeover post; see `src/server/announcements-model.js`), `messages.json` + `pinned.json` (legacy, emptied by the startup migration; originals in `data/legacy/*.pre-announcements.json`), `custom-days.json`, `schedule.json`, `schedule-templates.json`, `schedule-dates.json` (`{ "YYYY-MM-DD": { label, entries, updatedAt } }` — key present = that date overrides the weekly schedule even if empty; dates >60 days old pruned on write), `schedule-blocks.json` (`{ version, seeded, blocks: [{ id, name, label, entries }] }`; `seeded` marks the one-time default-category seeding so deleted categories don't come back), `zmanim-dates.json` (per-date zmanim fetched for the Claude prompt), the last three written via `src/server/scheduleStore.js` (one in-process read-modify-write queue), `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
+Files: `users.json` (logins; legacy `auth.json` only read for migration), `activity.json` (who-did-what ring buffer), `settings.json`, `slides.json`, `announcements.json` (`{version, items}` — every slide/banner/side note/takeover post; see `src/server/announcements-model.js`), `messages.json` + `pinned.json` (legacy, emptied by the startup migration; originals in `data/legacy/*.pre-announcements.json`), `custom-days.json`, `schedule.json`, `schedule-templates.json`, `schedule-dates.json` (`{ "YYYY-MM-DD": { label, entries, updatedAt } }` — key present = that date overrides the weekly schedule even if empty; dates >60 days old pruned on write), `schedule-blocks.json` (`{ version, seeded, blocks: [{ id, name, label, entries }] }`; `seeded` marks the one-time default-category seeding so deleted categories don't come back), `zmanim-dates.json` (per-date zmanim fetched for the Claude prompt), the last three written via `src/server/scheduleStore.js` (one in-process read-modify-write queue), `google-albums.json`, `rss-feeds.json`, `fonts.json`, `cache.json`, plus `uploads/`, `fonts/`, `google-photos/`, `rss-cache/` directories.
 
 ## Fetchers (`src/fetchers/`)
 

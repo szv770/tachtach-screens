@@ -27,6 +27,9 @@ function fail(res, err, where) {
   console.error(`[team] ${where}:`, err.message);
   return res.status(500).json({ error: 'Server error' });
 }
+/** Guesses at a current password / 2-step code from a signed-in session are counted too. */
+const guessKey = (req, what) => `user:${req.user.username}|${what}`;
+const GUESS_LIMIT = { max: 6, lockMs: 15 * 60 * 1000 };
 const log = (req, action, detail) => activity.record({ user: req.user, action, detail }).catch(() => {});
 
 // ── Team (admin) ────────────────────────────────────────────────────────────
@@ -139,9 +142,12 @@ router.post('/account/password', async (req, res) => {
     const { current, next } = req.body || {};
     const me = await users.getUser(req.user.id);
     if (me.passwordHash) {
+      if (await users.isLocked(guessKey(req, 'password'))) return res.status(429).json({ error: 'Too many wrong tries. Please wait a few minutes.' });
       if (!(await users.verifyLogin(me.username, String(current ?? '')))) {
+        await users.recordFailure(guessKey(req, 'password'), GUESS_LIMIT);
         return res.status(400).json({ error: 'Your current password isn’t right.' });
       }
+      await users.clearFailures(guessKey(req, 'password'));
     }
     const err = validatePassword(next);
     if (err) return res.status(400).json({ error: err });
@@ -176,9 +182,12 @@ router.post('/account/2fa/confirm', async (req, res) => {
 router.post('/account/2fa/disable', async (req, res) => {
   try {
     if (req.user.role === 'admin') return res.status(400).json({ error: 'Admins always use 2-step.' });
+    if (await users.isLocked(guessKey(req, '2fa'))) return res.status(429).json({ error: 'Too many wrong tries. Please wait a few minutes.' });
     if (!(await users.verifyTotp(req.user.id, String((req.body || {}).code ?? '')))) {
+      await users.recordFailure(guessKey(req, '2fa'), GUESS_LIMIT);
       return res.status(400).json({ error: 'Enter a current code from your authenticator app to turn it off.' });
     }
+    await users.clearFailures(guessKey(req, '2fa'));
     await users.disableTotp(req.user.id);
     res.clearCookie(TRUSTED_DEVICE_COOKIE, { path: '/' });
     log(req, 'Turned off 2-step');
