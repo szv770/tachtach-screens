@@ -214,7 +214,7 @@ export default function AnnouncementsPanel({
                   </span>
                 </div>
                 {item.createdBy && (
-                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted, marginTop: '3px' }}>
+                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginTop: '3px' }}>
                     Posted by {item.createdBy}
                     {item.updatedBy && item.updatedBy !== item.createdBy ? ` · edited by ${item.updatedBy}` : ''}
                   </div>
