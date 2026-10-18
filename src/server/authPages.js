@@ -54,24 +54,13 @@ export const AUTH_CSS = `
     }
 
     .title-hebrew {
-      font-family: 'Noto Serif Hebrew', serif;
+      font-family: 'Suez One', 'Noto Serif Hebrew', serif;
       font-size: 3.5rem;
-      font-weight: 700;
+      font-weight: 400;
       color: #D4A84B;
       letter-spacing: 0.02em;
       line-height: 1.2;
       margin-bottom: 0.25rem;
-    }
-
-    /* The ת"ח ת"ח mark — a small signature under the wordmark on the sign-in
-       page only (not invite/sign-in-link pages), not an explanation. */
-    .title-mark {
-      font-family: 'Noto Serif Hebrew', serif;
-      font-size: 0.95rem;
-      font-weight: 700;
-      color: rgba(212, 168, 75, 0.55);
-      letter-spacing: 0.3em;
-      margin-bottom: 0.6rem;
     }
 
     .title-english {
@@ -219,12 +208,12 @@ const HEAD = (title) => `<!DOCTYPE html>
   <title>${esc(title)}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&family=Noto+Serif+Hebrew:wght@400;700&family=EB+Garamond:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;700&family=Noto+Serif+Hebrew:wght@400;700&family=EB+Garamond:wght@400;500&family=Suez+One&display=swap" rel="stylesheet">
   <style>${AUTH_CSS}</style>
 </head>
 <body>
   <div class="login-container">
-    <h1 class="title-hebrew">תחתך</h1>
+    <h1 class="title-hebrew">ת״ח ת״ח</h1>
 `;
 
 const TOTP_FORMS = `
@@ -316,7 +305,6 @@ const CLIENT_BUSY = `
 
 export function loginPage({ askUsername = false } = {}) {
   return `${HEAD('TachTach-Screens — Sign in')}
-    <p class="title-mark">ת״ח ת״ח</p>
     <p class="title-english">Admin Access</p>
 
     <form id="passwordForm" data-first autocomplete="on">
