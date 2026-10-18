@@ -1351,7 +1351,7 @@ router.get('/preview-state', async (req, res) => {
       schedule: getEffectiveSchedule(schedule, scheduleDates, dateStr),
       scheduleDates: scheduleDates ?? {},
       rssFeeds: rssFeeds ?? [],
-      dailyWords: await readDailyWords(), // so the date preview shows that day's word
+      dailyWords: await readDailyWords(), // full history, so a past date previews the word that really showed
       _previewDate: dateStr,
     });
   } catch (err) {

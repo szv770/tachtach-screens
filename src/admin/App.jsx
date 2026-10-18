@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import useSectionRoute from './hooks/useSectionRoute.js';
 import useAdminState from './hooks/useAdminState.js';
-import AdminLayout from './components/AdminLayout.jsx';
+import AdminLayout, { navItems } from './components/AdminLayout.jsx';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
@@ -17,8 +18,11 @@ import DailyWordPanel from './components/DailyWordPanel.jsx';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
+// Admin sections that have their own URL (/admin/<key>); 'help' is the in-app guide.
+const SECTION_KEYS = [...navItems.map((n) => n.key), 'help'];
+
 export default function App() {
-  const [activeSection, setActiveSection] = useState('slides');
+  const [activeSection, setActiveSection] = useSectionRoute(SECTION_KEYS, 'slides');
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   const {

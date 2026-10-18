@@ -2,7 +2,10 @@
  * Daily Word — pure rules shared by the kiosk, admin and server.
  *
  * Data (data/daily-words.json, falls back to the seed list until first save):
- *   { version: 1, order: 'sequential' | 'shuffle', words: [Word] }
+ *   { version: 1, order: 'sequential' | 'shuffle', words: [Word], history: { 'YYYY-MM-DD': Snapshot } }
+ *   history = the word that actually showed each day (recorded by the server); it
+ *   is the archive, and it also fixes a day's word once shown (reordering the list
+ *   later never changes what was already on screen).
  *   Word = {
  *     id, enabled, language ('Yiddish'), word (Hebrew letters), transliteration,
  *     pronunciation (respelling, stressed syllable in CAPS), partOfSpeech,
@@ -98,11 +101,37 @@ export function parseWordsText(text) {
   return normalizeWords(list);
 }
 
-/** Whole-file normaliser (server + kiosk): always returns a usable { order, words }. */
+export const HISTORY_LIMIT = 800;
+
+/** Compact copy of a word for the archive (survives the word being edited or deleted). */
+export function snapshotOf(w) {
+  return { id: w.id, word: w.word || '', transliteration: w.transliteration || '', pronunciation: w.pronunciation || '', meaning: w.meaning || '', language: w.language || DEFAULT_LANGUAGE };
+}
+
+function normalizeHistory(h) {
+  const out = {};
+  if (!h || typeof h !== 'object') return out;
+  Object.keys(h).filter((k) => ISO.test(k)).sort().slice(-HISTORY_LIMIT).forEach((k) => {
+    const e = h[k];
+    if (e && typeof e === 'object' && (e.word || e.transliteration)) {
+      out[k] = { id: str(e.id, 60), word: noRafe(str(e.word, LIMITS.word)), transliteration: chStyle(str(e.transliteration, LIMITS.transliteration)),
+        pronunciation: chStyle(str(e.pronunciation, LIMITS.pronunciation)), meaning: chStyle(str(e.meaning, LIMITS.meaning)), language: str(e.language, 30) || DEFAULT_LANGUAGE };
+    }
+  });
+  return out;
+}
+
+/** Whole-file normaliser (server + kiosk): always returns a usable { order, words, history }. */
 export function normalizeDailyWordsFile(file, seed = []) {
   const hasWords = file && Array.isArray(file.words);
   const { words } = normalizeWords(hasWords ? file.words : seed);
-  return { version: 1, order: file?.order === 'shuffle' ? 'shuffle' : 'sequential', words };
+  return { version: 1, order: file?.order === 'shuffle' ? 'shuffle' : 'sequential', words, history: normalizeHistory(file?.history) };
+}
+
+/** The slice the kiosk needs: the list plus only the last few days of history. */
+export function forKiosk(file, keep = 3) {
+  const keys = Object.keys(file?.history || {}).sort().slice(-keep);
+  return { ...file, history: Object.fromEntries(keys.map((k) => [k, file.history[k]])) };
 }
 
 // ── Picking today's word ────────────────────────────────────────────────────
@@ -143,6 +172,18 @@ function permutation(n, cycle) {
  * (no repeats until every word has been shown).
  */
 export function pickDailyWord(file, iso) {
+  if (!ISO.test(String(iso || ''))) return null;
+  // A day that already happened (or is in progress) keeps the word that was shown.
+  const rec = file?.history?.[iso];
+  if (rec) {
+    const live = (file.words || []).find((w) => w.id === rec.id);
+    return live || { ...rec, convo: [], tags: [], enabled: true, context: '', partOfSpeech: '' };
+  }
+  return pickFromRotation(file, iso);
+}
+
+/** The rotation rule alone (ignores history). */
+export function pickFromRotation(file, iso) {
   const words = (file?.words || []).filter((w) => w && w.enabled !== false);
   if (!words.length || !ISO.test(String(iso || ''))) return null;
   const pinned = words.find((w) => w.showOn === iso);
@@ -156,6 +197,62 @@ export function pickDailyWord(file, iso) {
     return pool[permutation(n, cycle)[((day % n) + n) % n]];
   }
   return pool[((day % n) + n) % n];
+}
+
+/** YYYY-MM-DD + n days (timezone-free). */
+export function addDaysISO(iso, n) {
+  return new Date((dayNumber(iso) + n) * 86400000).toISOString().slice(0, 10);
+}
+
+/**
+ * Record the word shown on `iso` into history if it is not there yet. A pinned
+ * word that has been shown (or whose date has passed) is un-pinned so it rejoins
+ * the rotation. Returns { file, changed }.
+ */
+export function recordShownWord(file, iso) {
+  if (!ISO.test(String(iso || ''))) return { file, changed: false };
+  let changed = false;
+  let words = file.words;
+  const history = { ...(file.history || {}) };
+  if (!history[iso]) {
+    const w = pickFromRotation(file, iso);
+    if (w) { history[iso] = snapshotOf(w); changed = true; }
+  }
+  if (words.some((w) => w.showOn && w.showOn <= iso)) {
+    words = words.map((w) => (w.showOn && w.showOn <= iso ? (() => { const { showOn, ...rest } = w; return rest; })() : w));
+    changed = true;
+  }
+  if (!changed) return { file, changed: false };
+  const keys = Object.keys(history).sort();
+  keys.slice(0, Math.max(0, keys.length - HISTORY_LIMIT)).forEach((k) => delete history[k]);
+  return { file: { ...file, words, history }, changed: true };
+}
+
+/** The next `days` days starting at `startISO`: [{ date, word, pinned, locked }]. */
+export function upcomingWords(file, startISO, days = 14) {
+  return Array.from({ length: days }, (_, i) => {
+    const date = addDaysISO(startISO, i);
+    const word = pickDailyWord(file, date);
+    return { date, word, pinned: !!(word && word.showOn === date), locked: !!file?.history?.[date] };
+  });
+}
+
+/** Archive rows, newest first: [{ date, entry, live }] (live = the word still on the list). */
+export function archiveRows(file) {
+  return Object.keys(file?.history || {}).sort().reverse().map((date) => {
+    const entry = file.history[date];
+    return { date, entry, live: (file.words || []).find((w) => w.id === entry.id) || null };
+  });
+}
+
+/** Pin `wordId` to `iso` (clearing any other word pinned to that day). */
+export function pinWord(file, wordId, iso) {
+  const words = file.words.map((w) => {
+    if (w.id === wordId) return { ...w, showOn: iso, enabled: true };
+    if (w.showOn === iso) { const { showOn, ...rest } = w; return rest; }
+    return w;
+  });
+  return { ...file, words };
 }
 
 /** Split text on *asterisks* into [{ text, em }] for highlighting the word as used. */

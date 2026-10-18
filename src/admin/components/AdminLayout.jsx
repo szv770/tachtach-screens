@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts, setAdminTheme, getAdminThemeName } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
 
-const navItems = [
+export const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts' },
   { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers' },

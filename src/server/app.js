@@ -12,7 +12,8 @@ import screenRouter from './routes/screen.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
-import dailyWordsRouter, { readDailyWords } from './routes/daily-words.js';
+import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
+import { forKiosk } from '../shared/dailyWords.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
@@ -65,6 +66,7 @@ export function createApp() {
       // slides.json predates them (update.sh keeps the Pi's data/). Idempotent.
       try {
         await ensureBuiltinSlides();
+        startDailyWordRecorder();
       } catch (bsErr) {
         console.error('[slides] Built-in slide check failed:', bsErr.message);
       }
@@ -238,7 +240,7 @@ export function createApp() {
         // the kiosk's state refetch would drop SSE schedule-dates-update data.
         scheduleDates: scheduleDates ?? {},
         // Daily Word list ({ order, words }); the kiosk picks today's word from it.
-        dailyWords,
+        dailyWords: forKiosk(dailyWords),
         // Running schedule countdown alert (or null), so a kiosk that
         // reconnects/reloads mid-countdown still shows it. Not persisted.
         countdown: getActiveCountdown(),
@@ -337,7 +339,8 @@ export function createApp() {
     });
 
     // Admin SPA (behind auth, mounted below)
-    app.get('/admin', requireAuth, csrfProtection, (_req, res) => {
+    // /admin and /admin/<section> (e.g. /admin/daily-word): one SPA, the section comes from the URL.
+    app.get(['/admin', /^\/admin\/[a-z0-9-]+\/?$/], requireAuth, csrfProtection, (_req, res) => {
       res.sendFile(path.join(DIST_DIR, 'src/admin/index.html'));
     });
   } else {
@@ -375,7 +378,7 @@ export function createApp() {
       res.status(503).json({ error: devMsg });
     });
 
-    app.get('/admin', (_req, res) => {
+    app.get(['/admin', /^\/admin\/[a-z0-9-]+\/?$/], (_req, res) => {
       res.status(503).json({ error: devMsg });
     });
   }
