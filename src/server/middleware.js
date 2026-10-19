@@ -100,7 +100,17 @@ const PROXY_HEADERS = ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto
  */
 export function isLocalRequest(req) {
   if (!LOOPBACK.includes(req.socket?.remoteAddress)) return false;
+  if (!isLoopbackHost(req.headers?.host)) return false;
   return !PROXY_HEADERS.some((h) => req.headers[h] !== undefined);
+}
+
+/**
+ * The kiosk always browses to 127.0.0.1 / localhost / [::1] (deploy/kiosk-launch.sh), so a kiosk-only
+ * request must name one of those in `Host` (optional port). A missing or foreign Host (DNS-rebinding
+ * page in a browser on the Pi, HTTP/1.0 without Host, a made-up name) is not the kiosk.
+ */
+export function isLoopbackHost(host) {
+  return typeof host === 'string' && /^(127\.0\.0\.1|localhost|\[::1\])(:\d{1,5})?$/i.test(host.trim());
 }
 
 /**
