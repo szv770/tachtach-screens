@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch for a software-update request from the TachTach admin website
+# NOTE: __PROJECT_DIR__ is a placeholder; install-services.sh fills it in.
+# The web server only ever WRITES this one small file (mode 0600). This unit, run by
+# systemd as root, notices it and starts tachtach-update.service, which checks the
+# file before doing anything (deploy/run-update.sh + update-helper.mjs).
+
+[Path]
+PathExists=__PROJECT_DIR__/data/update-request.json
+Unit=tachtach-update.service
+
+[Install]
+WantedBy=multi-user.target

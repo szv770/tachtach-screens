@@ -54,7 +54,8 @@ export function enforceRole(req, res, next) {
   next();
 }
 
-const NOT_LOGGED = /^\/api\/(preview|team|account|me|history)(\/|$)/;
+// system: the software-update routes write their own, more specific activity lines.
+const NOT_LOGGED = /^\/api\/(preview|team|account|me|history|system)(\/|$)/;
 // Loaded on first use: undoIo pulls in the SSE module, whose heartbeat timer would keep short-lived test processes open.
 let undoSvc = null;
 const undoService = async () => (undoSvc ||= (await import('./undoRuntime.js')).undoService);

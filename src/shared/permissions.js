@@ -42,6 +42,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'look.change', group: 'Look and settings', label: 'Change the look', hint: 'Themes, fonts, logo, layout.' },
   { id: 'settings.change', group: 'Look and settings', label: 'Change settings', hint: 'Location, timezone, sources, clean-up.' },
   { id: 'team.manage', group: 'People', label: 'Manage people and security', hint: 'Always admins only.', adminOnly: true },
+  { id: 'system.update', group: 'System', label: 'Update the screen software', hint: 'Always admins only. Runs the update on the Pi.', adminOnly: true },
 ]);
 
 export const CAP_IDS = Object.freeze(CAPABILITIES.map((c) => c.id));
@@ -165,6 +166,8 @@ const SELF = /^\/api\/(me|account|push|history)(\/|$)/; // history: the undo rou
 const PREVIEW = /^\/api\/preview(\/|$)/;
 /** Areas only people-managers may even read. */
 const ADMIN_AREA = /^\/api\/(team|activity)(\/|$)/;
+/** Software update (runs code on the Pi): reading AND writing need system.update, which is adminOnly so nobody but an admin can ever hold it. */
+const SYSTEM_AREA = /^\/api\/system(\/|$)/;
 
 const ANY = null; // any method
 const rule = (cap, methods, re) => ({ cap, methods, re });
@@ -251,6 +254,7 @@ export function canDo(who, method, path, body) {
   const caps = new Set(effectiveCaps(user));
   const m = String(method || 'GET').toUpperCase();
   if (ADMIN_AREA.test(p)) return caps.has('team.manage');
+  if (SYSTEM_AREA.test(p)) return caps.has('system.update');
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return true;
   // The preview feed reaches every open admin panel: only people who change the screen may drive it.
   if (PREVIEW.test(p)) return ['slides.edit', 'screen.control', 'announcements.post', 'look.change'].some((c) => caps.has(c));

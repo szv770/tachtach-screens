@@ -25,3 +25,10 @@ data/users.json
 # Web-push VAPID private key + phone subscriptions (src/server/push.js)
 data/push.json
 data/activity.json
+
+# Software update from the admin website (src/server/systemUpdate.js, deploy/run-update.sh)
+data/update-request.json
+data/update-status.json
+data/update-installed.json
+data/update-notified.json
+data/update-cache.git/

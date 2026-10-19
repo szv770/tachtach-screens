@@ -8,10 +8,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
+import systemUpdateRouter from './routes/systemUpdate.js';
 import pushRouter from './routes/push.js';
 import statusRouter from './routes/status.js';
 import historyRouter from './routes/history.js';
-import { startPushMonitor } from './push.js';
+import { startPushMonitor, sendPush } from './push.js';
+import { startUpdateMonitor } from './systemUpdate.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
@@ -159,6 +161,12 @@ export function createApp() {
         await startPushMonitor();
       } catch (pushErr) {
         console.error('[push] Startup error:', pushErr.message);
+      }
+      // Phone alert when a software update (asked for from the admin) finishes
+      try {
+        await startUpdateMonitor({ send: (m) => sendPush(m) });
+      } catch (updErr) {
+        console.error('[update] Startup error:', updErr.message);
       }
       // Initialize Mivtzah leaderboard scheduler
       try {
@@ -459,6 +467,7 @@ export function createApp() {
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api', teamRouter);
+  app.use('/api', systemUpdateRouter); // admin-only software update (writes one request file; a root unit does the work)
   app.use('/api', pushRouter);
   app.use('/api', statusRouter); // /screen/status + /health (read-only)
   app.use('/api', historyRouter); // /history + undo

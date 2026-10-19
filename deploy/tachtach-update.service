@@ -1,0 +1,20 @@
+[Unit]
+Description=TachTach-Screens software update (asked for from the admin website)
+# Started only by tachtach-update.path. The settings come from /etc/tachtach-update.env,
+# which install-services.sh writes (project folder + the app's user). Nothing the web
+# server writes can change them.
+After=network-online.target
+Wants=network-online.target
+# A request that is refused must not be able to make systemd give up on the path unit.
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/tachtach-update.env
+# A root-owned copy that install-services.sh keeps current: root never runs a file the app's user can edit.
+ExecStart=/usr/local/lib/tachtach-update/run-update.sh
+TimeoutStartSec=1800
+Nice=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tachtach-update

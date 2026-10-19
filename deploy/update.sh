@@ -9,14 +9,32 @@
 #  (Replace <your-user> with whatever username you chose in Raspberry Pi
 #  Imager — this script does not assume the username is "pi".)
 #
+#  The admin website's "Software update" card runs this too, through
+#  deploy/run-update.sh (as the app's user, never as root). Then run-update.sh
+#  sets these, and only these, from its own code:
+#    TT_UPDATE_SPLIT=1       skip the sudo steps (units + restarts); run-update.sh does them as root
+#    TT_UPDATE_MODE=rollback go back to TT_ROLLBACK_TO (a full commit hash) instead of pulling
+#  It prints "TT_STAGE=<pull|deps|build>" markers so run-update.sh knows how far it got.
+#
 # ============================================================================
 
 set -e
 
+# Run from a private copy of this file: `git pull` / `git reset` below may rewrite
+# deploy/update.sh while bash is still reading it, which can run garbage. The copy
+# is unlinked at once (bash keeps its open handle), so nothing is left behind.
+if [ -z "${TT_UPDATE_COPY:-}" ]; then
+  _real="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _copy="$(mktemp)"
+  cp "${BASH_SOURCE[0]}" "$_copy"
+  TT_UPDATE_COPY=1 TT_UPDATE_REAL_DIR="$_real" exec bash "$_copy" "$@"
+fi
+rm -f -- "$0"
+
 # Project directory: derived from where this script actually lives
 # (repo-root/deploy/update.sh), so it works regardless of the clone location
 # or username — no assumption about /home/pi needed.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="${TT_UPDATE_REAL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_FILE="$HOME/tachtach-update.log"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
@@ -60,8 +78,20 @@ if [ "${#CHANGED[@]}" -gt 0 ]; then
   git checkout -- "${CHANGED[@]}"
 fi
 
-log "Pulling latest code..."
-git pull --ff-only
+echo "TT_STAGE=pull"
+if [ "${TT_UPDATE_MODE:-update}" = "rollback" ]; then
+  # Go back to an exact earlier commit (the same data-file protection as an update applies).
+  if ! [[ "${TT_ROLLBACK_TO:-}" =~ ^[0-9a-f]{40}$ ]]; then
+    log "Refusing to roll back: not a full commit hash"
+    exit 1
+  fi
+  git cat-file -e "${TT_ROLLBACK_TO}^{commit}"
+  log "Putting back version ${TT_ROLLBACK_TO:0:7}..."
+  git reset --hard "$TT_ROLLBACK_TO"
+else
+  log "Pulling latest code..."
+  git pull --ff-only
+fi
 
 if [ "${#CHANGED[@]}" -gt 0 ]; then
   restore_data
@@ -71,6 +101,7 @@ if [ "${#CHANGED[@]}" -gt 0 ]; then
   ls -1dt "$BACKUP_ROOT"/*/ 2>/dev/null | tail -n +11 | xargs -r rm -rf
 fi
 
+echo "TT_STAGE=deps"
 log "Installing dependencies..."
 # NOTE: must NOT use --omit=dev — "npm run build" runs `vite build`, and vite
 # is a devDependency. Omitting dev deps here means the very next line fails
@@ -79,8 +110,14 @@ log "Installing dependencies..."
 # installed on the Pi.
 npm ci
 
+echo "TT_STAGE=build"
 log "Building frontend..."
 npm run build
+
+if [ "${TT_UPDATE_SPLIT:-0}" = "1" ]; then
+  log "=== Code and build ready; the units and restarts are done by run-update.sh ==="
+  exit 0
+fi
 
 log "Refreshing systemd units..."
 # Re-render + reinstall the units every update so fixes to deploy/*.service
