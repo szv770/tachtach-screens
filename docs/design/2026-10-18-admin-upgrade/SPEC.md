@@ -60,3 +60,8 @@ Banner scrolling (admin chooses), sicha auto-size, quick-time sizing + countdown
 
 ## Build phases (owner approves each)
 0 design system + mockups → 1 shell/nav/search/save bar → 2 Look & Settings + roles → 3 Screen/Media/popups → 4 Schedule wizard → 5 Announce/quick messages/letters → 6 extras → parallel kiosk track.
+
+## Phase 0 outcome (owner, 2026-10-19)
+- **Direction A "Seal" chosen, fully** (mockups/direction-a.html, DESIGN-NOTES.md). Tab bar: Home · Screen · + · Schedule · Announce; **Look & Settings behind the header gear** (also a Home tile). Adopt from B only: small area-colour markers (sidebar group headings, Home tiles) and the sideways "kinds" row at the top of the "+" sheet.
+- Live preview under 1280px wide = slide-over panel opened from a button. **Also an "Open live preview in a new tab" button** (`/screen?preview=true`) on desktop and mobile.
+- Fonts bundled via @fontsource (Fraunces, Manrope, Rubik already in package.json), not Google Fonts.
