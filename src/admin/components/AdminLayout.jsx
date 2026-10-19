@@ -5,6 +5,7 @@ import { navItems, AREAS, LOOK_GROUPS, areaOfSection, areaInfo, sectionInfo, sec
 import Icon from './ui/Icon.jsx';
 import SegmentedControl from './ui/SegmentedControl.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
+import FreezeBanner from './FreezeBanner.jsx';
 
 export { navItems };
 
@@ -227,6 +228,7 @@ export default function AdminLayout({
         </div>
 
         <main style={{ flex: 1, minWidth: 0, padding: `4px 16px calc(var(--tt-tabbar-h) + 32px + env(safe-area-inset-bottom))` }}>
+          <FreezeBanner me={me} />
           {heading}
           {subNav}
           {children}
@@ -366,6 +368,7 @@ export default function AdminLayout({
         </header>
 
         <main style={{ padding: '24px 32px calc(96px + env(safe-area-inset-bottom))', minWidth: 0 }}>
+          <FreezeBanner me={me} />
           {heading}
           {subNav}
           {children}

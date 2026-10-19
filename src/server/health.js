@@ -37,16 +37,20 @@ export function screenStatus() {
   };
 }
 
-let dirMemo = { at: 0, v: null };
+let dirMemo = { mtime: null, v: null };
+// Uploads are write-once, so the folder's own modified time says when to look again (a Fix that clears files shows at once).
 async function uploadsInfo() {
-  if (dirMemo.v && Date.now() - dirMemo.at < 60_000) return dirMemo.v;
+  const dir = path.join(DATA, 'uploads');
+  let mtime = null;
+  try { mtime = (await stat(dir)).mtimeMs; } catch { /* no uploads dir yet */ }
+  if (dirMemo.v && mtime !== null && dirMemo.mtime === mtime) return dirMemo.v;
   let bytes = 0; let count = 0;
   try {
-    for (const f of await readdir(path.join(DATA, 'uploads'))) {
-      try { const st = await stat(path.join(DATA, 'uploads', f)); if (st.isFile()) { bytes += st.size; count++; } } catch { /* vanished */ }
+    for (const f of await readdir(dir)) {
+      try { const st = await stat(path.join(dir, f)); if (st.isFile()) { bytes += st.size; count++; } } catch { /* vanished */ }
     }
   } catch { /* no uploads dir yet */ }
-  dirMemo = { at: Date.now(), v: { bytes, count } };
+  dirMemo = { mtime, v: { bytes, count } };
   return dirMemo.v;
 }
 
