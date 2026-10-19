@@ -8,6 +8,12 @@ export const opsApi = {
   screenStatus: () => apiFetch('/api/screen/status'),
   /** `clientNow` lets the server compare its clock with this device's. */
   health: () => apiFetch(`/api/health?clientNow=${Date.now()}`),
+  /** Software update (admin only): what is installed + what is waiting; `refresh` asks the code host again. */
+  updateInfo: (refresh = false) => apiFetch(`/api/system/update${refresh ? '?refresh=1' : ''}`),
+  /** Light and fast (no git): used while an update runs and by the shell banner. */
+  updateStatus: () => apiFetch('/api/system/update/status'),
+  /** action is exactly 'update' or 'rollback'; the server re-checks the password (+ 2-step code). */
+  requestUpdate: ({ action, password, code }) => apiFetch('/api/system/update', { method: 'POST', body: JSON.stringify({ action, password, code }) }),
   history: (limit = 100) => apiFetch(`/api/history?limit=${limit}`),
   undo: (id) => post(`/api/history/${encodeURIComponent(id)}/undo`),
   /**

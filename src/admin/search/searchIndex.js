@@ -50,6 +50,8 @@ export const SETTINGS_INDEX = [
   S('security', 'Trusted devices (2-step)', 'security remember device forget totp', { anchor: 'set-security' }),
   S('health', 'System health (is everything working?)', 'health check status online offline screen connected zmanim fresh stale disk space storage clock time fix errors feeds albums certificate poppler pdf backups uptime', { match: 'System health' }),
   S('health', 'Is the screen online? (last seen)', 'online offline connected tv last seen reconnect', { match: 'Screen connected' }),
+  // admin-only: `needs` = the section whose access decides who sees this result (Team is admin-only)
+  S('health', 'Update the screen software (Software update)', 'update upgrade new version latest code pi raspberry run update.sh roll back rollback previous version restart', { anchor: 'update-card', match: 'Software update', needs: 'team' }),
   S('health', 'Disk space left', 'storage full space uploads size clear cleanup', { match: 'Disk space' }),
   S('history', 'Recent changes and Undo (who changed what)', 'history undo log activity revert restore mistake who changed deleted edited paused', { match: 'Recent changes' }),
   S('this-screen', 'Screen name', 'site name school title sidebar home', { anchor: 'look-site-name' }),
@@ -117,6 +119,7 @@ export const QUICK_ACTIONS = [
   { id: 'qa-change-today', title: 'Change today\'s schedule', keywords: 'one day override cancel move time add one-off special schedule today', action: { type: 'change-day', when: 'today' }, icon: 'calendar', needs: 'schedule' },
   { id: 'qa-history', title: 'Recent changes (Undo)', keywords: 'history undo who changed what revert mistake', action: { type: 'go', section: 'history' }, icon: 'history', needs: 'history' },
   { id: 'qa-health', title: 'System health check', keywords: 'status working online offline disk zmanim fresh fix problems', action: { type: 'go', section: 'health' }, icon: 'pulse', needs: 'health' },
+  { id: 'qa-update', title: 'Update the screen software', keywords: 'upgrade new version latest pi run update.sh roll back rollback', action: { type: 'go', section: 'health', match: 'Software update' }, icon: 'refresh', needs: 'team' },
   { id: 'qa-pause', title: 'Pause the screen', keywords: 'stop rotation hold freeze', action: { type: 'command', name: 'pause' }, icon: 'pause', needs: 'slides' },
   { id: 'qa-resume', title: 'Resume the screen', keywords: 'play continue unpause', action: { type: 'command', name: 'resume' }, icon: 'play', needs: 'slides' },
   { id: 'qa-blank', title: 'Blank the screen', keywords: 'black off hide', action: { type: 'command', name: 'blank' }, icon: 'close', needs: 'slides' },
@@ -224,7 +227,7 @@ export function search(query, { state = {}, role } = {}) {
   }
 
   for (const [i, e] of SETTINGS_INDEX.entries()) {
-    if (!can(e.section)) continue;
+    if (!can(e.needs || e.section)) continue;
     const crumb = crumbOf(e.section);
     const s = score(tokens, { title: e.title, keywords: e.keywords, crumb });
     if (s) push('settings', { id: `set-${i}`, title: e.title, sub: crumb, icon: 'gear', action: e.slide ? { type: 'slide-popup', section: e.section, slide: e.slide } : { type: 'go', section: e.section, tab: e.tab, anchor: e.anchor, match: e.match } }, s);
