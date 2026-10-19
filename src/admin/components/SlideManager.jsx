@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
@@ -8,6 +8,7 @@ import { notify } from '../hooks/useAdminState.js';
 import Icon from './ui/Icon.jsx';
 import NewSlideFlow from './slides/NewSlideFlow.jsx';
 import SlideEditSheet from './slides/SlideEditSheet.jsx';
+import { SLIDE_OPEN_EVENT, takeSlideOpen } from './slides/openRequest.js';
 import { slideTitle, isDeletable, isEmbedType } from './slides/slideTypes.js';
 
 const STATUS_TEXT = { draft: 'Draft', scheduled: 'Scheduled', paused: 'Paused', archived: 'Ended' };
@@ -69,6 +70,22 @@ export default function SlideManager({
     setDragIdx(null); setDragOverIdx(null);
     if (from !== null && to !== null) move(from, to);
   };
+
+  // Requests from search: open "New slide" or one slide's popup (the first slide of that type).
+  useEffect(() => {
+    const run = (req) => {
+      if (!req || !canEdit) return;
+      if (req.kind === 'new') setNewOpen(true);
+      else if (req.kind === 'edit') {
+        const s = slidesRef.current.find((x) => x.type === req.type);
+        if (s) setEditId(s.id); else notify('That slide is not in your list yet. Use New slide to add it.', 'error');
+      }
+    };
+    run(takeSlideOpen());
+    const on = (e) => { takeSlideOpen(); run(e.detail); };
+    window.addEventListener(SLIDE_OPEN_EVENT, on);
+    return () => window.removeEventListener(SLIDE_OPEN_EVENT, on);
+  }, [canEdit]);
 
   // Go to another admin page; the popup closes if the move really happens.
   const go = (section, opts) => {
@@ -166,7 +183,9 @@ export default function SlideManager({
                 ? (ann && canEditAnn && (
                   <button type="button" style={iconBtn} onClick={() => onEditAnnouncement?.(ann)} aria-label={`Edit message: ${title(slide)}`} title="Edit this message" data-testid="slide-pencil"><Pencil /></button>
                 ))
-                : (canEdit && (
+                : !canEdit && canDelete && isDeletable(slide)
+                  ? <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmDelete(slide)} aria-label={`Delete ${title(slide)}`} title="Delete this slide" data-testid="slide-delete-inline">{'\u00D7'}</button>
+                  : (canEdit && (
                   <button type="button" style={iconBtn} onClick={() => setEditId(slide.id)} aria-label={`Edit ${title(slide)}`} title="This slide's options" data-testid="slide-pencil"><Pencil /></button>
                 ))}
             </div>
