@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import { safeFetch } from '../server/safeFetch.js';
 import { XMLParser } from 'fast-xml-parser';
 
 const UA = 'Mozilla/5.0 (compatible; TachTach-Screens/1.0)';
@@ -50,13 +50,11 @@ function normalizeItem(raw) {
  * @param {string} url - The feed URL
  * @returns {Promise<{ items: object[], feedTitle: string, availableFields: string[] }>}
  */
-export async function fetchRSSFeed(url) {
-  const resp = await fetch(url, {
-    headers: { 'User-Agent': UA },
-    timeout: 15000,
-  });
+export async function fetchRSSFeed(url, fetchOpts = {}) {
+  // Feed URLs are typed by admins: always through the SSRF-safe fetch (private addresses refused, redirects re-checked, size/time capped).
+  const resp = await safeFetch(url, { headers: { 'User-Agent': UA }, timeoutMs: 15000, maxBytes: 5 * 1024 * 1024, ...fetchOpts });
   if (!resp.ok) throw new Error(`HTTP ${resp.status} fetching feed`);
-  const xml = await resp.text();
+  const xml = resp.text();
 
   const parser = new XMLParser({
     ignoreAttributes: false,

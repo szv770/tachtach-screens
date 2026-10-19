@@ -6,56 +6,28 @@
  * forbid framing. SSRF-guarded: http(s) only, and the host must not resolve to
  * a loopback / private / link-local address (also re-checked after redirects).
  */
-import { clientError, isClientError, networkReason } from '../safeError.js';
+import { isClientError, networkReason } from '../safeError.js';
 import { Router } from 'express';
-import dns from 'dns/promises';
-import fetch from 'node-fetch';
-import { normalizeWebUrl, evaluateFramePolicy, isPrivateAddress } from '../../shared/embedCheck.js';
+import { normalizeWebUrl, evaluateFramePolicy } from '../../shared/embedCheck.js';
+import { safeFetch } from '../safeFetch.js';
 import { kioskOrigin, isLocalTlsEnabled } from '../localTls.js';
 
 const UA = 'Mozilla/5.0 (X11; Linux aarch64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
-const MAX_REDIRECTS = 5;
-
-async function assertPublic(u) {
-  const host = u.hostname.replace(/^\[|\]$/g, '');
-  if (isPrivateAddress(host)) throw clientError('That address is on a private network.');
-  const addrs = await dns.lookup(host, { all: true });
-  if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) throw clientError('That address is on a private network.');
-}
-
 /**
- * Headers of the final page (follows up to MAX_REDIRECTS, re-checking every hop).
- * node-fetch v3 has no `timeout` option, so an AbortController bounds the whole
- * thing: a site that never answers must not hold the admin request open until the
- * Cloudflare tunnel gives up on it (that surfaced as a raw "502 Bad gateway" page).
- * `guard` is injectable for tests only.
+ * Headers of the final page via the shared safeFetch (resolves + vets the address, connects to
+ * that vetted IP so DNS rebinding cannot swap it, re-checks every redirect hop, bounded by a
+ * timeout so a stalled site cannot hold the admin request open until the tunnel answers 502).
+ * `guard` (test only) is called for every hop and turns the private-address check off so
+ * tests can use a local server.
  */
-export async function fetchHeaders(startUrl, { guard = assertPublic, timeoutMs = 10000 } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    let url = startUrl;
-    for (let i = 0; i <= MAX_REDIRECTS; i++) {
-      await guard(new URL(url));
-      const res = await fetch(url, { method: 'GET', redirect: 'manual', signal: ctrl.signal, headers: { 'User-Agent': UA, Accept: 'text/html,*/*' } });
-      // We only need the headers: drop the body without letting a stream error escape.
-      res.body?.on?.('error', () => {});
-      res.body?.destroy?.();
-      if (res.status >= 300 && res.status < 400 && res.headers.get('location')) {
-        url = new URL(res.headers.get('location'), url).toString();
-        continue;
-      }
-      const headers = {};
-      res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
-      return { status: res.status, headers, finalUrl: url };
-    }
-    throw clientError('Too many redirects.');
-  } catch (err) {
-    if (ctrl.signal.aborted) throw clientError('The site took too long to answer (over 10 seconds).');
-    throw err;
-  } finally {
-    clearTimeout(timer);
-  }
+export async function fetchHeaders(startUrl, { guard, timeoutMs = 10000, ...rest } = {}) {
+  const res = await safeFetch(startUrl, {
+    timeoutMs, headersOnly: true,
+    headers: { 'User-Agent': UA, Accept: 'text/html,*/*' },
+    ...(guard ? { onHop: guard, isPrivate: () => false } : {}),
+    ...rest,
+  });
+  return { status: res.status, headers: res.headers, finalUrl: res.url };
 }
 
 const router = Router();

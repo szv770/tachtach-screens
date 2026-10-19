@@ -19,6 +19,7 @@ import { extractAlbumId } from '../../fetchers/google-photos.js';
 import { initCountdowns } from '../countdown.js';
 import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
+import { parseFeedUrl, isGoogleAlbumUrl } from '../urlRules.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import users from '../users.js';
 import { normalizeSettings } from '../settings-migrate.js';
@@ -857,7 +858,7 @@ router.post('/google-album', async (req, res) => {
       return res.status(400).json({ error: 'Album URL is required.' });
     }
     const url = req.body.url.trim();
-    if (!url.includes('photos.google.com/share/') && !url.includes('photos.app.goo.gl/')) {
+    if (!isGoogleAlbumUrl(url)) {
       return res.status(400).json({ error: 'Invalid Google Photos shared album URL.' });
     }
 
@@ -1091,7 +1092,7 @@ router.post('/rss/preview', async (req, res) => {
     if (!url || typeof url !== 'string') {
       return res.status(400).json({ error: 'Feed URL is required.' });
     }
-    try { new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL format.' }); }
+    if (!parseFeedUrl(url)) return res.status(400).json({ error: 'Enter a web address starting with http:// or https://' });
 
     const result = await fetchRSSFeed(url.trim());
     res.json(result);
@@ -1120,6 +1121,7 @@ router.post('/rss/feeds', async (req, res) => {
     if (!name || typeof name !== 'string') {
       return res.status(400).json({ error: 'Feed name is required.' });
     }
+    if (!parseFeedUrl(url)) return res.status(400).json({ error: 'Enter a web address starting with http:// or https://' });
     const allowedMappingKeys = ['primary', 'secondary', 'body', 'attribution'];
     const safeMapping = {};
     if (mapping && typeof mapping === 'object') {
@@ -1166,6 +1168,10 @@ router.put('/rss/feeds/:id', async (req, res) => {
     }
 
     const updates = pick(req.body, RSS_FEED_FIELDS);
+    if ('url' in updates && !(typeof updates.url === 'string' && parseFeedUrl(updates.url))) {
+      return res.status(400).json({ error: 'Enter a web address starting with http:// or https://' });
+    }
+    if (typeof updates.url === 'string') updates.url = updates.url.trim();
     if (updates.mapping && typeof updates.mapping === 'object') {
       const allowedMappingKeys = ['primary', 'secondary', 'body', 'attribution'];
       const safeMapping = {};

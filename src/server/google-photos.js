@@ -3,7 +3,8 @@ import { fileURLToPath } from 'url';
 import { mkdir, readdir, unlink, writeFile, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import sharp from 'sharp';
-import fetch from 'node-fetch';
+import { safeFetch } from './safeFetch.js';
+import { isGooglePhotoHost } from './urlRules.js';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchGooglePhotosAlbum, extractAlbumId } from '../fetchers/google-photos.js';
 import { broadcast } from './sse.js';
@@ -75,10 +76,11 @@ async function writeManifest(albumId, data) {
  * @returns {{ filename, blurFilename, width, height, dominantColor, sourceUrl }}
  */
 async function downloadAndProcessPhoto(url, albumDir) {
-  const res = await fetch(url, { timeout: 30000 });
+  // The URL came out of a scraped page: only Google's image hosts, public addresses, capped size.
+  const res = await safeFetch(url, { timeoutMs: 30000, maxBytes: 50 * 1024 * 1024, httpsOnly: true, allowHost: isGooglePhotoHost });
   if (!res.ok) throw new Error(`Failed to download photo: ${res.status}`);
 
-  const buffer = Buffer.from(await res.arrayBuffer());
+  const buffer = res.body;
   const id = uuidv4();
 
   // Resize to fit 1920x1080

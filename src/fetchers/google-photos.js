@@ -1,4 +1,5 @@
-import fetch from 'node-fetch';
+import { safeFetch } from '../server/safeFetch.js';
+import { isGoogleAlbumUrl, isGoogleAlbumHost } from '../server/urlRules.js';
 import { withBrowserPage } from './browserFetch.js';
 
 // Google's shared-album page only embeds the first batch of photos in its
@@ -72,9 +73,9 @@ export function mergeBaseUrls(primary, secondary) {
 
 function checkAlbumUrl(albumUrl, allowLocal) {
   if (!albumUrl || typeof albumUrl !== 'string') throw new Error('Album URL is required');
-  if (albumUrl.includes('photos.google.com/share/') || albumUrl.includes('photos.app.goo.gl/')) return;
+  if (isGoogleAlbumUrl(albumUrl)) return;
   // Test-only escape hatch; production validation is unchanged.
-  const local = allowLocal === true || process.env.NODE_ENV === 'test';
+  const local = allowLocal === true;
   if (local && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(albumUrl)) return;
   throw new Error('Invalid Google Photos shared album URL');
 }
@@ -88,10 +89,14 @@ export async function fetchAlbumPlain(albumUrl, opts = {}) {
   checkAlbumUrl(albumUrl, opts.allowLocal);
   let html;
   try {
-    const res = await fetch(albumUrl, {
+    const local = opts.allowLocal === true;
+    const res = await safeFetch(albumUrl, {
       headers: { 'User-Agent': UA, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9' },
-      redirect: 'follow',
-      timeout: 15000,
+      timeoutMs: 15000, maxBytes: 20 * 1024 * 1024,
+      // Every redirect hop must stay on Google's hosts and a public address (test servers on loopback only when allowLocal).
+      ...(local && /^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(albumUrl)
+        ? { isPrivate: () => false }
+        : { httpsOnly: true, allowHost: isGoogleAlbumHost }),
     });
     if (!res.ok) {
       if (res.status === 404) throw new Error('Album not found. The link may be invalid or the album may have been deleted.');

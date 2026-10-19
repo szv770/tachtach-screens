@@ -13,6 +13,7 @@
  */
 import webpush from 'web-push';
 import { readJSON, writeJSON } from './storage.js';
+import { isAllowedPushEndpoint } from './urlRules.js';
 
 const FILE = 'push.json';
 const MAX_SUBS_PER_USER = 10;
@@ -47,12 +48,15 @@ export async function getPublicKey() {
 
 /** Accepts only a well-formed browser PushSubscription. */
 export function validSubscription(s) {
-  return !!s && typeof s.endpoint === 'string' && /^https:\/\//.test(s.endpoint) && s.endpoint.length < 1000
-    && !!s.keys && typeof s.keys.p256dh === 'string' && typeof s.keys.auth === 'string';
+  return !!s && typeof s.endpoint === 'string' && isAllowedPushEndpoint(s.endpoint)
+    && !!s.keys && typeof s.keys.p256dh === 'string' && typeof s.keys.auth === 'string'
+    && s.keys.p256dh.length <= 200 && s.keys.auth.length <= 100;
 }
 
 export async function subscribe(userId, sub, ua = '') {
+  if (!validSubscription(sub)) throw new Error('Not a valid push subscription.');
   const d = await load();
+  d.subscriptions = d.subscriptions.filter((x) => isAllowedPushEndpoint(x.endpoint));
   d.subscriptions = d.subscriptions.filter((x) => x.endpoint !== sub.endpoint);
   d.subscriptions.push({
     endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth },
@@ -82,7 +86,8 @@ export async function subscriptionCount(userId) {
 export async function sendPush({ title, body, tag, url = '/admin' }, { userId } = {}) {
   await vapid();
   const d = await load();
-  const targets = d.subscriptions.filter((x) => !userId || x.userId === userId);
+  // Never send to an endpoint outside the known push services, even one stored before this rule existed.
+  const targets = d.subscriptions.filter((x) => isAllowedPushEndpoint(x.endpoint) && (!userId || x.userId === userId));
   const payload = JSON.stringify({ title, body, tag, url });
   const dead = new Set();
   let sent = 0;
