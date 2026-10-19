@@ -20,6 +20,7 @@ import { initCountdowns } from '../countdown.js';
 import { runCleanup } from '../cleanup.js';
 import { fetchRSSFeed, RSS_FIELDS } from '../../fetchers/rss.js';
 import { parseFeedUrl, isGoogleAlbumUrl } from '../urlRules.js';
+import { sniffLogoType, LOGO_EXTS } from '../logoType.js';
 import { refreshRSSFeed, refreshAllRSSFeeds, startRSSScheduler, stopRSSTimer } from '../rss-scheduler.js';
 import users from '../users.js';
 import { normalizeSettings } from '../settings-migrate.js';
@@ -687,7 +688,6 @@ router.post('/preview', (req, res) => {
 // ── Logo upload (credit line logo) ───────────────────────────────────────
 
 const LOGO_TYPES = ['image/jpeg', 'image/png', 'image/svg+xml', 'image/webp'];
-const LOGO_EXTS = ['.jpg', '.jpeg', '.png', '.svg', '.webp'];
 const logoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
@@ -712,7 +712,12 @@ router.post('/logo', (req, res, next) => {
     if (!req.file) return res.status(400).json({ error: 'No logo file provided.' });
 
     const { writeFile: wf } = await import('fs/promises');
-    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    // The type comes from the bytes (not the file name or the declared Content-Type); the stored extension is the sniffed one.
+    const sniffed = sniffLogoType(req.file.buffer);
+    if (!sniffed || !LOGO_EXTS.includes(sniffed.ext) || sniffed.mime !== req.file.mimetype) {
+      return res.status(400).json({ error: 'That file is not a valid logo. Use a JPEG, PNG, WebP or plain SVG picture.' });
+    }
+    const ext = sniffed.ext;
     const id = uuidv4();
     const filename = `logo-${id}${ext}`;
     const uploadsDir = path.resolve(__apiDirname, '../../../data/uploads');
