@@ -19,12 +19,13 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | Slides | Limudim language/items | Popup on Limudim (`limudimLang`, `limudimItems`) | OK (PATCH) |
 | Slides | Hayom Yom language | Popup on Hayom Yom (`hayomYomLang`; also Look & Settings > What shows) | OK |
 | Slides | Weather units + rail readout | Popup on Weather (`weather.units`, `weather.enabled`; also Location & weather) | OK |
-| Slides | Web page address / reload / zoom / check | Popup on a Web page slide (`embedUrl`, `webRefreshSec`, `webZoom`, `/api/embed-probe`); created in New slide or Media > Web pages | OK |
+| Slides | Web page address / reload / zoom / check | Media > Web pages (`embedUrl`, `webRefreshSec`, `webZoom`, `/api/embed-probe`); created in New slide or there | OK |
 | Slides | Mivtzah embed URL | Popup on the embed slide | OK |
 | Slides | Image fit mode + edge treatment (`displayMode`, `edgeTreatment`) | Popup on an Image slide | OK |
-| Slides | Google Photos layout/seconds/order/Ken Burns | Popup on a Photos slide (slide fields only; album sync/limit stay in Media > Photo albums) | OK |
-| Slides | News feed item + look (`rssDisplayMode`, `style`) | Popup on a feed slide | OK |
-| Slides | Schedule / Daily Word slide | Popup has the seconds plus an "Open Schedule" / "Open Daily Word" link | OK |
+| Slides | Google Photos / News feed / Web page slide options | Pencil goes to Media (`?tab=photos` / `feeds` / `web`), no popup | OK |
+| Slides | PDF: upload, pages, seconds per page, fit | Media > Library upload (.pdf) -> Add to screen (seconds per page); popup on a PDF slide (`pageSeconds`, `displayMode`, `edgeTreatment`); server `pdf.js`, needs poppler-utils | OK |
+| Slides | Delete a message from the slide list | x + confirm sheet + Undo (`announcements.delete`) | OK |
+| Slides | Schedule / Daily Word slide | Pencil goes straight to /admin/schedule or /admin/daily-word | OK |
 | Slides | Video slide URL, image blur backdrop | Media upload | Fixed (server whitelist dropped `videoUrl`/`blurUrl`/`edgeTreatment`/`isGif`, so new videos were blank) |
 | Slides | Delete custom slides (needs `slides.delete`) | Popup > Delete (people with delete only get a x on the row); built-in pages can only be switched off; messages are deleted in Announcements | OK |
 | Daily Word | Edit a word from "Coming up" | Pencil on every row opens the in-place form (edits the list word by id, so pinned / ordered / today's rows all work; Archive untouched) | OK |
