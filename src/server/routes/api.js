@@ -433,6 +433,8 @@ router.put('/schedule/entries/:id', async (req, res) => {
       return res.status(404).json({ error: 'Schedule entry not found.' });
     }
     schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body), id: req.params.id };
+    // Sending an empty/invalid `stages` clears the stored override (pickScheduleEntry drops it, so the merge would keep the old one).
+    if (req.body && 'stages' in req.body && !sanitizeStages(req.body.stages)) delete schedule.entries[idx].stages;
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));

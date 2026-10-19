@@ -26,6 +26,8 @@ export const scheduleApi = {
   deleteBlock: (id) => apiFetch(`/api/schedule/blocks/${id}`, { method: 'DELETE' }),
   weeklyPreview: (text) => apiFetch('/api/schedule/weekly/preview', json('POST', { text })),
   weeklyApply: (text) => apiFetch('/api/schedule/weekly', json('PUT', { text })),
+  // Structured save used by the wizard / week view: same all-or-nothing + Auto-backup as a paste.
+  weeklySave: (entries) => apiFetch('/api/schedule/weekly', json('PUT', { entries })),
   zmanim: (dates) => apiFetch(`/api/schedule/zmanim?dates=${dates.join(',')}`),
 };
 

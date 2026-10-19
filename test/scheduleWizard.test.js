@@ -146,3 +146,38 @@ test('stages survive entry normalization and the date resolver; old entries get 
   const eff = getEffectiveSchedule({ entries: [{ id: 'a', name: 'S', time: '09:00', stages: { inSession: true } }], categories: cats }, {}, '2026-10-19');
   assert.deepEqual(eff.entries[0].stages, { inSession: true });
 });
+
+import { blocksOnDay, copyDay, withoutDay, splitForDay } from '../src/shared/scheduleWeek.js';
+
+const WEEK = [
+  { id: '1', name: 'Shacharis', time: '07:30', days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'] },
+  { id: '2', name: 'Seder', time: '09:00', days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'] },
+  { id: '3', name: 'Kabbalas Shabbos', time: '18:00', days: ['Fri'] },
+  { id: '4', name: 'Kiddush', time: '11:00', days: ['Shabbos'] },
+];
+
+test('blocksOnDay: sorted, includes the right days', () => {
+  assert.deepEqual(blocksOnDay(WEEK, 5).map((e) => e.name), ['Shacharis', 'Kabbalas Shabbos']);
+  assert.deepEqual(blocksOnDay(WEEK, 6).map((e) => e.name), ['Kiddush']);
+});
+
+test('copyDay: targets end up with exactly the source day, blocks stay shared', () => {
+  const out = copyDay(WEEK, 0, [5, 6]); // Sunday -> Fri + Shabbos
+  assert.deepEqual(blocksOnDay(out, 5).map((e) => e.name), ['Shacharis', 'Seder']);
+  assert.deepEqual(blocksOnDay(out, 6).map((e) => e.name), ['Shacharis', 'Seder']);
+  assert.equal(out.find((e) => e.name === 'Kabbalas Shabbos'), undefined); // had only Fri -> dropped
+  assert.equal(out.find((e) => e.name === 'Kiddush'), undefined);
+  assert.deepEqual(blocksOnDay(out, 3).map((e) => e.name), ['Shacharis', 'Seder']); // untouched
+  assert.equal(WEEK[2].days.length, 1); // input not mutated
+  assert.equal(copyDay(WEEK, 0, []).length, WEEK.length);
+});
+
+test('withoutDay / splitForDay: change only one day', () => {
+  assert.equal(withoutDay({ days: ['Fri'] }, 5), null);
+  assert.deepEqual(withoutDay({ days: ['Thu', 'Fri'] }, 5).days, ['Thu']);
+  const out = splitForDay(WEEK, '2', 2, { time: '10:00' });
+  assert.deepEqual(blocksOnDay(out, 2).map((e) => `${e.name}@${e.time}`), ['Shacharis@07:30', 'Seder@10:00']);
+  assert.deepEqual(blocksOnDay(out, 3).map((e) => `${e.name}@${e.time}`), ['Shacharis@07:30', 'Seder@09:00']);
+  assert.equal(out.filter((e) => e.name === 'Seder').length, 2);
+  assert.equal(out.find((e) => e.name === 'Seder' && e.time === '10:00').id, undefined);
+});

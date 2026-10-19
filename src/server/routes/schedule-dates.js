@@ -295,7 +295,7 @@ router.put('/weekly', async (req, res) => {
         // Structured save (schedule wizard / week view): same all-or-nothing + auto-backup rules as a paste.
         const built = buildWeeklyFromStructured(req.body.entries, schedule.categories || []);
         if (built.errors.length) {
-          return { status: 400, body: { error: `Nothing was saved — fix ${built.errors.length} error${built.errors.length === 1 ? '' : 's'} first.`, errors: built.errors.map((message) => ({ line: null, message })) } };
+          return { status: 400, body: { error: `Nothing was saved — fix ${built.errors.length} error${built.errors.length === 1 ? '' : 's'} first: ${built.errors.slice(0, 3).join(' ')}`, errors: built.errors.map((message) => ({ line: null, message })) } };
         }
         parsed = { mode: 'weekly', weekly: { entries: built.entries }, newCategories: built.newCategories, warnings: built.warnings };
       } else {

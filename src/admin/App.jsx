@@ -219,6 +219,8 @@ export default function App() {
             scheduleDates={state?.scheduleDates || {}}
             settings={state?.settings || {}}
             onRefreshSchedule={fetchSchedule}
+            onNavigate={goSection}
+            caps={me ? (me.caps || []) : effectiveCaps({ role: 'editor' })}
             entries={state?.scheduleEntries || []}
             categories={state?.scheduleCategories || []}
             onUpdateEntries={updateScheduleEntries}
