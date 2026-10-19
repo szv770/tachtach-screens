@@ -21,6 +21,8 @@ import announcementsRouter from './routes/announcements.js';
 import quickTemplatesRouter from './routes/quick-templates.js';
 import savedLettersRouter from './routes/saved-letters.js';
 import { kiddushLevanaRouter, startKiddushLevana, readShown as readKlShown } from './kiddush-levana.js';
+import freezeRouter from './routes/freeze.js';
+import freeze from './freeze.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import embedProbeRouter from './routes/embed-probe.js';
@@ -76,6 +78,7 @@ export function createApp() {
       try {
         await ensureBuiltinSlides();
         startDailyWordRecorder();
+        await freeze.init(); // re-arms a freeze that survived a restart
         startKiddushLevana();
       } catch (bsErr) {
         console.error('[slides] Built-in slide check failed:', bsErr.message);
@@ -271,6 +274,8 @@ export function createApp() {
         // Real size of the kiosk (reported over the localhost-only /api/screen/report), or null
         // until a screen has reported. The admin's Media page turns it into "best size".
         screenDisplay: getScreenDisplay(),
+        // Freeze / Blank screen: { active: null | { mode, message, style, until, source }, emergency }.
+        freeze: freeze.getKioskView(),
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });
@@ -445,6 +450,7 @@ export function createApp() {
   app.use('/api', quickTemplatesRouter);
   app.use('/api', savedLettersRouter);
   app.use('/api', kiddushLevanaRouter);
+  app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', statusRouter); // /screen/status + /health (read-only)
   app.use('/api', embedProbeRouter);

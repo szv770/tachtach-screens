@@ -36,7 +36,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'media.delete', group: 'Screen', label: 'Delete pictures and videos', hint: '' },
   { id: 'feeds.edit', group: 'Screen', label: 'Manage news feeds and Google Photos albums', hint: '' },
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
-  { id: 'screen.control', group: 'Screen', label: 'Pause, skip, blank or refresh the screen', hint: 'The real TV controls.' },
+  { id: 'screen.control', group: 'Screen', label: 'Pause, skip, freeze, blank or refresh the screen', hint: 'The real TV controls, including Freeze / Blank.' },
   { id: 'schedule.edit', group: 'Schedule', label: 'Edit the schedule', hint: 'Daily and weekly timetable, saved days, templates.' },
   { id: 'customDays.edit', group: 'Schedule', label: 'Edit custom days', hint: 'Mark special dates.' },
   { id: 'look.change', group: 'Look and settings', label: 'Change the look', hint: 'Themes, fonts, logo, layout.' },
@@ -159,7 +159,7 @@ export function canOpenSection(who, key) {
 // ── API rules ───────────────────────────────────────────────────────────────
 
 /** Per-person endpoints any signed-in person may use on their own account. */
-const SELF = /^\/api\/(me|account|push)(\/|$)/;
+const SELF = /^\/api\/(me|account|push|history)(\/|$)/; // history: the undo route re-checks the person's capabilities per change
 /** Pure calculations the screen preview needs; harmless to everyone signed in. */
 const PREVIEW = /^\/api\/preview(\/|$)/;
 /** Areas only people-managers may even read. */
@@ -189,7 +189,7 @@ const RULES = Object.freeze([
   rule('media.upload', ANY, /^\/api\/(upload|images|media)(\/|$)/),
   rule('feeds.edit', ANY, /^\/api\/(rss|google-album)(\/|$)/),
   rule('dailyWord.edit', ANY, /^\/api\/daily-words(\/|$)/),
-  rule('screen.control', ANY, /^\/api\/(screen|refresh)(\/|$)/),
+  rule('screen.control', ANY, /^\/api\/(screen|refresh|freeze)(\/|$)/),
   rule('schedule.edit', ANY, /^\/api\/schedule(\/|$)/),
   rule('customDays.edit', ANY, /^\/api\/custom-days(\/|$)/),
 
