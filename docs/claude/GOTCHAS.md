@@ -144,3 +144,6 @@ Every panel used to PUT the whole settings object from its own stale copy, so th
 - **Don't drop the invite on a typo.** The invite POST validates the password *before* consuming the link.
 - Migration: first start after upgrading reads `auth.json` once into `users.json` (owner = admin "admin"; their cookie keeps working). `auth.json` stays on disk, ignored.
 
+
+## Localhost gating must use the socket, not `req.ip` (security audit H2, 2026-10-19)
+With `TRUST_PROXY=1` and `HOST=0.0.0.0`, `req.ip` is the right-most `X-Forwarded-For` entry sent by the immediate peer. A device on the school Wi-Fi is that peer, so `X-Forwarded-For: 127.0.0.1` made every kiosk-only endpoint (`/api/state`, `/stream`, `/api/rss/cache/*`…) open unauthenticated. Chained with the rss-cache path traversal (fixed the same day) it dumped `users.json` from the LAN. Fix: `isLocalRequest()` = loopback TCP peer AND no forwarding header. Do NOT switch to a bare `req.socket.remoteAddress` check: cloudflared also connects from loopback, so every internet request would count as the kiosk. Any new reverse proxy in front of the kiosk URL would add headers and break the kiosk — the kiosk must talk to the server directly.
