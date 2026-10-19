@@ -2,6 +2,13 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
+## Added 2026-10-19 (owner) — Live Preview that really follows the TV (approved, build after the schedule slide work)
+
+- **Follow the TV (default on)**: the kiosk already reports slide changes (`/api/screen/report`: slideIndex, slideId, isPaused); extend with `startedAt` + the ordered enabled slide list with durations; the server rebroadcasts a `screen-slide` SSE event to preview clients; the preview jumps to that slide at the right elapsed offset and re-syncs on every report (no drift). Toggle 'Follow the TV' off = today's free-running preview (Prev/Pause/Next/jump).
+- **TV status line** ('TV is on: Zmanim, slide 4 of 11 · online / offline since 10:42'). When the TV is OFFLINE/unreachable: **estimate where it is holding** — pure function in src/shared simulating the rotation from the last report + durations (marked 'estimated'); also show freeze/takeover/hold state.
+- **Real-screen Previous/Next/Pause** (today the TV only skips forward): add `screen-command` actions `previous` (kiosk side) with the same capability (`screen.control`).
+- Clear labels: 'Preview — not the TV' vs 'Following the TV'.
+
 ## Added 2026-10-19 (owner, after phases 5-6 reports) — next pass
 
 - [x] *(done 2026-10-19)* **Kiddush Levana: upcoming-months view** — show many months ahead (12-24) in a clean sleek list (molad, can start, cutoff, last night) in Announce > Kiddush Levana, with a printable/shareable view for the rabbi, and let the admin EDIT a month (override start/end, or skip/hide a month). Rail note: English by default, Hebrew as an optional extra (not forced). Confirm cutoff/customs with the rabbi (see docs/kiddush-levana-next-14-months.md). Window that opens in the small hours counts from that moment; first real evening is the next night (owner OK'd by not objecting; explain plainly).
