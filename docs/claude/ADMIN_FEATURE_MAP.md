@@ -40,7 +40,12 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | Schedule | Slide language (`settings.language`) | Settings > Schedule Display | Fixed (no UI) |
 | Schedule | Display mode / scroll speed / start | Settings > Schedule Display | OK |
 | Announcements | Slide/banner/side note/takeover, drafts, recurrence, hold | Announcements tab + composer | OK |
-| Announcements | Banner size/speed/repeat, archive days | Announcements > Banner display settings | OK (now PATCH) |
+| Announcements | Banner movement (Still / Scrolling) + speed (default for all banners), archive days | Announce > Announcements > Banner display settings (closed collapsible, summary shows the choice) | OK (PATCH `banner.mode/speed`; size/repeat controls removed, they did nothing) |
+| Announcements | Per-banner Still / Scrolling + speed | Composer > Show as Banner > Movement | OK (`banner.mode/speed` on the item) |
+| Announce | Quick messages: add / edit / duplicate / delete / reorder, personal vs shared | Announce > Quick messages (`/admin/announcements?tab=quick`) | OK. Needs `announcements.post` (own), `announcements.edit` (shared) |
+| Announce | Post a quick message | "+" > Quick message, or Quick messages > Use | OK, toast "Posted to screen" + Undo (Undo needs `announcements.delete`) |
+| Announce | Letter / sicha: paste the whole text, AI prompt + JSON, page preview, save to library | Composer, Letter or Sicha layout (collapsibles "Fill in from a whole letter", "Preview the pages", "Save to library") | OK |
+| Announce | Saved letters: search, preview, post again, delete + Undo | Announce > Letters (`?tab=letters`) | OK |
 | Announcements | Legacy Messages / Pinned UI | removed earlier; verified no admin references remain | Done. Server still answers `/api/messages`, `/api/pinned`, legacy slide POST (translating shims, one release, `routes/announcements.js`) |
 | Custom Days | Add, delete | `CustomDaysEditor` | OK |
 | Custom Days | Edit existing (same id, Hebrew/Gregorian switch) | `CustomDaysEditor` Edit; new `PUT /api/custom-days/:id` | Fixed (was create/delete only) |

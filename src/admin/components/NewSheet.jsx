@@ -5,7 +5,7 @@ import { colors, adminFonts } from '../styles/admin-tokens.js';
 
 // What the + button can start. `kind` is handled by the caller (App.jsx).
 export const NEW_KINDS = [
-  { kind: 'quick', icon: 'bolt', title: 'Quick message', text: 'Two taps: a few big words on the screen right now.' },
+  { kind: 'quick', icon: 'bolt', title: 'Quick message', text: 'Pick a saved message, fill the blanks, post. On screen in seconds.' },
   { kind: 'slide', icon: 'message', title: 'Announcement', text: 'A slide that takes its turn with the others.' },
   { kind: 'banner', icon: 'banner', title: 'Banner', text: 'A strip along the bottom. Never pauses the slides.' },
   { kind: 'takeover', icon: 'takeover', title: 'Takeover', text: 'Covers the whole screen and pauses everything.' },
