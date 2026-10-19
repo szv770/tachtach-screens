@@ -43,6 +43,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'rail', 'layout', 'motion', 'graphics',
   'longText',          // { mode: 'scroll'|'pages', speed: 'slow'|'normal'|'fast' } (Hayom Yom, Sicha, Letter)
   'weather', 'zmanimLayout', 'scheduleLayout',
+  'scheduleView',      // { autoSeconds 8-120, hebrew 'auto'|'off' } (Schedule page; layout itself is scheduleLayout)
   // Kiosk redesign: font role assignments, one-time theme migration marker.
   'fontRoles', 'themeVersion',
   // Message & takeover font style: editorial | modern | classic | screen

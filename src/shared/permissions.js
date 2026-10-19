@@ -209,7 +209,7 @@ const RULES = Object.freeze([
 export const LOOK_SETTING_KEYS = Object.freeze([
   'theme', 'customTheme', 'themeAuto', 'themeVersion', 'orientation', 'portraitLayout', 'clockSide',
   'visibility', 'fonts', 'fontRoles', 'announceFonts', 'hebrewFontScale', 'hebrewHeadingScale',
-  'banner', 'credit', 'rail', 'layout', 'motion', 'graphics', 'zmanimLayout', 'scheduleLayout',
+  'banner', 'credit', 'rail', 'layout', 'motion', 'graphics', 'zmanimLayout', 'scheduleLayout', 'scheduleView',
 ]);
 
 /** Normalise a request path so odd spellings cannot dodge the table. */
