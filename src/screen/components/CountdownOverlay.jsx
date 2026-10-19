@@ -46,13 +46,24 @@ function useRemaining(countdown, onComplete) {
 function Body({ countdown, remaining }) {
   const total = countdown.duration || Math.max(remaining, 1);
   const finished = remaining <= 0;
-  const urgent = remaining <= 30 && !finished;
+  const urgent = remaining <= 60 && !finished;
   const name = countdown.eventNameHe || countdown.eventName || '';
   const sub = countdown.eventNameHe && countdown.eventName ? countdown.eventName : '';
   const hb = isHebrew(name);
-  const ring = 420;
+  const ring = 380;
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 28, minHeight: 0, textAlign: 'center' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24, minHeight: 0, textAlign: 'center' }}>
+      {/* Attention stage 1: "Get moving" kicker. Finite nudge (2 plays, transform only), no loops. */}
+      {!finished && (
+        <div data-stage="before" className="tt-getmoving" style={{
+          flex: 'none', display: 'inline-flex', alignItems: 'center', gap: 18, padding: '8px 30px 10px', borderRadius: 999,
+          background: 'var(--fill)', color: 'var(--fillInk)',
+        }}>
+          <span style={{ fontFamily: F.enD, fontSize: 38, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase' }}>Get moving</span>
+          <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(38), fontWeight: 700 }}>הגיע הזמן</span>
+        </div>
+      )}
+      <style>{'@keyframes ttGetMoving { 0%,100% { transform: scale(1); } 40% { transform: scale(1.07); } } .tt-getmoving { animation: ttGetMoving .7s ease-out 2; } @media (prefers-reduced-motion: reduce) { .tt-getmoving { animation: none; } }'}</style>
       <div style={{ width: '90%', flex: 'none' }}>
         <Fit max={110} dir={hb ? 'rtl' : 'ltr'} style={{ height: 130, textAlign: 'center', fontFamily: hb ? F.heD : F.enD, fontWeight: 700 }}>{name}</Fit>
         {sub && <Bidi as="div" text={sub} style={{ fontFamily: F.en, fontSize: 34, color: 'var(--inkDim)', fontWeight: 500, marginTop: 4 }} />}
@@ -63,7 +74,7 @@ function Body({ countdown, remaining }) {
           {finished ? <span className="tt-he" style={{ fontFamily: F.heD, fontSize: he(120) }}>עכשיו</span> : fmt(remaining)}
         </div>
       </div>
-      <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, height: 36 }}>{finished ? 'Starting now' : remaining >= 60 ? 'minutes : seconds' : 'seconds'}</div>
+      <div style={{ fontFamily: F.en, fontSize: 30, color: 'var(--inkDim)', fontWeight: 500, height: 36 }}>{finished ? 'Starting now' : remaining >= 60 ? 'minutes : seconds until it starts' : 'seconds until it starts'}</div>
     </div>
   );
 }
@@ -74,7 +85,7 @@ export default function CountdownOverlay({ countdown, onComplete, embedded = fal
   if (embedded) return <Body countdown={countdown} remaining={remaining} />;
   return (
     <div className="tt-fadein" style={{ position: 'absolute', inset: 0, zIndex: 100, padding: 40, display: 'flex', background: 'var(--bg)' }}>
-      <Panel look={remaining <= 30 && remaining > 0 ? 'urgent' : null}>
+      <Panel look={remaining <= 60 && remaining > 0 ? 'urgent' : null}>
         <Body countdown={countdown} remaining={remaining} />
       </Panel>
     </div>

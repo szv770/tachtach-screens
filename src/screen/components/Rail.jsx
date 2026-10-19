@@ -119,7 +119,7 @@ export function SessionBadge({ item, align = 'left' }) {
   return (
     <div data-stage="session" style={{
       background: 'var(--raised)', borderRadius: 22, width: '100%', marginBottom: 14, flex: 'none', boxSizing: 'border-box',
-      padding: '14px 22px 16px', textAlign: align, borderInlineStart: 'none',
+      padding: '14px 22px 16px', textAlign: align,
       [right ? 'borderRight' : 'borderLeft']: '8px solid var(--accent)',
     }}>
       <div style={{ fontFamily: F.en, fontSize: 19, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Now in session</div>
