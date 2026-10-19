@@ -4,7 +4,7 @@ import { STYLE_GROUPS, STYLE_INFO, ANIMATIONS, ANIMATION_LABEL, DEFAULT_ANIMATIO
 
 export const DISPLAY_OPTIONS = [
   { value: 'slide', label: 'Slide', explain: 'Takes its turn in the slideshow with the other slides.' },
-  { value: 'banner', label: 'Banner', explain: 'Scrolls along the bottom. Never stops the slideshow.' },
+  { value: 'banner', label: 'Banner', explain: 'A strip along the bottom, still or scrolling. Never stops the slideshow.' },
   { value: 'note', label: 'Side note', explain: 'A small note in the side column (up to 3 show at once).' },
   { value: 'takeover', label: 'Takeover', explain: 'Covers the whole screen and pauses everything.' },
 ];
@@ -125,7 +125,7 @@ export function emptyItem(display = 'slide') {
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
-    banner: { size: null, speed: null, repeat: null },
+    banner: { size: null, speed: null, repeat: null, mode: null },
     when: { startsAt: null, expiresAt: null, lastDurationMin: null, recurrence: null },
   };
 }

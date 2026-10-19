@@ -415,7 +415,7 @@ export default function AnnouncementComposer({
     textFields = (
       <>
         {pair('Text (English)', 'content.headlineEn', 'Text (Hebrew)', 'content.headlineHe', true, 3)}
-        {d === 'banner' && <p style={{ ...label, color: colors.muted }}>The banner is one scrolling line: line breaks show as “ · ”. It shows the Hebrew text if there is some, otherwise the English.</p>}
+        {d === 'banner' && <p style={{ ...label, color: colors.muted }}>The banner is one line: line breaks show as “ · ”. English and Hebrew show side by side.</p>}
       </>
     );
   } else if (layout === 'event') {
@@ -552,6 +552,23 @@ export default function AnnouncementComposer({
       </>
     );
   }
+
+  const bannerDefaultMode = settings.banner?.mode === 'scroll' ? 'scroll' : 'still';
+  const bannerMode = item.banner?.mode || bannerDefaultMode;
+  const bannerSpeed = item.banner?.speed || settings.banner?.speed || 'normal';
+  const bannerLen = String(c.headlineHe || c.headlineEn || c.bodyHe || c.bodyEn || '').length;
+  const bannerSection = d === 'banner' ? (
+    <Section title="Movement" hint={settings.motion === 'minimal' ? 'The screen is set to Minimal motion, so banners stay still on the TV.' : undefined}>
+      <Segmented ariaLabel="Banner movement" options={[{ value: 'still', label: 'Still' }, { value: 'scroll', label: 'Scrolling' }]} value={bannerMode} onChange={(v) => set('banner.mode', v)} />
+      <p style={{ ...label, marginTop: '8px', color: colors.muted }}>
+        {bannerMode === 'scroll' ? 'Runs right to left, over and over, until it ends. Good for long messages.' : 'Stays put. Long text is shrunk to fit one line.'}
+        {bannerMode === 'still' && bannerLen > 90 ? ' This one is long: it will be small. Scrolling reads better.' : ''}
+      </p>
+      {bannerMode === 'scroll' && (
+        <Field title="Speed"><Segmented ariaLabel="Banner speed" options={[{ value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }]} value={bannerSpeed} onChange={(v) => set('banner.speed', v)} /></Field>
+      )}
+    </Section>
+  ) : null;
 
   const showStyle = usesLayout;
   const showTemplate = d === 'slide' && layout === 'classic' && !style;
@@ -713,7 +730,7 @@ export default function AnnouncementComposer({
       <h3 style={sectionTitle}>Preview</h3>
       <AnnouncementPreview item={preview} settings={settings} />
       <p style={{ ...label, marginTop: '6px', color: colors.muted }}>
-        {d === 'takeover' ? 'Covers the whole screen.' : d === 'banner' ? 'The banner text scrolls in from the right.' : ''}
+        {d === 'takeover' ? 'Covers the whole screen.' : d === 'banner' ? (bannerMode === 'scroll' ? 'The banner scrolls right to left.' : 'The banner stays still.') : ''}
         {' '}{describeTiming({ ...preview, createdAt: new Date().toISOString() }, new Date(), { tz })}
       </p>
     </div>
@@ -751,6 +768,7 @@ export default function AnnouncementComposer({
       {showAs}
       {layoutPicker}
       <Section title="Text" hint={usesLayout && layout !== 'classic' ? 'Text grows to fill the screen: a few words show huge.' : undefined}>{textFields}</Section>
+      {bannerSection}
       {lookSection}
       {holdSection}
       {isMobile && <section style={{ padding: '16px 0', borderTop: `1px solid ${colors.border}` }}>{previewBlock}</section>}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../../styles/admin-tokens.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
 import { ConfirmDialog, NumberField } from '../ui.jsx';
+import Collapsible from '../ui/Collapsible.jsx';
 import { DISPLAY_LABEL, LAYOUT_LABEL, STYLE_OPTIONS, minutesLabel, endOfDay, isoToLocalInput, localInputToIso } from './helpers.js';
 import {
   status as statusOf, describeTiming, primaryText, archiveDaysFrom, formatWhen, layoutOf,
@@ -250,24 +251,20 @@ export default function AnnouncementsPanel({
         </div>
       )}
 
-      <details style={{ marginTop: '22px', borderTop: `1px solid ${colors.border}`, paddingTop: '12px' }}>
-        <summary style={{ cursor: 'pointer', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim, minHeight: '32px' }}>
-          Banner display settings (all banners)
-        </summary>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+      <Collapsible id="announce-banner-settings" title="Banner display settings" summary={`${settings.banner?.mode === 'scroll' ? 'Scrolling' : 'Still'} · ${({ slow: 'slow', fast: 'fast' })[settings.banner?.speed] || 'normal'} speed (default for all banners)`} style={{ marginTop: '22px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
           {[
-            { key: 'size', label: 'Text size', opts: [['small', 'Small'], ['normal', 'Normal'], ['large', 'Large']] },
+            { key: 'mode', label: 'Movement', opts: [['still', 'Still'], ['scroll', 'Scrolling']] },
             { key: 'speed', label: 'Scroll speed', opts: [['slow', 'Slow'], ['normal', 'Normal'], ['fast', 'Fast']] },
-            { key: 'repeat', label: 'After finishing', opts: [['loop', 'Loop'], ['wait', 'Wait']] },
           ].map((row) => {
-            const cur = settings.banner?.[row.key] || (row.key === 'repeat' ? 'loop' : 'normal');
+            const cur = settings.banner?.[row.key] || (row.key === 'mode' ? 'still' : 'normal');
             return (
               <div key={row.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ width: '120px', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>{row.label}</span>
                 {row.opts.map(([v, l]) => (
                   <button key={v} type="button" aria-pressed={cur === v}
                     onClick={() => onSaveSettings({ banner: { [row.key]: v } })}
-                    style={{ ...buttonSecondary, minHeight: '38px', padding: '6px 14px', borderColor: cur === v ? colors.gold : colors.border, color: cur === v ? colors.gold : colors.text, background: cur === v ? colors.goldBg : 'transparent' }}>
+                    style={{ ...buttonSecondary, minHeight: '44px', padding: '6px 14px', borderColor: cur === v ? colors.gold : colors.border, color: cur === v ? colors.gold : colors.text, background: cur === v ? colors.goldBg : 'transparent' }}>
                     {l}
                   </button>
                 ))}
@@ -275,7 +272,8 @@ export default function AnnouncementsPanel({
             );
           })}
         </div>
-      </details>
+      
+      </Collapsible>
 
       {confirmDel && (
         <ConfirmDialog

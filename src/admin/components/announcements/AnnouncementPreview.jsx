@@ -111,7 +111,7 @@ export default function AnnouncementPreview({ item, settings = {}, maxHeight }) 
         <Layout
           leftColumn={leftColumn}
           rightColumn={rightColumn}
-          banner={banners.length ? <Banner banners={banners} bannerSettings={settings.banner} /> : null}
+          banner={banners.length ? <Banner banners={banners} bannerSettings={settings.banner} motion={settings.motion} /> : null}
           theme={settings.theme}
           tokens={tokens}
           fullscreen={fullscreen}

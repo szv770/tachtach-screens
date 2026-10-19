@@ -93,7 +93,7 @@ export const SETTINGS_INDEX = [
   S('schedule', 'Countdown before a block starts (alert minutes)', 'alert before countdown takeover slide reminder minutes get moving', { anchor: 'sched-week' }),
   S('custom-days', 'Custom days', 'special dates yahrtzeit holiday hebrew date mark', { match: 'Custom' }),
   // Announce
-  S('announcements', 'Banner display settings', 'ticker scroll size speed repeat', { match: 'Banner' }),
+  S('announcements', 'Banner: still or scrolling, and speed (default for all banners)', 'ticker scroll scrolling still marquee speed slow fast movement', { tab: 'posts', anchor: 'announce-banner-settings' }),
   S('announcements', 'Archive: delete old announcements after days', 'auto delete archived history', { match: 'Archive' }),
   S('announcements', 'Announcements (slide, banner, side note, takeover)', 'message post live scheduled drafts paused', { match: 'Announcements' }),
 ];

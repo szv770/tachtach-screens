@@ -20,6 +20,7 @@ export const TEMPLATES = ['headline', 'quote', 'info', 'announcement', 'board', 
 export const DISPLAYS = ['slide', 'banner', 'note', 'takeover'];
 const BANNER_SIZES = ['small', 'normal', 'large'];
 const BANNER_SPEEDS = ['slow', 'normal', 'fast'];
+const BANNER_MODES = ['still', 'scroll'];
 const BANNER_REPEATS = ['loop', 'wait'];
 const MAX_TEXT = 4000;
 
@@ -60,7 +61,7 @@ export function defaultItem() {
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
-    banner: { size: null, speed: null, repeat: null },
+    banner: { size: null, speed: null, repeat: null, mode: null },
     when: { startsAt: null, expiresAt: null, lastDurationMin: null, recurrence: null },
     enabled: true,
     priority: 0,
@@ -199,6 +200,7 @@ export function sanitizeInput(body) {
     if ('size' in body.banner) out.banner.size = oneOf(body.banner.size, BANNER_SIZES);
     if ('speed' in body.banner) out.banner.speed = oneOf(body.banner.speed, BANNER_SPEEDS);
     if ('repeat' in body.banner) out.banner.repeat = oneOf(body.banner.repeat, BANNER_REPEATS);
+    if ('mode' in body.banner) out.banner.mode = oneOf(body.banner.mode, BANNER_MODES);
   }
   if (body.when && typeof body.when === 'object') {
     const w = body.when; out.when = {};

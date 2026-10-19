@@ -489,7 +489,7 @@ function AppContent() {
 
   const liveBanners = ann.banners.map(toBannerRow);
   const banner = liveBanners.length > 0 ? (
-    <Banner banners={liveBanners} bannerSettings={settings.banner} />
+    <Banner banners={liveBanners} bannerSettings={settings.banner} motion={settings.motion} />
   ) : null;
 
   return (
