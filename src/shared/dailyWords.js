@@ -19,7 +19,7 @@
  */
 
 export const DEFAULT_LANGUAGE = 'Yiddish';
-export const LIMITS = { word: 60, transliteration: 60, pronunciation: 60, partOfSpeech: 30, meaning: 220, context: 320, convoLine: 200, tag: 24, tags: 8, words: 1000 };
+export const LIMITS = { word: 60, transliteration: 60, pronunciation: 60, partOfSpeech: 30, meaning: 220, context: 320, convoLine: 200, tag: 24, tags: 8, words: 600 };
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const str = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
