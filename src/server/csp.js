@@ -68,19 +68,35 @@ export function buildCsp(kind, nonce) {
 
 export function cspKind(pathname) {
   if (/^\/(login|invite|signin|logout)(\/|$)/.test(pathname)) return 'auth';
-  if (/^\/screen(\/|$)/.test(pathname)) return 'screen';
-  if (/^\/admin(\/|$)/.test(pathname)) return 'admin';
+  // /error and /src/screen/index.html are the same kiosk SPA served by express.static (dev paths / error route)
+  if (/^\/(screen|error)(\/|$)/.test(pathname) || /^\/src\/screen(\/|$)/.test(pathname)) return 'screen';
+  if (/^\/admin(\/|$)/.test(pathname) || /^\/src\/admin(\/|$)/.test(pathname)) return 'admin';
   return null;
 }
 
+/** For any other HTML (404 pages, stray documents): nothing may load or run, and nothing may frame it. */
+export const LOCKED_CSP = "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'self'";
+
 /** Express middleware: sets the header on page routes and exposes res.locals.cspNonce. */
 export function cspMiddleware(req, res, next) {
-  const kind = cspKind(req.path);
-  if (!kind) return next();
-  const nonce = crypto.randomBytes(16).toString('base64');
-  res.locals.cspNonce = nonce;
   const name = process.env.CSP_REPORT_ONLY ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
-  res.setHeader(name, buildCsp(kind, nonce));
+  const kind = cspKind(req.path);
+  if (kind) {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+    res.setHeader(name, buildCsp(kind, nonce));
+    return next();
+  }
+  // Every other response that turns out to be HTML (a 404 page, an error page, an unexpected
+  // static document) gets the locked policy unless something already set its own (uploads do).
+  const writeHead = res.writeHead;
+  res.writeHead = function patched(...args) {
+    const type = String(res.getHeader('Content-Type') || '');
+    if (/html/i.test(type) && !res.getHeader('Content-Security-Policy') && !res.getHeader('Content-Security-Policy-Report-Only')) {
+      res.setHeader(name, LOCKED_CSP);
+    }
+    return writeHead.apply(this, args);
+  };
   next();
 }
 

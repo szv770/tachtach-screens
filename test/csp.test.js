@@ -76,3 +76,33 @@ test('the real app mounts the middleware and the page templates have no inline s
     assert.doesNotMatch(html, /\son[a-z]+\s*=\s*["']/i, `${f}: inline event handler`);
   }
 });
+
+test('audit lows: dev/served SPA paths, /error and stray HTML (404 page) all carry a CSP', async () => {
+  assert.equal(cspKind('/src/admin/index.html'), 'admin');
+  assert.equal(cspKind('/src/screen/index.html'), 'screen');
+  assert.equal(cspKind('/error'), 'screen');
+  const app = express();
+  app.use(cspMiddleware);
+  app.get('/src/admin/index.html', (_req, res) => res.type('html').send('<p>a</p>'));
+  app.get('/src/screen/index.html', (_req, res) => res.type('html').send('<p>s</p>'));
+  app.get('/error', (_req, res) => res.type('html').send('<p>e</p>'));
+  app.get('/stray.html', (_req, res) => res.type('html').send('<p>x</p>'));
+  app.get('/own', (_req, res) => { res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'"); res.type('html').send('u'); });
+  app.get('/data.json', (_req, res) => res.json({}));
+  // express' own default 404 page is HTML too
+  const server = await new Promise((r) => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
+  const get = (p) => new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port: server.address().port, path: p }, (res) => { res.resume(); res.on('end', () => resolve({ h: res.headers, status: res.statusCode })); }).on('error', reject);
+  });
+  try {
+    assert.match((await get('/src/admin/index.html')).h['content-security-policy'], /script-src 'self'/);
+    assert.match((await get('/src/screen/index.html')).h['content-security-policy'], /frame-src https: http:/);
+    assert.match((await get('/error')).h['content-security-policy'], /script-src 'self'/);
+    assert.match((await get('/stray.html')).h['content-security-policy'], /default-src 'none'/);
+    const nf = await get('/nope');
+    assert.equal(nf.status, 404);
+    assert.match(nf.h['content-security-policy'], /default-src 'none'/);
+    assert.equal((await get('/own')).h['content-security-policy'], "default-src 'none'; img-src 'self'");
+    assert.equal((await get('/data.json')).h['content-security-policy'], undefined);
+  } finally { server.close(); }
+});
