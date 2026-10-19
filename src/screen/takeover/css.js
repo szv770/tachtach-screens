@@ -110,9 +110,9 @@ export const TAKEOVER_CSS = `
 .tkr .nt .pre, .tkr .nt .post { width: 94%; color: var(--s-dim); font-weight: 600; line-height: 1.2; text-align: center; }
 .tkr .nt .pre .he, .tkr .nt .post .he { font-size: 1.06em; }
 .tkr .nt .pre { margin-bottom: var(--sp3); }
-.tkr .nt .f-he { width: 100%; height: 40%; color: var(--s-accText); line-height: 1.1; text-align: center; }
-.tkr .nt .f-en { width: 100%; height: 40%; color: var(--s-accText); line-height: 1.08; text-align: center; font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: var(--en-track); }
-.tkr .nt.two .f-he, .tkr .nt.two .f-en { height: 26%; }
+.tkr .nt .f-he { width: 100%; height: 40%; color: var(--s-ink); line-height: 1.1; text-align: center; }
+.tkr .nt .f-en { width: 100%; height: 40%; color: var(--s-ink); line-height: 1.08; text-align: center; font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: var(--en-track); }
+.tkr .nt.two .f-he, .tkr .nt.two .f-en { height: 23%; }
 .tkr .nt .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: var(--sp4) 0 var(--sp3); flex: none; }
 .tkr .lyt > *, .tkr .nt > *, .tkr .qt > *, .tkr .ev > *, .tkr .bw > *, .tkr .qq > * { flex-shrink: 0; }
 .tkr .ev > .titles { flex-shrink: 1; }

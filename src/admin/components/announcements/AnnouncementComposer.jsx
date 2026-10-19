@@ -224,7 +224,7 @@ export default function AnnouncementComposer({
 }) {
   const isMobile = useIsMobile();
   const editing = !!initial?.id;
-  const [item, setItem] = useState(() => (editing ? withDefaults(initial) : { ...emptyItem(initial?.display || 'slide'), ...(initial || {}), ...(initial?.display ? { display: initial.display } : {}) }));
+  const [item, setItem] = useState(() => (editing ? withDefaults(initial) : { ...emptyItem(initial?.display || 'slide'), ...(initial || {}), look: { ...emptyItem().look, ...(initial?.look || {}) }, ...(initial?.display ? { display: initial.display } : {}) }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [conflicts, setConflicts] = useState(null);
