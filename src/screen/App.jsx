@@ -520,7 +520,11 @@ function AppContent() {
     />
   );
 
+  // AutoScroll readers (Hayom Yom, long sicha/letter) stop while the rotation is paused (admin preview Pause),
+  // frozen, or a takeover is on top: animation-play-state via [data-reader-hold] (src/screen/design/reader.js).
+  const readerHold = slideRotation.isPaused || freezeOn || !!takeover;
   const rightColumn = (
+    <div data-reader-hold={readerHold ? '1' : '0'} style={{ display: 'contents' }}>
     <SlideErrorBoundary
       resetKey={`${slideRotation.currentSlide?.id}-${slideRotation.currentIndex}-${countdown?.id || ''}`}
       onError={handleSlideError}
@@ -547,6 +551,7 @@ function AppContent() {
         portraitLayout={settings.portraitLayout || 'compact'}
       />
     </SlideErrorBoundary>
+    </div>
   );
 
   const liveBanners = ann.banners.map(toBannerRow);

@@ -155,6 +155,9 @@ export const TAKEOVER_CSS = `
 .tkr .sc .hd .he { flex: 0 1 38%; min-width: 0; font-family: var(--f-th-he); font-weight: 500; color: var(--s-accText); text-align: left; }
 .tkr .sc .body { flex: 1; min-height: 0; overflow: hidden; margin-top: var(--sp3); font-family: var(--f-th-en); font-size: 38px; line-height: 1.5; font-weight: 400; text-wrap: pretty; }
 .tkr .sc .body p + p { margin-top: .6em; }
+/* AutoScroll reader edge fades (src/screen/design/reader.js) paint with the stage's own background */
+.tkr .stage { --rd-fade: var(--s-bg); }
+.tkr .st-classic { --rd-fade: var(--raised); }
 .tkr .ft { display: flex; align-items: center; justify-content: space-between; gap: var(--sp3); margin-top: var(--sp2); font-size: 26px; color: var(--s-dim); font-weight: 500; }
 .tkr .ft > span:first-child { min-width: 0; }
 .tkr .ft .pg { display: flex; align-items: center; gap: 14px; flex: none; }

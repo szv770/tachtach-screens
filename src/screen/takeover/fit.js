@@ -8,6 +8,9 @@
  * scale never skew them.
  */
 
+import { READER, readerPlan, readerKeyframesCss, scrollSeconds, wpmFor, textLang } from '../../shared/longText.js';
+import { readerAnimName, readerAnimation } from '../design/reader.js';
+
 const DEFAULT_PAGE_SECONDS = 12;
 
 function fitEl(el, heScale) {
@@ -99,16 +102,60 @@ function fitSichaSize(el, words, build) {
   el.style.fontSize = a + 'px'; el.dataset.fitSize = a;
 }
 
+/**
+ * Long-text AutoScroll for one body (opts.scroll): whole text in ONE `.rd-track` moved by one finite CSS
+ * animation (src/shared/longText.js rules). Returns { seconds } (hold + scroll + hold) or null when the text
+ * fits (then it is shown plainly, like a one-page sicha). `keep` = { key, t } of a running scroll: if a re-fit
+ * (font load) produced the same plan the animation resumes at the same time instead of restarting.
+ */
+function mountScroll(el, words, build, text, opts, keep) {
+  const track = document.createElement('div');
+  track.className = 'rd-track';
+  track.innerHTML = build(words);
+  el.replaceChildren(track);
+  el.classList.add('rd-view');
+  const contentH = track.offsetHeight, viewH = el.clientHeight;
+  if (contentH <= viewH + 1) { el.replaceChildren(); el.innerHTML = build(words); return null; }
+  const fs = parseFloat(getComputedStyle(el).fontSize) || 30;
+  const pad = READER.fadeEm * fs;
+  const distance = Math.round(contentH - viewH + 2 * pad), paddedH = Math.round(contentH + 2 * pad);
+  const scrollSec = scrollSeconds({ words: words.length, distance, contentH: paddedH, wpm: wpmFor(opts.speed, textLang(text)) });
+  const plan = readerPlan({ distance, scrollSec });
+  const name = readerAnimName(plan);
+  const key = `${plan.distance}|${plan.total.toFixed(1)}|${opts.loop ? 1 : 0}`;
+  track.dataset.on = '';
+  track.style.animation = readerAnimation(name, plan, !!opts.loop);
+  const style = document.createElement('style');
+  style.textContent = readerKeyframesCss(name, plan, { loop: !!opts.loop });
+  const fade = (c) => { const i = document.createElement('i'); i.className = `rd-fade ${c}`; i.setAttribute('aria-hidden', 'true'); return i; };
+  el.append(fade('t'), fade('b'), style);
+  el.dataset.reader = key;
+  if (keep && keep.key === key) { try { track.getAnimations()[0].currentTime = keep.t; } catch { /* restart */ } }
+  return { seconds: plan.total, key };
+}
+
 /** Split text into pages at a FIXED reading size (sicha / letter bodies). */
-function paginate(root, page) {
+function paginate(root, page, opts = {}) {
   let pagesOut = 1;
+  let scrollOut = null;
   root.querySelectorAll('.paged').forEach((el) => {
     const paras = (el.dataset.text || '').split('|');
     const words = paras.map((p, i) => p.split(' ').filter(Boolean).map((w, j) => ({ w, br: j === 0 && i > 0 }))).flat();
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const build = (arr) => '<p dir="auto">' + arr.map((x, k) => (x.br && k > 0 ? '</p><p dir="auto">' : '') + esc(x.w)).join(' ').replace(/<p dir="auto"> /g, '<p dir="auto">') + '</p>';
+    // a running scroll may be resumed after a re-fit (same plan)
+    const prevTrack = el.querySelector('.rd-track');
+    const keep = prevTrack && el.dataset.reader ? { key: el.dataset.reader, t: (() => { try { return prevTrack.getAnimations()[0].currentTime; } catch { return 0; } })() } : null;
+    el.classList.remove('rd-view'); delete el.dataset.reader;
     el.style.fontSize = '';
     if (el.closest('.sc')) fitSichaSize(el, words, build);
+    if (opts.scroll) {
+      const res = mountScroll(el, words, build, paras.join(' '), opts, keep);
+      const pg0 = el.closest('.lyt').querySelector('.pg'); if (pg0) pg0.innerHTML = '';
+      el.dataset.pages = 1;
+      if (res) scrollOut = scrollOut ? { ...scrollOut, seconds: Math.max(scrollOut.seconds, res.seconds) } : res;
+      return;
+    }
     const pages = []; let i = 0;
     while (i < words.length) {
       let j = i + 1; el.innerHTML = build(words.slice(i, j));
@@ -128,11 +175,11 @@ function paginate(root, page) {
     el.dataset.pages = pages.length;
     pagesOut = Math.max(pagesOut, pages.length);
   });
-  return pagesOut;
+  return { pages: pagesOut, scroll: scrollOut };
 }
 
-/** Fit everything in `root` (the .tkr element). Returns { pages }. */
-export function fitAll(root, { page = 0 } = {}) {
+/** Fit everything in `root` (the .tkr element). Returns { pages, scroll: { seconds } | null } (scroll when opts.scroll and the text overflows). */
+export function fitAll(root, { page = 0, scroll = false, loop = false, speed = 'normal' } = {}) {
   unsplit(root);
   const heScale = +getComputedStyle(root).getPropertyValue('--he-scale') || 1;
   const $$ = (sel) => root.querySelectorAll(sel);
@@ -194,9 +241,9 @@ export function fitAll(root, { page = 0 } = {}) {
     const ok = () => rows.every((r) => { const x = r.querySelector('.x'); return r.scrollHeight <= r.clientHeight + 1 && x.scrollWidth <= x.clientWidth + 1 && r.scrollWidth <= r.clientWidth + 1; });
     it.style.setProperty('--lf', s); while (!ok() && s > 24) { s -= 1; it.style.setProperty('--lf', s); } it.dataset.lf = s;
   });
-  const pages = paginate(root, page);
+  const { pages, scroll: sc } = paginate(root, page, { scroll, loop, speed });
   alignGlyph(root);
-  return { pages };
+  return { pages, scroll: sc };
 }
 
 /** Offset of `el` from `stage` in layout px (ignores transforms, unlike getBoundingClientRect). */
@@ -252,6 +299,6 @@ export function splitLively(root) {
 }
 
 /** Show page `page` of every paged body in `root` (no refit). */
-export function showPage(root, page) { return paginate(root, page); }
+export function showPage(root, page) { return paginate(root, page).pages; }
 
 export { DEFAULT_PAGE_SECONDS };

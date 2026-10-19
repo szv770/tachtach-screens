@@ -31,6 +31,7 @@ export const SETTINGS_INDEX = [
   S('logo', 'Credit line', 'powered by footer credit text size position', { anchor: 'set-credit-line' }),
   S('logo', 'Logo (upload, look, size, position)', 'logo upload image brand blend plate svg', { anchor: 'look-logo' }),
   S('motion', 'Motion (smooth / minimal / lively)', 'animation transitions speed', { anchor: 'look-motion' }),
+  S('motion', 'Long text: scroll or pages, reading speed', 'hayom yom sicha sichos letter scroll auto-scroll pages long text reading speed wpm slow fast', { anchor: 'look-long-text' }),
   S('motion', 'Graphics (rich / subtle / off)', 'icons drawings patterns decoration', { anchor: 'look-graphics' }),
   // Look & Settings > Screen setup
   S('location', 'Location (zip code)', 'zip postal code city place zmanim chabad location id', { anchor: 'settings-location', match: 'Zip code' }),

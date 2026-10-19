@@ -1,5 +1,6 @@
 import React from 'react';
 import { StageBox, PAGE_SECONDS } from '../../takeover/TakeoverStage.jsx';
+import { readerSlideSeconds, pagedSlideSeconds } from '../../../shared/longText.js';
 
 /**
  * Announcement renderers. Everything is drawn by the round-3b takeover stage
@@ -12,8 +13,9 @@ import { StageBox, PAGE_SECONDS } from '../../takeover/TakeoverStage.jsx';
 
 /**
  * Rotation / hold slide body for an announcement item: the stage at the design
- * size, scaled into the page panel. Long sicha/letter text steps through pages;
- * the slide asks the rotation for enough time to show them all.
+ * size, scaled into the page panel. Long sicha/letter text scrolls once (hold +
+ * scroll + hold, settings.longText) or, as the fallback, steps through pages; the
+ * slide asks the rotation for enough time to show all of it.
  */
 export default function AnnouncementSlide({ item, onRequestDuration }) {
   if (!item) return null;
@@ -26,7 +28,8 @@ export default function AnnouncementSlide({ item, onRequestDuration }) {
         mode="fit"
         radius={32}
         showClock={false}
-        onPages={(n) => { if (n > 1) onRequestDuration?.(Math.max(base, n * PAGE_SECONDS + 2)); }}
+        onPages={(n) => { if (n > 1) onRequestDuration?.(pagedSlideSeconds(n, PAGE_SECONDS, base)); }}
+        onReader={(r) => { if (r) onRequestDuration?.(readerSlideSeconds(r.seconds, base)); }}
       />
     </div>
   );
@@ -41,7 +44,7 @@ export function AnnouncementTakeover({ item, clock }) {
   if (!item) return null;
   return (
     <div style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg)' }}>
-      <StageBox key={item.id} item={item} mode="canvas" clock={clock} />
+      <StageBox key={item.id} item={item} mode="canvas" clock={clock} readerLoop />
     </div>
   );
 }

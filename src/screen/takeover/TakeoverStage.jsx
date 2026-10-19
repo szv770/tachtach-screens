@@ -10,6 +10,8 @@ import { countdownText } from '../../shared/quickCountdown.js';
 import { fitAll, splitLively, showPage, DEFAULT_PAGE_SECONDS } from './fit.js';
 import { ensureTakeoverCss } from './css.js';
 import { announceFontVars } from '../../shared/fontRoles.js';
+import { readerMode } from '../../shared/longText.js';
+import { ensureReaderCss, prefersReducedMotion } from '../design/reader.js';
 
 /**
  * One takeover "stage" at a virtual W x H canvas (round-3b design,
@@ -32,9 +34,10 @@ function clockText(clock) {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, animation, fonts, page: forcedPage }) {
+export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, onReader, animation, fonts, page: forcedPage, readerLoop = false }) {
   ensureTakeoverCss();
-  const { light, motion, announceFonts } = useDesign();
+  ensureReaderCss();
+  const { light, motion, announceFonts, longText } = useDesign();
   // Message & takeover font style (settings.announceFonts): role vars on the stage root.
   const fontPreset = fonts || announceFonts;
   const fontVars = useMemo(() => announceFontVars(fontPreset), [fontPreset]);
@@ -43,6 +46,12 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const S = styleOf(style);
   const layout = stageLayout(layoutOf(item));
   const { anim, lively } = effectiveAnimation(animation ?? item.look?.animation, motion);
+  // Long sicha / letter text: one slow AutoScroll (default) or pages (Minimal motion, Animation entrance/off,
+  // settings.longText = pages, reduced motion, the admin's page-by-page preview). Rules: src/shared/longText.js.
+  const scrolling = readerMode({ mode: longText?.mode, motion, anim, forcedPage: forcedPage != null, reduced: prefersReducedMotion() }) === 'scroll';
+  const readerRef = useRef(null);
+  readerRef.current = { scroll: scrolling, loop: readerLoop, speed: longText?.speed || 'normal' };
+  const onReaderRef = useRef(onReader); onReaderRef.current = onReader;
 
   const key = JSON.stringify([item.content, layout, item.look?.maxFontPx]);
   const built = useMemo(() => {
@@ -72,9 +81,10 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     let alive = true;
     const run = () => {
       if (!alive) return;
-      const res = fitAll(root, { page: pageRef.current });
+      const res = fitAll(root, { page: pageRef.current, ...readerRef.current });
       setPages(res.pages);
       onPagesRef.current?.(res.pages);
+      onReaderRef.current?.(res.scroll);
       if (enterRef.current) splitLively(root);
     };
     run();
@@ -84,7 +94,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     document.fonts?.addEventListener?.('loadingdone', refit);
     return () => { alive = false; cancelAnimationFrame(raf); document.fonts?.removeEventListener?.('loadingdone', refit); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [built]);
+  }, [built, scrolling, longText?.speed, readerLoop]);
 
   // Quick-time "starts in ..." line: filled in place once a second (text only; the box height is fixed, digits are tabular).
   useEffect(() => {

@@ -40,7 +40,9 @@ export const SETTINGS_KEYS = Object.freeze([
   // Reserved for the 2026-10 kiosk rebuild (see screen-redesign brief):
   // rail.upNextMinutes, layout.railSide, motion, graphics, weather, and the
   // per-page layout pickers.
-  'rail', 'layout', 'motion', 'graphics', 'weather', 'zmanimLayout', 'scheduleLayout',
+  'rail', 'layout', 'motion', 'graphics',
+  'longText',          // { mode: 'scroll'|'pages', speed: 'slow'|'normal'|'fast' } (Hayom Yom, Sicha, Letter)
+  'weather', 'zmanimLayout', 'scheduleLayout',
   // Kiosk redesign: font role assignments, one-time theme migration marker.
   'fontRoles', 'themeVersion',
   // Message & takeover font style: editorial | modern | classic | screen

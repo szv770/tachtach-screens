@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useMemo } from 'react';
 import { baseTheme, baseRoles } from '../../shared/themes.js';
 import { fontRoleVars, hebrewScale, announceFontsId } from '../../shared/fontRoles.js';
 import { ensureGlobalCss } from './globalCss.js';
+import { longTextSettings } from '../../shared/longText.js';
 import { applyUploadedFonts, applyGoogleFonts } from './fonts.js';
 
 /**
@@ -28,6 +29,7 @@ export function useDesign() {
 const FALLBACK = {
   light: false, motion: 'smooth', graphics: 'rich', upNext: false, heScale: 1,
   themeId: 'dark', phase: 'day', portrait: false, railSide: 'left', inRoot: false, announceFonts: 'editorial',
+  longText: { mode: 'scroll', speed: 'normal' },
 };
 
 export const MOTIONS = ['smooth', 'minimal', 'lively'];
@@ -51,6 +53,7 @@ export default function DesignRoot({
   const { vars, light } = baseRoles(theme);
   const fontVars = useMemo(() => fontRoleVars(settings), [settings.fontRoles, settings.hebrewFontScale]); // eslint-disable-line react-hooks/exhaustive-deps
   const opts = designOptions(settings);
+  const lt = longTextSettings(settings);
 
   useEffect(() => { if (fontsList) applyUploadedFonts(fontsList); }, [fontsList]);
   useEffect(() => { applyGoogleFonts(settings); }, [settings.fontRoles]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -58,7 +61,8 @@ export default function DesignRoot({
   const ctx = useMemo(() => ({
     light, motion: opts.motion, graphics: opts.graphics, upNext, heScale: hebrewScale(settings),
     themeId: theme.id, phase, portrait, railSide: opts.railSide, inRoot: true, announceFonts: announceFontsId(settings),
-  }), [light, opts.motion, opts.graphics, upNext, settings.hebrewFontScale, theme.id, phase, portrait, opts.railSide, settings.announceFonts]); // eslint-disable-line react-hooks/exhaustive-deps
+    longText: { mode: lt.mode, speed: lt.speed },
+  }), [lt.mode, lt.speed, light, opts.motion, opts.graphics, upNext, settings.hebrewFontScale, theme.id, phase, portrait, opts.railSide, settings.announceFonts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <DesignContext.Provider value={ctx}>
