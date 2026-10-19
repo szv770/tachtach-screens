@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
-import useIsMobile from '../hooks/useIsMobile.js';
+import { colors, adminFonts, buttonPrimary, buttonSecondary, alpha } from '../styles/admin-tokens.js';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
+import { ConfirmDialog, NumberField } from './ui.jsx';
+import Collapsible from './ui/Collapsible.jsx';
+import Sheet from './ui/Sheet.jsx';
+import { Field, Choices, SwitchRow, fieldStyle } from './look/kit.jsx';
 
 
 const DISPLAY_MODES = [
@@ -33,14 +36,13 @@ const REFRESH_INTERVALS = [
   { value: 1440, label: 'Daily' },
 ];
 
-export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, slides, onUpdateSlides }) {
-  const isMobile = useIsMobile();
+export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, slides, onUpdateSlides, canEdit = true, canEditSlides = true }) {
   const [albums, setAlbums] = useState([]);
   const [albumUrl, setAlbumUrl] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showHelp, setShowHelp] = useState(true);
+  const [confirmAlbum, setConfirmAlbum] = useState(null); // album to remove
 
   // Settings for new album slide
   const [displayMode, setDisplayMode] = useState('single');
@@ -100,8 +102,8 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
         }),
       });
 
-      // Create a slide entry for this album
-      if (onSlideCreated) {
+      // Create a slide entry for this album (people who can not change slides just connect it)
+      if (onSlideCreated && canEditSlides) {
         await onSlideCreated({
           type: 'GOOGLE_PHOTOS_SLIDE',
           googleAlbumId: album.id,
@@ -138,7 +140,7 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
   };
 
   const handleDelete = async (albumId) => {
-    if (!confirm('Remove this album and all cached photos?')) return;
+    setConfirmAlbum(null);
     try {
       await apiFetch(`/api/google-album/${albumId}`, { method: 'DELETE' });
 
@@ -250,591 +252,171 @@ export default function GooglePhotosManager({ onSlideCreated, onDeleteSlide, sli
   // Find Google Photos slides from the slides list
   const googleSlides = (slides || []).filter(s => s.type === 'GOOGLE_PHOTOS_SLIDE');
 
-  // Render the settings form (shared between create and edit)
-  const renderSettingsForm = (formState, setFormField, isEdit = false) => {
-    const mode = formState.displayMode;
-    const interval = formState.photoInterval;
-    const order = formState.photoOrder;
-    const kb = formState.kenBurns;
-    const imgMode = formState.imageDisplayMode;
-    const dur = formState.duration;
+  const slideOf = (album) => googleSlides.find(s => s.googleAlbumId === album.id);
 
-    return (
-      <div style={{
-        background: colors.surface, border: `1px solid ${colors.muted}`,
-        borderRadius: '6px', padding: '16px 20px', marginBottom: '24px',
-      }}>
-        <h3 style={{
-          fontFamily: adminFonts.englishBody, fontSize: '16px',
-          color: colors.gold, marginBottom: '16px',
-        }}>
-          {isEdit ? 'Edit Settings' : 'Display Settings'}
-        </h3>
+  const modeLabel = (v) => DISPLAY_MODES.find(m => m.value === v)?.label || v;
+  const summaryOf = (f) => `${modeLabel(f.displayMode)}, ${f.photoInterval || 8}s per photo, ${PHOTO_ORDERS.find(o => o.value === f.photoOrder)?.label || 'Album Order'}`;
 
-        {/* Display mode */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{
-            fontFamily: adminFonts.englishBody, fontSize: '13px',
-            color: colors.dim, display: 'block', marginBottom: '6px',
-          }}>
-            Display Mode
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '6px' }}>
-            {DISPLAY_MODES.map(m => (
-              <button
-                key={m.value}
-                onClick={() => setFormField('displayMode', m.value)}
-                style={{
-                  padding: '8px',
-                  background: mode === m.value ? colors.goldBg : 'transparent',
-                  border: `1px solid ${mode === m.value ? colors.goldBd : colors.muted}`,
-                  borderRadius: '4px', cursor: 'pointer', textAlign: 'center',
-                }}
-              >
-                <div style={{
-                  fontFamily: adminFonts.englishBody, fontSize: '13px',
-                  color: mode === m.value ? colors.gold : colors.text,
-                  fontWeight: mode === m.value ? 500 : 400,
-                }}>
-                  {m.label}
-                </div>
-              </button>
-            ))}
-          </div>
-          {mode && (
-            <div style={{
-              marginTop: '6px', fontFamily: adminFonts.englishBody,
-              fontSize: '12px', color: colors.dim, fontStyle: 'italic',
-            }}>
-              {DISPLAY_MODES.find(m2 => m2.value === mode)?.desc}
-            </div>
-          )}
-        </div>
-
-        {/* Image display mode (fit/fill/stretch) */}
-        <div style={{ marginBottom: '16px' }}>
-          <label style={{
-            fontFamily: adminFonts.englishBody, fontSize: '13px',
-            color: colors.dim, display: 'block', marginBottom: '6px',
-          }}>
-            Photo Sizing
-          </label>
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {IMAGE_DISPLAY_MODES.map(m => (
-              <button
-                key={m.value}
-                onClick={() => setFormField('imageDisplayMode', m.value)}
-                style={{
-                  padding: '6px 16px',
-                  background: imgMode === m.value ? colors.goldBg : 'transparent',
-                  border: `1px solid ${imgMode === m.value ? colors.goldBd : colors.muted}`,
-                  borderRadius: '4px', cursor: 'pointer',
-                }}
-              >
-                <div style={{
-                  fontFamily: adminFonts.englishBody, fontSize: '13px',
-                  color: imgMode === m.value ? colors.gold : colors.text,
-                  fontWeight: imgMode === m.value ? 500 : 400,
-                }}>
-                  {m.label}
-                </div>
-                <div style={{
-                  fontFamily: adminFonts.englishBody, fontSize: '10px',
-                  color: colors.dim, marginTop: '2px',
-                }}>
-                  {m.desc}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Ken Burns (only for single/fullscreen) */}
-        {(mode === 'single' || mode === 'fullscreen') && (
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-              fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text,
-            }}>
-              <input
-                type="checkbox"
-                checked={kb}
-                onChange={(e) => setFormField('kenBurns', e.target.checked)}
-                style={{ accentColor: colors.gold }}
-              />
-              Ken Burns effect (slow zoom/pan)
-            </label>
-          </div>
-        )}
-
-        {/* Photo interval + duration */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-          <div>
-            <label style={{
-              fontFamily: adminFonts.englishBody, fontSize: '13px',
-              color: colors.dim, display: 'block', marginBottom: '4px',
-            }}>
-              Seconds per photo
-            </label>
-            <input
-              type="number"
-              min={3}
-              max={60}
-              value={interval}
-              onChange={(e) => setFormField('photoInterval', parseInt(e.target.value) || 8)}
-              style={{ ...inputStyle, width: '100px' }}
-            />
-          </div>
-
-          <div>
-            <label style={{
-              fontFamily: adminFonts.englishBody, fontSize: '13px',
-              color: colors.dim, display: 'block', marginBottom: '4px',
-            }}>
-              Slide duration (seconds)
-            </label>
-            <input
-              type="number"
-              min={10}
-              max={300}
-              value={dur}
-              onChange={(e) => setFormField('duration', parseInt(e.target.value) || 30)}
-              style={{ ...inputStyle, width: '100px' }}
-            />
-          </div>
-        </div>
-
-        {/* Photo order + refresh */}
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '16px' }}>
-          <div>
-            <label style={{
-              fontFamily: adminFonts.englishBody, fontSize: '13px',
-              color: colors.dim, display: 'block', marginBottom: '4px',
-            }}>
-              Photo Order
-            </label>
-            <select
-              value={order}
-              onChange={(e) => setFormField('photoOrder', e.target.value)}
-              style={{ ...inputStyle, width: '100%' }}
-            >
-              {PHOTO_ORDERS.map(o => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {(
-            <div>
-              <label style={{
-                fontFamily: adminFonts.englishBody, fontSize: '13px',
-                color: colors.dim, display: 'block', marginBottom: '4px',
-              }}>
-                Check for new photos
-              </label>
-              <select
-                value={formState.refreshInterval || 30}
-                onChange={(e) => setFormField('refreshInterval', parseInt(e.target.value))}
-                style={{ ...inputStyle, width: '100%' }}
-              >
-                {REFRESH_INTERVALS.map(r => (
-                  <option key={r.value} value={r.value}>{r.label}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {(
-            <div>
-              <label style={{
-                fontFamily: adminFonts.englishBody, fontSize: '13px',
-                color: colors.dim, display: 'block', marginBottom: '4px',
-              }}>
-                Max photos to keep
-              </label>
-              <select
-                value={formState.maxPhotos ?? 1000}
-                onChange={(e) => setFormField('maxPhotos', parseInt(e.target.value))}
-                style={{ ...inputStyle, width: '100%' }}
-              >
-                {[200, 500, 1000, 2000].map(n => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-                <option value={0}>All (no limit)</option>
-              </select>
-            </div>
-          )}
-        </div>
-
-        {/* Label (edit only) */}
-        {isEdit && (
-          <div style={{ marginTop: '16px' }}>
-            <label style={{
-              fontFamily: adminFonts.englishBody, fontSize: '13px',
-              color: colors.dim, display: 'block', marginBottom: '4px',
-            }}>
-              Label
-            </label>
-            <input
-              type="text"
-              value={formState.label || ''}
-              onChange={(e) => setFormField('label', e.target.value)}
-              style={{ ...inputStyle, width: '200px' }}
-            />
-          </div>
-        )}
+  // The display options (shared by "connect a new album" and "edit this album")
+  const renderSettingsForm = (f, set, isEdit = false) => (
+    <div>
+      <Field label="Display mode" hint={DISPLAY_MODES.find(m => m.value === f.displayMode)?.desc}>
+        <Choices ariaLabel="Display mode" value={f.displayMode} onChange={(v) => set('displayMode', v)} options={DISPLAY_MODES} />
+      </Field>
+      <Field label="Photo sizing" hint={IMAGE_DISPLAY_MODES.find(m => m.value === f.imageDisplayMode)?.desc}>
+        <Choices ariaLabel="Photo sizing" value={f.imageDisplayMode} onChange={(v) => set('imageDisplayMode', v)} options={IMAGE_DISPLAY_MODES} />
+      </Field>
+      {(f.displayMode === 'single' || f.displayMode === 'fullscreen') && (
+        <SwitchRow on={!!f.kenBurns} onChange={(v) => set('kenBurns', v)} label="Slow zoom and pan (Ken Burns)" />
+      )}
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <Field label="Seconds per photo">
+          <NumberField value={f.photoInterval} onCommit={(n) => set('photoInterval', n)} min={3} max={60} style={{ ...fieldStyle, width: '120px' }} ariaLabel="Seconds per photo" />
+        </Field>
+        <Field label="Slide duration (seconds)">
+          <NumberField value={f.duration} onCommit={(n) => set('duration', n)} min={10} max={300} style={{ ...fieldStyle, width: '120px' }} ariaLabel="Slide duration" />
+        </Field>
       </div>
-    );
+      <Field label="Photo order">
+        <select style={fieldStyle} value={f.photoOrder} onChange={(e) => set('photoOrder', e.target.value)}>
+          {PHOTO_ORDERS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+      </Field>
+      <Field label="Check for new photos">
+        <select style={fieldStyle} value={f.refreshInterval || 30} onChange={(e) => set('refreshInterval', parseInt(e.target.value))}>
+          {REFRESH_INTERVALS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+        </select>
+      </Field>
+      <Field label="Max photos to keep">
+        <select style={fieldStyle} value={f.maxPhotos ?? 1000} onChange={(e) => set('maxPhotos', parseInt(e.target.value))}>
+          {[200, 500, 1000, 2000].map(n => <option key={n} value={n}>{n}</option>)}
+          <option value={0}>All (no limit)</option>
+        </select>
+      </Field>
+      {isEdit && (
+        <Field label="Label (only you see it)">
+          <input style={fieldStyle} value={f.label || ''} maxLength={80} onChange={(e) => set('label', e.target.value)} />
+        </Field>
+      )}
+    </div>
+  );
+
+  const newForm = { displayMode, photoInterval, photoOrder, kenBurns, imageDisplayMode, duration: slideDuration, refreshInterval, maxPhotos };
+  const setNew = (field, value) => {
+    switch (field) {
+      case 'displayMode': setDisplayMode(value); break;
+      case 'photoInterval': setPhotoInterval(value); break;
+      case 'photoOrder': setPhotoOrder(value); break;
+      case 'kenBurns': setKenBurns(value); break;
+      case 'imageDisplayMode': setImageDisplayMode(value); break;
+      case 'duration': setSlideDuration(value); break;
+      case 'refreshInterval': setRefreshInterval(value); break;
+      case 'maxPhotos': setMaxPhotos(value); break;
+      default: break;
+    }
   };
 
+  const editingSlide = editingSlideId ? slides?.find(s => s.id === editingSlideId) : null;
+  const editingAlbum = editingSlide?.googleAlbumId ? albums.find(a => a.id === editingSlide.googleAlbumId) : null;
+  const btn = { minHeight: '44px', padding: '0 14px', fontSize: '14px' };
+  const notice = (kind, text) => (
+    <div role={kind === 'error' ? 'alert' : 'status'} style={{
+      marginTop: '10px', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: '13px', lineHeight: 1.5,
+      background: kind === 'error' ? colors.dangerBg : colors.successBg, color: kind === 'error' ? colors.danger : colors.success,
+      border: `1px solid ${alpha(kind === 'error' ? colors.danger : colors.success, 50)}`,
+    }}>{text}</div>
+  );
+
   return (
-    <div>
-      {/* Header */}
-      <div style={{ marginBottom: '24px' }}>
-        <h2 style={{
-          fontFamily: adminFonts.englishBody,
-          fontSize: '24px',
-          fontWeight: 600,
-          color: colors.gold,
-          marginBottom: '4px',
-        }}>
-          Google Photos
-        </h2>
-        <p style={{
-          fontFamily: adminFonts.englishBody,
-          fontSize: '14px',
-          color: colors.dim,
-        }}>
-          Connect a shared Google Photos album to display photos on the kiosk screen.
-        </p>
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '12px', maxWidth: '760px', fontFamily: adminFonts.englishBody }}>
+      <p style={{ margin: 0, color: colors.dim, fontSize: '14px', lineHeight: 1.5 }}>
+        Show the photos of a shared Google Photos album on the screen.
+      </p>
 
-      {/* Help section */}
-      <div style={{
-        background: colors.surface,
-        border: `1px solid ${colors.muted}`,
-        borderRadius: '6px',
-        padding: '16px 20px',
-        marginBottom: '24px',
-      }}>
-        <button
-          onClick={() => setShowHelp(!showHelp)}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontFamily: adminFonts.englishBody,
-            fontSize: '15px', color: colors.gold,
-            padding: 0, display: 'flex', alignItems: 'center', gap: '8px',
-            width: '100%', textAlign: 'left',
-          }}
-        >
-          <span style={{ transform: showHelp ? 'rotate(90deg)' : 'rotate(0)', transition: 'transform .2s' }}>
-            {'\u25B6'}
-          </span>
-          How to connect an album
-        </button>
-
-        {showHelp && (
-          <div style={{ marginTop: '16px' }}>
-            <ol style={{
-              fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text,
-              paddingLeft: '20px', margin: 0, lineHeight: 1.8,
-            }}>
-              <li>Open <strong>Google Photos</strong> on your phone</li>
-              <li>Open or create an album</li>
-              <li>Tap the <strong>share button</strong> ({'\u2934'})</li>
-              <li>Tap <strong>"Create link"</strong> or <strong>"Get link"</strong></li>
-              <li>Copy the link</li>
-              <li>Paste it in the box below</li>
-            </ol>
-          </div>
-        )}
-      </div>
-
-      {/* Album URL input */}
-      <div style={{ marginBottom: '24px' }}>
-        <label style={{
-          fontFamily: adminFonts.englishBody,
-          fontSize: '14px', color: colors.text,
-          display: 'block', marginBottom: '6px',
-        }}>
-          Album Link
-        </label>
-        <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px' }}>
-          <input
-            type="url"
-            value={albumUrl}
-            onChange={(e) => setAlbumUrl(e.target.value)}
-            placeholder="https://photos.google.com/share/..."
-            style={{ ...inputStyle, flex: 1, direction: 'ltr' }}
-          />
-          <button
-            onClick={handleConnect}
-            disabled={connecting}
-            style={{
-              ...buttonPrimary,
-              opacity: connecting ? 0.6 : 1,
-              whiteSpace: 'nowrap',
-              minHeight: '44px',
-            }}
-          >
-            {connecting ? 'Connecting...' : 'Connect Album'}
-          </button>
-        </div>
-
-        {error && (
-          <div style={{
-            marginTop: '8px', padding: '8px 12px',
-            background: colors.dangerBg, border: `1px solid ${colors.danger}`,
-            borderRadius: '4px', fontFamily: adminFonts.englishBody,
-            fontSize: '13px', color: colors.danger,
-          }}>
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div style={{
-            marginTop: '8px', padding: '8px 12px',
-            background: colors.successBg, border: `1px solid ${colors.success}`,
-            borderRadius: '4px', fontFamily: adminFonts.englishBody,
-            fontSize: '13px', color: colors.success,
-          }}>
-            {success}
-          </div>
-        )}
-      </div>
-
-      {/* Display settings for NEW album */}
-      {renderSettingsForm(
-        { displayMode, photoInterval, photoOrder, kenBurns, imageDisplayMode, duration: slideDuration, refreshInterval, maxPhotos },
-        (field, value) => {
-          switch (field) {
-            case 'displayMode': setDisplayMode(value); break;
-            case 'photoInterval': setPhotoInterval(value); break;
-            case 'photoOrder': setPhotoOrder(value); break;
-            case 'kenBurns': setKenBurns(value); break;
-            case 'imageDisplayMode': setImageDisplayMode(value); break;
-            case 'duration': setSlideDuration(value); break;
-            case 'refreshInterval': setRefreshInterval(value); break;
-            case 'maxPhotos': setMaxPhotos(value); break;
-          }
-        },
-        false,
-      )}
-
-      {/* Edit modal for existing Google Photos slide \u2014 near-full-screen sheet on mobile */}
-      {editingSlideId && editForm && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 1000,
-          background: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: isMobile ? 'flex-end' : 'center',
-          justifyContent: 'center',
-        }}
-          onClick={(e) => { if (e.target === e.currentTarget) cancelEdit(); }}
-        >
-          <div style={isMobile ? {
-            background: colors.bg,
-            borderRadius: '14px 14px 0 0',
-            borderTop: `1px solid ${colors.goldBd}`,
-            padding: '20px 16px calc(24px + env(safe-area-inset-bottom))',
-            width: '100%',
-            maxHeight: '94dvh', overflowY: 'auto',
-            WebkitOverflowScrolling: 'touch',
-          } : {
-            background: colors.bg, borderRadius: '8px',
-            padding: '24px', maxWidth: '600px', width: '90%',
-            maxHeight: '80vh', overflowY: 'auto',
-            border: `1px solid ${colors.muted}`,
-          }}
-            onKeyDown={(e) => { if (e.key === 'Escape') cancelEdit(); }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '18px', color: colors.gold, margin: 0 }}>
-                Edit Google Photos Slide
-              </h3>
-              <button onClick={cancelEdit} aria-label="Close" style={{
-                background: 'none', border: 'none', color: colors.dim, fontSize: '20px', cursor: 'pointer',
-                minWidth: isMobile ? '44px' : undefined, minHeight: isMobile ? '44px' : undefined,
-              }}>{'\u00D7'}</button>
-            </div>
-
-            {/* Show album URL (read-only) */}
-            {(() => {
-              const slide = slides?.find(s => s.id === editingSlideId);
-              const album = slide?.googleAlbumId && albums.find(a => a.id === slide.googleAlbumId);
-              if (album?.url) {
-                return (
-                  <div style={{
-                    marginBottom: '16px', padding: '8px 12px',
-                    background: colors.surface, borderRadius: '4px',
-                    fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim,
-                    direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    Album: {album.url}
-                  </div>
-                );
-              }
-              return null;
-            })()}
-
-            {renderSettingsForm(
-              editForm,
-              (field, value) => setEditForm(prev => ({ ...prev, [field]: value })),
-              true,
-            )}
-
-            <div style={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column-reverse' : 'row',
-              gap: isMobile ? '10px' : '8px',
-              justifyContent: 'flex-end',
-            }}>
-              <button onClick={cancelEdit} style={{ ...buttonSecondary, minHeight: '44px' }}>Cancel</button>
-              <button onClick={saveEdit} style={{ ...buttonPrimary, minHeight: '44px' }}>Save Changes</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Existing Google Photos slides */}
-      {googleSlides.length > 0 && (
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{
-            fontFamily: adminFonts.englishBody, fontSize: '16px',
-            color: colors.text, marginBottom: '12px',
-          }}>
-            Active Google Photos Slides
-          </h3>
-          {googleSlides.map(slide => {
-            const album = slide.googleAlbumId && albums.find(a => a.id === slide.googleAlbumId);
-            return (
-              <div key={slide.id} style={{
-                background: colors.surface, border: `1px solid ${colors.muted}`,
-                borderRadius: '6px', padding: '10px 14px', marginBottom: '6px',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              }}>
-                <div>
-                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.text }}>
-                    {slide.label || 'Google Photos'}
-                  </div>
-                  <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim }}>
-                    {slide.displayMode || 'single'} | {slide.imageDisplayMode || 'fit'} | {slide.photoInterval || 8}s per photo | {slide.duration || 30}s duration
-                  </div>
-                </div>
-                <button onClick={() => startEdit(slide)} style={{ ...buttonSecondary, padding: '6px 14px', fontSize: '13px', minHeight: '44px', flexShrink: 0 }}>
-                  Edit
+      {canEdit && (
+        <>
+          <Collapsible id="media-photos-connect" title="Connect an album" summary="Paste the share link of a Google Photos album" icon="plus" defaultOpen={albums.length === 0}>
+            <Field label="Album link" htmlFor="tt-album-url">
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <input id="tt-album-url" data-testid="album-url" type="url" value={albumUrl} onChange={(e) => setAlbumUrl(e.target.value)} placeholder="https://photos.google.com/share/..." style={{ ...fieldStyle, flex: '1 1 220px', direction: 'ltr' }} />
+                <button type="button" onClick={handleConnect} disabled={connecting} style={{ ...buttonPrimary, ...btn, opacity: connecting ? 0.6 : 1, whiteSpace: 'nowrap' }}>
+                  {connecting ? 'Connecting...' : 'Connect album'}
                 </button>
               </div>
-            );
-          })}
-        </div>
+            </Field>
+            {error && notice('error', error)}
+            {success && notice('ok', success)}
+            <Collapsible title="How to get the link" summary="Six steps on your phone" style={{ marginTop: '16px', boxShadow: 'none' }}>
+              <ol style={{ fontSize: '14px', color: colors.text, paddingLeft: '20px', margin: '12px 0 0', lineHeight: 1.8 }}>
+                <li>Open <strong>Google Photos</strong> on your phone</li>
+                <li>Open or create an album</li>
+                <li>Tap the <strong>share button</strong></li>
+                <li>Tap <strong>"Create link"</strong> or <strong>"Get link"</strong></li>
+                <li>Copy the link</li>
+                <li>Paste it in the box above</li>
+              </ol>
+            </Collapsible>
+          </Collapsible>
+          <Collapsible title="Display settings for the next album" summary={summaryOf(newForm)}>
+            {renderSettingsForm(newForm, setNew, false)}
+          </Collapsible>
+        </>
       )}
 
-      {/* Connected albums list */}
-      {albums.length > 0 && (
-        <div>
-          <h3 style={{
-            fontFamily: adminFonts.englishBody, fontSize: '16px',
-            color: colors.text, marginBottom: '12px',
-          }}>
-            Connected Albums
-          </h3>
-
-          {albums.map(album => (
-            <div key={album.id} style={{
-              background: colors.surface, border: `1px solid ${colors.muted}`,
-              borderRadius: '6px', padding: isMobile ? '12px' : '14px 18px', marginBottom: '8px',
-            }}>
-              <div style={{
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                justifyContent: 'space-between',
-                alignItems: isMobile ? 'stretch' : 'flex-start',
-                gap: isMobile ? '10px' : '0',
-              }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{
-                    fontFamily: adminFonts.englishBody, fontSize: '13px',
-                    color: colors.dim, marginBottom: '4px', direction: 'ltr',
-                    maxWidth: isMobile ? '100%' : '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {album.url}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: isMobile ? '8px' : '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Status badge */}
-                    <span style={{
-                      padding: '2px 8px', borderRadius: '3px',
-                      fontFamily: adminFonts.englishBody, fontSize: '12px',
-                      background: album.status === 'ready' ? colors.successBg :
-                                  album.status === 'syncing' ? colors.goldBg :
-                                  album.status === 'error' ? colors.dangerBg : colors.surface,
-                      color: album.status === 'ready' ? colors.success :
-                             album.status === 'syncing' ? colors.gold :
-                             album.status === 'error' ? colors.danger : colors.dim,
-                    }}>
-                      {album.status === 'ready' ? `${album.photoCount || 0} photos` :
-                       album.status === 'syncing' ? 'Syncing...' :
-                       album.status === 'error' ? 'Error' : 'Pending'}
-                    </span>
-
-                    {album.lastSync && (
-                      <span style={{
-                        fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim,
-                      }}>
-                        Last sync: {new Date(album.lastSync).toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-
-                  {album.error && (
-                    <div style={{
-                      marginTop: '6px', fontFamily: adminFonts.englishBody,
-                      fontSize: '12px', color: colors.danger,
-                    }}>
-                      {album.error}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                  {(() => {
-                    const linked = googleSlides.find(s => s.googleAlbumId === album.id);
-                    return linked ? (
-                      <button
-                        onClick={() => startEdit(linked)}
-                        style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
-                      >
-                        Settings
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => addSlideForAlbum(album)}
-                        title="This album has no slide in the rotation"
-                        style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
-                      >
-                        Add slide
-                      </button>
-                    );
-                  })()}
-                  <button
-                    onClick={() => handleSync(album.id)}
-                    style={{ ...buttonSecondary, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
-                  >
-                    Sync
-                  </button>
-                  <button
-                    onClick={() => handleDelete(album.id)}
-                    style={{ ...buttonDanger, padding: '6px 12px', fontSize: '13px', minHeight: '44px', flex: isMobile ? 1 : undefined }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+      <h3 style={{ margin: '8px 0 0', fontSize: '16px', fontWeight: 700, color: colors.text }}>Connected albums{albums.length ? ` (${albums.length})` : ''}</h3>
+      {albums.length === 0 && (
+        <div style={{ padding: '28px 16px', textAlign: 'center', color: colors.dim, fontSize: '14px', background: colors.card, border: `1px dashed ${colors.border}`, borderRadius: 'var(--r-md)' }}>
+          No albums connected yet.
         </div>
+      )}
+      {albums.map(album => {
+        const linked = slideOf(album);
+        const tone = album.status === 'ready' ? colors.success : album.status === 'error' ? colors.danger : album.status === 'syncing' ? colors.accent : colors.dim;
+        return (
+          <article key={album.id} data-testid="album-card" style={{ background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-md)', boxShadow: 'var(--e1)', padding: '14px 16px' }}>
+            <div style={{ fontSize: '13px', color: colors.dim, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{album.url}</div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginTop: '6px', fontSize: '13px' }}>
+              <span style={{ fontWeight: 700, color: tone }}>
+                {album.status === 'ready' ? `${album.photoCount || 0} photos` : album.status === 'syncing' ? 'Syncing...' : album.status === 'error' ? 'Error' : 'Pending'}
+              </span>
+              {album.lastSync && <span style={{ color: colors.dim }}>Last sync: {new Date(album.lastSync).toLocaleString()}</span>}
+              <span style={{ color: linked ? colors.success : colors.dim }}>{linked ? `On screen · ${summaryOf(linked)}, ${linked.duration || 30}s` : 'Not on screen'}</span>
+            </div>
+            {album.error && <div style={{ marginTop: '6px', fontSize: '13px', color: colors.danger }}>{album.error}</div>}
+            {canEdit && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+                {linked && canEditSlides && <button type="button" onClick={() => startEdit(linked)} style={{ ...buttonSecondary, ...btn }}>Settings</button>}
+                {!linked && canEditSlides && <button type="button" onClick={() => addSlideForAlbum(album)} title="This album has no slide in the rotation" style={{ ...buttonPrimary, ...btn }}>Add to screen</button>}
+                <button type="button" onClick={() => handleSync(album.id)} style={{ ...buttonSecondary, ...btn }}>Sync now</button>
+                <button type="button" onClick={() => setConfirmAlbum(album)} style={{ ...buttonSecondary, ...btn, color: colors.danger }}>Remove</button>
+              </div>
+            )}
+          </article>
+        );
+      })}
+
+      {/* Settings of an existing album's slide */}
+      <Sheet open={!!(editingSlideId && editForm)} onClose={cancelEdit} title="Album settings">
+        {editingSlideId && editForm && (
+          <>
+            {editingAlbum?.url && <div style={{ marginTop: '8px', fontSize: '12px', color: colors.dim, direction: 'ltr', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Album: {editingAlbum.url}</div>}
+            {renderSettingsForm(editForm, (field, value) => setEditForm(prev => ({ ...prev, [field]: value })), true)}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '18px', flexWrap: 'wrap' }}>
+              <button type="button" onClick={saveEdit} style={{ ...buttonPrimary, ...btn, padding: '0 20px' }}>Save changes</button>
+              <button type="button" onClick={cancelEdit} style={{ ...buttonSecondary, ...btn, padding: '0 20px' }}>Cancel</button>
+            </div>
+          </>
+        )}
+      </Sheet>
+
+      {confirmAlbum && (
+        <ConfirmDialog
+          title="Remove this album?"
+          message="The album, its saved photos and its slide on the screen will be removed."
+          confirmLabel="Remove"
+          onConfirm={() => handleDelete(confirmAlbum.id)}
+          onCancel={() => setConfirmAlbum(null)}
+        />
       )}
     </div>
   );

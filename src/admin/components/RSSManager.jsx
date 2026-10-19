@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
+import { colors, adminFonts, buttonPrimary as bp, buttonSecondary as bs } from '../styles/admin-tokens.js';
 import { ConfirmDialog } from './ui.jsx';
+import Collapsible from './ui/Collapsible.jsx';
+import { fieldStyle as inputStyle } from './look/kit.jsx';
+
+const buttonPrimary = { ...bp, minHeight: '44px', padding: '0 18px' };
+const buttonSecondary = { ...bs, minHeight: '44px', padding: '0 16px' };
 import useIsMobile from '../hooks/useIsMobile.js';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 
@@ -98,7 +103,7 @@ function MiniPreview({ item, mapping }) {
   );
 }
 
-export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides, onDeleteSlide }) {
+export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides, onDeleteSlide, canEdit = true, canEditSlides = true }) {
   const isMobile = useIsMobile();
   const [feeds, setFeeds] = useState([]);
   const [loadingFeeds, setLoadingFeeds] = useState(true);
@@ -180,7 +185,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
       });
 
       // Create a slide for this feed
-      if (onSlideCreated && newFeed) {
+      if (onSlideCreated && newFeed && canEditSlides) {
         await onSlideCreated({
           type: 'RSS_SLIDE',
           rssFeedId: newFeed.id,
@@ -239,7 +244,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
       const linked = slidesFor(editing.id);
       const oldName = feeds.find(f => f.id === editing.id)?.name;
       let slidesOk = true;
-      if (linked.length && onUpdateSlides) {
+      if (linked.length && onUpdateSlides && canEditSlides) {
         slidesOk = await onUpdateSlides(slides.map(s => (s.type === 'RSS_SLIDE' && s.rssFeedId === editing.id)
           ? { ...s, rssDisplayMode: editing.rssDisplayMode, style: editing.style || undefined, label: s.label === oldName ? editing.name.trim() : s.label }
           : s));
@@ -304,26 +309,14 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
 
   return (
     <div style={containerStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-        <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold, margin: 0 }}>
-          RSS Feeds
-        </h2>
-        <button style={buttonPrimary} onClick={() => setShowAdd(!showAdd)}>
-          {showAdd ? 'Cancel' : '+ Add Feed'}
-        </button>
-      </div>
+      <p style={{ margin: 0, color: colors.dim, fontSize: '14px', lineHeight: 1.5, fontFamily: adminFonts.englishBody }}>
+        Bring in the latest items from a news or content feed (RSS) and show them as a slide.
+      </p>
 
       {/* Add Feed Form */}
-      {showAdd && (
-        <div style={{
-          padding: isMobile ? '16px' : '20px',
-          background: colors.surface,
-          borderRadius: '4px',
-          border: `1px solid ${colors.muted}`,
-        }}>
-          <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '16px', color: colors.text, marginBottom: '16px' }}>
-            Add RSS Feed
-          </h3>
+      {canEdit && (
+        <Collapsible id="media-feed-add" title="Add a news feed" summary="Paste a feed link, preview it, choose what shows" icon="plus" defaultOpen={!loadingFeeds && feeds.length === 0}>
+        <div style={{ paddingTop: '12px' }}>
 
           {/* Step 1: URL + Preview */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
@@ -550,12 +543,14 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
             </>
           )}
         </div>
+        </Collapsible>
       )}
 
+      <h3 style={{ margin: '8px 0 0', fontSize: '16px', fontWeight: 700, color: colors.text, fontFamily: adminFonts.englishBody }}>Your feeds{feeds.length ? ` (${feeds.length})` : ''}</h3>
       {/* Feed list */}
       {loadingFeeds ? (
         <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim }}>Loading feeds...</div>
-      ) : feeds.length === 0 && !showAdd ? (
+      ) : feeds.length === 0 ? (
         <div style={{
           padding: '32px',
           textAlign: 'center',
@@ -563,16 +558,18 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
           fontFamily: adminFonts.englishBody,
           fontSize: '14px',
         }}>
-          No RSS feeds configured. Click "+ Add Feed" to get started.
+          No news feeds yet.{canEdit ? ' Add one above.' : ''}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {feeds.map(feed => (
             <React.Fragment key={feed.id}>
             <div style={{
               padding: isMobile ? '12px' : '12px 16px',
-              background: colors.surface,
-              borderRadius: '4px',
+              background: colors.card,
+              border: `1px solid ${colors.line}`,
+              boxShadow: 'var(--e1)',
+              borderRadius: 'var(--r-md)',
               display: 'flex',
               flexDirection: isMobile ? 'column' : 'row',
               alignItems: isMobile ? 'stretch' : 'center',
@@ -613,7 +610,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0, alignItems: 'flex-end' }}>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {canEdit && <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => (editing?.id === feed.id ? setEditing(null) : startEdit(feed))}
                     aria-expanded={editing?.id === feed.id}
@@ -653,7 +650,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                   >
                     {deletingId === feed.id ? 'Deleting…' : 'Delete'}
                   </button>
-                </div>
+                </div>}
                 {feedError?.id === feed.id && (
                   <span style={{
                     fontFamily: adminFonts.englishBody,
@@ -665,7 +662,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                 )}
               </div>
             </div>
-            {editing?.id === feed.id && (
+            {canEdit && editing?.id === feed.id && (
               <div style={{ padding: isMobile ? '12px' : '14px 16px', background: colors.bg, border: `1px solid ${colors.muted}`, borderRadius: '4px', marginBottom: '6px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '12px' }}>
                   <label style={{ display: 'block' }}>
@@ -678,7 +675,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                       {REFRESH_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </label>
-                  {slidesFor(feed.id).length > 0 ? (
+                  {!canEditSlides ? null : slidesFor(feed.id).length > 0 ? (
                     <>
                       <label style={{ display: 'block' }}>
                         <span style={editLabel}>Slide shows</span>

@@ -4,7 +4,8 @@ import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
 import { canOpenSection, effectiveCaps } from '../shared/permissions.js';
 import AdminLayout from './components/AdminLayout.jsx';
-import { SECTION_KEYS, SECTION_ALIASES } from './nav.js';
+import { SECTION_KEYS, SECTION_ALIASES, resolveTarget } from './nav.js';
+import { writeQueryParam } from './hooks/useQueryParam.js';
 import Home from './components/Home.jsx';
 import GlobalSearch from './components/GlobalSearch.jsx';
 import NewSheet from './components/NewSheet.jsx';
@@ -15,6 +16,7 @@ import { jumpTo } from './search/jump.js';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
+import { requestSlideOpen } from './components/slides/openRequest.js';
 import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
@@ -29,9 +31,7 @@ import ShowsPage from './components/look/ShowsPage.jsx';
 import ScheduleDisplayPage from './components/look/ScheduleDisplayPage.jsx';
 import SecurityPage from './components/look/SecurityPage.jsx';
 import ThisScreenPage from './components/look/ThisScreenPage.jsx';
-import ImageUploader from './components/ImageUploader.jsx';
-import GooglePhotosManager from './components/GooglePhotosManager.jsx';
-import RSSManager from './components/RSSManager.jsx';
+import MediaPage from './components/media/MediaPage.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
@@ -42,6 +42,13 @@ import { TOUR_KEY } from './help/helpContent.js';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
+
+// The old /admin/rss-feeds address is now Media > News feeds. Rewrite it before the router reads it.
+try {
+  if (/^\/admin\/rss-feeds\/?$/.test(window.location.pathname)) {
+    window.history.replaceState(window.history.state, '', '/admin/images?tab=feeds');
+  }
+} catch { /* ignore */ }
 
 export default function App() {
   const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'home', SECTION_ALIASES);
@@ -55,25 +62,18 @@ export default function App() {
     window.history.replaceState({ section: activeSection }, '', `/admin/${activeSection}`);
     setRouteSection(activeSection);
   }, [meReady, activeSection, routeSection, setRouteSection]);
+  // Accepts 'images', 'images?tab=web' and retired keys such as 'rss-feeds' (= Media > News feeds).
   const setActiveSection = useCallback((rawKey) => {
-    const key = SECTION_ALIASES[rawKey] || rawKey;
+    const { section: key, tab } = resolveTarget(rawKey);
     if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return false; }
     if (key !== routeSection && !confirmLeave()) return false;
     setRouteSection(key);
+    if (key === 'images') writeQueryParam('tab', tab);
     return true;
   }, [role, routeSection, setRouteSection]);
-  // Go to a section, optionally on one of its tabs: /admin/images?tab=photos (the page reads ?tab= and
-  // listens for 'tt-section-tab'). Returns false when the person stayed put (unsaved-changes prompt, no access).
-  const goSection = useCallback((key, opts) => {
-    const ok = setActiveSection(key);
-    if (ok === false) return false;
-    const tab = opts?.tab;
-    if (tab) {
-      try { window.history.replaceState({ section: key }, '', `/admin/${SECTION_ALIASES[key] || key}?tab=${encodeURIComponent(tab)}`); } catch { /* ignore */ }
-      window.dispatchEvent(new CustomEvent('tt-section-tab', { detail: { section: key, tab } }));
-    }
-    return true;
-  }, [setActiveSection]);
+  // Go to a section, optionally on one of its tabs (Media: library | photos | web | feeds). Returns false when the person
+  // stayed put (unsaved-changes prompt, no access).
+  const goSection = useCallback((key, opts) => setActiveSection(opts?.tab ? `${key}?tab=${opts.tab}` : key), [setActiveSection]);
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -122,7 +122,8 @@ export default function App() {
   const runAction = (a) => {
     if (!a) return;
     switch (a.type) {
-      case 'go': setActiveSection(a.section); if (a.anchor || a.match) jumpTo({ anchor: a.anchor, match: a.match }); break;
+      case 'go': setActiveSection(a.tab ? `${a.section}?tab=${a.tab}` : a.section); if (a.anchor || a.match) jumpTo({ anchor: a.anchor, match: a.match }); break;
+      case 'slide-popup': if (setActiveSection(a.section || 'slides') !== false) requestSlideOpen(a.slide); break;
       case 'new': setComposer({ display: a.kind }); break;
       case 'quick': setQuickOpen(true); break;
       case 'command': screenCommand(a.name); break;
@@ -273,54 +274,9 @@ export default function App() {
         );
       case 'images':
         return (
-          <>
-            <h2 style={{
-              fontFamily: adminFonts.englishBody,
-              fontSize: '24px',
-              fontWeight: 600,
-              color: colors.gold,
-              marginBottom: '20px',
-            }}>
-              Media
-            </h2>
-
-            <h3 style={{
-              fontFamily: adminFonts.englishBody,
-              fontSize: '18px',
-              fontWeight: 500,
-              color: colors.text,
-              marginBottom: '12px',
-            }}>
-              Upload Media
-            </h3>
-            <ImageUploader
-              onSlideCreated={createSlide}
-            />
-
-            <h3 style={{
-              fontFamily: adminFonts.englishBody,
-              fontSize: '18px',
-              fontWeight: 500,
-              color: colors.text,
-              margin: '28px 0 12px',
-            }}>
-              Google Photos
-            </h3>
-            <GooglePhotosManager
-              onSlideCreated={createSlide}
-              onDeleteSlide={deleteSlide}
-              slides={state?.slides || []}
-              onUpdateSlides={updateSlides}
-            />
-          </>
-        );
-      case 'rss-feeds':
-        return (
-          <RSSManager
-            onSlideCreated={createSlide}
-            slides={state?.slides || []}
-            onUpdateSlides={updateSlides}
-            onDeleteSlide={deleteSlide}
+          <MediaPage
+            me={me} slides={state?.slides || []} settings={settings} screenDisplay={state?.screenDisplay || null}
+            onCreateSlide={createSlide} onUpdateSlides={updateSlides} onDeleteSlide={deleteSlide}
           />
         );
       case 'themes':

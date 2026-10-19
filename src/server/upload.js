@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { mkdir, unlink, readdir, writeFile } from 'fs/promises';
+import { mkdir, unlink, readdir, writeFile, stat } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,7 +39,7 @@ export function getMediaType(mimetype) {
 /**
  * Process an uploaded image — resize, create blur placeholder.
  */
-export async function processImage(buffer, mimetype) {
+export async function processImage(buffer, mimetype, box = { width: 1920, height: 1080 }) {
   const id = uuidv4();
   const ext = mimetype === 'image/png' ? 'png' : mimetype === 'image/webp' ? 'webp' : 'jpg';
   const image = sharp(buffer);
@@ -49,7 +49,7 @@ export async function processImage(buffer, mimetype) {
 
   const filename = `${id}.${ext}`;
   await sharp(buffer)
-    .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+    .resize(box.width, box.height, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
     .toFile(path.join(UPLOAD_DIR, filename));
 
@@ -125,3 +125,38 @@ export async function deleteMedia(id) {
 
 // Keep backward compat alias
 export const deleteImage = deleteMedia;
+
+// ── Library listing ─────────────────────────────────────────────────────────
+// One row per upload: <uuid>.<ext> (the -blur.jpg placeholder is not listed, logo-* files are not media).
+const MAIN_FILE = /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(jpg|jpeg|png|webp|gif|mp4|webm)$/i;
+const sizeCache = new Map(); // filename -> { width, height } (pictures only; files never change once written)
+
+export async function listMedia() {
+  let files = [];
+  try { files = await readdir(UPLOAD_DIR); } catch { return []; }
+  const names = new Set(files);
+  const items = [];
+  for (const filename of files) {
+    const m = filename.match(MAIN_FILE);
+    if (!m) continue;
+    const [, id, extRaw] = m;
+    const ext = extRaw.toLowerCase();
+    const mediaType = ext === 'gif' ? 'gif' : (ext === 'mp4' || ext === 'webm') ? 'video' : 'image';
+    let st;
+    try { st = await stat(path.join(UPLOAD_DIR, filename)); } catch { continue; }
+    let dims = sizeCache.get(filename);
+    if (!dims && mediaType !== 'video') {
+      try {
+        const meta = await sharp(path.join(UPLOAD_DIR, filename), { animated: false }).metadata();
+        dims = { width: meta.width, height: meta.height };
+        sizeCache.set(filename, dims);
+      } catch { dims = null; }
+    }
+    items.push({
+      id, filename, mediaType, bytes: st.size, uploadedAt: st.mtimeMs,
+      width: dims?.width, height: dims?.height,
+      blurFilename: names.has(`${id}-blur.jpg`) ? `${id}-blur.jpg` : undefined,
+    });
+  }
+  return items.sort((a, b) => b.uploadedAt - a.uploadedAt);
+}

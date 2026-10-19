@@ -22,7 +22,7 @@ import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
-import { getScreenState, setScreenState } from './screenState.js';
+import { getScreenState, setScreenState, getScreenDisplay } from './screenState.js';
 import { initGooglePhotosSync } from './google-photos.js';
 import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
@@ -255,6 +255,9 @@ export function createApp() {
         // Running schedule countdown alert (or null), so a kiosk that
         // reconnects/reloads mid-countdown still shows it. Not persisted.
         countdown: getActiveCountdown(),
+        // Real size of the kiosk (reported over the localhost-only /api/screen/report), or null
+        // until a screen has reported. The admin's Media page turns it into "best size".
+        screenDisplay: getScreenDisplay(),
       });
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });
@@ -290,8 +293,8 @@ export function createApp() {
 
   // ── 6f. Localhost-only screen state endpoints (kiosk reports slide changes; preview reads on connect) ─
   app.post('/api/screen/report', localhostOnly, (req, res) => {
-    const { slideIndex, slideId, isPaused } = req.body || {};
-    setScreenState({ slideIndex, slideId, isPaused });
+    const { slideIndex, slideId, isPaused, display } = req.body || {};
+    setScreenState({ slideIndex, slideId, isPaused, display });
     res.json({ success: true });
   });
 

@@ -7,9 +7,10 @@ import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
 import { broadcast, broadcastToAll } from '../sse.js';
-import { getScreenState, setScreenState } from '../screenState.js';
+import { getScreenState, setScreenState, getScreenDisplay } from '../screenState.js';
 import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
-import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia } from '../upload.js';
+import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia, listMedia } from '../upload.js';
+import { uploadBox } from '../../shared/screenSize.js';
 import { syncAlbum, deleteAlbumCache, getAlbumStatus, getAlbumPhotos, startSyncTimer, stopSyncTimer } from '../google-photos.js';
 import { extractAlbumId } from '../../fetchers/google-photos.js';
 import { initCountdowns } from '../countdown.js';
@@ -252,15 +253,19 @@ router.delete('/slides/:id', async (req, res) => {
     broadcast('slides-update', slides);
     reinitCountdownsForSlides();
 
-    // Clean up uploaded media file if this was a media slide
-    if (deleted?.mediaId) {
+    // Clean up uploaded media file if this was a media slide - unless another slide
+    // (Media > Add to screen can add the same upload twice) still shows it.
+    const stillUsed = (id) => slides.some((s) => s.mediaId === id || (s.imageUrl || '').includes(`/uploads/${id}.`) || (s.videoUrl || '').includes(`/uploads/${id}.`));
+    if (deleted?.mediaId && stillUsed(deleted.mediaId)) {
+      // keep the file
+    } else if (deleted?.mediaId) {
       deleteMedia(deleted.mediaId).catch((e) => {
         console.error(`[api] Media cleanup failed for ${deleted.mediaId}:`, e.message);
       });
     } else if (deleted?.imageUrl) {
       // Legacy IMAGE_SLIDE — extract id from /uploads/UUID.ext
       const match = deleted.imageUrl.match(/\/uploads\/([a-f0-9-]+)\./);
-      if (match) deleteMedia(match[1]).catch((e) => {
+      if (match && !stillUsed(match[1])) deleteMedia(match[1]).catch((e) => {
         console.error(`[api] Legacy media cleanup failed for ${match[1]}:`, e.message);
       });
     }
@@ -744,7 +749,9 @@ router.post('/upload', (req, res, next) => {
     const type = getMediaType(req.file.mimetype);
     let result;
     if (type === 'image') {
-      result = await processImage(req.file.buffer, req.file.mimetype);
+      // Shrink into the real screen's size (1920x1080 until a screen has reported).
+      const settings = (await readJSON('settings.json')) ?? {};
+      result = await processImage(req.file.buffer, req.file.mimetype, uploadBox(getScreenDisplay(), settings.orientation));
     } else if (type === 'gif') {
       result = await processGif(req.file.buffer);
     } else if (type === 'video') {
@@ -757,6 +764,16 @@ router.post('/upload', (req, res, next) => {
     console.error('[api] POST /upload error:', err.message, err.stack);
     const msg = 'Image processing failed. The file may be corrupted or in an unsupported format.';
     res.status(500).json({ error: msg });
+  }
+});
+
+// The library: every picture / GIF / video uploaded (newest first).
+router.get('/media', async (_req, res) => {
+  try {
+    res.json(await listMedia());
+  } catch (err) {
+    console.error('[api] GET /media error:', err.message);
+    res.status(500).json({ error: 'Failed to list media.' });
   }
 });
 

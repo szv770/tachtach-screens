@@ -6,8 +6,7 @@ import { canOpenSection } from '../shared/permissions.js';
 export const navItems = [
   { key: 'home', en: 'Home', desc: 'What\'s on the screen now', area: 'home' },
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen' },
-  { key: 'images', en: 'Media', desc: 'Images, videos & Google Photos', area: 'screen' },
-  { key: 'rss-feeds', en: 'News feeds', desc: 'Live news & content feeds', area: 'screen' },
+  { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
@@ -46,7 +45,30 @@ export const LOOK_GROUPS = [
 ];
 
 /** Retired section URLs that still work (bookmarks, old links, help text). */
-export const SECTION_ALIASES = { settings: 'location' };
+export const SECTION_ALIASES = { settings: 'location', 'rss-feeds': 'images' };
+
+/** The Media page's tabs (`/admin/images?tab=<value>`; the first is the default). */
+export const MEDIA_TABS = [
+  { value: 'library', label: 'Library', needs: ['media.upload', 'media.delete', 'slides.edit'] },
+  { value: 'photos', label: 'Photo albums', needs: ['feeds.edit'] },
+  { value: 'web', label: 'Web pages', needs: ['slides.edit', 'slides.delete'] },
+  { value: 'feeds', label: 'News feeds', needs: ['feeds.edit'] },
+];
+export const MEDIA_TAB_VALUES = MEDIA_TABS.map((t) => t.value);
+export const DEFAULT_MEDIA_TAB = 'library';
+
+/**
+ * Turn anything a link or button can ask for into { section, tab }:
+ * 'images', 'images?tab=web', and the retired 'rss-feeds' (= Media > News feeds).
+ */
+export function resolveTarget(raw) {
+  const [path, query = ''] = String(raw || '').split('?');
+  let section = SECTION_ALIASES[path] || path;
+  let tab = new URLSearchParams(query).get('tab') || null;
+  if (path === 'rss-feeds' && !tab) tab = 'feeds';
+  if (section !== 'images' || !MEDIA_TAB_VALUES.includes(tab)) tab = null;
+  return { section, tab };
+}
 
 export const SECTION_KEYS = navItems.map((n) => n.key);
 export const sectionInfo = (key) => navItems.find((n) => n.key === key) || null;

@@ -301,6 +301,39 @@ function AppContent() {
     }).catch(() => {});
   }, [slideRotation.currentIndex, slideRotation.isPaused]);
 
+  // Tell the server the real screen size (device pixels, dpr, orientation, canvas) so the admin's
+  // Media page can say "best size for this screen". Real screen only; on load, on resize (settled)
+  // and every 5 min, because the server keeps it in memory only.
+  useEffect(() => {
+    if (_isPreview || _isDatePreview) return undefined;
+    let timer = null;
+    const send = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const portrait = vh > vw;
+      const baseW = portrait ? 900 : 1600;
+      const baseH = portrait ? 1600 : 900;
+      const scale = Math.min(vw / baseW, vh / baseH) || 1;
+      fetch('/api/screen/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          display: {
+            width: Math.round(vw * dpr), height: Math.round(vh * dpr), dpr,
+            orientation: portrait ? 'portrait' : 'landscape',
+            canvas: { width: Math.round(vw / scale), height: Math.round(vh / scale) },
+          },
+        }),
+      }).catch(() => {});
+    };
+    const onResize = () => { clearTimeout(timer); timer = setTimeout(send, 1500); };
+    send();
+    window.addEventListener('resize', onResize);
+    const every = setInterval(send, 5 * 60 * 1000);
+    return () => { clearTimeout(timer); clearInterval(every); window.removeEventListener('resize', onResize); };
+  }, []);
+
   // Preview sync — on mount, jump to the slide the real screen is currently on
   useEffect(() => {
     if (!_isPreview) return;

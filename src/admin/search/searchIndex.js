@@ -58,10 +58,25 @@ export const SETTINGS_INDEX = [
   S('account', 'Light / dark appearance', 'theme dark mode light mode system', { match: 'Appearance' }),
   // Screen
   S('slides', 'Slides: turn on / off, reorder, duration', 'rotation slideshow seconds enable disable drag order', { match: 'Slides' }),
-  S('slides', 'New slide', 'add web page image photos feed message weather', { match: 'New Slide' }),
-  S('images', 'Upload an image or video', 'photo picture gif media library', { match: 'Upload' }),
-  S('images', 'Google Photos album', 'photos album connect sync shared', { match: 'Google Photos' }),
-  S('rss-feeds', 'News feeds (RSS)', 'rss news feed refresh', { match: 'RSS' }),
+  S('slides', 'New slide (pick a type, then its options)', 'add create web page image photos album video feed message weather built-in zmanim', { slide: { kind: 'new' } }),
+  // Each slide's own options: the pencil popup on its row.
+  S('slides', 'Zmanim slide: which times to show', 'zmanim visible list hide times pencil edit slide', { slide: { kind: 'edit', type: 'ZMANIM' } }),
+  S('slides', 'Study slide: language and which studies', 'limudim chitas rambam tanya hebrew english both pencil edit slide', { slide: { kind: 'edit', type: 'LIMUDIM' } }),
+  S('slides', 'Hayom Yom slide: language', 'hebrew english both pencil edit slide', { slide: { kind: 'edit', type: 'HAYOM_YOM' } }),
+  S('slides', 'Weather slide: units and rail readout', 'temperature fahrenheit celsius pencil edit slide', { slide: { kind: 'edit', type: 'WEATHER' } }),
+  S('slides', 'Web page slide: address, reload, size, check', 'website url charidy embed reload zoom save check pencil edit slide', { slide: { kind: 'edit', type: 'WEB_PAGE' } }),
+  S('slides', 'Image slide: fit and edge look', 'picture fit fill stretch blur gradient pencil edit slide', { slide: { kind: 'edit', type: 'IMAGE_SLIDE' } }),
+  S('slides', 'Google Photos slide: layout and timing', 'album collage carousel seconds per photo pencil edit slide', { slide: { kind: 'edit', type: 'GOOGLE_PHOTOS_SLIDE' } }),
+  S('slides', 'News feed slide: item and look', 'rss classic grand sleek pencil edit slide', { slide: { kind: 'edit', type: 'RSS_SLIDE' } }),
+  S('slides', 'Mivtzah live screen address', 'embed mivtzah url pencil edit slide', { slide: { kind: 'edit', type: 'MIVTZAH_LIVE_EMBED' } }),
+  S('images', 'Upload an image, GIF or video', 'photo picture gif media library upload file', { tab: 'library', anchor: 'media-upload' }),
+  S('images', 'Best picture size for this screen (recommended resolution)', 'resolution size pixels 4k 1080p 3840 1920 portrait landscape aspect ratio safe edges', { tab: 'library', anchor: 'media-size' }),
+  S('images', 'Media library: add to screen, delete an upload', 'uploaded pictures videos remove delete add slide grid', { tab: 'library', match: 'Your uploads' }),
+  S('images', 'Google Photos album (connect, sync, remove)', 'photos album connect sync shared link', { tab: 'photos', anchor: 'media-photos-connect' }),
+  S('images', 'Google Photos album settings (display mode, seconds, order, max photos)', 'collage carousel ken burns refresh interval album settings', { tab: 'photos', match: 'Connected albums' }),
+  S('images', 'Web page (show a website on the screen)', 'website url iframe charidy embed save check frame fundraiser', { tab: 'web', anchor: 'media-web-add' }),
+  S('images', 'Web page reload and zoom', 'refresh reload seconds page size zoom', { tab: 'web', match: 'Your web pages' }),
+  S('images', 'News feeds (RSS)', 'rss news feed refresh add feed preview mapping sync', { tab: 'feeds', anchor: 'media-feed-add' }),
   S('daily-word', 'Daily Word', 'yiddish word archive coming up import', { match: 'Daily Word' }),
   // Schedule
   S('schedule', 'Weekly schedule', 'timetable entries categories alerts', { match: 'Weekly' }),
@@ -189,7 +204,7 @@ export function search(query, { state = {}, role } = {}) {
     if (!can(e.section)) continue;
     const crumb = crumbOf(e.section);
     const s = score(tokens, { title: e.title, keywords: e.keywords, crumb });
-    if (s) push('settings', { id: `set-${i}`, title: e.title, sub: crumb, icon: 'gear', action: { type: 'go', section: e.section, anchor: e.anchor, match: e.match } }, s);
+    if (s) push('settings', { id: `set-${i}`, title: e.title, sub: crumb, icon: 'gear', action: e.slide ? { type: 'slide-popup', section: e.section, slide: e.slide } : { type: 'go', section: e.section, tab: e.tab, anchor: e.anchor, match: e.match } }, s);
   }
 
   if (can('announcements')) {

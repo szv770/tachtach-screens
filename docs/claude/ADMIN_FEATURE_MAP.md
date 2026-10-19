@@ -32,11 +32,13 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | Announcements | Legacy Messages / Pinned UI | removed earlier; verified no admin references remain | Done. Server still answers `/api/messages`, `/api/pinned`, legacy slide POST (translating shims, one release, `routes/announcements.js`) |
 | Custom Days | Add, delete | `CustomDaysEditor` | OK |
 | Custom Days | Edit existing (same id, Hebrew/Gregorian switch) | `CustomDaysEditor` Edit; new `PUT /api/custom-days/:id` | Fixed (was create/delete only) |
-| Media | Upload image/video/GIF, add as slide | `ImageUploader` | OK |
-| Photos | Connect album, sync now, remove | `GooglePhotosManager` | OK |
+| Media | Upload image/video/GIF, add as slide | Media > Library (`media/MediaLibrary`, `ImageUploader`, `media/AddToScreenForm`) | OK. Phase 3B: grid of uploads (`GET /api/media`) with Add to screen / Delete (confirm; slides using it go too), "Best size" card, non-blocking size warning. No PDF support (not invented) |
+| Media | Recommended size for the screen | Media > Library `media/SizeCard`; kiosk reports `{width,height,dpr,orientation,canvas}` via `POST /api/screen/report`, read from `/api/state` `screenDisplay` | New. Fallback 1920x1080 / 1080x1920 from `settings.orientation`; uploads are now shrunk into the measured size (cap 4K) |
+| Media | Web pages (WEB_PAGE slides) list/add/edit/Save & check/remove | Media > Web pages (`media/WebPagesTab`); same slide fields as before | Moved from the slide row; SlideManager's pencil popup is 3A's |
+| Photos | Connect album, sync now, remove | Media > Photo albums (`GooglePhotosManager`) | OK. Closed collapsibles, Sheet for settings, ConfirmDialog instead of `confirm()` |
 | Photos | `refreshInterval`, `maxPhotos` after creation | Album "Settings" button / slide Edit sheet; `PUT /api/google-album/:id` re-syncs when maxPhotos changes | Fixed |
 | Photos | Album with no slide | "Add slide" button on the album row | Fixed |
-| RSS | Add feed, sync, delete | `RSSManager` | OK |
+| RSS | Add feed, sync, delete | Media > News feeds (`RSSManager`; `/admin/rss-feeds` redirects to `/admin/images?tab=feeds`) | OK |
 | RSS | Edit name/refresh/slide mode/style | `RSSManager` Edit | Fixed. Deleting a feed now also removes its slide |
 | Style | Hebrew body/heading font, English font, scales, upload/delete fonts | `look/FontsPage` (/admin/style) | OK. Saves only `fonts`/scales keys; font upload/delete errors now toast |
 | Settings | Zip, Chabad location id, Track A/B | Look & Settings > Location & weather / Schedule display (`look/LocationPage`, `look/ScheduleDisplayPage`) | OK (nested keys, bug 6) |
