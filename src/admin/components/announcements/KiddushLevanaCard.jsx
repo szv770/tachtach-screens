@@ -5,6 +5,7 @@ import { ToggleSwitch } from '../ui.jsx';
 import { apiFetch, notify } from '../../hooks/useAdminState.js';
 import { can } from '../../../shared/permissions.js';
 import { KL_END_RULES } from '../../../shared/kiddushLevana.js';
+import KiddushLevanaMonths from './KiddushLevanaMonths.jsx';
 
 const fmt = (ms, tz, o) => new Intl.DateTimeFormat('en-US', { timeZone: tz, ...o }).format(ms);
 const when = (ms, tz) => fmt(ms, tz, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
@@ -64,6 +65,11 @@ export default function KiddushLevanaCard({ caps = [] }) {
               {KL_END_RULES.map((r) => opt(s.endRule, r.id, r.id === 'halfway' ? 'Halfway point (Chabad)' : '15 days after', 'endRule'))}
             </div>
             <div style={row}>
+              <span style={lab}>Hebrew line</span>
+              <ToggleSwitch on={s.hebrew} label="Add a Hebrew line to the screen messages" onChange={() => editable && save({ hebrew: !s.hebrew })} />
+              <span style={{ ...line, color: colors.dim }}>{s.hebrew ? 'English plus a Hebrew line' : 'English only'}</span>
+            </div>
+            <div style={row}>
               <span style={lab}>Customs</span>
               {opt(s.skipCustoms, true, 'Skip Tisha B’Av / Rosh Hashana–Yom Kippur nights', 'skipCustoms')}
               {opt(s.skipCustoms, false, 'Don’t skip', 'skipCustoms')}
@@ -79,6 +85,10 @@ export default function KiddushLevanaCard({ caps = [] }) {
                 <div style={{ ...line, color: colors.dim, marginTop: '6px' }}>Please confirm the exact Chabad cutoff with your rav.</div>
               </div>
             )}
+            <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: '12px' }}>
+              <div style={{ ...line, fontWeight: 700, marginBottom: '8px' }}>Upcoming months</div>
+              <KiddushLevanaMonths editable={editable} onChanged={load} key={JSON.stringify(s)} />
+            </div>
           </>
         )}
       </div>
