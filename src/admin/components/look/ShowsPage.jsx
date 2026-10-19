@@ -50,7 +50,7 @@ export default function ShowsPage({ settings = {}, onSave }) {
         ))}
       </Collapsible>
 
-      <Collapsible id="look-up-next" title="Up-next card" icon="clock" summary={`Appears ${savedMin} min before an item`}>
+      <Collapsible id="look-up-next" title="Up-next card" icon="clock" summary={`Appears ${savedMin} min before an item${settings.rail?.upNextCountdown ? ', live countdown' : ''}`}>
         <Field label="Minutes before a schedule item" htmlFor="tt-upnext" hint="The card shows in the side rail only within this window, and never on the schedule page.">
           <input
             id="tt-upnext" type="number" inputMode="numeric" min="1" max="60" style={{ ...fieldStyle, maxWidth: '120px' }} value={mins}
@@ -58,6 +58,11 @@ export default function ShowsPage({ settings = {}, onSave }) {
           />
           <span style={{ marginLeft: '10px', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>minutes (default 5)</span>
         </Field>
+        <SwitchRow
+          on={!!settings.rail?.upNextCountdown} label="Live countdown on the card" testId="upnext-countdown"
+          note="Shows the time left, switching to minutes and seconds ticking down in the last 3 minutes."
+          onChange={() => apply({ rail: { upNextCountdown: !settings.rail?.upNextCountdown } }, `Up-next countdown ${settings.rail?.upNextCountdown ? 'off' : 'on'}`)}
+        />
       </Collapsible>
 
       <Collapsible id="set-daily-study-slide" title="Daily study slide" icon="word" summary={`${langLabel(limLang)} - ${itemsOn.length} of ${ITEMS.length} items`}>

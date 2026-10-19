@@ -70,6 +70,8 @@ export function WeatherReadout({ weather, busy = false, compact = false, align =
   );
 }
 
+const LIVE_SECS = 180;
+
 export function UpNextCard({ item, align = 'left' }) {
   const { graphics } = useDesign();
   if (!item) return null;
@@ -78,11 +80,16 @@ export function UpNextCard({ item, align = 'left' }) {
   const t = fmt12(item.startMins);
   const ring = graphics === 'rich';
   const R = 108;
+  // rail.upNextCountdown: "N min" until the last LIVE_SECS seconds, then a live m:ss (tabular numerals,
+  // fixed-width box so the card never shifts as digits change).
+  const live = item.countdown && item.secsLeft != null && item.secsLeft <= LIVE_SECS;
+  const mm = Math.floor((item.secsLeft || 0) / 60), ss = (item.secsLeft || 0) % 60;
+  const big = live ? `${mm}:${String(ss).padStart(2, '0')}` : String(item.countdown && item.secsLeft != null ? Math.max(1, Math.ceil(item.secsLeft / 60)) : item.minsLeft);
   const eta = (
-    <div className="tt-num" style={{ textAlign: 'center', lineHeight: 0.85, position: 'relative', width: ring ? R : 'auto', height: ring ? R : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="tt-num" data-upnext-eta={live ? 'live' : 'min'} style={{ textAlign: 'center', lineHeight: 0.85, position: 'relative', width: ring ? R : 'auto', minWidth: item.countdown && !ring ? 150 : undefined, height: ring ? R : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
       {ring && <ProgressRing size={R} stroke={6} fraction={item.fraction} />}
-      <b style={{ fontSize: ring ? 58 : 84, fontWeight: 700, letterSpacing: '-.045em', display: 'block' }}>{item.minsLeft}</b>
-      <span style={{ fontSize: ring ? 20 : 22, fontWeight: 600, marginTop: ring ? 2 : 0 }}>min</span>
+      <b style={{ fontSize: live ? (ring ? 36 : 60) : ring ? 58 : 84, fontWeight: 700, letterSpacing: '-.045em', display: 'block', fontVariantNumeric: 'tabular-nums' }}>{big}</b>
+      <span style={{ fontSize: ring ? 20 : 22, fontWeight: 600, marginTop: ring ? 2 : 0 }}>{live ? 'min : sec' : 'min'}</span>
     </div>
   );
   return (
