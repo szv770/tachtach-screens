@@ -44,12 +44,15 @@ const announcements = {
     const refs = ctx.op === 'delete' ? (await io.readSlides()).map((row, index) => ({ index, row })).filter((x) => x.row.type === 'ANNOUNCEMENT' && x.row.announcementId === item.id) : [];
     return { item: clone(item), refs: clone(refs) };
   },
-  async finish(ctx, pre, io) {
+  async finish(ctx, pre, io, user) {
     const items = await io.announcements.load();
     if (ctx.op === 'create') {
       if (!pre) return null;
       const known = new Set(pre.ids);
-      const made = pre.restoreId ? items.find((i) => i.id === pre.restoreId && !known.has(i.id)) : items.find((i) => !known.has(i.id));
+      // Two people posting at once both see "new" items: attribute the one stamped with THIS person's id, never just the first new one.
+      const fresh = items.filter((i) => !known.has(i.id));
+      const mineFirst = user?.id ? fresh.filter((i) => i.createdById === user.id) : [];
+      const made = pre.restoreId ? fresh.find((i) => i.id === pre.restoreId) : (mineFirst[mineFirst.length - 1] || (fresh.length === 1 && !fresh[0].createdById ? fresh[0] : null));
       if (!made) return null;
       return { kind: 'announcement.create', label: `${pre.restoreId ? 'Put back' : 'Posted'} “${announcementName(made)}”`, ctx: { id: made.id }, before: null, after: clone(made) };
     }
@@ -264,7 +267,7 @@ export function createUndoService({ store, io, now = () => Date.now() }) {
   async function finish(tracker, user) {
     if (!tracker) return null;
     try {
-      const out = await tracker.def.finish(tracker.ctx, tracker.pre, io);
+      const out = await tracker.def.finish(tracker.ctx, tracker.pre, io, user);
       if (!out) return null;
       const rec = await store.add({ ...out, user });
       return rec ? { id: rec.id, label: rec.label, kind: rec.kind } : { id: null, label: out.label, kind: out.kind };

@@ -10,6 +10,7 @@
 
 import { Router } from 'express';
 import { effectiveCaps, can } from '../../shared/permissions.js';
+import { stampCreator, canUndoOwn } from '../ownPost.js';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
@@ -87,7 +88,7 @@ router.post('/announcements', async (req, res) => {
     const created = await withLock(async () => {
       const items = await loadItems();
       const item = createItem(patch, { id: uuidv4() });
-      if (req.user?.name) item.createdBy = item.updatedBy = req.user.name;
+      stampCreator(item, req.user);
       applyResolve(item, items, req.body?.resolve);
       items.push(item);
       await saveItems(items);
@@ -106,7 +107,9 @@ router.put('/announcements/:id', async (req, res) => {
       if (idx === -1) throw notFound();
       const item = validateForSave(mergeItem(items[idx], patch));
       if (req.user?.name) item.updatedBy = req.user.name;
+      // Creator fields are immutable: nothing in a request body can change who made a post.
       if (items[idx].createdBy) item.createdBy = items[idx].createdBy;
+      if (items[idx].createdById) item.createdById = items[idx].createdById; else delete item.createdById;
       applyResolve(item, items, req.body?.resolve);
       items[idx] = item;
       await saveItems(items);
@@ -168,7 +171,8 @@ router.post('/announcements/:id/duplicate', async (req, res) => {
       dup.updatedAt = nowIso;
       dup.status = 'draft';
       dup.enabled = true;
-      if (req.user?.name) dup.createdBy = dup.updatedBy = req.user.name;
+      delete dup.createdById;
+      stampCreator(dup, req.user);
       delete dup.legacy;
       if (dup.takeover) dup.takeover.group = null;
       items.push(dup);
@@ -188,9 +192,7 @@ router.delete('/announcements/:id', async (req, res) => {
       if (!item) throw notFound();
       // Posters without 'delete' may only undo their own post, within 30 minutes.
       if (!can(effectiveCaps(req.user), 'announcements.delete')) {
-        const mine = item.createdBy && item.createdBy === req.user?.name;
-        const stamp = Date.parse(item.createdAt || '');
-        if (!mine || !(Date.now() - stamp < 30 * 60 * 1000)) {
+        if (!canUndoOwn(item, req.user)) {
           const e = new Error('You can only undo your own message right after posting it.');
           e.status = 403; e.expose = true;
           throw e;
@@ -221,6 +223,8 @@ router.post('/announcements/restore', async (req, res) => {
       if (items.some((i) => i.id === src.id)) throw new ValidationError('That announcement already exists.');
       const item = createItem(sanitizeInput(src), { id: src.id, nowIso: typeof src.createdAt === 'string' ? src.createdAt : undefined });
       if (src.legacy && typeof src.legacy === 'object') item.legacy = src.legacy;
+      // Never trust creator fields from the body; restoring needs announcements.delete, so the restorer owns the copy.
+      stampCreator(item, req.user);
       items.push(item);
       await saveItems(items);
       const refs = Array.isArray(req.body?.refs) ? req.body.refs : [];
