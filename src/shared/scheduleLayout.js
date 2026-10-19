@@ -98,7 +98,7 @@ export function slotProgress(slot, now) {
  * Faded past rows (Focus view): ink strength in % for the k-th finished row counted back from now (1 = most
  * recent). Decreasing, never below the general `--past` (34%) minus a step, so the oldest is the faintest.
  */
-export const PAST_FADE = Object.freeze([52, 40, 30]);
+export const PAST_FADE = Object.freeze([62, 44, 30]);
 export function pastFade(k) { return PAST_FADE[Math.min(PAST_FADE.length, Math.max(1, k)) - 1]; }
 
 // ── Focus ────────────────────────────────────────────────────────────────

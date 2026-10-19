@@ -69,7 +69,7 @@ const probe = (page) => page.evaluate(() => {
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none') continue;
     const clips = cs.overflow !== 'visible' || cs.overflowX !== 'visible';
-    if (clips && el !== view && !el.matches('[data-up],[data-track],[data-strip]') && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2) && el.clientWidth > 0) {
+    if (clips && el !== view && !el.matches('[data-up],[data-track],[data-strip],[data-optional]') && (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 2) && el.clientWidth > 0) {
       out.overflow.push(`${el.tagName}.${el.className || ''}[${(el.textContent || '').slice(0, 30)}] ${el.scrollWidth}x${el.scrollHeight}>${el.clientWidth}x${el.clientHeight}`);
     }
   }

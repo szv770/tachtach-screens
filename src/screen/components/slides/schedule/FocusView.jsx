@@ -84,13 +84,13 @@ function UpRow({ s, state, size, timeW, now, first, hidden }) {
       <span style={{ display: 'flex', alignItems: 'baseline', gap: '.6em', minWidth: 0 }}>
         <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: '0 1 auto' }}>
           <Bidi text={s.primary} fallback={s.primaryHe ? 'rtl' : 'ltr'} style={{ fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 600, letterSpacing: s.primaryHe ? 0 : '-.012em', overflowWrap: 'anywhere' }} />
-          {s.split && <SplitTimes split={s.split} now={now} size=".62em" />}
+          {s.split && <SplitTimes split={s.split} now={now} size=".72em" />}
         </span>
-        {s.end != null && !s.split && <span className="tt-num" style={{ flex: 'none', fontSize: '.62em', fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>to {hm(s.end)}</span>}
+        {s.end != null && !s.split && <span className="tt-num" style={{ flex: 'none', fontSize: '.72em', fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>to {hm(s.end)}</span>}
         <span style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'baseline', gap: '.7em' }}>
           {s.secondary && <Bidi text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontWeight: 500, fontSize: 'calc(.8em * var(--he-scale, 1))', color: 'var(--inkDim)', whiteSpace: 'nowrap' }} />}
-          {isNext && <span className="tt-num" style={{ fontFamily: F.en, fontSize: '.6em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>in {durationText(s.v - now)}</span>}
-          {isNow && <span style={{ fontFamily: F.en, fontSize: '.6em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>now</span>}
+          {isNext && <span className="tt-num" style={{ fontFamily: F.en, fontSize: '.72em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>in {durationText(s.v - now)}</span>}
+          {isNow && <span style={{ fontFamily: F.en, fontSize: '.72em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>now</span>}
         </span>
       </span>
     </div>
@@ -100,22 +100,27 @@ function UpRow({ s, state, size, timeW, now, first, hidden }) {
 function LaterStrip({ rows }) {
   const boxRef = useRef(null);
   const [shown, setShown] = useState(rows.length);
+  const shownRef = useRef(shown); shownRef.current = shown;
   const key = contentKey(rows);
   const measure = () => {
     const el = boxRef.current; if (!el) return;
     const chips = [...el.querySelectorAll('[data-chip]')];
-    chips.forEach((c) => { c.style.display = ''; });
     const more = el.querySelector('[data-more]');
-    const limit = el.clientWidth - (more ? more.offsetWidth + 24 : 0);
-    let k = 0;
-    for (const c of chips) { if (c.offsetLeft + c.offsetWidth <= limit + 1) k++; else break; }
-    setShown(k === chips.length && (!more || el.scrollWidth <= el.clientWidth + 1) ? chips.length : k);
+    if (more) more.style.display = 'none';
+    chips.forEach((c) => { c.style.display = 'inline-flex'; });
+    const count = (limit) => { let k = 0; for (const c of chips) { if (c.offsetLeft + c.offsetWidth <= limit + 1) k++; else break; } return k; };
+    let k = count(el.clientWidth);
+    if (k < chips.length) k = count(el.clientWidth - 300); // room for "+ N more · until 11:30 PM"
+    // hand the DOM back in the state React believes it is in (it does not re-apply unchanged styles)
+    chips.forEach((c, i) => { c.style.display = i < shownRef.current ? 'inline-flex' : 'none'; });
+    if (more) more.style.display = '';
+    setShown(k);
   };
   useRefit(measure, boxRef, [key]);
   if (!rows.length) return null;
   const hiddenN = rows.length - shown;
   return (
-    <div ref={boxRef} data-strip="" style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: 26, borderTop: '2px solid var(--line)', paddingTop: 14, marginTop: 6, fontFamily: F.en, fontSize: 24, fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', position: 'relative' }}>
+    <div ref={boxRef} data-strip="" style={{ flex: 'none', position: 'relative', display: 'flex', alignItems: 'baseline', gap: 26, borderTop: '2px solid var(--line)', paddingTop: 14, marginTop: 6, fontFamily: F.en, fontSize: 24, fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', position: 'relative' }}>
       <span style={{ color: 'var(--ink)', fontWeight: 700 }}>Later</span>
       {rows.map((s, i) => (
         <span key={s.id || i} data-chip="" style={{ ...catVars(s), display: i < shown ? 'inline-flex' : 'none', alignItems: 'baseline', gap: '.4em' }}>
@@ -168,7 +173,7 @@ export default function FocusView({ items, states, now, portrait }) {
         </div>
       )}
       <Hero s={items[pick.hero]} role={pick.heroRole} now={now} running={states.running[pick.hero]} portrait={portrait} />
-      <div ref={listRef} data-up="" style={{ flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 14, display: 'flex', flexDirection: 'column' }}>
+      <div ref={listRef} data-up="" style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 14, display: 'flex', flexDirection: 'column' }}>
         {pick.up.map((k, j) => (
           <UpRow key={items[k].id || k} s={items[k]} state={states.st[k]} size={sizes[j]} timeW={timeW} now={now} first={j === 0} hidden={j >= fitN} />
         ))}

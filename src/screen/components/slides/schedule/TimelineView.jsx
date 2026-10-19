@@ -94,7 +94,10 @@ export default function TimelineView({ items, states, now, light, portrait, moti
                   </Fit>
                   {!portrait && s.secondary && <Bidi text={s.secondary} fallback="rtl" style={{ flex: 'none', fontFamily: F.heD, fontSize: `calc(${Math.round(nameSize * 0.78)}px * var(--he-scale, 1))`, fontWeight: 500, color: dim, whiteSpace: 'nowrap' }} />}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: Math.round(metaSize * 0.7), fontFamily: F.en, fontSize: metaSize, fontWeight: 600, color: dim, marginTop: 2, whiteSpace: 'nowrap', minWidth: 0 }}>
+                {/* portrait: the Hebrew name rides at the end of this line and simply drops out (wraps into the
+                    hidden second line) when the line is too full, so it is never cut */}
+                <div data-optional={portrait ? '' : undefined} style={{ display: 'flex', alignItems: 'center', columnGap: Math.round(metaSize * 0.7), fontFamily: F.en, fontSize: metaSize, fontWeight: 600, color: dim, marginTop: 2, whiteSpace: 'nowrap', minWidth: 0,
+                  ...(portrait ? { flexWrap: 'wrap', rowGap: metaSize, height: Math.round(metaSize * 1.45), overflow: 'hidden' } : null) }}>
                   {s.split ? <SplitTimes split={s.split} now={now} color={dim} onColor={ink} size="1em" style={{ marginTop: 0 }} /> : (
                     <span className="tt-num">{s.end != null ? rangeText(s.v, s.end) : 'at ' + rangeText(s.v, null)}</span>
                   )}
