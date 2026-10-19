@@ -248,7 +248,8 @@ export function canDo(who, method, path, body) {
   const m = String(method || 'GET').toUpperCase();
   if (ADMIN_AREA.test(p)) return caps.has('team.manage');
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return true;
-  if (PREVIEW.test(p)) return true;
+  // The preview feed reaches every open admin panel: only people who change the screen may drive it.
+  if (PREVIEW.test(p)) return ['slides.edit', 'screen.control', 'announcements.post', 'look.change'].some((c) => caps.has(c));
 
   if (/^\/api\/settings$/.test(p) && isLookOnlySettingsPatch(m, body) && caps.has('look.change')) return true;
 

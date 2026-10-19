@@ -109,11 +109,11 @@ test('Messages only: posts and controls the screen, nothing else', () => {
   no(w, 'POST', '/api/announcements/abc/unknown');
 });
 
-test('View only: can read and preview, cannot change anything', () => {
+test('View only: can read, cannot change anything or drive the preview', () => {
   const w = P('view');
   for (const p of ['/api/state', '/api/slides', '/api/settings', '/api/schedule', '/api/announcements', '/api/zmanim']) ok(w, 'GET', p);
-  ok(w, 'POST', '/api/preview'); ok(w, 'GET', '/api/me'); ok(w, 'PATCH', '/api/account', { name: 'x' }); ok(w, 'POST', '/api/account/password');
-  for (const [m, p] of [['POST', '/api/announcements'], ['POST', '/api/screen/pause'], ['POST', '/api/refresh'], ['PUT', '/api/slides'], ['DELETE', '/api/media/1'], ['PUT', '/api/schedule/weekly'], ['POST', '/api/upload'], ['PUT', '/api/settings']]) no(w, m, p, {});
+  ok(w, 'GET', '/api/me'); ok(w, 'PATCH', '/api/account', { name: 'x' }); ok(w, 'POST', '/api/account/password');
+  for (const [m, p] of [['POST', '/api/preview'], ['POST', '/api/announcements'], ['POST', '/api/screen/pause'], ['POST', '/api/refresh'], ['PUT', '/api/slides'], ['DELETE', '/api/media/1'], ['PUT', '/api/schedule/weekly'], ['POST', '/api/upload'], ['PUT', '/api/settings']]) no(w, m, p, {});
   assert.equal(canOpenSection(w, 'home'), true);
   for (const s of ['slides', 'announcements', 'schedule', 'settings', 'team', 'style', 'daily-word', 'custom-days', 'images', 'rss-feeds', 'kit']) assert.equal(canOpenSection(w, s), false, s);
   assert.equal(canOpenSection(w, 'help'), true); assert.equal(canOpenSection(w, 'account'), true);

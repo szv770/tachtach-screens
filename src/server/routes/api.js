@@ -1241,6 +1241,7 @@ router.post('/rss/feeds/:id/sync', async (req, res) => {
 router.get('/rss/cache/:feedId', async (req, res) => {
   try {
     const { readFile: rf } = await import('fs/promises');
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId))) return res.status(400).json({ error: 'Bad feed id.' });
     const filePath = path.resolve(__apiDirname, `../../../data/rss-cache/${req.params.feedId}.json`);
     const raw = await rf(filePath, 'utf-8');
     res.json(JSON.parse(raw));

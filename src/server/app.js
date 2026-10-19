@@ -159,9 +159,14 @@ export function createApp() {
     app.set('trust proxy', 1);
   }
 
+  app.disable('x-powered-by');
+
   // ── 0b. Security headers ───────────────────────────────────────────
   app.use((_req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
+    if (_req.headers['x-forwarded-proto'] === 'https' || _req.secure) {
+      res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+    }
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
@@ -282,6 +287,8 @@ export function createApp() {
   app.get('/api/rss/cache/:feedId', localhostOnly, async (req, res) => {
     try {
       const { readFile: rf } = await import('fs/promises');
+      // Feed ids are plain tokens; anything with a dot or slash (..%2Fusers) is refused.
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId))) return res.status(400).json({ error: 'Bad feed id.' });
       const filePath = path.join(PROJECT_ROOT, 'data', 'rss-cache', `${req.params.feedId}.json`);
       const raw = await rf(filePath, 'utf-8');
       res.json(JSON.parse(raw));

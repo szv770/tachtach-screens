@@ -68,12 +68,27 @@ export function logActivity(req, res, next) {
   next();
 }
 
+const LOOPBACK = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+const PROXY_HEADERS = ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'forwarded', 'x-real-ip', 'cf-connecting-ip', 'true-client-ip', 'cf-ray'];
+
+/**
+ * Is this request really from the kiosk on this machine? Both must hold:
+ *  - the TCP peer is loopback (a LAN device can never be: its header claims don't matter), and
+ *  - no proxy header is present. The Cloudflare Tunnel's cloudflared also connects over
+ *    loopback but always adds forwarding headers a remote client cannot strip, so tunnel
+ *    traffic is never mistaken for the kiosk. (req.ip is NOT used: with TRUST_PROXY it is
+ *    taken from X-Forwarded-For, which a device on the LAN can forge. GOTCHAS.md.)
+ */
+export function isLocalRequest(req) {
+  if (!LOOPBACK.includes(req.socket?.remoteAddress)) return false;
+  return !PROXY_HEADERS.some((h) => req.headers[h] !== undefined);
+}
+
 /**
  * Restrict access to localhost only. Returns 404 (not 403) to hide route existence.
  */
 export function localhostOnly(req, res, next) {
-  const localAddresses = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-  if (!localAddresses.includes(req.ip)) {
+  if (!isLocalRequest(req)) {
     return res.status(404).end();
   }
   next();
@@ -87,8 +102,7 @@ export function localhostOnly(req, res, next) {
  * route existence to an unauthenticated remote caller.
  */
 export async function localhostOrAuth(req, res, next) {
-  const localAddresses = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
-  if (localAddresses.includes(req.ip)) {
+  if (isLocalRequest(req)) {
     return next();
   }
 
