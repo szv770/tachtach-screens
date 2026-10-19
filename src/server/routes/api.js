@@ -1,5 +1,5 @@
 import { clientError, isClientError, networkReason } from '../safeError.js';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -386,6 +386,9 @@ router.get('/schedule', async (_req, res) => {
     res.status(500).json({ error: 'Failed to read schedule.' });
   }
 });
+
+// Whole-schedule bodies (90+ blocks) exceed the global 16 kB cap, which app.js skips for these paths.
+router.use(['/schedule/entries', '/schedule/categories', '/schedule/template', '/schedule/templates'], express.json({ limit: '256kb' }));
 
 router.put('/schedule/entries', async (req, res) => {
   try {
