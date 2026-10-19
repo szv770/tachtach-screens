@@ -15,7 +15,7 @@ import { SplitTimes, useRefit } from './parts.jsx';
  */
 
 // grid columns, in em of the row size: start time | am/pm | end time | category bar | name (+ Hebrew)
-const T = { start: 2.72, ap: 1.2, end: 2.5, bar: .85 };
+const T = { start: 2.68, ap: 1.08, end: 2.42, bar: .78 };
 
 export function DayRow({ s, state, now, showAp, hasEnd, light, hebrew }) {
   const isNow = state === 'now', isNext = state === 'next', isPast = state === 'past';
@@ -25,14 +25,14 @@ export function DayRow({ s, state, now, showAp, hasEnd, light, hebrew }) {
   return (
     <div data-row={s.id} data-state={state || 'later'} style={{
       ...catVars(s, light), breakInside: 'avoid', display: 'grid', gridTemplateColumns: tpl, alignItems: 'baseline',
-      padding: '.13em .32em', borderRadius: '.34em', position: 'relative', lineHeight: 1.16,
+      padding: '.1em .3em', borderRadius: '.32em', position: 'relative', lineHeight: 1.13,
       color: isNow ? 'var(--fillInk)' : isPast ? 'var(--past)' : 'var(--ink)',
       background: isNow ? 'var(--fill)' : 'transparent',
       boxShadow: isNow ? '0 .12em .5em color-mix(in srgb, var(--fill) 30%, transparent)'
         : isNext ? 'inset 0 0 0 .07em color-mix(in srgb, var(--accentText) 60%, transparent)' : 'none',
     }}>
       <span className="tt-num" data-cell="start" style={{ textAlign: 'right', fontWeight: 650, letterSpacing: '-.03em', whiteSpace: 'nowrap', color: isNext ? 'var(--accentText)' : undefined }}>{hm(s.v)}</span>
-      <span data-cell="ap" data-ap="" style={{ fontFamily: F.en, fontSize: '.56em', fontWeight: 700, letterSpacing: '.02em', paddingLeft: '.5em', color: isNext ? 'var(--accentText)' : dim, whiteSpace: 'nowrap' }}>{showAp ? ap(s.v) : ''}</span>
+      <span data-cell="ap" data-ap="" style={{ fontFamily: F.en, fontSize: '.56em', fontWeight: 700, letterSpacing: '.02em', paddingLeft: '.38em', color: isNext ? 'var(--accentText)' : dim, whiteSpace: 'nowrap' }}>{showAp ? ap(s.v) : ''}</span>
       {hasEnd && (
         <span className="tt-num" data-cell="end" style={{ fontSize: '.66em', fontWeight: 600, color: dim, whiteSpace: 'nowrap', letterSpacing: '-.01em' }}>{s.end != null ? `–${hm(s.end)}` : ''}</span>
       )}

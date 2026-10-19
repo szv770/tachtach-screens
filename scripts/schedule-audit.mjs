@@ -112,7 +112,10 @@ for (const canvas of ['land', 'port']) {
         check(`${tag} nothing clips`, r.overflow.length === 0, r.overflow.slice(0, 3).join(' | '));
         check(`${tag} no tiny text (>= 15 canvas px)`, r.small.length === 0, r.small.slice(0, 4).join(', '));
         const nowRows = r.rows.filter((x) => x.st === 'now');
-        check(`${tag} a now row is highlighted`, nowRows.length > 0 && nowRows.every((x) => x.bg !== 'rgba(0, 0, 0, 0)' || layout !== 'day') || (layout === 'focus' && r.hero), JSON.stringify(nowRows.map((x) => x.bg)));
+        // the fixture has gaps (6:35-6:50 nothing runs): then a next row must be marked instead
+        const gapNow = !r.rows.some((x) => x.st === 'now');
+        if (gapNow) check(`${tag} nothing runs: next row marked`, r.rows.some((x) => x.st === 'next') || r.hero === 'next' || r.hero === 'done', JSON.stringify(r.states));
+        else check(`${tag} the now row is highlighted`, nowRows.every((x) => x.bg !== 'rgba(0, 0, 0, 0)' || layout !== 'day'), JSON.stringify(nowRows.map((x) => x.bg)));
         if (layout === 'day') {
           const [mode, cols, size] = r.fit.split(':');
           check(`${tag} day fit (${r.fit})`, mode === 'fit' ? +size >= 26 : mode === 'scroll', r.fit);

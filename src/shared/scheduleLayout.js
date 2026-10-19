@@ -209,7 +209,7 @@ export function pickDayFit(results) {
  * Text metrics model (em of the row size) used to ESTIMATE a fit without a DOM: tests, and the order
  * the kiosk probes candidates in. The kiosk then measures the real thing.
  */
-export const DAY_METRICS = Object.freeze({ line: 1.42, time: 7.6, char: 0.54, heChar: 0.5, heGap: 1.2, colGap: 56 });
+export const DAY_METRICS = Object.freeze({ line: 1.33, time: 7.0, char: 0.54, heChar: 0.5, heGap: 1.2, colGap: 56 });
 
 /** Would `count` rows (names up to `chars` / Hebrew up to `heChars` long) fit at size s in `cols` columns of a boxW x boxH box? */
 export function estimateDayFits({ count, chars = 18, heChars = 10, boxW, boxH, cols, hebrew }, s) {

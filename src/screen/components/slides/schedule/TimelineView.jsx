@@ -78,7 +78,7 @@ export default function TimelineView({ items, states, now, light, portrait, moti
             <div key={s.id || i} data-row={s.id} data-state={st || 'later'} style={{ ...catVars(s, light), position: 'absolute', left: 0, right: 0, top, height: R, display: 'grid', gridTemplateColumns: `${timeW}px ${axisW}px minmax(0, 1fr)` }}>
               {/* time */}
               <div className="tt-num" data-cell="start" style={{ height: nameY * 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', fontSize: timeSize, fontWeight: 650, letterSpacing: '-.03em', whiteSpace: 'nowrap', color: isNext ? 'var(--accentText)' : isPast ? 'var(--past)' : 'var(--ink)' }}>
-                {hm(s.v)}<small data-ap="" style={{ fontFamily: F.en, fontSize: '.5em', fontWeight: 700, marginLeft: '.3em', letterSpacing: '.02em', color: isNext ? 'var(--accentText)' : isPast ? 'var(--past)' : 'var(--inkDim)' }}>{ap(s.v)}</small>
+                {hm(s.v)}<small data-ap="" style={{ fontFamily: F.en, fontSize: Math.max(16, Math.round(timeSize * 0.5)), fontWeight: 700, marginLeft: '.3em', letterSpacing: '.02em', color: isNext ? 'var(--accentText)' : isPast ? 'var(--past)' : 'var(--inkDim)' }}>{ap(s.v)}</small>
               </div>
               {/* axis segment + node */}
               <div style={{ position: 'relative' }}>

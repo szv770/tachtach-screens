@@ -2,22 +2,30 @@ import React from 'react';
 import Collapsible from '../ui/Collapsible.jsx';
 import SaveBar from '../ui/SaveBar.jsx';
 import { Page, Field, Hint, SwitchRow, Choices, useSettingsForm, fieldStyle, firstSet } from './kit.jsx';
+import { normalizeScheduleLayout, scheduleViewSettings, SCHEDULE_LAYOUT_LABELS } from '../../../shared/scheduleLayout.js';
 
-const KEYS = ['language', 'scheduleDisplayMode', 'scheduleScrollSpeed', 'scheduleScrollStart', 'scheduler'];
-const MODES = [{ value: 'full', label: 'Full day' }, { value: 'scroll', label: 'Auto-scroll' }, { value: 'two-column', label: 'Two columns' }];
-const SPEEDS = [{ value: 'slow', label: 'Slow (15px/s)' }, { value: 'medium', label: 'Medium (30px/s)' }, { value: 'fast', label: 'Fast (50px/s)' }];
-const STARTS = [{ value: 'beginning', label: 'Beginning of the day' }, { value: 'current', label: 'Current / next' }];
-const LANGS = [{ value: 'he', label: 'Hebrew (default)' }, { value: 'en', label: 'English' }];
-const lbl = (o, v) => o.find((x) => x.value === v)?.label || v;
+const KEYS = ['scheduleLayout', 'scheduleView', 'scheduler'];
+const LAYOUTS = [
+  { value: 'day', label: 'Whole day' },
+  { value: 'timeline', label: 'Timeline' },
+  { value: 'focus', label: 'Focus' },
+  { value: 'auto', label: 'Auto-rotate' },
+];
+const HINTS = {
+  day: 'Every item of the day at once, in one or two columns, as large as fits. A very long day scrolls slowly once.',
+  timeline: 'A time line down the page that keeps "now" in view and glides to the next item when it starts.',
+  focus: 'The last few items faded at the top, what is on now in large type, then what comes next.',
+  auto: 'Shows Whole day, then Timeline, then Focus, inside the one Schedule slide.',
+};
+const SECONDS = [10, 15, 20, 30, 45, 60].map((n) => ({ value: n, label: `${n} s` }));
+const HEBREW = [{ value: 'auto', label: 'Show when there is room' }, { value: 'off', label: 'English only' }];
 
-/** How the Schedule slide reads (language, mode, scrolling) and the two-track day. One Save bar. */
+/** How the Schedule slide reads (layout, auto-rotate, Hebrew names) and the two-track day. One Save bar. */
 export default function ScheduleDisplayPage({ settings = {}, onSave }) {
   const form = useSettingsForm(settings, KEYS, onSave, 'Schedule display');
   const v = form.values;
-  const lang = v.language === 'en' ? 'en' : 'he';
-  const mode = v.scheduleDisplayMode || 'full';
-  const speed = v.scheduleScrollSpeed || 'medium';
-  const start = v.scheduleScrollStart || 'beginning';
+  const sv = scheduleViewSettings({ scheduleLayout: v.scheduleLayout, scheduleView: v.scheduleView });
+  const layout = normalizeScheduleLayout(v.scheduleLayout);
   // Track A runs unless scheduler.trackA === false (server). Older builds wrote stray top-level trackA/trackBTime.
   const trackA = (v.scheduler?.trackA ?? settings.trackA) !== false;
   const trackBTime = firstSet(v.scheduler?.trackBTime, settings.trackBTime) ?? '';
@@ -25,22 +33,20 @@ export default function ScheduleDisplayPage({ settings = {}, onSave }) {
 
   return (
     <Page intro="How the Schedule page reads. Change what you like, then Save.">
-      <Collapsible id="set-schedule-display" title="Schedule display" icon="calendar" edited={edited('language', 'scheduleDisplayMode', 'scheduleScrollSpeed', 'scheduleScrollStart')}
-        summary={`${lbl(MODES, mode)}${mode === 'scroll' ? `, ${lbl(SPEEDS, speed).split(' ')[0].toLowerCase()}` : ''} - ${lang === 'en' ? 'English' : 'Hebrew'} names first`}>
-        <Field label="Language" hint="Which language the Schedule slide's title and item names show first.">
-          <Choices ariaLabel="Schedule language" value={lang} onChange={(x) => form.set('language', x)} options={LANGS} />
+      <Collapsible id="set-schedule-display" title="Schedule display" icon="calendar" edited={edited('scheduleLayout', 'scheduleView')}
+        summary={`${SCHEDULE_LAYOUT_LABELS[layout]}${layout === 'auto' ? `, ${sv.autoSeconds} s each` : ''} - ${sv.hebrew === 'off' ? 'English only' : 'English + Hebrew'}`}>
+        <Field label="Layout" hint={HINTS[layout]}>
+          <Choices ariaLabel="Schedule layout" value={layout} onChange={(x) => form.set('scheduleLayout', x)} options={LAYOUTS} />
         </Field>
-        <Field label="Display mode" hint="Full day shows every entry and highlights the next one. Auto-scroll is a slow ticker loop. Two columns splits the day for more entries.">
-          <Choices ariaLabel="Display mode" value={mode} onChange={(x) => form.set('scheduleDisplayMode', x)} options={MODES} />
-        </Field>
-        {mode === 'scroll' && (
-          <>
-            <Field label="Scroll speed"><Choices ariaLabel="Scroll speed" value={speed} onChange={(x) => form.set('scheduleScrollSpeed', x)} options={SPEEDS} /></Field>
-            <Field label="Scroll start position" hint='"Current / next" starts scrolling from the current or upcoming seder.'>
-              <Choices ariaLabel="Scroll start" value={start} onChange={(x) => form.set('scheduleScrollStart', x)} options={STARTS} />
-            </Field>
-          </>
+        {layout === 'auto' && (
+          <Field label="Each view shows for" hint="A very long whole day that scrolls gets the time its scroll needs.">
+            <Choices ariaLabel="Seconds per view" value={sv.autoSeconds} onChange={(x) => form.setIn('scheduleView', 'autoSeconds', x)} options={SECONDS} />
+          </Field>
         )}
+        <Field label="Hebrew names" hint="English is always first. The Hebrew name shows beside it where it fits (Whole day drops it on a very full day so the type stays large).">
+          <Choices ariaLabel="Hebrew names" value={sv.hebrew} onChange={(x) => form.setIn('scheduleView', 'hebrew', x)} options={HEBREW} />
+        </Field>
+        <Hint>Scroll speed for a very long day follows Look &gt; Motion &gt; Long text. Minimal motion never scrolls: the day is fitted smaller instead.</Hint>
       </Collapsible>
 
       <Collapsible id="set-dual-track-schedule" title="Two schedules in one day (Track A / B)" icon="clock" edited={edited('scheduler')}
@@ -59,3 +65,4 @@ export default function ScheduleDisplayPage({ settings = {}, onSave }) {
     </Page>
   );
 }
+

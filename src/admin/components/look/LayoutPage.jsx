@@ -2,6 +2,7 @@ import React from 'react';
 import Collapsible from '../ui/Collapsible.jsx';
 import SegmentedControl from '../ui/SegmentedControl.jsx';
 import { Page, Field, Hint, Choices, LinkButton, useInstant } from './kit.jsx';
+import { normalizeScheduleLayout } from '../../../shared/scheduleLayout.js';
 
 /** Orientation, side rail position and the page layouts. Every control here applies at once (Undo in the toast). */
 export default function LayoutPage({ settings = {}, onSave, onNavigate }) {
@@ -10,13 +11,13 @@ export default function LayoutPage({ settings = {}, onSave, onNavigate }) {
   const portraitLayout = settings.portraitLayout === 'scroll' ? 'scroll' : 'compact';
   const railSide = (settings.layout?.railSide || settings.clockSide) === 'right' ? 'right' : 'left';
   const zmanim = ['board-arc', 'arc-tiles'].includes(settings.zmanimLayout) ? settings.zmanimLayout : 'board';
-  const sched = settings.scheduleLayout === 'list' ? 'list' : 'timeline';
+  const sched = normalizeScheduleLayout(settings.scheduleLayout);
   const label = (opts, v) => opts.find((o) => o.value === v)?.label || v;
 
   const O = [{ value: 'landscape', label: 'Landscape (wide TV)' }, { value: 'portrait', label: 'Portrait (tall TV)' }];
   const P = [{ value: 'compact', label: 'Compact (shrink to fit)' }, { value: 'scroll', label: 'Scrollable' }];
   const Z = [{ value: 'board', label: 'Clean board' }, { value: 'board-arc', label: 'Board + slim arc' }, { value: 'arc-tiles', label: 'Arc + tiles' }];
-  const S = [{ value: 'timeline', label: 'Timeline' }, { value: 'list', label: 'Now & Next + list' }];
+  const S = [{ value: 'day', label: 'Whole day' }, { value: 'timeline', label: 'Timeline' }, { value: 'focus', label: 'Focus' }, { value: 'auto', label: 'Auto-rotate' }];
 
   return (
     <Page intro="Where things sit on the screen. These apply as soon as you tap them.">
@@ -45,10 +46,10 @@ export default function LayoutPage({ settings = {}, onSave, onNavigate }) {
       </Collapsible>
 
       <Collapsible id="look-schedule-layout" title="Schedule page" icon="calendar" summary={label(S, sched)}>
-        <Field label="Schedule page layout" hint="Timeline: Now and Next spotlight, a day ribbon, then later today. The other one puts the same spotlight over a plain list of the day.">
+        <Field label="Schedule page layout" hint="Whole day: every item at once. Timeline: a time line that keeps now in view. Focus: now in large type with what comes next. Auto-rotate: all three in turn.">
           <Choices ariaLabel="Schedule page layout" value={sched} onChange={(v) => apply({ scheduleLayout: v }, 'Schedule layout changed')} options={S} />
         </Field>
-        <Hint>How the timetable scrolls or splits is under <LinkButton onClick={() => onNavigate?.('schedule-display')}>Schedule display</LinkButton>.</Hint>
+        <Hint>Seconds per view and Hebrew names are under <LinkButton onClick={() => onNavigate?.('schedule-display')}>Schedule display</LinkButton>.</Hint>
       </Collapsible>
 
       <Collapsible id="look-weather-page" title="Weather page" icon="screen" summary="Turn it on or off in Screen > Slides">
