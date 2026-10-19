@@ -191,11 +191,14 @@ test('2-step: enroll, confirm, verify, no code reuse, disable', async () => {
   const enr = await store.beginTotpEnrollment(admin.id);
   assert.match(enr.otpauthUrl, /^otpauth:\/\/totp\/TachTach-Screens:admin\?/);
   assert.match(enr.qrDataUrl, /^data:image\/png/);
-  assert.equal((await store.beginTotpEnrollment(admin.id)).secret, enr.secret, 'stable until confirmed');
+  const enr1 = enr;
+  const enr2 = await store.beginTotpEnrollment(admin.id);
+  assert.notEqual(enr2.secret, enr1.secret, 'fresh secret every attempt');
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(enr1.secret)), false, 'a superseded secret no longer works');
   assert.equal(await store.confirmTotp(admin.id, '000000'), false);
   assert.equal(await store.confirmTotp(admin.id, 'abcdef'), false);
 
-  const code = authenticator.generate(enr.secret);
+  const code = authenticator.generate(enr2.secret);
   assert.equal(await store.verifyTotp(admin.id, code), false, 'not enabled until confirmed');
   assert.equal(await store.confirmTotp(admin.id, code), true);
   assert.equal(await store.verifyTotp(admin.id, code), false, 'same code cannot be used twice');
@@ -227,6 +230,8 @@ test('pre-auth: expires in 5 minutes, one pending step per person, clearable', a
   assert.equal(await store.getPreAuth(a), null, 'replaced');
   assert.equal((await store.getPreAuth(b)).stage, 'enroll');
   box.clock += 5 * 60 * 1000 + 1000;
+  assert.equal((await store.getPreAuth(b)).stage, 'enroll', 'enrolment gets 10 minutes to scan the code');
+  box.clock += 5 * 60 * 1000;
   assert.equal(await store.getPreAuth(b), null);
   const c = await store.createPreAuth(admin.id);
   await store.clearPreAuth(c);
@@ -333,4 +338,65 @@ test('admins cannot be limited, and the last admin cannot be demoted', async () 
   const two = await store.createUser({ name: 'Two', role: 'admin' });
   await store.updateUser(admin.id, { role: 'editor' });
   await assert.rejects(store.updateUser(two.id, { role: 'editor' }), { code: 'last_admin' });
+});
+
+// ── N4: pending 2-step secrets are fresh, bound to the pre-auth, single use, expiring ──
+test('N4: login enrolment — new secret per attempt, old pre-auth dead, success spends it, replay refused', async () => {
+  const { store, admin, box } = await withAdmin();
+  const t1 = await store.createPreAuth(admin.id, { stage: 'enroll' });
+  const e1 = await store.beginTotpEnrollment(admin.id, { preAuthToken: t1 });
+  const t2 = await store.createPreAuth(admin.id, { stage: 'enroll' });
+  const e2 = await store.beginTotpEnrollment(admin.id, { preAuthToken: t2 });
+  assert.notEqual(e1.secret, e2.secret);
+  assert.equal(await store.getPreAuth(t1), null, 'a new attempt invalidates the previous one');
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(e1.secret), { preAuthToken: t1 }), false);
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(e1.secret), { preAuthToken: t2 }), false, 'old secret with new token');
+  // the pending secret is not the account's secret until confirmed
+  assert.equal(JSON.parse(box.doc).users[0].totpSecret, null);
+  const code = authenticator.generate(e2.secret);
+  assert.equal(await store.confirmTotp(admin.id, code, { preAuthToken: t2 }), true);
+  assert.equal((await store.listUsers())[0].totpEnabled, true);
+  assert.equal(await store.getPreAuth(t2), null, 'pre-auth is spent');
+  assert.equal(await store.confirmTotp(admin.id, code, { preAuthToken: t2 }), false, 'replay refused');
+  assert.equal(JSON.parse(box.doc).users[0].pendingTotp, undefined);
+});
+
+test('N4: the pending secret expires (10 min) and a stale leftover secret is never reused', async () => {
+  const { store, admin, box } = await withAdmin();
+  const t = await store.createPreAuth(admin.id, { stage: 'enroll' });
+  const e = await store.beginTotpEnrollment(admin.id, { preAuthToken: t });
+  const code = authenticator.generate(e.secret);
+  box.clock += 11 * 60 * 1000;
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(e.secret), { preAuthToken: t }), false);
+  assert.equal(await store.getPreAuth(t), null);
+  void code;
+  // old-style record with a leftover (never confirmed) secret
+  const doc = JSON.parse(box.doc);
+  doc.users[0].totpSecret = 'LEFTOVERSECRET234';
+  box.doc = JSON.stringify(doc);
+  const t3 = await store.createPreAuth(admin.id, { stage: 'enroll' });
+  const e3 = await store.beginTotpEnrollment(admin.id, { preAuthToken: t3 });
+  assert.notEqual(e3.secret, 'LEFTOVERSECRET234');
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate('LEFTOVERSECRET234'), { preAuthToken: t3 }), false);
+});
+
+test('N4: My account enrolment also gets a fresh, expiring, single-use secret; no pre-auth needed or accepted blindly', async () => {
+  const { store, admin, box } = await withAdmin();
+  const a = await store.beginTotpEnrollment(admin.id);
+  const b = await store.beginTotpEnrollment(admin.id);
+  assert.notEqual(a.secret, b.secret);
+  await assert.rejects(store.beginTotpEnrollment(admin.id, { preAuthToken: 'bogus' }), { code: 'expired' });
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(b.secret), { preAuthToken: 'bogus' }), false);
+  box.clock += 11 * 60 * 1000;
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(b.secret)), false, 'expired');
+  const c = await store.beginTotpEnrollment(admin.id);
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(c.secret)), true);
+  assert.equal(await store.confirmTotp(admin.id, authenticator.generate(c.secret)), false, 'already enabled: no second enrol');
+});
+
+test('N4: the secret is not written to the activity/log-facing public user', async () => {
+  const { store, admin } = await withAdmin();
+  const e = await store.beginTotpEnrollment(admin.id);
+  const list = JSON.stringify(await store.listUsers());
+  assert.ok(!list.includes(e.secret));
 });

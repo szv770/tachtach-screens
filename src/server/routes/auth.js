@@ -27,7 +27,7 @@ function cookie(req, res, name, value, maxAge) {
   res.cookie(name, value, { httpOnly: true, sameSite: 'strict', secure: req.secure, maxAge, path: '/' });
 }
 const setSessionCookie = (req, res, t) => cookie(req, res, 'tachtach_session', t, MONTH_MS);
-const setPreAuthCookie = (req, res, t) => cookie(req, res, PREAUTH_COOKIE, t, 5 * 60 * 1000);
+const setPreAuthCookie = (req, res, t, ms = 5 * 60 * 1000) => cookie(req, res, PREAUTH_COOKIE, t, ms);
 const setTrustedCookie = (req, res, t) => cookie(req, res, TRUSTED_DEVICE_COOKIE, t, MONTH_MS);
 const clearPreAuthCookie = (res) => res.clearCookie(PREAUTH_COOKIE, { path: '/' });
 
@@ -67,8 +67,10 @@ async function afterFirstStep(req, res, user, how) {
     return { status: 'totp_required' };
   }
   if (user.role === 'admin') {
-    const enr = await users.beginTotpEnrollment(user.id);
-    setPreAuthCookie(req, res, await users.createPreAuth(user.id, { stage: 'enroll' }));
+    // A new attempt replaces any earlier pending one (createPreAuth drops the person's old pre-auth records).
+    const token = await users.createPreAuth(user.id, { stage: 'enroll' });
+    const enr = await users.beginTotpEnrollment(user.id, { preAuthToken: token });
+    setPreAuthCookie(req, res, token, 10 * 60 * 1000);
     return { status: 'totp_setup_required', qrDataUrl: enr.qrDataUrl, secret: enr.secret };
   }
   await startSession(req, res, user, how);
@@ -136,7 +138,7 @@ async function totpStep(req, res, stage) {
       return res.status(429).json({ error: 'Too many failed attempts. Please try again in a few minutes.' });
     }
     const code = (req.body || {}).code;
-    const ok = stage === 'enroll' ? await users.confirmTotp(pre.user.id, code) : await users.verifyTotp(pre.user.id, code);
+    const ok = stage === 'enroll' ? await users.confirmTotp(pre.user.id, code, { preAuthToken: req.cookies[PREAUTH_COOKIE] }) : await users.verifyTotp(pre.user.id, code);
     if (!ok) {
       await users.recordFailure(ipKey(req), IP_LIMIT);
       await users.recordFailure(key, USER_LIMIT);

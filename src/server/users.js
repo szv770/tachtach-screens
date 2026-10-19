@@ -24,6 +24,7 @@ export const SESSION_MS = 30 * DAY; // rolling
 export const SESSION_MAX_MS = 90 * DAY; // absolute
 export const TRUSTED_DEVICE_MS = 30 * DAY;
 export const PREAUTH_MS = 5 * 60 * 1000;
+export const ENROLL_MS = 10 * 60 * 1000; // a fresh 2-step secret is good for this long, once
 export const INVITE_MS = 7 * DAY;
 export const SIGNIN_LINK_MS = 60 * 60 * 1000;
 const ROLL_INTERVAL_MS = 60 * 60 * 1000;
@@ -445,7 +446,7 @@ export function createUserStore({
     const token = newToken();
     await tx(async (d) => {
       d.preauth = d.preauth.filter((p) => p.userId !== userId); // one pending step per person
-      d.preauth.push({ hash: sha256(token), userId, stage, via, expiresAt: iso(now() + PREAUTH_MS) });
+      d.preauth.push({ hash: sha256(token), userId, stage, via, expiresAt: iso(now() + (stage === 'enroll' ? ENROLL_MS : PREAUTH_MS)) });
     });
     return token;
   }
@@ -467,26 +468,42 @@ export function createUserStore({
   }
 
   // ── 2-step codes (TOTP) ───────────────────────────────────────────────────
-  async function beginTotpEnrollment(userId) {
+  /**
+   * Start a 2-step enrolment with a FRESH secret every time (audit N4). The secret is not the
+   * person's real one yet: it is held as pending, either on the login's pre-auth record
+   * (`preAuthToken`, the sign-in flow) or on the signed-in person's record (My account), expires
+   * after ENROLL_MS, is replaced by the next attempt, and becomes the real secret only when a
+   * correct code is confirmed, once. It is never logged.
+   */
+  async function beginTotpEnrollment(userId, { preAuthToken } = {}) {
+    const secret = authenticator.generateSecret();
     const out = await tx(async (d) => {
       const u = byId(d, userId);
       if (!u) throw new StoreError('not_found', 'No such person.');
       if (u.totpEnabled) throw new StoreError('already_enabled', 'Two-step codes are already on.');
-      if (!u.totpSecret) u.totpSecret = authenticator.generateSecret();
-      return { secret: u.totpSecret, account: u.username };
+      u.totpSecret = null; // a secret left behind by an older unfinished enrolment is never reused
+      const pending = { secret, expiresAt: iso(now() + ENROLL_MS) };
+      if (preAuthToken) {
+        const p = d.preauth.find((x) => x.hash === sha256(preAuthToken) && x.userId === userId);
+        if (!p) throw new StoreError('expired', 'Login session expired. Please sign in again.');
+        p.pending = pending;
+      } else {
+        u.pendingTotp = pending;
+      }
+      return { account: u.username };
     });
-    const otpauthUrl = authenticator.keyuri(out.account, TOTP_ISSUER, out.secret);
-    return { secret: out.secret, otpauthUrl, qrDataUrl: await QRCode.toDataURL(otpauthUrl) };
+    const otpauthUrl = authenticator.keyuri(out.account, TOTP_ISSUER, secret);
+    return { secret, otpauthUrl, qrDataUrl: await QRCode.toDataURL(otpauthUrl) };
   }
 
   const codeOk = (c) => typeof c === 'string' && /^\d{6}$/.test(c);
 
   /** Returns the matched time step, or null. Refuses a step already used. */
-  function matchStep(u, code) {
-    if (!u.totpSecret || !codeOk(code)) return null;
+  function matchStep(u, code, secret = u.totpSecret) {
+    if (!secret || !codeOk(code)) return null;
     let delta;
     try {
-      delta = totp.checkDelta(code, u.totpSecret);
+      delta = totp.checkDelta(code, secret);
     } catch {
       return null;
     }
@@ -496,14 +513,25 @@ export function createUserStore({
     return step;
   }
 
-  async function confirmTotp(userId, code) {
+  /** Confirm the pending secret with a code. Single use: the pending secret (and its pre-auth) is spent on success. */
+  async function confirmTotp(userId, code, { preAuthToken } = {}) {
     return tx(async (d) => {
       const u = byId(d, userId);
       if (!u || u.totpEnabled) return false;
-      const step = matchStep(u, code);
+      const p = preAuthToken ? d.preauth.find((x) => x.hash === sha256(preAuthToken) && x.userId === userId) : null;
+      if (preAuthToken && !p) return false;
+      const pending = p ? p.pending : u.pendingTotp;
+      if (!pending || !(Date.parse(pending.expiresAt) > now())) {
+        if (p) delete p.pending; else delete u.pendingTotp;
+        return false;
+      }
+      const step = matchStep(u, code, pending.secret);
       if (!step) return false;
+      u.totpSecret = pending.secret;
       u.totpEnabled = true;
       u.lastTotpStep = step;
+      delete u.pendingTotp;
+      if (p) d.preauth = d.preauth.filter((x) => x !== p); // replaying the same request finds nothing
       return true;
     });
   }
@@ -525,6 +553,7 @@ export function createUserStore({
       const u = byId(d, userId);
       if (!u) throw new StoreError('not_found', 'No such person.');
       u.totpSecret = null;
+      delete u.pendingTotp;
       u.totpEnabled = false;
       u.lastTotpStep = 0;
       u.trustedDevices = [];
