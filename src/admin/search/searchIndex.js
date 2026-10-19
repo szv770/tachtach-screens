@@ -98,6 +98,7 @@ export const SETTINGS_INDEX = [
   S('announcements', 'New quick message template', 'add create template blank name person place day time my templates shared', { tab: 'quick', match: 'New quick message' }),
   S('announcements', 'Saved letters library (post a letter again)', 'letter sicha saved library repost again igros kodesh', { tab: 'letters', match: 'Letters and sicha' }),
   S('announcements', 'New letter or sicha (paste the whole letter, or fill from an AI chat)', 'letter sicha paste whole split ai prompt json claude chatgpt copy prompt pages preview', { tab: 'letters', match: 'New letter' }),
+  S('announcements', 'Kiddush Levana (automatic): on/off, 3 or 7 days, end rule, this month', 'kiddush levana lvanah moon molad sanctification new moon banner window halfway chatzi chodesh tisha bav automatic', { tab: 'posts', anchor: 'announce-kiddush-levana' }),
   S('announcements', 'Archive: delete old announcements after days', 'auto delete archived history', { match: 'Archive' }),
   S('announcements', 'Announcements (slide, banner, side note, takeover)', 'message post live scheduled drafts paused', { match: 'Announcements' }),
 ];

@@ -19,7 +19,7 @@ export default function AnnouncePage({ caps = [], onUseQuick, onPostLetter, onOp
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px', maxWidth: '900px', fontFamily: adminFonts.englishBody }}>
       <SegmentedControl ariaLabel="Announce sections" options={ANNOUNCE_TABS} value={tab} onChange={setTab} fill />
-      {tab === 'posts' && <AnnouncementsPanel {...panelProps} settings={settings} onOpenComposer={onOpenComposer} />}
+      {tab === 'posts' && <AnnouncementsPanel {...panelProps} caps={caps} settings={settings} onOpenComposer={onOpenComposer} />}
       {tab === 'quick' && <QuickTemplatesTab qt={qt} caps={caps} onUse={onUseQuick} />}
       {tab === 'letters' && <LettersTab caps={caps} settings={settings} onPostLetter={onPostLetter} onOpenComposer={onOpenComposer} />}
     </div>

@@ -3,6 +3,7 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '
 import useIsMobile from '../../hooks/useIsMobile.js';
 import { ConfirmDialog, NumberField } from '../ui.jsx';
 import Collapsible from '../ui/Collapsible.jsx';
+import KiddushLevanaCard from './KiddushLevanaCard.jsx';
 import { DISPLAY_LABEL, LAYOUT_LABEL, STYLE_OPTIONS, minutesLabel, endOfDay, isoToLocalInput, localInputToIso } from './helpers.js';
 import {
   status as statusOf, describeTiming, primaryText, archiveDaysFrom, formatWhen, layoutOf,
@@ -109,7 +110,7 @@ function ActionButton({ children, onClick, danger, title }) {
 }
 
 export default function AnnouncementsPanel({
-  announcements = [], settings = {}, onSaveSettings, onOpenComposer,
+  announcements = [], settings = {}, caps = [], onSaveSettings, onOpenComposer,
   onUpdate, onReactivate, onDuplicate, onDelete, fetchShabbosEnd,
 }) {
   const isMobile = useIsMobile();
@@ -250,6 +251,8 @@ export default function AnnouncementsPanel({
           days.
         </div>
       )}
+
+      <div style={{ marginTop: '22px' }}><KiddushLevanaCard caps={caps} /></div>
 
       <Collapsible id="announce-banner-settings" title="Banner display settings" summary={`${settings.banner?.mode === 'scroll' ? 'Scrolling' : 'Still'} · ${({ slow: 'slow', fast: 'fast' })[settings.banner?.speed] || 'normal'} speed (default for all banners)`} style={{ marginTop: '22px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
