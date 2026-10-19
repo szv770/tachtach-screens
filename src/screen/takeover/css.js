@@ -106,7 +106,15 @@ export const TAKEOVER_CSS = `
 .tkr .start .qt { align-items: flex-start; text-align: left; }
 .tkr .qt .nm { display: flex; align-items: baseline; gap: calc(34px * var(--k, 1)); max-width: 100%; white-space: nowrap; }
 .tkr .qt .nm.stack { flex-direction: column; align-items: inherit; gap: 0; white-space: nowrap; }
-.tkr .lyt > *, .tkr .qt > *, .tkr .ev > *, .tkr .bw > *, .tkr .qq > * { flex-shrink: 0; }
+.tkr .nt { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.tkr .nt .pre, .tkr .nt .post { width: 94%; color: var(--s-dim); font-weight: 600; line-height: 1.2; text-align: center; }
+.tkr .nt .pre .he, .tkr .nt .post .he { font-size: 1.06em; }
+.tkr .nt .pre { margin-bottom: var(--sp3); }
+.tkr .nt .f-he { width: 100%; height: 40%; color: var(--s-accText); line-height: 1.1; text-align: center; }
+.tkr .nt .f-en { width: 100%; height: 40%; color: var(--s-accText); line-height: 1.08; text-align: center; font-family: var(--f-disp-en); font-weight: var(--disp-w); letter-spacing: var(--en-track); }
+.tkr .nt.two .f-he, .tkr .nt.two .f-en { height: 26%; }
+.tkr .nt .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: var(--sp4) 0 var(--sp3); flex: none; }
+.tkr .lyt > *, .tkr .nt > *, .tkr .qt > *, .tkr .ev > *, .tkr .bw > *, .tkr .qq > * { flex-shrink: 0; }
 .tkr .ev > .titles { flex-shrink: 1; }
 .tkr .qt .nm .he { font-size: calc(90px * var(--he-scale) * var(--k, 1)); line-height: 1.1; }
 .tkr .qt .nm .en { font-size: calc(78px * var(--k, 1)); line-height: 1.1; }

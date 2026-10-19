@@ -178,6 +178,9 @@ const RULES = Object.freeze([
   rule('announcements.post', ['POST'], /^\/api\/(announcements|messages|pinned)$/),
   rule('announcements.post', ['POST'], /^\/api\/announcements\/[^/]+\/duplicate$/),
   rule('announcements.edit', ANY, /^\/api\/(announcements|messages|pinned)(\/|$)/),
+  // Quick messages and saved letters: anyone who can post may keep their OWN; changing a
+  // SHARED one also needs announcements.edit, which the route checks (ownership lives in the store).
+  rule('announcements.post', ANY, /^\/api\/(quick-templates|saved-letters)(\/|$)/),
 
   rule('slides.delete', ['DELETE'], /^\/api\/slides(\/|$)/),
   rule('slides.edit', ANY, /^\/api\/slides(\/|$)/),

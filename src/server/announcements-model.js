@@ -33,6 +33,7 @@ const QUICKTIME_TEXT = ['name', 'nameHe', 'place', 'placeHe', 'pre', 'big', 'big
 const QUICKTIME_TIMES = ['time', 'time2', 'was'];
 const QUOTE_KEYS = ['text', 'textHe', 'source', 'sourceHe'];
 const SICHA_KEYS = ['title', 'titleHe', 'body', 'source'];
+const NOTICE_KEYS = ['pre', 'focus', 'post', 'preHe', 'focusHe', 'postHe'];
 const LETTER_KEYS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe'];
 const LONG_KEYS = new Set(['body']);
 const MAX_LONG = 12000;
@@ -53,6 +54,7 @@ export function defaultItem() {
       quote: { text: '', textHe: '', source: '', sourceHe: '' },
       sicha: { title: '', titleHe: '', body: '', source: '' },
       letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
+      notice: { pre: '', focus: '', post: '', preHe: '', focusHe: '', postHe: '' },
     },
     look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
     slide: { duration: 12, label: '' },
@@ -165,6 +167,7 @@ export function sanitizeInput(body) {
     sub('quote', QUOTE_KEYS);
     sub('sicha', SICHA_KEYS);
     sub('letter', LETTER_KEYS);
+    sub('notice', NOTICE_KEYS);
   }
   if (body.look && typeof body.look === 'object') {
     const l = body.look; out.look = {};
@@ -215,7 +218,7 @@ export function mergeItem(existing, patch, nowIso = new Date().toISOString()) {
   for (const [k, v] of Object.entries(patch)) {
     if (k === 'content') {
       out.content = { ...(existing.content || {}), ...v };
-      for (const sub of ['event', 'list', 'quicktime', 'quote', 'sicha', 'letter']) {
+      for (const sub of ['event', 'list', 'quicktime', 'quote', 'sicha', 'letter', 'notice']) {
         if (v[sub]) out.content[sub] = { ...(existing.content?.[sub] || {}), ...v[sub] };
       }
     } else if (SUB_OBJECTS.includes(k)) out[k] = { ...(existing[k] || {}), ...v };

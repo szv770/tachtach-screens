@@ -11,6 +11,7 @@
  *   quick     { kick, name:[en,he], pre, times:[[t,ap,labEn,labHe]], big:[num,label], was, where:[en,he] }
  *   quote     { he, en, attr:[en,he] }
  *   sicha     { title:[en,he], body:[paragraph,...], source }
+ *   notice    { kick, pre:[en,he], focus:[en,he], post:[en,he] }
  *   letter    { top:[line,...], sal, close, body:[paragraph,...], source:[en,he], rtl }
  */
 
@@ -131,10 +132,25 @@ export function modelLetter(item) {
   };
 }
 
+/**
+ * notice (quick messages): small line above, one BIG focus (a name, a time...),
+ * small line below. Each is [en, he]; Hebrew typed into an English slot moves
+ * to the Hebrew slot, like Big words does.
+ */
+export function modelNotice(item) {
+  const n = item.content?.notice || {};
+  const slot = (en, he) => {
+    let e = S(en), h = S(he);
+    if (!h && e && /^[^A-Za-z]*[\u0590-\u05FF]/.test(e)) { h = e; e = ''; }
+    return [e, h];
+  };
+  return { kick: kickOf(item.content || {}), pre: slot(n.pre, n.preHe), focus: slot(n.focus, n.focusHe), post: slot(n.post, n.postHe) };
+}
+
 /** layout name used by the stage ('quicktime' -> 'quick'; unknown / 'classic' -> bigwords). */
 export function stageLayout(layout) {
   if (layout === 'quicktime') return 'quick';
-  return ['bigwords', 'event', 'list', 'quick', 'quote', 'sicha', 'letter'].includes(layout) ? layout : 'bigwords';
+  return ['bigwords', 'event', 'list', 'quick', 'quote', 'sicha', 'letter', 'notice'].includes(layout) ? layout : 'bigwords';
 }
 
 export function modelFor(item, layout) {
@@ -145,6 +161,7 @@ export function modelFor(item, layout) {
     case 'quote': return modelQuote(item);
     case 'sicha': return modelSicha(item);
     case 'letter': return modelLetter(item);
+    case 'notice': return modelNotice(item);
     default: return modelBigWords(item);
   }
 }

@@ -17,6 +17,8 @@ import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
+import quickTemplatesRouter from './routes/quick-templates.js';
+import savedLettersRouter from './routes/saved-letters.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
@@ -190,7 +192,7 @@ export function createApp() {
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
   app.use((req, res, next) => (
-    /^\/api\/(schedule\/(dates|blocks)|daily-words)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+    /^\/api\/(schedule\/(dates|blocks)|daily-words|saved-letters)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
   ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
@@ -432,6 +434,8 @@ export function createApp() {
   app.use('/api', pushRouter);
   app.use('/api', announcementsRouter);
   app.use('/api', dailyWordsRouter);
+  app.use('/api', quickTemplatesRouter);
+  app.use('/api', savedLettersRouter);
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);

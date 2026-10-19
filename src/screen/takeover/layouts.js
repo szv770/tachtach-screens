@@ -11,7 +11,7 @@
 export const FIT = {
   bwHe: [300, 64], bwEn: [84, 34], bwEnOnly: [170, 34], bwSub: [32, 22], kick: [34, 22],
   evHe: [230, 44], evEn: [170, 32], lsHdEn: [64, 28], lsHdHe: [58, 28],
-  qtBig: [330, 110], qHe: [220, 48], qEn: [64, 28], attr: [30, 22], scHdEn: [44, 28], scHdHe: [40, 24], where: [36, 24],
+  qtBig: [330, 110], ntPre: [64, 30], ntBig: [300, 70], ntBigEn: [230, 60], ntPost: [72, 30], qHe: [220, 48], qEn: [64, 28], attr: [30, 22], scHdEn: [44, 28], scHdHe: [40, 24], where: [36, 24],
 };
 import { slotDir, takeoverRuns as bidiRuns, dirAttr } from '../../shared/bidi.js';
 
@@ -92,6 +92,16 @@ export const LAYOUT_HTML = {
     const was = m.was ? `<div class="was" data-s style="--i:3"><span>was</span><s class="num">${esc(m.was)}</s></div>` : '';
     const where = m.where && (m.where[0] || m.where[1]) ? `<div class="fit wrap where" ${fa('where', ' data-h="120"')} data-s style="--i:4">${pair(m.where[0], m.where[1])}</div>` : '';
     return `<div class="lyt qt">${kick(m.kick)}${name}${mid}${was}${where}</div>`;
+  },
+
+  notice: (m) => {
+    const both = m.focus[0] && m.focus[1];
+    const line = (cls, k, v, i) => (v[0] || v[1] ? `<div class="fit wrap ${cls}" ${fa(k, ' data-h="190"')} data-s style="--i:${i}">${pair(v[0], v[1])}</div>` : '');
+    const big = [
+      m.focus[1] ? `<div class="fit wrap f-he disp-he" ${fa('ntBig')}${D(m.focus[1], 'he')} data-s style="--i:2">${eb(m.focus[1], 'he')}</div>` : '',
+      m.focus[0] ? `<div class="fit wrap f-en disp-en" ${fa(m.focus[1] ? 'ntBigEn' : 'ntBig')}${D(m.focus[0], 'en')} data-s style="--i:2">${eb(m.focus[0], 'en')}</div>` : '',
+    ].join('');
+    return `<div class="lyt nt${both ? ' two' : ''}">${kick(m.kick)}${line('pre', 'ntPre', m.pre, 1)}${big}${m.post[0] || m.post[1] ? '<div class="rule" data-s style="--i:3"></div>' : ''}${line('post', 'ntPost', m.post, 4)}</div>`;
   },
 
   quote: (m) => `<div class="lyt qq">${m.he ? `<div class="fit wrap q-he" ${fa('qHe')}${D(m.he, 'he')} data-s style="--i:1">${eb(m.he, 'he')}</div>` : ''}

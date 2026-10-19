@@ -453,7 +453,7 @@ export function describeTiming(item, now = new Date(), opts = {}) {
 
 // ── Content helpers ─────────────────────────────────────────────────────────
 
-export const LAYOUTS = ['bigwords', 'event', 'list', 'quicktime', 'quote', 'sicha', 'letter', 'classic'];
+export const LAYOUTS = ['bigwords', 'event', 'list', 'quicktime', 'quote', 'sicha', 'letter', 'notice', 'classic'];
 /** Phase 2b inspiration layouts (quote / sicha excerpt / letter). */
 export const INSPIRATION_LAYOUTS = ['quote', 'sicha', 'letter'];
 
@@ -494,6 +494,10 @@ export function primaryText(item) {
     const l = c.list || {};
     return [l.heading || l.headingHe, ...(l.items || []).map(listItemText).filter(nonEmpty)].filter(nonEmpty).join(' · ');
   }
+  if (layout === 'notice') {
+    const n = c.notice || {};
+    return [n.pre, n.focus || n.focusHe, n.post].filter(nonEmpty).join(' ') || c.headlineEn || c.headlineHe || '';
+  }
   if (layout === 'quicktime') {
     const q = c.quicktime || {};
     return [q.name || q.nameHe, q.time ? to12h(q.time) : q.big, q.place].filter(nonEmpty).join(' ');
@@ -510,6 +514,7 @@ export function hasText(item) {
   const layout = usesLayout ? layoutOf(item) : 'bigwords';
   if (layout === 'event') return nonEmpty(c.event?.title) || nonEmpty(c.event?.titleHe);
   if (layout === 'list') return nonEmpty(c.list?.heading) || nonEmpty(c.list?.headingHe) || (c.list?.items || []).some((x) => nonEmpty(listItemText(x)));
+  if (layout === 'notice') return nonEmpty(c.notice?.focus) || nonEmpty(c.notice?.focusHe) || nonEmpty(c.notice?.pre) || nonEmpty(c.notice?.post);
   if (layout === 'quicktime') return (nonEmpty(c.quicktime?.time) || nonEmpty(c.quicktime?.big)) && (nonEmpty(c.quicktime?.name) || nonEmpty(c.quicktime?.nameHe));
   if (layout === 'quote') return nonEmpty(c.quote?.text) || nonEmpty(c.quote?.textHe);
   if (layout === 'sicha') return nonEmpty(c.sicha?.body);
