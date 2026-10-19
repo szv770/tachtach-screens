@@ -28,6 +28,7 @@ import {
   isISODate, weekdayOfISO, upcomingWeekdayISO, addDaysISO, minutesOf, sortEntriesByTime, WEEKDAY_LONG,
 } from './scheduleResolution.js';
 import { DAY_CODES } from './scheduleDays.js';
+import { sanitizeStages } from './scheduleStages.js';
 
 export const FORMAT_NAME = 'TachTach schedule v1';
 export const FORMAT_HEADER = `# ${FORMAT_NAME}`;
@@ -682,6 +683,8 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
     alertBefore: alert, countdownDisplay: display, enabled: e.enabled !== false, icon,
   };
   if (typeof e.id === 'string' && e.id.length <= 64) entry.id = e.id;
+  const stages = sanitizeStages(e.stages);
+  if (stages) entry.stages = stages;
   if (categoryIsNew) entry.categoryIsNew = true;
   return { entry, errors, warnings };
 }

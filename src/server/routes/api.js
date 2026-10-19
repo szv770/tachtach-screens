@@ -9,7 +9,9 @@ import { readDailyWords } from './daily-words.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { getScreenState, setScreenState, getScreenDisplay } from '../screenState.js';
 import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
-import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia, listMedia } from '../upload.js';
+import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia, listMedia, UPLOAD_DIR } from '../upload.js';
+import { processPdf, PdfError } from '../pdf.js';
+import { PDF_MAX_PAGES, clampPageSeconds } from '../../shared/pdfPages.js';
 import { uploadBox } from '../../shared/screenSize.js';
 import { syncAlbum, deleteAlbumCache, getAlbumStatus, getAlbumPhotos, startSyncTimer, stopSyncTimer } from '../google-photos.js';
 import { extractAlbumId } from '../../fetchers/google-photos.js';
@@ -21,6 +23,7 @@ import users from '../users.js';
 import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
+import { sanitizeStages } from '../../shared/scheduleStages.js';
 import { getStateExtras } from '../announcements-store.js';
 import { fetchWeather } from '../../fetchers/weather.js';
 import { describeWeather } from '../../shared/weatherCodes.js';
@@ -67,10 +70,20 @@ function pick(obj, allowedFields) {
 // sends and what VideoSlide/ImageSlide read. They were missing here, so every
 // new video slide was saved without its URL (blank on screen) and image edge
 // treatment / blurred backdrop were silently dropped.
-const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'announcementId'];
+const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'announcementId', 'pdfPages', 'pageSeconds'];
+// PDF slide pages: only our own page pictures, at most PDF_MAX_PAGES (fail closed: anything else is dropped).
+const PDF_PAGE_URL = /^\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(-p\d{2,3})?\.jpg$/i;
+function cleanPdfFields(slide) {
+  if ('pdfPages' in slide) {
+    const ok = Array.isArray(slide.pdfPages) ? slide.pdfPages.filter((u) => typeof u === 'string' && PDF_PAGE_URL.test(u)).slice(0, PDF_MAX_PAGES) : [];
+    if (ok.length) slide.pdfPages = ok; else delete slide.pdfPages;
+  }
+  if ('pageSeconds' in slide) slide.pageSeconds = clampPageSeconds(slide.pageSeconds);
+  return slide;
+}
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
-const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon'];
+const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages'];
 // `alertDisplay` is accepted only as a legacy alias (older admin builds and
 // the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
 // folds it into `countdownDisplay`, which is the only key that gets stored.
@@ -84,9 +97,14 @@ function pickScheduleEntry(e) {
   if ('countdownDisplay' in picked) {
     picked.countdownDisplay = picked.countdownDisplay === 'takeover' ? 'takeover' : 'slide';
   }
+  if ('stages' in picked) {
+    // Attention stages (src/shared/scheduleStages.js): { justStarted, inSession }; invalid/empty is dropped.
+    const st = sanitizeStages(picked.stages);
+    if (st) picked.stages = st; else delete picked.stages;
+  }
   return picked;
 }
-const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert'];
+const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert', 'stages'];
 // defaultAlert = minutes of countdown reminder given to pasted entries of this
 // category that have no explicit "alert N" (0/absent = none).
 function pickCategory(c) {
@@ -95,6 +113,10 @@ function pickCategory(c) {
     const n = Math.round(Number(out.defaultAlert));
     if (Number.isFinite(n) && n > 0) out.defaultAlert = Math.min(120, n);
     else delete out.defaultAlert;
+  }
+  if ('stages' in out) {
+    const st = sanitizeStages(out.stages);
+    if (st) out.stages = st; else delete out.stages;
   }
   return out;
 }
@@ -214,7 +236,7 @@ router.put('/slides', async (req, res) => {
       return res.status(400).json({ error: 'Invalid slides data — expected an array.' });
     }
     // Sanitize each slide to only allowed fields (preserve id)
-    const sanitized = slides.map((s) => ({ id: s?.id, ...pick(s, SLIDE_FIELDS) }));
+    const sanitized = slides.map((s) => cleanPdfFields({ id: s?.id, ...pick(s, SLIDE_FIELDS) }));
     await writeJSON('slides.json', sanitized);
     broadcast('slides-update', sanitized);
     reinitCountdownsForSlides();
@@ -228,7 +250,7 @@ router.put('/slides', async (req, res) => {
 router.post('/slides', async (req, res) => {
   try {
     const slides = (await readJSON('slides.json')) ?? [];
-    const picked = pick(req.body, SLIDE_FIELDS);
+    const picked = cleanPdfFields(pick(req.body, SLIDE_FIELDS));
     // Default enabled to true so new slides are visible immediately
     if (picked.enabled === undefined) picked.enabled = true;
     const newSlide = { id: uuidv4(), ...picked };
@@ -756,11 +778,15 @@ router.post('/upload', (req, res, next) => {
       result = await processGif(req.file.buffer);
     } else if (type === 'video') {
       result = await processVideo(req.file.buffer, req.file.mimetype);
+    } else if (type === 'pdf') {
+      const settings = (await readJSON('settings.json')) ?? {};
+      result = await processPdf(req.file.buffer, uploadBox(getScreenDisplay(), settings.orientation), UPLOAD_DIR);
     } else {
-      return res.status(400).json({ error: `Unsupported file type: ${req.file.mimetype}. Use JPEG, PNG, WebP, GIF, MP4, or WebM.` });
+      return res.status(400).json({ error: `Unsupported file type: ${req.file.mimetype}. Use JPEG, PNG, WebP, GIF, MP4, WebM, or PDF.` });
     }
     res.status(201).json(result);
   } catch (err) {
+    if (err instanceof PdfError) return res.status(err.status).json({ error: err.message });
     console.error('[api] POST /upload error:', err.message, err.stack);
     const msg = 'Image processing failed. The file may be corrupted or in an unsupported format.';
     res.status(500).json({ error: msg });

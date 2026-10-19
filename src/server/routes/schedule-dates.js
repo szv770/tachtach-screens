@@ -19,7 +19,7 @@ import { initCountdowns } from '../countdown.js';
 import {
   parseScheduleText, parseScheduleJSON, normalizeEntryInput, storableEntry,
 } from '../../shared/schedulePaste.js';
-import { planWeeklyReplace, pruneAutoBackups } from '../../shared/scheduleWeekly.js';
+import { planWeeklyReplace, pruneAutoBackups, buildWeeklyFromStructured } from '../../shared/scheduleWeekly.js';
 import {
   isISODate, toISODate, hasDateOverride, weeklyEntriesFor, sortEntriesByTime, addDaysISO,
 } from '../../shared/scheduleResolution.js';
@@ -289,12 +289,22 @@ router.put('/weekly', async (req, res) => {
   try {
     const result = await withScheduleLock(async () => {
       const schedule = await readSchedule();
-      if (typeof req.body?.text !== 'string') return { status: 400, body: { error: 'Send { text }.' } };
       const today = toISODate(new Date());
-      const parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today });
-      const errors = weeklyErrors(parsed);
-      if (errors.length) {
-        return { status: 400, body: { error: `Nothing was saved — fix ${errors.length} error${errors.length === 1 ? '' : 's'} first.`, errors } };
+      let parsed;
+      if (Array.isArray(req.body?.entries)) {
+        // Structured save (schedule wizard / week view): same all-or-nothing + auto-backup rules as a paste.
+        const built = buildWeeklyFromStructured(req.body.entries, schedule.categories || []);
+        if (built.errors.length) {
+          return { status: 400, body: { error: `Nothing was saved — fix ${built.errors.length} error${built.errors.length === 1 ? '' : 's'} first.`, errors: built.errors.map((message) => ({ line: null, message })) } };
+        }
+        parsed = { mode: 'weekly', weekly: { entries: built.entries }, newCategories: built.newCategories, warnings: built.warnings };
+      } else {
+        if (typeof req.body?.text !== 'string') return { status: 400, body: { error: 'Send { text } or { entries }.' } };
+        parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today });
+        const errors = weeklyErrors(parsed);
+        if (errors.length) {
+          return { status: 400, body: { error: `Nothing was saved — fix ${errors.length} error${errors.length === 1 ? '' : 's'} first.`, errors } };
+        }
       }
       const now = new Date();
       const plan = planWeeklyReplace(schedule, parsed, { today, time: now.toTimeString().slice(0, 5) });
