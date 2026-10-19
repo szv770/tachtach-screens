@@ -277,6 +277,9 @@ export function timeHe(ms, tz) { return fmt('en-GB', tz, { hour: '2-digit', minu
 export function dayEn(ms, tz) { return fmt('en-US', tz, { weekday: 'short', month: 'short', day: 'numeric' }).format(ms); }
 /** "יום ב׳, 26 באוק׳" */
 export function dayHe(ms, tz) { return fmt('he-IL', tz, { weekday: 'short', day: 'numeric', month: 'short' }).format(ms); }
+/** "Sun 9:44 PM" (compact, for the rail note) */
+export function wkEn(ms, tz) { return `${fmt('en-US', tz, { weekday: 'short' }).format(ms)} ${timeEn(ms, tz)}`; }
+export function wkHe(ms, tz) { return `${fmt('he-IL', tz, { weekday: 'short' }).format(ms)} ${timeHe(ms, tz)}`; }
 /** "Mon, Oct 26 · 9:12 PM" */
 export function whenEn(ms, tz) { return `${dayEn(ms, tz)} · ${timeEn(ms, tz)}`; }
 export function whenHe(ms, tz) { return `${dayHe(ms, tz)} · ${timeHe(ms, tz)}`; }
@@ -376,15 +379,15 @@ function labelsFor(st, tz) {
     note: st.phase === 'upcoming'
       ? { en: `Kiddush Levana from tonight, ${timeEn(st.firstEvening.start, tz)}`, he: `קידוש לבנה מהלילה, ${timeHe(st.firstEvening.start, tz)}` }
       : last
-        ? { en: `Kiddush Levana: last night is tonight, until ${closeEn}${mzEn}`, he: `קידוש לבנה: הלילה האחרון הלילה, עד ${closeHe}${mzHe}` }
-        : { en: `Kiddush Levana: say it at night, until ${whenEn(st.end, tz)}${mzEn}`, he: `קידוש לבנה: בלילה, עד ${whenHe(st.end, tz)}${mzHe}` },
+        ? { en: `Kiddush Levana: last night is tonight, until ${closeEn}${mzEn}`, he: `קידוש לבנה: זה הלילה האחרון, עד ${closeHe}${mzHe}` }
+        : { en: `Kiddush Levana at night · until ${wkEn(st.end, tz)}${mzEn}`, he: `קידוש לבנה בלילה · עד ${wkHe(st.end, tz)}${mzHe}` },
     takeoverOpen: {
       title: { en: 'Kiddush Levana', he: 'קידוש לבנה' },
-      body: { en: `The moon can be blessed tonight, from nightfall until ${untilEn}.`, he: `אפשר לקדש את הלבנה הלילה, מצאת הכוכבים עד ${untilHe}.` },
+      body: { en: `The moon can be blessed tonight, from nightfall until ${untilEn}.`, he: `אפשר לקדש את הלבנה הלילה, מצאת הכוכבים עד ${untilHe}` },
     },
     takeoverLast: {
       title: { en: 'Last night for Kiddush Levana', he: 'הלילה האחרון לקידוש לבנה' },
-      body: { en: `Tonight is the last night, until ${closeEn}.`, he: `הלילה הלילה האחרון, עד ${closeHe}.` },
+      body: { en: `Tonight is the last night, until ${closeEn}.`, he: `זה הלילה האחרון, עד ${closeHe}` },
     },
   };
 }
