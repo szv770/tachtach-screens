@@ -31,7 +31,7 @@ function clockText(clock) {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, animation, fonts }) {
+export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, animation, fonts, page: forcedPage }) {
   ensureTakeoverCss();
   const { light, motion, announceFonts } = useDesign();
   // Message & takeover font style (settings.announceFonts): role vars on the stage root.
@@ -61,6 +61,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
 
   const enterRef = useRef(enterNow); enterRef.current = enterNow;
   const pageRef = useRef(0);
+  if (forcedPage != null) pageRef.current = forcedPage; // the admin's page-by-page preview picks the page itself
   const [pages, setPages] = useState(1);
   const onPagesRef = useRef(onPages); onPagesRef.current = onPages;
 
@@ -86,13 +87,14 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
 
   // Long sicha / letter text steps through its pages at a fixed reading size.
   useEffect(() => {
+    if (forcedPage != null) { showPage(rootRef.current, Math.min(forcedPage, Math.max(0, pages - 1))); return undefined; }
     if (pages < 2) return undefined;
     const id = setInterval(() => {
       pageRef.current = (pageRef.current + 1) % pages;
       showPage(rootRef.current, pageRef.current);
     }, PAGE_SECONDS * 1000);
     return () => clearInterval(id);
-  }, [pages]);
+  }, [pages, forcedPage]);
 
   const { r } = built;
   const ent = motion === 'lively' ? 'lively' : S.ent;

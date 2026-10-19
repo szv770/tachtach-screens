@@ -3,6 +3,8 @@ import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '
 import useIsMobile from '../../hooks/useIsMobile.js';
 import AnnouncementPreview from './AnnouncementPreview.jsx';
 import StylePicker from './StylePicker.jsx';
+import LetterTools from '../letters/LetterTools.jsx';
+import { effectiveCaps } from '../../../shared/permissions.js';
 import { SOFT_LIMITS } from '../../../shared/takeoverStyles.js';
 import {
   DISPLAY_OPTIONS, LAYOUT_OPTIONS, ANIMATION_OPTIONS, TEMPLATE_OPTIONS, DAY_CHIPS,
@@ -217,7 +219,7 @@ function ConflictDialog({ conflicts, onChoose, onCancel, tz }) {
  * (new, e.g. { display: 'slide' } from the Slides tab).
  */
 export default function AnnouncementComposer({
-  initial, announcements = [], settings = {}, onClose,
+  initial, announcements = [], settings = {}, onClose, caps = effectiveCaps({ role: 'editor' }),
   onCreate, onUpdate, fetchShabbosEnd,
 }) {
   const isMobile = useIsMobile();
@@ -260,6 +262,12 @@ export default function AnnouncementComposer({
       cur[keys[keys.length - 1]] = value;
       return next;
     });
+    setError('');
+  }, []);
+
+  // Replace a whole letter / sicha (from "paste the whole letter" or an AI chat's JSON).
+  const fillKind = useCallback((fields) => {
+    setItem((prev) => ({ ...prev, content: { ...prev.content, ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { ...(prev.content[k] || {}), ...v }])) } }));
     setError('');
   }, []);
 
@@ -497,6 +505,7 @@ export default function AnnouncementComposer({
   } else if (layout === 'sicha') {
     textFields = (
       <>
+        <LetterTools kind="sicha" content={item.content} look={item.look} settings={settings} caps={caps} onFill={fillKind} onSwitchKind={(k) => set('look.layout', k)} />
         {pair('Title (English)', 'content.sicha.title', 'Title (Hebrew)', 'content.sicha.titleHe', false, 2, [SOFT_LIMITS.attribution, SOFT_LIMITS.attribution])}
         <Field title="Text (a blank line starts a new paragraph)">
           <TextArea value={c.sicha.body} onChange={(v) => set('content.sicha.body', v)} rows={8} rtl={isHeb(c.sicha.body)} ariaLabel="Sicha text" />
@@ -523,6 +532,7 @@ export default function AnnouncementComposer({
   } else if (layout === 'letter') {
     textFields = (
       <>
+        <LetterTools kind="letter" content={item.content} look={item.look} settings={settings} caps={caps} onFill={fillKind} onSwitchKind={(k) => set('look.layout', k)} />
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
           <Field title="Date (English, optional)"><TextInput value={c.letter.date} onChange={(v) => set('content.letter.date', v)} placeholder="Brooklyn, N.Y." ariaLabel="Letter date" /></Field>
           <Field title="Date (Hebrew, optional)"><TextInput rtl value={c.letter.dateHe} onChange={(v) => set('content.letter.dateHe', v)} placeholder="ט״ו מרחשון, ה׳תשט״ז" ariaLabel="Letter date in Hebrew" /></Field>

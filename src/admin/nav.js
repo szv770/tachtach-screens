@@ -10,7 +10,7 @@ export const navItems = [
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Weekly timetable, one-day changes & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
-  { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers', area: 'announce' },
+  { key: 'announcements', en: 'Announcements', desc: 'Posts, quick messages, banners & letters', area: 'announce' },
   // Look & Settings: small sorted pages in three groups (see LOOK_GROUPS).
   { key: 'themes', en: 'Themes', desc: 'Light, dark & automatic day/night', area: 'look', group: 'look' },
   { key: 'style', en: 'Fonts', desc: 'Fonts & text size', area: 'look', group: 'look' },

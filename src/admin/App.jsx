@@ -243,6 +243,7 @@ export default function App() {
           <AnnouncePage
             caps={myCaps}
             onUseQuick={(t) => { setQuickStart(t); setQuickOpen(true); }}
+            onPostLetter={quickPostAnnouncement}
             announcements={state?.announcements || []}
             settings={state?.settings || {}}
             onSaveSettings={updateSettings}
@@ -349,6 +350,7 @@ export default function App() {
         <AnnouncementComposer
           key={composer.id || 'new'}
           initial={composer}
+          caps={myCaps}
           announcements={state?.announcements || []}
           settings={state?.settings || {}}
           onClose={() => setComposer(null)}

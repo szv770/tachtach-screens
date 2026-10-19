@@ -94,6 +94,10 @@ export const SETTINGS_INDEX = [
   S('custom-days', 'Custom days', 'special dates yahrtzeit holiday hebrew date mark', { match: 'Custom' }),
   // Announce
   S('announcements', 'Banner: still or scrolling, and speed (default for all banners)', 'ticker scroll scrolling still marquee speed slow fast movement', { tab: 'posts', anchor: 'announce-banner-settings' }),
+  S('announcements', 'Quick messages (saved templates with blanks)', 'template quick message call home menahel bochur office blank fill reply saved personal shared', { tab: 'quick', match: 'My templates' }),
+  S('announcements', 'New quick message template', 'add create template blank name person place day time my templates shared', { tab: 'quick', match: 'New quick message' }),
+  S('announcements', 'Saved letters library (post a letter again)', 'letter sicha saved library repost again igros kodesh', { tab: 'letters', match: 'Letters and sicha' }),
+  S('announcements', 'New letter or sicha (paste the whole letter, or fill from an AI chat)', 'letter sicha paste whole split ai prompt json claude chatgpt copy prompt pages preview', { tab: 'letters', match: 'New letter' }),
   S('announcements', 'Archive: delete old announcements after days', 'auto delete archived history', { match: 'Archive' }),
   S('announcements', 'Announcements (slide, banner, side note, takeover)', 'message post live scheduled drafts paused', { match: 'Announcements' }),
 ];
