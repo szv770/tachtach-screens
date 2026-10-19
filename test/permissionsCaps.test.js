@@ -99,7 +99,7 @@ test('Messages only: posts and controls the screen, nothing else', () => {
   no(w, 'POST', '/api/announcements', { display: 'takeover' });
   no(w, 'POST', '/api/messages', { type: 'takeover' });
   no(w, 'PUT', '/api/announcements/abc', { display: 'slide' });
-  no(w, 'DELETE', '/api/announcements/abc');
+  ok(w, 'DELETE', '/api/announcements/abc'); // undo of own fresh post; the route checks ownership
   no(w, 'POST', '/api/announcements/restore', { item: { display: 'slide' } });
   no(w, 'POST', '/api/announcements/abc/reactivate');
   no(w, 'PUT', '/api/slides'); no(w, 'POST', '/api/slides'); no(w, 'DELETE', '/api/slides/x');
@@ -181,7 +181,7 @@ test('granting individual abilities opens exactly their paths', () => {
   const d = P('full', { grant: [], deny: ['slides.delete', 'media.delete', 'announcements.delete'] });
   no(d, 'DELETE', '/api/slides/x'); ok(d, 'PUT', '/api/slides'); ok(d, 'POST', '/api/slides');
   no(d, 'DELETE', '/api/media/1'); ok(d, 'POST', '/api/upload');
-  no(d, 'DELETE', '/api/announcements/a'); no(d, 'DELETE', '/api/pinned/a'); no(d, 'POST', '/api/announcements/restore', { item: {} });
+  ok(d, 'DELETE', '/api/announcements/a'); no(d, 'DELETE', '/api/pinned/a'); no(d, 'POST', '/api/announcements/restore', { item: {} });
   ok(d, 'POST', '/api/announcements', {}); ok(d, 'PUT', '/api/announcements/a', {});
 });
 
@@ -191,4 +191,11 @@ test('anything unlisted is denied for non-admins; odd spellings do not dodge', (
   for (const p of ['/api//settings', '/api/Settings', '/api/settings/', '/api/%73ettings', '/api\\settings', '/api/settings?x=1', '/API/SETTINGS', '/api/Fonts/1', '/api//fonts']) no(full, 'PUT', p, {});
   no(P('messages'), 'POST', '/api//SCREEN/../settings');
   no(P('messages'), 'PUT', '/api/screen/../settings');
+});
+
+test('Messages only may undo (DELETE) an announcement route-wise; View only may not', () => {
+  ok(P('messages'), 'DELETE', '/api/announcements/abc');
+  no(P('view'), 'DELETE', '/api/announcements/abc', {});
+  no(P('messages'), 'DELETE', '/api/announcements/abc/extra', {});
+  no(P('messages'), 'DELETE', '/api/slides/abc', {});
 });

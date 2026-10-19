@@ -256,6 +256,10 @@ export function canDo(who, method, path, body) {
 
   if (/^\/api\/settings$/.test(p) && isLookOnlySettingsPatch(m, body) && caps.has('look.change')) return true;
 
+  // Undo of your own fresh post: a poster may DELETE an announcement; the route itself then checks it is
+  // theirs and recent unless they also hold announcements.delete (see routes/announcements.js).
+  if (m === 'DELETE' && /^\/api\/announcements\/[^/]+$/.test(p) && caps.has('announcements.post')) return true;
+
   const r = RULES.find((x) => (x.methods === ANY || x.methods.includes(m)) && x.re.test(p));
   if (!r || !caps.has(r.cap)) return false;
   if (r.cap.startsWith('announcements.') && writesTakeover(p, body) && !caps.has('announcements.takeover')) return false;

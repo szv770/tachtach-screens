@@ -9,6 +9,7 @@
  */
 
 import { Router } from 'express';
+import { effectiveCaps, can } from '../../shared/permissions.js';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
@@ -29,7 +30,7 @@ router.use(['/announcements', '/messages', '/pinned'], async (_req, _res, next) 
 
 function fail(res, err, what) {
   if (err instanceof ValidationError) return res.status(400).json({ error: err.message });
-  if (err?.status === 404) return res.status(404).json({ error: err.message });
+  if (err?.status === 404 || err?.status === 403) return res.status(err.status).json({ error: err.message });
   console.error(`[announcements] ${what} error:`, err.message);
   return res.status(500).json({ error: `Failed to ${what}.` });
 }
@@ -185,6 +186,16 @@ router.delete('/announcements/:id', async (req, res) => {
       const items = await loadItems();
       const item = items.find((i) => i.id === req.params.id);
       if (!item) throw notFound();
+      // Posters without 'delete' may only undo their own post, within 30 minutes.
+      if (!can(effectiveCaps(req.user), 'announcements.delete')) {
+        const mine = item.createdBy && item.createdBy === req.user?.name;
+        const stamp = Date.parse(item.createdAt || '');
+        if (!mine || !(Date.now() - stamp < 30 * 60 * 1000)) {
+          const e = new Error('You can only undo your own message right after posting it.');
+          e.status = 403; e.expose = true;
+          throw e;
+        }
+      }
       await saveItems(items.filter((i) => i.id !== item.id));
       const slides = (await readJSON('slides.json')) ?? [];
       const refs = [];
