@@ -96,6 +96,8 @@ export function modelList(item) {
   };
 }
 
+import { minutesFromSplit } from './quickCountdown.js';
+
 export function modelQuick(item) {
   const c = item.content || {};
   const q = c.quicktime || {};
@@ -109,6 +111,9 @@ export function modelQuick(item) {
     kick: kickOf(c), name: [S(q.name), S(q.nameHe)], pre: S(q.pre),
     times: big ? [] : times, big, was: was ? was.join(' ').trim() : '',
     where: has(q.place) || has(q.placeHe) ? [S(q.place), S(q.placeHe)] : null,
+    // live "starts in ..." line: one real time, no big number, not switched off
+    cd: !big && times.length === 1 && q.countdown !== false ? minutesFromSplit(t1) : null,
+    cdHe: !S(q.name) && !!S(q.nameHe),
   };
 }
 

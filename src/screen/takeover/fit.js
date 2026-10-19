@@ -73,6 +73,32 @@ function settleLines(el, a, floor, ok) {
   el.style.fontSize = a + 'px';
 }
 
+/**
+ * Sicha body, like Big words: short text is set large, longer text steps down until the WHOLE text fits one page
+ * (no lone last word in the last paragraph); only text that does not fit even at the base reading size paginates
+ * (at that base size, as before). Sizes between the base and SICHA_MAX_GROW x base, 2 px steps.
+ */
+export const SICHA_MAX_GROW = 1.9;
+function fitSichaSize(el, words, build) {
+  const base = parseFloat(getComputedStyle(el).fontSize);
+  if (!words.length || !base) return;
+  el.innerHTML = build(words);
+  const fitsOne = () => el.scrollHeight <= el.clientHeight + 1;
+  const lastOk = () => { const ps = el.querySelectorAll('p'); const ws = lineWidths(ps[ps.length - 1]); return !isOrphan(ws); };
+  el.style.fontSize = base + 'px'; el.innerHTML = build(words);
+  if (!fitsOne()) { el.style.fontSize = ''; return; } // paginate at the base size
+  let a = base, b = Math.round(base * SICHA_MAX_GROW);
+  el.style.fontSize = b + 'px';
+  if (fitsOne()) a = b; else { while (b - a > 1) { const mid = (a + b) >> 1; el.style.fontSize = mid + 'px'; if (fitsOne()) a = mid; else b = mid; } }
+  // step down (at most 12%, never under base) away from a lone last word
+  const lo = Math.max(base, Math.round(a * 0.88));
+  for (let sz = a; sz >= lo; sz -= 2) {
+    el.style.fontSize = sz + 'px';
+    if (fitsOne() && lastOk()) { el.dataset.fitSize = sz; return; }
+  }
+  el.style.fontSize = a + 'px'; el.dataset.fitSize = a;
+}
+
 /** Split text into pages at a FIXED reading size (sicha / letter bodies). */
 function paginate(root, page) {
   let pagesOut = 1;
@@ -81,6 +107,8 @@ function paginate(root, page) {
     const words = paras.map((p, i) => p.split(' ').filter(Boolean).map((w, j) => ({ w, br: j === 0 && i > 0 }))).flat();
     const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const build = (arr) => '<p dir="auto">' + arr.map((x, k) => (x.br && k > 0 ? '</p><p dir="auto">' : '') + esc(x.w)).join(' ').replace(/<p dir="auto"> /g, '<p dir="auto">') + '</p>';
+    el.style.fontSize = '';
+    if (el.closest('.sc')) fitSichaSize(el, words, build);
     const pages = []; let i = 0;
     while (i < words.length) {
       let j = i + 1; el.innerHTML = build(words.slice(i, j));
@@ -112,12 +140,13 @@ export function fitAll(root, { page = 0 } = {}) {
   $$('.fit').forEach((el) => fitEl(el, heScale));
   $$('.fit.wrap, .fit.big').forEach((el) => { if (el.dataset.over) return; el.style.maxHeight = ''; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; });
   $$('.pw').forEach((el) => { el.style.height = 'auto'; });
-  /* quick name row: one line while it fits at >= .75, else stacked (He over En), scaled down to .45 */
+  /* quick name row: sized by the amount of text like Big words. One line while it fits at >= .75 (short names
+     grow up to 1.6x the base size), else stacked (He over En, up to 1.15x), scaled down to .45 */
   $$('.qt .nm').forEach((el) => {
-    const Wd = el.parentElement.clientWidth; el.classList.remove('stack'); let k = 1; el.style.setProperty('--k', k);
+    const Wd = el.parentElement.clientWidth; el.classList.remove('stack'); let k = 1.6; el.style.setProperty('--k', k);
     const fits = () => el.scrollWidth <= Wd + 1;
     while (!fits() && k > .75) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); }
-    if (!fits()) { el.classList.add('stack'); k = 1; el.style.setProperty('--k', k); while (!fits() && k > .45) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); } }
+    if (!fits()) { el.classList.add('stack'); k = 1.15; el.style.setProperty('--k', k); while (!fits() && k > .45) { k -= .02; el.style.setProperty('--k', k.toFixed(2)); } }
   });
   /* two-time quick layout: one size for both, fitted to the narrower column */
   const ts = [...$$('.times .tcol .t')];
@@ -133,6 +162,7 @@ export function fitAll(root, { page = 0 } = {}) {
     let n = 0;
     while (l.scrollHeight > l.clientHeight + 4 && n++ < 40) {
       const nm = l.querySelector('.nm'), k = nm ? parseFloat(nm.style.getPropertyValue('--k') || 1) : 1;
+      if (nm && k > 1) { nm.style.setProperty('--k', Math.max(1, k - .05).toFixed(2)); continue; } // grown names give way first
       if (nm && k > .45) nm.style.setProperty('--k', (k - .03).toFixed(2));
       l.querySelectorAll('.tcol .t').forEach((t) => { const fs = parseFloat(t.style.fontSize) || 150; if (fs > 64) t.style.fontSize = (fs - 6) + 'px'; });
       const w = l.querySelector('.where'); if (w && n > 8) { const fs = parseFloat(w.style.fontSize); if (fs > 24) w.style.fontSize = (fs - 1) + 'px'; }

@@ -116,6 +116,7 @@ export const TAKEOVER_CSS = `
 .tkr .nt .rule { width: 72px; height: 3px; border-radius: 2px; background: var(--s-accText); margin: var(--sp4) 0 var(--sp3); flex: none; }
 .tkr .lyt > *, .tkr .nt > *, .tkr .qt > *, .tkr .ev > *, .tkr .bw > *, .tkr .qq > * { flex-shrink: 0; }
 .tkr .ev > .titles { flex-shrink: 1; }
+.tkr .qt .cd { font-size: 44px; line-height: 1.2; min-height: 54px; font-weight: 600; color: var(--s-dim); font-variant-numeric: tabular-nums; text-align: inherit; margin-top: -2px; white-space: nowrap; }
 .tkr .qt .nm .he { font-size: calc(90px * var(--he-scale) * var(--k, 1)); line-height: 1.1; }
 .tkr .qt .nm .en { font-size: calc(78px * var(--k, 1)); line-height: 1.1; }
 .tkr .pw { width: 100%; height: 42%; }

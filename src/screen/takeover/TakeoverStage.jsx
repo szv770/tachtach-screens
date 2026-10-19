@@ -6,6 +6,7 @@ import { modelFor, stageLayout } from '../../shared/takeoverModel.js';
 import { layoutOf } from '../../shared/announcements.js';
 import { renderArt } from './art.js';
 import { LAYOUT_HTML } from './layouts.js';
+import { countdownText } from '../../shared/quickCountdown.js';
 import { fitAll, splitLively, showPage, DEFAULT_PAGE_SECONDS } from './fit.js';
 import { ensureTakeoverCss } from './css.js';
 import { announceFontVars } from '../../shared/fontRoles.js';
@@ -83,6 +84,16 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     document.fonts?.addEventListener?.('loadingdone', refit);
     return () => { alive = false; cancelAnimationFrame(raf); document.fonts?.removeEventListener?.('loadingdone', refit); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [built]);
+
+  // Quick-time "starts in ..." line: filled in place once a second (text only; the box height is fixed, digits are tabular).
+  useEffect(() => {
+    const els = rootRef.current ? [...rootRef.current.querySelectorAll('.cd[data-cd]')] : [];
+    if (!els.length) return undefined;
+    const tick = () => { const now = new Date(); els.forEach((el) => { el.textContent = countdownText(+el.dataset.cd, now, el.dataset.he === '1'); }); };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
   }, [built]);
 
   // Long sicha / letter text steps through its pages at a fixed reading size.

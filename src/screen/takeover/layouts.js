@@ -11,7 +11,7 @@
 export const FIT = {
   bwHe: [300, 64], bwEn: [84, 34], bwEnOnly: [170, 34], bwSub: [32, 22], kick: [34, 22],
   evHe: [230, 44], evEn: [170, 32], lsHdEn: [64, 28], lsHdHe: [58, 28],
-  qtBig: [330, 110], ntPre: [64, 30], ntBig: [300, 70], ntBigEn: [230, 60], ntPost: [72, 30], qHe: [220, 48], qEn: [64, 28], attr: [30, 22], scHdEn: [44, 28], scHdHe: [40, 24], where: [36, 24],
+  qtBig: [330, 110], ntPre: [64, 30], ntBig: [300, 70], ntBigEn: [230, 60], ntPost: [72, 30], qHe: [220, 48], qEn: [64, 28], attr: [30, 22], scHdEn: [44, 28], scHdHe: [40, 24], where: [64, 26],
 };
 import { slotDir, takeoverRuns as bidiRuns, dirAttr } from '../../shared/bidi.js';
 
@@ -89,9 +89,10 @@ export const LAYOUT_HTML = {
     } else if (m.times.length === 1) {
       mid = `<div class="pw"><div class="fit nw big num" ${fa('qtBig')} data-s style="--i:2">${m.pre ? `<span class="pre"${D(m.pre, 'en')}>${ex(m.pre, 'en')}</span>` : ''}${T(m.times[0][0], m.times[0][1])}</div></div>`;
     }
+    const cd = m.cd != null ? `<div class="cd num" data-cd="${m.cd}"${m.cdHe ? ' data-he="1" dir="rtl"' : ''} data-s style="--i:3"></div>` : '';
     const was = m.was ? `<div class="was" data-s style="--i:3"><span>was</span><s class="num">${esc(m.was)}</s></div>` : '';
-    const where = m.where && (m.where[0] || m.where[1]) ? `<div class="fit wrap where" ${fa('where', ' data-h="120"')} data-s style="--i:4">${pair(m.where[0], m.where[1])}</div>` : '';
-    return `<div class="lyt qt">${kick(m.kick)}${name}${mid}${was}${where}</div>`;
+    const where = m.where && (m.where[0] || m.where[1]) ? `<div class="fit wrap where" ${fa('where', ' data-h="190"')} data-s style="--i:4">${pair(m.where[0], m.where[1])}</div>` : '';
+    return `<div class="lyt qt">${kick(m.kick)}${name}${mid}${cd}${was}${where}</div>`;
   },
 
   notice: (m) => {
