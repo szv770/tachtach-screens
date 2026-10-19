@@ -140,7 +140,7 @@ function ShareSheet({ data, onClose }) {
   );
 }
 
-export default function KiddushLevanaMonths({ editable, onChanged }) {
+export default function KiddushLevanaMonths({ editable, onChanged, settingsKey = '' }) {
   const [data, setData] = useState(null);
   const [count, setCount] = useState(14);
   const [err, setErr] = useState('');
@@ -149,7 +149,7 @@ export default function KiddushLevanaMonths({ editable, onChanged }) {
   const load = useCallback(async (n) => {
     try { setData(await apiFetch(`/api/kiddush-levana/months?count=${n}`)); setErr(''); } catch (e) { setErr(e.message || 'Could not load the months.'); }
   }, []);
-  useEffect(() => { load(count); }, [load, count]);
+  useEffect(() => { load(count); }, [load, count, settingsKey]);   // refetch (keeping the count and what is open) when a rule changes
 
   const save = async (key, body) => {
     try {

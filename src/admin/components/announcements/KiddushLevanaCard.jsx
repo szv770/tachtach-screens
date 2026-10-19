@@ -87,7 +87,7 @@ export default function KiddushLevanaCard({ caps = [] }) {
             )}
             <div style={{ borderTop: `1px solid ${colors.border}`, paddingTop: '12px' }}>
               <div style={{ ...line, fontWeight: 700, marginBottom: '8px' }}>Upcoming months</div>
-              <KiddushLevanaMonths editable={editable} onChanged={load} key={JSON.stringify(s)} />
+              <KiddushLevanaMonths editable={editable} onChanged={load} settingsKey={JSON.stringify(s)} />
             </div>
           </>
         )}
