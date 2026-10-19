@@ -6,6 +6,8 @@ Every feature the server/kiosk supports, and the admin control that reaches it. 
 
 `updateSettings(patch)` in `useAdminState.js` sends `PATCH /api/settings`. **Pass only the keys you own** (`{ banner: { size: 'large' } }`, or `diffSettings(saved, local)` from `src/shared/settingsMerge.js`). The server deep-merges into `settings.json` (objects merge, arrays/scalars replace, `null` stores null), under a lock. Top-level keys must be in `SETTINGS_KEYS` (`src/shared/settingsMerge.js`) or the server returns 400 naming them. **A new setting needs its top-level key added there.** Legacy whole-object `PUT /api/settings` still works for old tabs. Never spread the whole `settings` prop into a save (audit bug 14).
 
+Look & Settings is split into small pages under `src/admin/components/look/` (Themes, Fonts `/admin/style`, Layout, Logo & credit, Motion, Location & weather `/admin/settings`, What shows, Schedule display, Security, This screen = `settings.siteName` + Storage, plus Team and My account). Multi-field pages use `useSettingsForm` (`look/kit.jsx`, wraps `useDirtyForm` + `SaveBar`, PATCHes only changed keys); toggles/single choices use `useInstant` (applies at once, Undo toast). New: `location.displayName` ("Show location as", kiosk `placeName()` in `src/screen/design/hooks.js`) and top-level `siteName`.
+
 ## Sections and features
 
 | Area | Feature | Admin control | Status |
@@ -36,13 +38,13 @@ Every feature the server/kiosk supports, and the admin control that reaches it. 
 | Photos | Album with no slide | "Add slide" button on the album row | Fixed |
 | RSS | Add feed, sync, delete | `RSSManager` | OK |
 | RSS | Edit name/refresh/slide mode/style | `RSSManager` Edit | Fixed. Deleting a feed now also removes its slide |
-| Style | Hebrew body/heading font, English font, scales, upload/delete fonts | `StylePanel` | OK. Saves only `fonts`/scales keys; font upload/delete errors now toast |
-| Settings | Zip, Chabad location id, Track A/B | Settings > Location / Dual-Track | OK (nested keys, bug 6) |
-| Settings | `location.timezone` | Settings > Location | Fixed (no UI; announcements use it) |
-| Settings | Theme (8) | Settings > Theme | OK |
-| Settings | `customTheme` + theme `custom` | Settings > Custom Theme | Fixed (no UI) |
-| Settings | Auto theme by zmanim | Settings > Auto Theme | OK |
-| Settings | Clock side, orientation, portrait layout | Settings > Layout | OK |
+| Style | Hebrew body/heading font, English font, scales, upload/delete fonts | `look/FontsPage` (/admin/style) | OK. Saves only `fonts`/scales keys; font upload/delete errors now toast |
+| Settings | Zip, Chabad location id, Track A/B | Look & Settings > Location & weather / Schedule display (`look/LocationPage`, `look/ScheduleDisplayPage`) | OK (nested keys, bug 6) |
+| Settings | `location.timezone` | Look & Settings > Location & weather | Fixed (no UI; announcements use it) |
+| Settings | Theme (8) | Look & Settings > Themes (`look/ThemesPage`; Auto off = one picker, on = Dark + Light pickers) | OK |
+| Settings | `customTheme` + theme `custom` | Themes > Custom accent colour | Fixed (no UI) |
+| Settings | Auto theme by zmanim | Themes > Auto toggle | OK |
+| Settings | Clock side, orientation, portrait layout | Look & Settings > Layout (`look/LayoutPage`; the old 'weather in rotation' toggle is gone: use Screen > Slides > Weather) | OK |
 | Settings | Limudim / Hayom Yom language | Settings | OK |
 | Settings | Visibility toggles (clock, date, parsha, omer, side notes) | Settings > Visibility | OK (label now "Side Notes") |
 | Settings | Credit text/size/position/slide/logo | Settings > Credit Line | OK. Logo upload/remove now saves immediately and toasts (no more `alert()`) |
@@ -61,5 +63,5 @@ No horizontal overflow in any section; inputs are 16px; all buttons, selects, su
 
 - `ScheduleEditor` still receives an unused `onUpdateEntries` prop; harmless.
 - Announcement composer inline controls were left as they were except the global 44px rule.
-- StylePanel/SettingsPanel layouts were intentionally not reorganized (the kiosk agent adds controls there). New controls must save via PATCH keys as above.
+- New controls go on the matching `look/*Page.jsx`, save via PATCH keys as above, and need a `search/searchIndex.js` entry (anchor = Collapsible id).
 - The legacy `/api/messages`, `/api/pinned` shims can be deleted one release from now.
