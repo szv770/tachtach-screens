@@ -11,7 +11,7 @@ import { Router } from 'express';
 import { readJSON, writeJSON } from './storage.js';
 import { broadcast } from './sse.js';
 import {
-  kiddushLevanaState, currentOccasion, locationFrom, normalizeKlSettings, kiddushLevanaTable,
+  kiddushLevanaState, currentOccasion, locationFrom, normalizeKlSettings, kiddushLevanaTable, normalizeOverrides,
 } from '../shared/kiddushLevana.js';
 
 const FILE = 'kiddush-levana.json';
@@ -85,5 +85,46 @@ kiddushLevanaRouter.put('/kiddush-levana/settings', async (req, res) => {
     await writeJSON('settings.json', settings);
     broadcast('settings-update', settings);
     res.json(await preview());
+  } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not save.' }); }
+});
+
+/** The upcoming months for the admin list / the rabbi's page (12-24 of them). */
+export async function monthsPreview(count = 14, now = new Date()) {
+  const [settings, cache, zdates] = await Promise.all([readJSON('settings.json'), readJSON('cache.json'), readJSON('zmanim-dates.json')]);
+  // Real nightfall times the server already holds for the screen's zip (today/tomorrow from the zmanim
+  // cache, plus any dates fetched earlier); every other month is computed from its latitude/longitude.
+  const loc = { ...locationFrom(settings, cache), zmanimDates: zdates && typeof zdates === 'object' ? zdates : {} };
+  const n = Math.max(1, Math.min(24, Math.round(Number(count)) || 14));
+  const t = kiddushLevanaTable(now, loc, settings?.kiddushLevana, n);
+  const place = settings?.location?.displayName || settings?.location?.zip || '';
+  return { timezone: t.tz, approx: t.approx, place, settings: normalizeKlSettings(settings?.kiddushLevana), rows: t.rows };
+}
+
+kiddushLevanaRouter.get('/kiddush-levana/months', async (req, res) => {
+  try { res.json(await monthsPreview(req.query.count)); } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not work out the months.' }); }
+});
+
+/**
+ * Edit one month: { start?: ms, end?: ms, hide?: boolean } sets it, { reset: true } goes back to the
+ * computed times. Stored as settings.kiddushLevana.overrides[molad index].
+ */
+kiddushLevanaRouter.put('/kiddush-levana/override/:key', async (req, res) => {
+  try {
+    const key = String(req.params.key);
+    if (!/^-?\d{1,6}$/.test(key)) return res.status(400).json({ error: 'Unknown month.' });
+    const b = req.body || {};
+    const settings = (await readJSON('settings.json')) || {};
+    const kl = normalizeKlSettings(settings.kiddushLevana);
+    const overrides = { ...kl.overrides };
+    if (b.reset === true) delete overrides[key];
+    else {
+      const next = normalizeOverrides({ [key]: { start: b.start, end: b.end, hide: b.hide === true } });
+      if (b.start != null && b.end != null && Number(b.end) <= Number(b.start)) return res.status(400).json({ error: 'The cutoff has to be after the start.' });
+      if (next[key]) overrides[key] = next[key]; else delete overrides[key];
+    }
+    settings.kiddushLevana = normalizeKlSettings({ ...settings.kiddushLevana, overrides });
+    await writeJSON('settings.json', settings);
+    broadcast('settings-update', settings);
+    res.json(await monthsPreview(req.query.count));
   } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not save.' }); }
 });

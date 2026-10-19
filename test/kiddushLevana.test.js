@@ -269,3 +269,114 @@ test('sun event: Miami tzeis in mid-October is about 7:00-7:20 pm', () => {
   const hm = local(t.getTime()).slice(11);
   assert.ok(hm >= '18:55' && hm <= '19:25', hm);
 });
+
+// ── Hand edits (overrides), Hebrew extra line, months list, share page ──────
+
+import { normalizeOverrides, hebrewMonthLabel } from '../src/shared/kiddushLevana.js';
+import { klShareText, klShareHtml, klRules, KL_QUESTIONS } from '../src/shared/kiddushLevanaShare.js';
+
+const CHESHVAN_N = Math.floor((iso('2026-10-19T12:00:00Z') - moladMs(0)) / MONTH_MS);
+const nOf = (isoStr) => { for (let n = CHESHVAN_N - 3; n < CHESHVAN_N + 3; n++) if (Math.abs(moladMs(n) - iso(isoStr)) < 2 * DAY) return n; return null; };
+const N = nOf('2026-10-11T07:22:00Z');
+
+test('normalizeOverrides keeps only valid edits', () => {
+  assert.deepEqual(normalizeOverrides({ 5: { start: 10, end: 20 }, x: { hide: true }, 6: { start: 30, end: 20 }, 7: { hide: true }, 8: {}, 9: 'no' }),
+    { 5: { start: 10, end: 20 }, 7: { hide: true } });
+  assert.deepEqual(normalizeOverrides(null), {});
+  assert.deepEqual(normalizeKlSettings({ overrides: { 3: { end: '99' } } }).overrides, { 3: { end: 99 } });
+});
+
+test('windowOf honours start/end overrides and ignores a crossing half-edit', () => {
+  const base = windowOf(N, {});
+  const later = Math.round(base.start) + 2 * DAY;
+  const w = windowOf(N, { overrides: { [N]: { start: later } } });
+  assert.equal(w.start, later);
+  assert.equal(w.end, base.end);
+  assert.equal(w.overridden, true);
+  assert.equal(w.computedStart, base.start);
+  const e = windowOf(N, { overrides: { [N]: { end: Math.round(base.end) - DAY } } });
+  assert.equal(e.end, Math.round(base.end) - DAY);
+  const bad = windowOf(N, { overrides: { [N]: { end: base.start - DAY } } });
+  assert.equal(bad.start, base.start);
+  assert.equal(bad.end, base.end);
+  assert.equal(bad.overridden, false);
+  assert.equal(windowOf(N, { overrides: { [N]: { hide: true } } }).hidden, true);
+});
+
+test('state: an edited cutoff moves the last night; a hidden month is skipped; reset restores', () => {
+  const now = new Date('2026-10-20T16:00:00Z');
+  const computed = kiddushLevanaState(now, MIAMI, {});
+  assert.equal(local(computed.end), '2026-10-25 21:44');
+  const edited = kiddushLevanaState(now, MIAMI, { overrides: { [N]: { end: iso('2026-10-23T12:00:00-04:00') } } });
+  assert.equal(local(edited.end), '2026-10-23 12:00');
+  assert.equal(edited.lastNight.date, '2026-10-22');
+  const later = kiddushLevanaState(now, MIAMI, { overrides: { [N]: { start: iso('2026-10-22T12:00:00-04:00') } } });
+  assert.equal(later.phase, 'none');
+  assert.equal(later.firstNight.date, '2026-10-22');
+  const hidden = kiddushLevanaState(now, MIAMI, { overrides: { [N]: { hide: true } } });
+  assert.notEqual(hidden.key, computed.key);
+  assert.ok(hidden.molad > computed.molad);
+  const reset = kiddushLevanaState(now, MIAMI, { overrides: {} });
+  assert.equal(reset.key, computed.key);
+});
+
+test('table rows: key, month label, computed vs edited, hidden flag, customs notes', () => {
+  const ov = { [N]: { hide: true }, [N + 1]: { start: Math.round(moladMs(N + 1)) + 9 * DAY } };
+  const { rows } = kiddushLevanaTable(new Date('2026-10-19T12:00:00Z'), MIAMI, { overrides: ov }, 24);
+  assert.equal(rows.length, 24);
+  const r0 = rows.find((r) => r.key === String(N));
+  assert.equal(r0.hidden, true);
+  const r1 = rows.find((r) => r.key === String(N + 1));
+  assert.equal(r1.overridden, true);
+  assert.equal(r1.start, Math.round(moladMs(N + 1)) + 9 * DAY);
+  assert.ok(r1.computedStart < r1.start);
+  assert.match(r0.month, /Cheshvan 5787/);
+  assert.ok(rows.some((r) => r.notes.some((n) => n.skipped)));
+  assert.ok(rows.every((r) => typeof r.canStart === 'number'));
+  assert.equal(hebrewMonthLabel(moladMs(N), 'America/New_York'), 'Cheshvan 5787');
+});
+
+test('real zmanim per date win over the computed nightfall', () => {
+  const plain = kiddushLevanaTable(new Date('2026-10-19T12:00:00Z'), MIAMI, {}, 3).rows[1];
+  const date = plain.first.date;
+  const loc = { ...MIAMI, zmanimDates: { [date]: { zmanim: { tzeit7083deg: '9:41 PM' } } } };
+  const row = kiddushLevanaTable(new Date('2026-10-19T12:00:00Z'), loc, {}, 3).rows[1];
+  assert.equal(local(row.first.start).slice(11), '21:41');
+});
+
+test('Hebrew is an optional extra: off by default, on adds the Hebrew lines; English always there', () => {
+  const now = new Date('2026-10-20T16:00:00Z');
+  const st = kiddushLevanaState(now, MIAMI, {});
+  const off = kiddushLevanaItems(st, {}, now);
+  assert.ok(off[0].content.headlineEn);
+  assert.equal(off[0].content.headlineHe, '');
+  const stHe = kiddushLevanaState(now, MIAMI, { hebrew: true });
+  const on = kiddushLevanaItems(stHe, {}, now);
+  assert.ok(on[0].content.headlineEn);
+  assert.match(on[0].content.headlineHe, /קידוש לבנה/);
+  assert.equal(normalizeKlSettings({}).hebrew, false);
+  const night = new Date('2026-10-21T00:30:00Z');
+  const sn = kiddushLevanaState(night, MIAMI, {});
+  const shown = { [`${sn.key}:first`]: night.toISOString(), [`${sn.key}:last`]: night.toISOString() };
+  for (const i of kiddushLevanaItems(sn, shown, night)) assert.equal(i.content.headlineHe, '', i.display);
+});
+
+test('share text and page: rules, months, edits, questions', () => {
+  const ov = { [N]: { hide: true }, [N + 1]: { end: moladMs(N + 1) + 12 * DAY } };
+  const { rows, tz } = kiddushLevanaTable(new Date('2026-10-19T12:00:00Z'), MIAMI, { overrides: ov }, 14);
+  const text = klShareText({ rows, tz, settings: { overrides: ov }, place: 'Miami', generatedAt: new Date('2026-10-19T12:00:00Z') });
+  assert.match(text, /RULES USED/);
+  assert.match(text, /7 days after the molad/);
+  assert.match(text, /halfway point of the month/);
+  assert.match(text, /1\. Cheshvan 5787 {2}\[SKIPPED/);
+  assert.match(text, /cutoff changed by hand/);
+  assert.match(text, /2\. Kislev 5787/);
+  for (const q of KL_QUESTIONS) assert.ok(text.includes(q));
+  assert.equal((text.match(/Molad:/g) || []).length, 14);
+  const html = klShareHtml({ rows, tz, settings: {}, place: 'Miami <test>' });
+  assert.match(html, /^<!doctype html>/);
+  assert.match(html, /@media print/);
+  assert.ok(html.includes('Miami &lt;test&gt;'));
+  assert.equal((html.match(/<tr/g) || []).length, 15);
+  assert.ok(klRules({ startAfterDays: 3, endRule: 'fifteen', skipCustoms: false }).join(' ').includes('3 days after the molad'));
+});

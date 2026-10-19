@@ -42,6 +42,8 @@ export const KL_DEFAULTS = Object.freeze({
   startAfterDays: 7,      // 3 | 7
   endRule: 'halfway',     // 'halfway' | 'fifteen'
   skipCustoms: true,      // apply SKIP_CUSTOMS below
+  hebrew: false,          // add a Hebrew line to the rail note / banner / takeover (English is always primary)
+  overrides: {},          // { [molad index]: { start?: ms, end?: ms, hide?: true } } hand edits, see windowOf
 });
 export const KL_END_RULES = [
   { id: 'halfway', label: 'Halfway point of the month (Minhag Chabad)', hint: 'molad + 14 days 18 h 22 min 1.67 s' },
@@ -56,7 +58,29 @@ export function normalizeKlSettings(s) {
     startAfterDays: Number(o.startAfterDays) === 3 ? 3 : 7,
     endRule: o.endRule === 'fifteen' ? 'fifteen' : 'halfway',
     skipCustoms: o.skipCustoms !== false,
+    hebrew: o.hebrew === true,
+    overrides: normalizeOverrides(o.overrides),
   };
+}
+
+/**
+ * Clean the per-month hand edits: key = molad index (integer string), value = { start?, end? (ms), hide? }.
+ * Anything else is dropped; a pair whose end is not after its start loses both times.
+ */
+export function normalizeOverrides(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (!/^-?\d{1,6}$/.test(k) || !v || typeof v !== 'object') continue;
+    const o = {};
+    const st = Number(v.start), en = Number(v.end);
+    if (v.start != null && v.start !== '' && Number.isFinite(st)) o.start = Math.round(st);
+    if (v.end != null && v.end !== '' && Number.isFinite(en)) o.end = Math.round(en);
+    if (o.start != null && o.end != null && o.end <= o.start) { delete o.start; delete o.end; }
+    if (v.hide === true) o.hide = true;
+    if (Object.keys(o).length) out[k] = o;
+  }
+  return out;
 }
 
 /**
@@ -105,11 +129,22 @@ export function isHebrewLeapYear(y) {
 export function windowOf(n, settings) {
   const s = normalizeKlSettings(settings);
   const molad = moladMs(n);
+  const computedStart = molad + s.startAfterDays * DAY_MS;
+  const computedEnd = molad + (s.endRule === 'fifteen' ? 15 * DAY_MS : HALF_MONTH_MS);
+  // Hand edits (settings.kiddushLevana.overrides[n]): own start and/or end, or hide the whole month.
+  const ov = s.overrides[String(n)] || null;
+  let start = ov?.start ?? computedStart;
+  let end = ov?.end ?? computedEnd;
+  if (end <= start) { start = computedStart; end = computedEnd; }   // a half-edit that crosses the other side is ignored
   return {
     n,
     molad,
-    start: molad + s.startAfterDays * DAY_MS,
-    end: molad + (s.endRule === 'fifteen' ? 15 * DAY_MS : HALF_MONTH_MS),
+    start,
+    end,
+    computedStart,
+    computedEnd,
+    overridden: start !== computedStart || end !== computedEnd,
+    hidden: ov?.hide === true,
   };
 }
 
@@ -204,6 +239,11 @@ function sunTools(location, now) {
     if (t0 != null) cached.set(today, t0);
     const t1 = parseClock(z.tomorrow?.tzeit7083deg);
     if (t1 != null && z.tomorrow?.tzeit7083deg !== z.today?.tzeit7083deg) cached.set(addDays(today, 1), t1);
+  }
+  // Per-date zmanim the server already holds (data/zmanim-dates.json): { 'YYYY-MM-DD': { tzeit7083deg } }
+  for (const [d, zz] of Object.entries(location?.zmanimDates || {})) {
+    const t = parseClock(zz?.tzeit7083deg ?? zz?.zmanim?.tzeit7083deg);
+    if (t != null && !cached.has(d)) cached.set(d, t);
   }
   const memo = new Map();
   const approx = { used: false };
@@ -315,6 +355,7 @@ export function kiddushLevanaState(now, location, settings) {
   const n0 = Math.floor((nowMs - moladMs(0)) / MONTH_MS);
   for (let n = n0 - 1; n <= n0 + 2; n++) {
     const w = windowOf(n, s);
+    if (w.hidden) continue;                        // the owner switched this month off
     const nights = nightsOf(w, sun, s);
     const usable = nights.filter((x) => !x.skip);
     if (!usable.length) continue;
@@ -434,22 +475,24 @@ export function kiddushLevanaItems(state, shown = {}, now = new Date()) {
   if (!state?.enabled || state.phase === 'none' || !state.labels) return [];
   const iso = (ms) => new Date(ms).toISOString();
   const L = state.labels;
+  const H = state.settings?.hebrew === true;
+  const he = (t) => (H ? t : '');   // Hebrew is an optional extra line; English is always there
   const items = [];
   // Rail note: all day while the window is open or about to open (no slide, no banner by day).
   items.push(baseItem('note', state, {
     display: 'note',
-    content: { headlineEn: L.note.en, headlineHe: L.note.he },
+    content: { headlineEn: L.note.en, headlineHe: he(L.note.he) },
     note: { icon: 'moon', order: -1 },
     look: { fit: 'auto' },
     when: { startsAt: iso(state.firstDayStart), expiresAt: iso(state.lastNight.end), recurrence: null },
-    updatedAt: `${state.phase}:${L.note.en}`,
+    updatedAt: `${state.phase}:${L.note.en}:${H}`,
   }));
   if (state.nightOpen && state.night) {
     items.push(baseItem('banner', state, {
       display: 'banner',
-      content: { headlineEn: L.banner.en, headlineHe: L.banner.he },
+      content: { headlineEn: L.banner.en, headlineHe: he(L.banner.he) },
       when: { startsAt: iso(state.night.start), expiresAt: iso(state.night.end), recurrence: null },
-      updatedAt: `${state.night.date}:${L.banner.en}`,
+      updatedAt: `${state.night.date}:${L.banner.en}:${H}`,
     }));
   }
   const occ = currentOccasion(state);
@@ -458,11 +501,11 @@ export function kiddushLevanaItems(state, shown = {}, now = new Date()) {
     const T = occ.kind === 'last' ? L.takeoverLast : L.takeoverOpen;
     items.push(baseItem('takeover', state, {
       display: 'takeover',
-      content: { headlineEn: T.title.en, headlineHe: T.title.he, bodyEn: T.body.en, bodyHe: T.body.he },
+      content: { headlineEn: T.title.en, headlineHe: he(T.title.he), bodyEn: T.body.en, bodyHe: he(T.body.he) },
       look: { layout: 'bigwords', style: 'torah', animation: 'entrance', fit: 'auto' },
       takeover: {},
       when: { startsAt: iso(shownAt), expiresAt: iso(shownAt + KL_TAKEOVER_MINUTES * 60000), recurrence: null },
-      updatedAt: occ.id,
+      updatedAt: `${occ.id}:${H}`,
     }));
   }
   return items;
@@ -508,8 +551,21 @@ export function kiddushLevanaTable(from, location, settings, months = 14) {
     if (w.end < from.getTime()) continue;
     const nights = nightsOf(w, sun, s);
     const usable = nights.filter((x) => !x.skip);
-    if (!usable.length) { rows.push({ ...w, usable: 0, first: null, last: null, nights }); continue; }
-    rows.push({ ...w, usable: usable.length, first: usable[0], last: usable[usable.length - 1], nights });
+    const first = usable[0] || null;
+    const last = usable[usable.length - 1] || null;
+    rows.push({
+      ...w, key: String(n), usable: usable.length, first, last, nights,
+      canStart: first ? first.start : w.start,
+      month: hebrewMonthLabel(w.molad, sun.tz),
+      notes: nights.filter((x) => x.note || x.skip).map((x) => ({ date: x.date, ...(x.note || x.skip), skipped: !!x.skip })),
+    });
   }
-  return { tz: sun.tz, rows };
+  return { tz: sun.tz, rows, approx: sun.approx.used || !sun.haveGeo };
+}
+
+const MONTH_NAMES = { Tishri: 'Tishrei', Heshvan: 'Cheshvan', Tevet: 'Teves', Shevat: 'Shvat', Tamuz: 'Tammuz', Nisan: 'Nissan' };
+/** "Cheshvan 5787": the Hebrew month whose molad this is (the window it opens is that month's). */
+export function hebrewMonthLabel(moladMsValue, tz) {
+  const h = hebrewDateOf(addDays(zonedParts(new Date(moladMsValue), tz).date, 3));
+  return `${MONTH_NAMES[h.month] || h.month} ${h.y}`;
 }

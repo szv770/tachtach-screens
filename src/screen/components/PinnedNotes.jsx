@@ -5,24 +5,29 @@ import { textDir } from '../../shared/bidi.js';
 
 /**
  * Rail side notes (announcements shown as "Side note"), R2 §5.3: each is a
- * raised card holding ONE text in the language it was written in, clamped to
+ * raised card holding English text (primary) with an optional Hebrew line beneath, each clamped to
  * 3 lines. At most 2 are visible; more rotate in place every 8 s (a one-shot
  * fade, no looping animation).
  */
 const MAX_VISIBLE = 2;
 const ROTATE_MS = 8000;
 
-export function noteText(n) {
+/**
+ * The lines of one note, English first (the primary language), then Hebrew as an extra line when
+ * the note has both. A note with only one language shows just that one.
+ */
+export function noteLines(n) {
   const h = String(n.textHe || '').trim();
   const e = String(n.textEn || n.text || '').trim();
-  if (h && !e) return { text: h, he: true };
-  if (e && !h) return { text: e, he: isHebrew(e) };
-  if (h && e) return { text: h, he: true };
-  return { text: '', he: false };
+  const out = [];
+  if (e) out.push({ text: e, he: isHebrew(e) });
+  if (h) out.push({ text: h, he: true });
+  return out;
 }
+export const noteText = (n) => noteLines(n)[0] || { text: '', he: false };
 
 export default function PinnedNotes({ pinned, visibility, align = 'left', style }) {
-  const notes = (pinned || []).filter((p) => p.displayMode !== 'slide' && noteText(p).text);
+  const notes = (pinned || []).filter((p) => p.displayMode !== 'slide' && noteLines(p).length);
   const [start, setStart] = useState(0);
 
   useEffect(() => {
@@ -38,20 +43,30 @@ export default function PinnedNotes({ pinned, visibility, align = 'left', style 
   return (
     <div style={{ width: '100%', ...style }}>
       {visible.map((n) => {
-        const t = noteText(n);
+        const lines = noteLines(n);
         return (
           <div
             key={`${n.id}-${start}`}
-            className={`tt-clamp3 ${notes.length > MAX_VISIBLE ? 'tt-fadein' : ''}`}
-            dir={textDir(t.text, t.he ? 'rtl' : 'ltr')}
+            className={notes.length > MAX_VISIBLE ? 'tt-fadein' : undefined}
             style={{
               background: 'var(--raised)', borderRadius: 24, padding: '18px 24px', width: '100%', marginBottom: 14,
               textAlign: align, whiteSpace: 'pre-line',
-              fontFamily: t.he ? F.he : F.en,
-              fontSize: t.he ? he(28) : 25, lineHeight: t.he ? 1.25 : 1.3, fontWeight: 500,
             }}
           >
-            {bidiNodes(t.text)}
+            {lines.map((t, i) => (
+              <div
+                key={i}
+                className="tt-clamp3"
+                dir={textDir(t.text, t.he ? 'rtl' : 'ltr')}
+                style={{
+                  fontFamily: t.he ? F.he : F.en,
+                  fontSize: t.he ? he(i === 0 ? 28 : 26) : 25, lineHeight: t.he ? 1.25 : 1.3, fontWeight: 500,
+                  marginTop: i === 0 ? 0 : 8, opacity: i === 0 ? 1 : 0.8,
+                }}
+              >
+                {bidiNodes(t.text)}
+              </div>
+            ))}
           </div>
         );
       })}
