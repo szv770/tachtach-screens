@@ -81,6 +81,7 @@ export default function DailyWordPanel() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null); // word | 'new' | null
+  const [editDate, setEditDate] = useState(null); // 'Coming up' row the edit form is open under (null = the list)
   const [confirmDel, setConfirmDel] = useState(null);
   const [filter, setFilter] = useState('');
   const todayStr = toISODate(new Date());
@@ -133,11 +134,11 @@ export default function DailyWordPanel() {
       key={initial ? initial.id : 'new'}
       initial={initial}
       busy={busy}
-      onCancel={() => setEditing(null)}
+      onCancel={() => { setEditing(null); setEditDate(null); }}
       onSave={async (w) => {
         const exists = words.some((x) => x.id === w.id);
         const next = exists ? words.map((x) => (x.id === w.id ? w : x)) : [...words, w];
-        if (await save({ ...file, words: next }, exists ? 'Word saved.' : 'Word added.')) setEditing(null);
+        if (await save({ ...file, words: next }, exists ? 'Word saved.' : 'Word added.')) { setEditing(null); setEditDate(null); }
       }}
     />
   );
@@ -183,14 +184,25 @@ export default function DailyWordPanel() {
         <div style={card}>
           <h3 style={h3}>The next two weeks</h3>
           <p style={{ ...small, margin: '0 0 8px' }}>This is what will show each day. Pick a different word for any day and it is pinned there.</p>
-          {upcoming.map((u, i) => (
-            <div key={u.date} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+          {upcoming.map((u, i) => {
+            // Edit the word on the list (by id): a pinned or ordered word, or one the history snapshot points to.
+            const liveWord = u.word?.id ? words.find((w) => w.id === u.word.id) : null;
+            return (
+            <React.Fragment key={u.date}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
               <span style={{ ...small, minWidth: '96px', color: i === 0 ? colors.gold : colors.dim }}>{i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : new Date(`${u.date}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
               <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{u.word?.word}</span>
               <div style={{ flex: 1, minWidth: '150px' }}>
                 <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{u.word?.transliteration} <span style={{ color: colors.dim }}>· {u.word?.pronunciation}</span>{u.pinned && <span style={{ color: colors.gold }}> · pinned</span>}</div>
                 <div style={small}>{u.word?.meaning}</div>
               </div>
+              {liveWord && (
+                <button type="button" style={{ ...buttonSecondary, minHeight: '44px', minWidth: '44px', padding: '0 10px' }} disabled={busy}
+                  aria-label={`Edit the word for ${u.date}`} title="Edit this word" data-testid={`dw-edit-${u.date}`}
+                  onClick={() => { setEditing(liveWord); setEditDate(u.date); }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></svg>
+                </button>
+              )}
               {u.locked
                 ? <span style={{ ...small, whiteSpace: 'nowrap' }}>{i === 0 ? 'on screen now' : 'locked'}</span>
                 : (
@@ -205,7 +217,10 @@ export default function DailyWordPanel() {
                   </select>
                 )}
             </div>
-          ))}
+            {editDate === u.date && editing && editing !== 'new' && renderForm(editing)}
+            </React.Fragment>
+            );
+          })}
         </div>
       )}
 
@@ -241,11 +256,11 @@ export default function DailyWordPanel() {
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '10px' }}>
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>The list</h3>
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search" style={{ ...inputStyle, maxWidth: '200px' }} />
-          <button style={{ ...buttonPrimary, minHeight: '38px' }} onClick={() => setEditing('new')}>+ Add a word</button>
+          <button style={{ ...buttonPrimary, minHeight: '38px' }} onClick={() => { setEditing('new'); setEditDate(null); }}>+ Add a word</button>
         </div>
         {editing === 'new' && renderForm(null)}
         {shown.length === 0 && <div style={small}>Nothing matches.</div>}
-        {shown.map(({ w, i }) => (editing && editing !== 'new' && editing.id === w.id ? <React.Fragment key={w.id}>{renderForm(editing)}</React.Fragment> : (
+        {shown.map(({ w, i }) => (editing && editing !== 'new' && !editDate && editing.id === w.id ? <React.Fragment key={w.id}>{renderForm(editing)}</React.Fragment> : (
           <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, opacity: w.enabled === false ? 0.5 : 1, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
             <ToggleSwitch on={w.enabled !== false} label={`Show ${w.transliteration || w.word}`} onChange={(on) => save({ ...file, words: words.map((x) => (x.id === w.id ? { ...x, enabled: on } : x)) })} />
             <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{w.word}</span>
@@ -255,7 +270,7 @@ export default function DailyWordPanel() {
             </div>
             <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, -1)} disabled={busy || i === 0} title="Earlier in the order" aria-label="Move up">↑</button>
             <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, 1)} disabled={busy || i === words.length - 1} title="Later in the order" aria-label="Move down">↓</button>
-            <button style={{ ...buttonSecondary, minHeight: '32px' }} onClick={() => setEditing(w)}>Edit</button>
+            <button style={{ ...buttonSecondary, minHeight: '32px' }} onClick={() => { setEditing(w); setEditDate(null); }}>Edit</button>
             <button style={{ ...buttonDanger, minHeight: '32px' }} onClick={() => setConfirmDel(w)}>Delete</button>
           </div>
         )))}
