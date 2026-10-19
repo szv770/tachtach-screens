@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import useSectionRoute from './hooks/useSectionRoute.js';
 import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
-import { canOpenSection } from '../shared/permissions.js';
+import { canOpenSection, effectiveCaps } from '../shared/permissions.js';
 import AdminLayout from './components/AdminLayout.jsx';
 import { SECTION_KEYS, SECTION_ALIASES } from './nav.js';
 import Home from './components/Home.jsx';
@@ -57,10 +57,23 @@ export default function App() {
   }, [meReady, activeSection, routeSection, setRouteSection]);
   const setActiveSection = useCallback((rawKey) => {
     const key = SECTION_ALIASES[rawKey] || rawKey;
-    if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return; }
-    if (key !== routeSection && !confirmLeave()) return;
+    if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return false; }
+    if (key !== routeSection && !confirmLeave()) return false;
     setRouteSection(key);
+    return true;
   }, [role, routeSection, setRouteSection]);
+  // Go to a section, optionally on one of its tabs: /admin/images?tab=photos (the page reads ?tab= and
+  // listens for 'tt-section-tab'). Returns false when the person stayed put (unsaved-changes prompt, no access).
+  const goSection = useCallback((key, opts) => {
+    const ok = setActiveSection(key);
+    if (ok === false) return false;
+    const tab = opts?.tab;
+    if (tab) {
+      try { window.history.replaceState({ section: key }, '', `/admin/${SECTION_ALIASES[key] || key}?tab=${encodeURIComponent(tab)}`); } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('tt-section-tab', { detail: { section: key, tab } }));
+    }
+    return true;
+  }, [setActiveSection]);
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   const [quickOpen, setQuickOpen] = useState(false);
@@ -190,7 +203,8 @@ export default function App() {
             onDelete={deleteSlide}
             settings={state?.settings || {}}
             onSaveSettings={updateSettings}
-            onNavigate={setActiveSection}
+            onNavigate={goSection}
+            caps={me ? (me.caps || []) : effectiveCaps({ role: 'editor' })}
             announcements={state?.announcements || []}
             onNewMessage={() => setComposer({ display: 'slide' })}
             onEditAnnouncement={(item) => setComposer(item)}
