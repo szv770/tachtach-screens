@@ -5,7 +5,7 @@
  * "Copy format guide for a Claude Project" (rules only) and "Copy as text".
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { colors, adminFonts, inputStyle, buttonPrimary } from '../../styles/admin-tokens.js';
+import { colors, adminFonts, inputStyle, buttonPrimary, alpha } from '../../styles/admin-tokens.js';
 import { ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
 import { formatScheduleText, formatWeeklyText, formatTime12 } from '../../../shared/schedulePaste.js';
 import { PROMPT_TYPES, buildPromptOfType, buildFormatGuide, keyTimesForDate } from '../../../shared/scheduleClaudePrompt.js';
@@ -264,7 +264,7 @@ export default function ScheduleImport({
           {weekly && preview.weekly && (
             <div data-testid="weekly-replace-note" style={{
               fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.copper, marginBottom: '10px', lineHeight: 1.5,
-              border: `1px solid ${colors.copper}66`, borderRadius: '8px', padding: '8px 12px',
+              border: `1px solid ${alpha(colors.copper, 40)}`, borderRadius: '8px', padding: '8px 12px',
             }}>
               <b>Replaces {preview.replaces} weekly item{preview.replaces === 1 ? '' : 's'}</b> with {preview.weekly.entries.length} new.
               {preview.replaces > 0 ? ' The current weekly schedule is saved first as a template named "Auto-backup <date>". ' : ' '}
@@ -374,7 +374,7 @@ function PreviewCard({ day, categories, errors, warnings, isMobile }) {
       : { text: `New (was weekly: ${day.weeklyCount})`, color: colors.gold };
   const lineErrors = new Set(errors.map((e) => e.line));
   return (
-    <div data-testid="preview-card" className="tt-card" style={{ ...card(isMobile), marginBottom: '10px', borderColor: errors.length ? `${colors.danger}88` : colors.border }}>
+    <div data-testid="preview-card" className="tt-card" style={{ ...card(isMobile), marginBottom: '10px', borderColor: errors.length ? alpha(colors.danger, 53) : colors.border }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 600, color: colors.text }}>{day.title || formatDateLong(day.date)}</div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { colors, adminFonts, inputStyle, buttonSecondary } from '../styles/admin-tokens.js';
+import { colors, adminFonts, inputStyle, buttonSecondary, alpha } from '../styles/admin-tokens.js';
 import { ToggleSwitch } from './ui.jsx';
 import { apiFetch } from '../hooks/useAdminState.js';
 import { themeFamilies, THEME_BY_ID, DEFAULT_THEME, DEFAULT_DAY_THEME, DEFAULT_NIGHT_THEME } from '../../shared/themes.js';
@@ -277,7 +277,7 @@ export function WeatherSettings({ local, updateNested, zip = '', slides = [], on
         {test && test !== 'loading' && (
           <div data-testid="weather-test-result" role="status" style={{
             marginTop: '10px', fontFamily: adminFonts.englishBody, fontSize: '14px', lineHeight: 1.5, padding: '10px 12px', borderRadius: '8px',
-            border: `1px solid ${test.ok ? colors.goldBd : `${colors.danger}88`}`, color: test.ok ? colors.text : colors.danger,
+            border: `1px solid ${test.ok ? colors.goldBd : alpha(colors.danger, 53)}`, color: test.ok ? colors.text : colors.danger,
           }}>
             {test.ok ? (
               <>

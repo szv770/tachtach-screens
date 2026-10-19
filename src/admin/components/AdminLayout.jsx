@@ -1,505 +1,363 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { colors, adminFonts, setAdminTheme, getAdminThemeName } from '../styles/admin-tokens.js';
-import useIsMobile from '../hooks/useIsMobile.js';
+import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { canOpenSection, ROLE_LABEL } from '../../shared/permissions.js';
+import { navItems, AREAS, areaOfSection, areaInfo, sectionInfo, sectionsOfArea, firstSectionOfArea, areasFor } from '../nav.js';
+import Icon from './ui/Icon.jsx';
+import SegmentedControl from './ui/SegmentedControl.jsx';
+import ThemeSwitch from './ThemeSwitch.jsx';
 
-export const navItems = [
-  { key: 'slides', en: 'Slides', desc: 'Control what plays on screen' },
-  { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts' },
-  { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers' },
-  { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day' },
-  { key: 'custom-days', en: 'Custom Days', desc: 'Mark special dates' },
-  { key: 'images', en: 'Media', desc: 'Upload images & videos' },
-  { key: 'rss-feeds', en: 'RSS Feeds', desc: 'Live news & content feeds' },
-  { key: 'style', en: 'Style', desc: 'Fonts & typography' },
-  { key: 'settings', en: 'Settings', desc: 'Location, theme & layout' },
-  { key: 'team', en: 'Team', desc: 'People who can sign in' },
-  { key: 'account', en: 'My account', desc: 'Your name, password & 2-step' },
-  { key: 'help', en: 'Help', desc: 'Learn the basics' },
-];
+export { navItems };
+
+/** Viewport query hook (the shell switches layout at 900px and the preview at 1280px). */
+function useMedia(query) {
+  const [m, setM] = useState(() => (typeof window !== 'undefined' && window.matchMedia ? window.matchMedia(query).matches : false));
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    const on = (e) => setM(e.matches);
+    setM(mql.matches);
+    mql.addEventListener('change', on);
+    return () => mql.removeEventListener('change', on);
+  }, [query]);
+  return m;
+}
 
 /** Small "Admin" / "Editor" pill. */
 export function RoleChip({ role, style }) {
   const admin = role === 'admin';
   return (
     <span style={{
-      display: 'inline-block',
-      padding: '1px 8px',
-      borderRadius: '999px',
-      fontFamily: adminFonts.englishBody,
-      fontSize: '11px',
-      fontWeight: 600,
-      letterSpacing: '0.3px',
-      lineHeight: '16px',
-      color: admin ? colors.gold : colors.dim,
-      background: admin ? colors.goldBg : colors.surface,
-      border: `1px solid ${admin ? colors.goldBd : colors.border}`,
-      whiteSpace: 'nowrap',
-      ...style,
+      display: 'inline-block', padding: '1px 8px', borderRadius: '999px', fontFamily: adminFonts.englishBody,
+      fontSize: '11px', fontWeight: 700, letterSpacing: '0.3px', lineHeight: '16px',
+      color: admin ? colors.edited : colors.dim, background: admin ? colors.editedSoft : colors.sunken,
+      whiteSpace: 'nowrap', ...style,
     }}>
       {ROLE_LABEL[role] || role}
     </span>
   );
 }
 
-/** Who is signed in: name + role, tap to open My account. */
-function WhoAmI({ me, onOpen, compact }) {
+export function handleLogout() {
+  const csrfMatch = document.cookie.match(/(^| )_csrf=([^;]+)/);
+  const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[2]) : '';
+  fetch('/logout', { method: 'POST', headers: { 'X-CSRF-Token': csrfToken } })
+    .then(() => { window.location.href = '/login'; })
+    .catch(() => { window.location.href = '/login'; });
+}
+
+const iconBtn = {
+  width: 44, height: 44, borderRadius: '50%', border: 'none', background: 'transparent', color: colors.text,
+  display: 'grid', placeItems: 'center', cursor: 'pointer', padding: 0, flexShrink: 0,
+};
+
+/** Name + role chip; tap opens My account. */
+function NameChip({ me, onOpen }) {
   if (!me) return null;
   return (
-    <button
-      onClick={onOpen}
-      title="Open My account"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        padding: compact ? '0' : '8px 20px',
-        margin: 0,
-        width: compact ? 'auto' : '100%',
-        minHeight: compact ? '24px' : undefined,
-        background: 'transparent',
-        border: 'none',
-        cursor: 'pointer',
-        textAlign: 'left',
-        flexWrap: 'wrap',
-      }}
-    >
-      <span style={{
-        fontFamily: adminFonts.englishBody,
-        fontSize: compact ? '13px' : '14px',
-        color: colors.text,
-        maxWidth: '150px',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {me.name}
-      </span>
+    <button type="button" onClick={onOpen} title="My account" data-testid="name-chip" style={{
+      display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 12px 0 6px', borderRadius: '999px',
+      border: `1px solid ${colors.line}`, background: colors.card, cursor: 'pointer', color: colors.text, fontFamily: adminFonts.englishBody,
+    }}>
+      <span aria-hidden="true" style={{
+        width: 28, height: 28, borderRadius: '50%', background: colors.accentSoft, color: colors.accent,
+        display: 'grid', placeItems: 'center', fontWeight: 800, fontSize: '13px',
+      }}>{String(me.name || '?').trim().charAt(0).toUpperCase()}</span>
+      <span style={{ fontSize: '13.5px', fontWeight: 700, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{me.name}</span>
       <RoleChip role={me.role} />
     </button>
   );
 }
 
-function handleLogout() {
-  const csrfMatch = document.cookie.match(/(^| )_csrf=([^;]+)/);
-  const csrfToken = csrfMatch ? decodeURIComponent(csrfMatch[2]) : '';
-  fetch('/logout', {
-    method: 'POST',
-    headers: { 'X-CSRF-Token': csrfToken },
-  }).then(() => {
-    window.location.href = '/login';
-  }).catch(() => {
-    window.location.href = '/login';
-  });
+/** Open the live preview in its own browser tab. */
+export function NewTabPreviewLink({ style, children }) {
+  return (
+    <a href="/screen?preview=true" target="_blank" rel="noopener noreferrer" data-testid="preview-new-tab" style={{
+      display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 14px', borderRadius: '999px',
+      border: `1px solid ${colors.border}`, color: colors.text, textDecoration: 'none', fontFamily: adminFonts.englishBody,
+      fontSize: '13.5px', fontWeight: 700, background: 'transparent', ...style,
+    }}>
+      <Icon name="external" size={16} />{children || 'Open live preview in a new tab'}
+    </a>
+  );
 }
 
-/**
- * Full-screen bottom sheet holding the Live Preview + Screen Controls on mobile.
- * Slides up from the bottom; closes on backdrop tap, Escape, or the close button.
- * Body scroll is locked while open.
- */
-function MobilePreviewSheet({ open, onClose, children }) {
-  const [visible, setVisible] = useState(open);
-
-  // Mount/unmount with a slide transition
+/** Mobile bottom sheet / desktop slide-over that holds the Live Preview + Screen Controls. */
+function PreviewDrawer({ open, onClose, children, side }) {
   useEffect(() => {
-    if (open) setVisible(true);
-  }, [open]);
-
-  // Scroll lock + Escape to close
-  useEffect(() => {
-    if (!open) return;
-    const prevOverflow = document.body.style.overflow;
+    if (!open) return undefined;
+    const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener('keydown', onKey);
-    };
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
   }, [open, onClose]);
-
-  if (!visible && !open) return null;
-
+  if (!open) return null;
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        background: 'rgba(0,0,0,0.65)',
-        opacity: open ? 1 : 0,
-        transition: 'opacity .22s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-      }}
-      onTransitionEnd={() => { if (!open) setVisible(false); }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: colors.bg,
-          borderTop: `1px solid ${colors.goldBd}`,
-          borderRadius: '14px 14px 0 0',
-          maxHeight: '92dvh',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          padding: '12px 16px calc(20px + env(safe-area-inset-bottom))',
-          transform: open ? 'translateY(0)' : 'translateY(100%)',
-          transition: 'transform .25s ease',
-          boxShadow: '0 -8px 32px rgba(0,0,0,.5)',
-        }}
-      >
-        {/* Grab handle + close */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-          <span style={{
-            fontFamily: adminFonts.englishBody,
-            fontSize: '13px',
-            color: colors.gold,
-            textTransform: 'uppercase',
-            letterSpacing: '1.5px',
-          }}>
-            Screen Preview
-          </span>
-          <button
-            onClick={onClose}
-            aria-label="Close preview"
-            style={{
-              background: 'transparent',
-              border: `1px solid ${colors.muted}`,
-              borderRadius: '6px',
-              color: colors.dim,
-              fontSize: '18px',
-              cursor: 'pointer',
-              minWidth: '44px',
-              minHeight: '44px',
-              lineHeight: 1,
-              fontFamily: adminFonts.englishBody,
-            }}
-          >
-            {'×'}
-          </button>
+    <div role="presentation" onClick={onClose} style={{
+      position: 'fixed', inset: 0, zIndex: 1000, background: colors.scrim, display: 'flex',
+      justifyContent: side ? 'flex-end' : 'center', alignItems: side ? 'stretch' : 'flex-end',
+    }}>
+      <div role="dialog" aria-label="Live preview" onClick={(e) => e.stopPropagation()} data-testid="preview-drawer" style={{
+        background: colors.bg, color: colors.text, boxShadow: 'var(--e3)', overflowY: 'auto', WebkitOverflowScrolling: 'touch',
+        ...(side
+          ? { width: 'min(420px, 100%)', padding: '16px' }
+          : { width: '100%', maxHeight: '92dvh', borderRadius: 'var(--r-xl) var(--r-xl) 0 0', padding: '12px 16px calc(20px + env(safe-area-inset-bottom))' }),
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 800, color: colors.dim, textTransform: 'uppercase', letterSpacing: '.1em' }}>Screen preview</span>
+          <button type="button" onClick={onClose} aria-label="Close preview" style={{ ...iconBtn, background: colors.sunken, color: colors.dim }}><Icon name="close" size={18} /></button>
         </div>
+        <NewTabPreviewLink style={{ marginBottom: '12px' }} />
         {children}
       </div>
     </div>
   );
 }
 
-export default function AdminLayout({ activeSection, onSectionChange, children, preview, me }) {
-  const isMobile = useIsMobile();
-  // Only the tabs this person's role may open (the server enforces it too).
-  const items = navItems.filter((n) => canOpenSection(me?.role, n.key));
+/** Title shown big at the top of a page. */
+function pageTitle(section, area, siteName) {
+  if (section === 'home') return siteName;
+  const info = sectionInfo(section);
+  const a = areaInfo(area);
+  if (a && a.key !== 'home' && a.key !== 'announce') return a.en;
+  return info?.en || '';
+}
+
+export default function AdminLayout({
+  activeSection, onSectionChange, children, preview, me, siteName = 'My screen',
+  onOpenSearch, onOpenNew, onOpenPreviewTab, canPost = true, hasSavebar = false,
+}) {
+  const wide = useMedia('(min-width: 900px)');
+  const roomForPreview = useMedia('(min-width: 1280px)');
   const [previewOpen, setPreviewOpen] = useState(false);
-  const navRef = useRef(null);
+  const role = me?.role;
+  const area = areaOfSection(activeSection);
+  const siblings = area ? sectionsOfArea(area, role) : [];
+  const areas = areasFor(role);
+  const lookFirst = firstSectionOfArea('look', role);
+  const title = pageTitle(activeSection, area, siteName);
+  // Sections that are not a tab (Look & Settings pages, account, help) get a back arrow.
+  const showBack = !wide && activeSection !== 'home' && !['screen', 'schedule', 'announce'].includes(area);
+  const go = (key) => { if (key) onSectionChange(key); };
+  const goArea = (a) => go(firstSectionOfArea(a, role));
 
-  // Keep the active tab visible in the horizontally-scrollable mobile nav
-  useEffect(() => {
-    if (!isMobile || !navRef.current) return;
-    const activeBtn = navRef.current.querySelector('[data-active="true"]');
-    if (activeBtn) {
-      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-    }
-  }, [activeSection, isMobile]);
-
-  // Publish the sticky mobile header's height as --tt-header-h so a section's
-  // own sticky bar (e.g. Settings' Save) sits below it instead of under it.
+  // Publish the sticky mobile header's height as --tt-header-h so a section's own
+  // sticky bar (e.g. Settings' Save) sits below it; and the tab bar height for the Save bar.
   const headerRef = useRef(null);
   useEffect(() => {
     const root = document.documentElement;
-    if (!isMobile || !headerRef.current) { root.style.setProperty('--tt-header-h', '0px'); return undefined; }
+    root.style.setProperty('--tt-tabbar-h', wide ? '0px' : '64px');
+    if (wide || !headerRef.current) { root.style.setProperty('--tt-header-h', '0px'); return () => root.style.setProperty('--tt-tabbar-h', '0px'); }
     const el = headerRef.current;
     const set = () => root.style.setProperty('--tt-header-h', `${el.offsetHeight}px`);
     set();
-    if (typeof ResizeObserver === 'undefined') return undefined;
-    const ro = new ResizeObserver(set);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [isMobile]);
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(set); ro.observe(el); }
+    return () => { ro?.disconnect(); root.style.setProperty('--tt-tabbar-h', '0px'); };
+  }, [wide]);
 
-  if (isMobile) {
+  // Close the drawer when the layout changes or a section changes.
+  useEffect(() => { setPreviewOpen(false); }, [activeSection, wide, roomForPreview]);
+
+  const subNav = siblings.length > 1 ? (
+    <SegmentedControl
+      ariaLabel={`${areaInfo(area)?.en || ''} sections`}
+      value={activeSection}
+      onChange={go}
+      options={siblings.map((s) => ({ value: s.key, label: s.en }))}
+      style={{ marginBottom: '16px' }}
+    />
+  ) : null;
+
+  const heading = (
+    <h1 data-testid="page-title" style={{
+      fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: wide ? '30px' : '32px', letterSpacing: '-.01em',
+      lineHeight: 1.1, margin: wide ? '0 0 16px' : '4px 0 14px', color: colors.text,
+    }}>{title}</h1>
+  );
+
+  // ------------------------------------------------------------------ mobile
+  if (!wide) {
+    const tabs = [
+      { area: 'home' }, { area: 'screen' }, { fab: true }, { area: 'schedule' }, { area: 'announce' },
+    ];
     return (
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100dvh',
-        background: colors.bg,
-      }}>
-        {/* Sticky header: logo + preview + theme + logout, and the tab nav below it */}
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: colors.bg, overflowX: 'hidden' }}>
         <div ref={headerRef} style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-          background: colors.bg,
-          flexShrink: 0,
+          position: 'sticky', top: 0, zIndex: 100, background: colors.bg, flexShrink: 0,
+          padding: 'calc(6px + env(safe-area-inset-top)) 8px 6px 8px', display: 'flex', alignItems: 'center', gap: '2px',
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '10px 16px',
-            paddingTop: 'calc(10px + env(safe-area-inset-top))',
-            borderBottom: `1px solid ${colors.muted}`,
-          }}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{
-                fontFamily: adminFonts.hebrewDisplay,
-                fontSize: '20px',
-                color: colors.gold,
-              }}>
-                TachTach
-              </div>
-              <WhoAmI me={me} compact onOpen={() => onSectionChange('account')} />
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => setPreviewOpen(true)}
-                style={{
-                  padding: '6px 14px',
-                  background: colors.goldBg,
-                  border: `1px solid ${colors.goldBd}`,
-                  borderRadius: '6px',
-                  color: colors.gold,
-                  fontFamily: adminFonts.englishBody,
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  minHeight: '44px',
-                }}
-              >
-                Preview
-              </button>
-              <button
-                onClick={() => setAdminTheme(getAdminThemeName() === 'dark' ? 'light' : 'dark')}
-                aria-label="Toggle admin theme"
-                style={{
-                  padding: '6px 12px',
-                  background: 'transparent',
-                  border: `1px solid ${colors.muted}`,
-                  borderRadius: '6px',
-                  color: colors.dim,
-                  fontFamily: adminFonts.englishBody,
-                  fontSize: '15px',
-                  cursor: 'pointer',
-                  minHeight: '44px',
-                  minWidth: '44px',
-                }}
-              >
-                {getAdminThemeName() === 'dark' ? '☀' : '☾'}
-              </button>
-              <button
-                onClick={handleLogout}
-                style={{
-                  padding: '6px 14px',
-                  background: 'transparent',
-                  border: `1px solid ${colors.muted}`,
-                  borderRadius: '6px',
-                  color: colors.dim,
-                  fontFamily: adminFonts.englishBody,
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  minHeight: '44px',
-                }}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-
-          {/* Horizontal scrollable tab bar with right-edge fade hint */}
-          <div style={{ position: 'relative' }}>
-            <nav ref={navRef} style={{
-              display: 'flex',
-              overflowX: 'auto',
-              WebkitOverflowScrolling: 'touch',
-              borderBottom: `1px solid ${colors.muted}`,
-              scrollbarWidth: 'none',
-            }}>
-              {items.map(item => {
-                const active = activeSection === item.key;
-                return (
-                  <button
-                    key={item.key}
-                    data-active={active ? 'true' : 'false'}
-                    onClick={() => onSectionChange(item.key)}
-                    style={{
-                      flexShrink: 0,
-                      padding: '13px 16px',
-                      minHeight: '48px',
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: active ? `2px solid ${colors.gold}` : '2px solid transparent',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <span style={{
-                      fontFamily: adminFonts.englishBody,
-                      fontSize: '15px',
-                      color: active ? colors.gold : colors.dim,
-                      fontWeight: active ? 600 : 400,
-                    }}>
-                      {item.en}
-                    </span>
-                  </button>
-                );
-              })}
-            </nav>
-            {/* Fade on the right edge — hints that more tabs are scrollable */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              bottom: '1px',
-              width: '28px',
-              pointerEvents: 'none',
-              background: `linear-gradient(to right, transparent, ${colors.bg})`,
-            }} />
-          </div>
+          {showBack ? (
+            <button type="button" aria-label="Back" data-testid="back" onClick={() => go('home')} style={{ ...iconBtn, width: 'auto', padding: '0 12px 0 6px', borderRadius: '999px', gap: '2px', fontFamily: adminFonts.englishBody, fontWeight: 700, fontSize: '15px', color: colors.accent, display: 'flex', alignItems: 'center' }}>
+              <Icon name="back" size={22} />Home
+            </button>
+          ) : (
+            <span style={{ padding: '0 8px', fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: '18px', color: colors.text }}>TachTach</span>
+          )}
+          <span style={{ flex: 1 }} />
+          <button type="button" aria-label="Search" data-testid="open-search" onClick={onOpenSearch} style={iconBtn}><Icon name="search" /></button>
+          <button type="button" aria-label="Live preview" data-testid="open-preview" onClick={() => setPreviewOpen(true)} style={iconBtn}><Icon name="eye" /></button>
+          {lookFirst ? (
+            <button type="button" aria-label="Look and settings" data-testid="gear" onClick={() => go(lookFirst)} style={{ ...iconBtn, color: area === 'look' ? colors.accent : colors.text }}><Icon name="gear" /></button>
+          ) : (
+            <button type="button" aria-label="My account" onClick={() => go('account')} style={iconBtn}><Icon name="user" /></button>
+          )}
         </div>
 
-        {/* Main content — full width */}
-        <main style={{
-          flex: 1,
-          padding: '16px 16px calc(32px + env(safe-area-inset-bottom))',
-        }}>
+        <main style={{ flex: 1, minWidth: 0, padding: `4px 16px calc(var(--tt-tabbar-h) + 32px + env(safe-area-inset-bottom))` }}>
+          {heading}
+          {subNav}
           {children}
         </main>
 
-        {/* Live Preview + Screen Controls, in a slide-up sheet */}
-        <MobilePreviewSheet open={previewOpen} onClose={() => setPreviewOpen(false)}>
-          {previewOpen && preview}
-        </MobilePreviewSheet>
-      </div>
-    );
-  }
-
-  // Desktop layout — unchanged
-  return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: '200px 1fr 360px',
-      minHeight: '100vh',
-      background: colors.bg,
-    }}>
-      {/* Sidebar */}
-      <aside style={{
-        borderRight: `1px solid ${colors.muted}`,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '24px 0',
-      }}>
-        <div style={{
-          fontFamily: adminFonts.hebrewDisplay,
-          fontSize: '22px',
-          color: colors.gold,
-          padding: '0 20px 24px',
-          borderBottom: `1px solid ${colors.muted}`,
-          marginBottom: '8px',
+        <nav aria-label="Main" data-testid="tabbar" style={{
+          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 120,
+          height: 'calc(var(--tt-tabbar-h) + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)',
+          background: 'color-mix(in srgb, var(--surface) 96%, transparent)', borderTop: `1px solid ${colors.line}`,
+          display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
         }}>
-          TachTach
-        </div>
-
-        <nav style={{ flex: 1 }}>
-          {items.map(item => {
-            const active = activeSection === item.key;
-            return (
-              <button
-                key={item.key}
-                onClick={() => onSectionChange(item.key)}
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '9px 12px 9px 20px',
-                  background: active ? colors.goldBg : 'transparent',
-                  border: 'none',
-                  borderLeft: active ? `3px solid ${colors.gold}` : '3px solid transparent',
-                  cursor: 'pointer',
-                  transition: 'background .15s',
-                }}
-              >
-                <div style={{
-                  fontFamily: adminFonts.englishBody,
-                  fontSize: '14px',
-                  color: active ? colors.gold : colors.text,
-                  fontWeight: active ? 600 : 400,
-                }}>
-                  {item.en}
+          {tabs.map((t, i) => {
+            if (t.fab) {
+              return (
+                <div key="fab" style={{ display: 'grid', placeItems: 'start center' }}>
+                  {canPost && (
+                    <button type="button" aria-label="New" data-testid="fab" onClick={onOpenNew} style={{
+                      width: 58, height: 58, borderRadius: '50%', border: 'none', cursor: 'pointer', marginTop: '-22px',
+                      background: colors.accent, color: colors.accentInk, display: 'grid', placeItems: 'center',
+                      boxShadow: '0 8px 20px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 0 5px var(--bg)',
+                    }}><Icon name="plus" size={28} stroke={2.4} /></button>
+                  )}
                 </div>
-                {item.desc && (
-                  <div style={{
-                    fontFamily: adminFonts.englishBody,
-                    fontSize: '11px',
-                    color: active ? colors.gold : colors.muted,
-                    marginTop: '1px',
-                    opacity: active ? 0.8 : 1,
-                  }}>
-                    {item.desc}
-                  </div>
-                )}
+              );
+            }
+            const a = areaInfo(t.area);
+            if (!areas.some((x) => x.key === a.key)) return <span key={a.key + i} />;
+            const on = area === a.key;
+            return (
+              <button key={a.key} type="button" data-testid={`tab-${a.key}`} aria-current={on ? 'page' : undefined} onClick={() => (a.key === 'home' ? go('home') : goArea(a.key))} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px',
+                background: 'transparent', border: 'none', cursor: 'pointer', color: on ? colors.accent : colors.muted,
+                fontFamily: adminFonts.englishBody, fontSize: '11px', fontWeight: 700, padding: 0,
+              }}>
+                <Icon name={a.icon} size={24} />{a.en}
               </button>
             );
           })}
         </nav>
 
-        <div style={{ borderTop: `1px solid ${colors.muted}`, marginTop: '8px', paddingTop: '8px' }}>
-          <WhoAmI me={me} onOpen={() => onSectionChange('account')} />
+        <PreviewDrawer open={previewOpen} onClose={() => setPreviewOpen(false)}>{previewOpen && preview}</PreviewDrawer>
+      </div>
+    );
+  }
+
+  // ----------------------------------------------------------------- desktop
+  const cols = roomForPreview ? '248px minmax(0, 1fr) 360px' : '248px minmax(0, 1fr)';
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: cols, minHeight: '100vh', background: colors.bg }}>
+      <aside aria-label="Main" data-testid="sidebar" style={{
+        background: colors.surface, borderRight: `1px solid ${colors.line}`, display: 'flex', flexDirection: 'column',
+        padding: '16px 12px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
+      }}>
+        {/* Site switcher slot: static today; becomes a menu when one login can run several screens. */}
+        <div data-testid="site-card" style={{
+          display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: 'var(--r-md)',
+          background: colors.card, border: `1px solid ${colors.line}`, boxShadow: 'var(--e1)', marginBottom: '16px',
+        }}>
+          <img src="/icons/icon-192.png" alt="" width={36} height={36} style={{ borderRadius: '10px', flexShrink: 0 }} />
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: adminFonts.englishBody, fontWeight: 800, fontSize: '14px', color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{siteName}</div>
+            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted }}>TachTach screen</div>
+          </div>
         </div>
-        <button
-          onClick={() => setAdminTheme(getAdminThemeName() === 'dark' ? 'light' : 'dark')}
-          style={{
-            margin: '8px 20px 0',
-            padding: '8px 16px',
-            background: 'transparent',
-            border: `1px solid ${colors.muted}`,
-            borderRadius: '4px',
-            color: colors.dim,
-            fontFamily: adminFonts.englishBody,
-            fontSize: '14px',
-            cursor: 'pointer',
-          }}
-        >
-          {getAdminThemeName() === 'dark' ? '☀ Light Mode' : '☾ Dark Mode'}
-        </button>
-        <button
-          onClick={handleLogout}
-          style={{
-            margin: '8px 20px 0',
-            padding: '8px 16px',
-            background: 'transparent',
-            border: `1px solid ${colors.muted}`,
-            borderRadius: '4px',
-            color: colors.dim,
-            fontFamily: adminFonts.englishBody,
-            fontSize: '14px',
-            cursor: 'pointer',
-          }}
-        >
-          Logout
-        </button>
+
+        <nav style={{ flex: 1 }}>
+          <SideItem label="Home" icon="home" active={activeSection === 'home'} onClick={() => go('home')} />
+          {AREAS.filter((a) => a.key !== 'home').map((a) => {
+            const items = sectionsOfArea(a.key, role);
+            if (!items.length) return null;
+            return (
+              <div key={a.key} style={{ marginTop: '16px' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px 6px', fontFamily: adminFonts.englishBody,
+                  fontSize: '11px', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: colors.muted,
+                }}>
+                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: a.color }} />{a.en}
+                </div>
+                {items.map((it) => (
+                  <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
+                ))}
+              </div>
+            );
+          })}
+        </nav>
+
+        <div style={{ borderTop: `1px solid ${colors.line}`, paddingTop: '12px', display: 'grid', gap: '10px' }}>
+          <ThemeSwitch fill style={{ width: '100%' }} />
+          <button type="button" onClick={handleLogout} style={{
+            display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 10px', borderRadius: 'var(--r-sm)',
+            border: 'none', background: 'transparent', color: colors.dim, cursor: 'pointer', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600,
+          }}><Icon name="logout" size={18} />Sign out</button>
+        </div>
       </aside>
 
-      {/* Main content */}
-      <main style={{
-        padding: '24px 32px',
-        overflowY: 'auto',
-        maxHeight: '100vh',
-      }}>
-        {children}
-      </main>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+        <header style={{
+          position: 'sticky', top: 0, zIndex: 100, height: '64px', display: 'flex', alignItems: 'center', gap: '12px',
+          padding: '0 32px', background: colors.bg, borderBottom: `1px solid ${colors.line}`,
+        }}>
+          <button type="button" data-testid="open-search" onClick={onOpenSearch} aria-label="Search" style={{
+            flex: 1, maxWidth: '560px', height: '40px', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px',
+            borderRadius: '999px', border: `1px solid ${colors.line}`, background: colors.card, color: colors.muted, cursor: 'pointer',
+            fontFamily: adminFonts.englishBody, fontSize: '14px', textAlign: 'left',
+          }}>
+            <Icon name="search" size={18} />
+            <span style={{ flex: 1 }}>Search settings, messages, help…</span>
+            <kbd style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', border: `1px solid ${colors.border}`, borderRadius: '6px', padding: '1px 7px', color: colors.dim }}>/</kbd>
+          </button>
+          <span style={{ flex: 1 }} />
+          {canPost && (
+            <button type="button" data-testid="new-btn" onClick={onOpenNew} style={{
+              display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', border: 'none',
+              background: colors.accent, color: colors.accentInk, fontFamily: adminFonts.englishBody, fontWeight: 800, fontSize: '14px', cursor: 'pointer',
+            }}><Icon name="plus" size={18} stroke={2.6} />New</button>
+          )}
+          {!roomForPreview && (
+            <button type="button" data-testid="open-preview" onClick={() => setPreviewOpen(true)} style={{
+              display: 'flex', alignItems: 'center', gap: '8px', minHeight: '40px', padding: '0 14px', borderRadius: '999px',
+              border: `1px solid ${colors.border}`, background: 'transparent', color: colors.text, fontFamily: adminFonts.englishBody, fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+            }}><Icon name="eye" size={18} />Preview</button>
+          )}
+          <button type="button" aria-label="Help" title="Help" data-testid="help-btn" onClick={() => go('help')} style={{ ...iconBtn, color: activeSection === 'help' ? colors.accent : colors.text }}><Icon name="help" /></button>
+          <NameChip me={me} onOpen={() => go('account')} />
+        </header>
 
-      {/* Preview panel */}
-      <aside style={{
-        borderLeft: `1px solid ${colors.muted}`,
-        display: 'flex',
-        flexDirection: 'column',
-        padding: '16px',
-      }}>
-        {preview}
-      </aside>
+        <main style={{ padding: '24px 32px calc(96px + env(safe-area-inset-bottom))', minWidth: 0 }}>
+          {heading}
+          {subNav}
+          {children}
+        </main>
+      </div>
+
+      {roomForPreview && (
+        <aside aria-label="Live preview" style={{
+          borderLeft: `1px solid ${colors.line}`, padding: '16px', position: 'sticky', top: 0, height: '100vh', overflowY: 'auto', background: colors.bg,
+        }}>
+          <NewTabPreviewLink style={{ marginBottom: '12px', width: '100%', justifyContent: 'center' }} />
+          {preview}
+        </aside>
+      )}
+      {!roomForPreview && <PreviewDrawer open={previewOpen} onClose={() => setPreviewOpen(false)} side>{previewOpen && preview}</PreviewDrawer>}
     </div>
+  );
+}
+
+function SideItem({ label, icon, active, onClick }) {
+  return (
+    <button type="button" onClick={onClick} aria-current={active ? 'page' : undefined} style={{
+      display: 'flex', alignItems: 'center', gap: '10px', width: '100%', minHeight: '38px', padding: '0 10px', borderRadius: 'var(--r-sm)',
+      border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: adminFonts.englishBody, fontSize: '14px',
+      fontWeight: active ? 800 : 600, background: active ? colors.accentSoft : 'transparent', color: active ? colors.accent : colors.text,
+    }}>
+      {icon && <Icon name={icon} size={18} />}{label}
+    </button>
   );
 }

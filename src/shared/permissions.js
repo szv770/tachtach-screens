@@ -16,8 +16,8 @@ export const ROLES = ['admin', 'editor'];
 export const ROLE_LABEL = { admin: 'Admin', editor: 'Editor' };
 
 /** Tabs (/admin/<key>) each role can open. Everyone gets Help and My account. */
-export const EDITOR_SECTIONS = ['slides', 'schedule', 'announcements', 'daily-word', 'custom-days', 'images', 'rss-feeds', 'help', 'account'];
-export const ADMIN_ONLY_SECTIONS = ['style', 'settings', 'team'];
+export const EDITOR_SECTIONS = ['home', 'slides', 'schedule', 'announcements', 'daily-word', 'custom-days', 'images', 'rss-feeds', 'help', 'account'];
+export const ADMIN_ONLY_SECTIONS = ['style', 'settings', 'team', 'kit'];
 
 export function canOpenSection(role, key) {
   if (role === 'admin') return true;

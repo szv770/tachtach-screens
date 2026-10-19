@@ -5,7 +5,7 @@
  * Copy as text. Nothing is written until "Save day".
  */
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../../styles/admin-tokens.js';
+import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, alpha } from '../../styles/admin-tokens.js';
 import { ConfirmDialog } from '../ui.jsx';
 import { ICON_OPTIONS, ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
 import {
@@ -378,7 +378,7 @@ export default function DayEditor({
               ? <button type="button" style={smallButton} onClick={() => setBlockName(label || '')}>Save day as block…</button>
               : <BlockNameInput value={blockName} onChange={setBlockName} onSave={saveBlock} onCancel={() => setBlockName(null)} />}
             {override && (
-              <button type="button" style={{ ...smallButton, color: colors.danger, borderColor: `${colors.danger}88` }} onClick={() => setConfirm('revert')}>
+              <button type="button" style={{ ...smallButton, color: colors.danger, borderColor: alpha(colors.danger, 53) }} onClick={() => setConfirm('revert')}>
                 Revert to weekly
               </button>
             )}
@@ -443,7 +443,7 @@ export function IssueList({ issues }) {
   return (
     <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
       {errors.map((e, i) => (
-        <div key={`e${i}`} style={{ ...issueStyle, color: colors.danger, background: colors.dangerBg, borderColor: `${colors.danger}66` }}>
+        <div key={`e${i}`} style={{ ...issueStyle, color: colors.danger, background: colors.dangerBg, borderColor: alpha(colors.danger, 40) }}>
           <b>{e.line ? `Line ${e.line}` : 'Error'}:</b> {e.message}
         </div>
       ))}

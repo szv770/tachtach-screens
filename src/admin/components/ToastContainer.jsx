@@ -14,7 +14,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
   return (
     <div style={isMobile ? {
       position: 'fixed',
-      bottom: 'calc(12px + env(safe-area-inset-bottom))',
+      bottom: 'calc(var(--tt-tabbar-h, 0px) + 12px + env(safe-area-inset-bottom))',
       left: '12px',
       right: '12px',
       zIndex: 9999,

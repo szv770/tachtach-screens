@@ -1,112 +1,124 @@
-// Admin design tokens — mirrors screen palette with admin-specific additions
+// Admin design tokens — Direction A "Seal".
+// The real values live in admin-theme.css as CSS custom properties (light + dark via
+// prefers-color-scheme, overridable with <html data-theme>). `colors.*` below resolve to
+// var(--…) strings so every existing inline-style component re-themes without a reload.
+// Never build a colour by string concatenation (`${colors.x}88` breaks): use alpha().
 
-const darkColors = {
-  bg: '#12100C',
-  text: '#EFE3C0',
-  dim: 'rgba(239,227,192,.82)',
-  muted: 'rgba(239,227,192,.50)',
-  border: 'rgba(239,227,192,.16)',
-  gold: '#D4A84B',
-  goldBg: 'rgba(212,168,75,.16)',
-  goldBd: 'rgba(212,168,75,.52)',
-  surface: 'rgba(255,240,195,.08)',
-  surfaceHover: 'rgba(255,240,195,.14)',
-  panel: '#161310',
-  copper: '#C89040',
-  danger: '#E04040',
-  dangerBg: 'rgba(224,64,64,.15)',
-  success: '#5CBF60',
-  successBg: 'rgba(76,175,80,.15)',
-};
+export const THEME_KEY = 'tachtach-admin-theme-v2';
+export const THEME_CHOICES = ['system', 'light', 'dark'];
 
-const lightColors = {
-  bg: '#F5F3EF',
-  text: '#1C1A17',
-  dim: 'rgba(28,26,23,.55)',
-  muted: 'rgba(28,26,23,.22)',
-  border: 'rgba(28,26,23,.12)',
-  gold: '#9B7520',
-  goldBg: 'rgba(155,117,32,.10)',
-  goldBd: 'rgba(155,117,32,.35)',
-  surface: 'rgba(0,0,0,.04)',
-  surfaceHover: 'rgba(0,0,0,.07)',
-  panel: '#EFECE6',
-  copper: '#7A5A1A',
-  danger: '#C4342D',
-  dangerBg: 'rgba(196,52,45,.08)',
-  success: '#2E7D32',
-  successBg: 'rgba(46,125,50,.08)',
-};
+export function getAdminThemeName() {
+  try {
+    const v = window.localStorage.getItem(THEME_KEY);
+    return THEME_CHOICES.includes(v) ? v : 'system';
+  } catch { return 'system'; }
+}
 
-// Read admin theme preference from localStorage
-function getAdminTheme() {
-  if (typeof window !== 'undefined') {
-    return window.localStorage.getItem('tachtach-admin-theme') || 'dark';
+/** Apply 'system' | 'light' | 'dark' to <html> immediately (no reload) and remember it. */
+export function applyAdminTheme(theme) {
+  const t = THEME_CHOICES.includes(theme) ? theme : 'system';
+  if (typeof document !== 'undefined') {
+    if (t === 'system') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', t);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      const dark = t === 'dark' || (t === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
+      meta.setAttribute('content', dark ? '#121110' : '#F4F1EA');
+    }
   }
-  return 'dark';
 }
 
 export function setAdminTheme(theme) {
-  if (typeof window !== 'undefined') {
-    window.localStorage.setItem('tachtach-admin-theme', theme);
-    window.location.reload();
-  }
+  try { window.localStorage.setItem(THEME_KEY, THEME_CHOICES.includes(theme) ? theme : 'system'); } catch { /* private mode */ }
+  applyAdminTheme(theme);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('tt-admin-theme'));
 }
 
-export function getAdminThemeName() {
-  return getAdminTheme();
+if (typeof document !== 'undefined') applyAdminTheme(getAdminThemeName());
+
+/** A translucent version of a token: alpha(colors.danger, 53) -> color-mix(...). */
+export function alpha(color, percent) {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
 }
 
-export const colors = getAdminTheme() === 'light' ? lightColors : darkColors;
+// Legacy names kept so the existing components keep working; "gold" is the main
+// action colour, which in Direction A is the wax-seal red (real gold = "edited").
+export const colors = {
+  bg: 'var(--bg)',
+  text: 'var(--text)',
+  dim: 'var(--text-2)',
+  muted: 'var(--text-3)',
+  border: 'var(--line-strong)',
+  gold: 'var(--accent)',
+  goldBg: 'var(--accent-soft)',
+  goldBd: 'color-mix(in srgb, var(--accent) 45%, transparent)',
+  surface: 'var(--surface-2)',
+  surfaceHover: 'var(--sunken)',
+  panel: 'var(--surface)',
+  copper: 'var(--gold)',
+  danger: 'var(--danger)',
+  dangerBg: 'var(--danger-soft)',
+  success: 'var(--ok)',
+  successBg: 'var(--ok-soft)',
+  // Direction A additions
+  card: 'var(--surface)',
+  sunken: 'var(--sunken)',
+  line: 'var(--line)',
+  accent: 'var(--accent)',
+  accentInk: 'var(--accent-ink)',
+  accentSoft: 'var(--accent-soft)',
+  edited: 'var(--gold)',
+  editedSoft: 'var(--gold-soft)',
+  warn: 'var(--warn)',
+  warnSoft: 'var(--warn-soft)',
+  scrim: 'var(--scrim)',
+};
 
-// Expose the theme on <html> so admin.css can theme via CSS variables and
-// pseudo-class states (hover/focus) that inline styles can't express.
-if (typeof document !== 'undefined') {
-  document.documentElement.dataset.adminTheme = getAdminTheme();
-}
+export const shadows = { e1: 'var(--e1)', e2: 'var(--e2)', e3: 'var(--e3)' };
+export const radii = { xs: '8px', sm: '12px', md: '16px', lg: '22px', xl: '28px', pill: '999px' };
+export const motion = { fast: 'var(--t-fast)', base: 'var(--t-base)', sheet: 'var(--t-sheet)', ease: 'var(--ease)' };
 
+// Hebrew in Rubik, English UI in Manrope, page titles in Fraunces (bundled via @fontsource-variable).
 export const adminFonts = {
-  hebrewPrimary: "'Frank Ruhl Libre', Georgia, serif",
-  hebrewDisplay: "'Noto Serif Hebrew', serif",
-  englishBody: "'EB Garamond', Georgia, serif",
-  englishDisplay: "'Cormorant Garamond', serif",
+  hebrewPrimary: 'var(--f-he)',
+  hebrewDisplay: 'var(--f-display)',
+  englishBody: 'var(--f-ui)',
+  englishDisplay: 'var(--f-display)',
 };
 
 export const inputStyle = {
   background: colors.surface,
   border: `1px solid ${colors.border}`,
-  borderRadius: '6px',
+  borderRadius: '8px',
   color: colors.text,
   padding: '8px 12px',
   fontFamily: adminFonts.hebrewPrimary,
   fontSize: '14px',
   outline: 'none',
   width: '100%',
-  colorScheme: getAdminTheme() === 'light' ? 'light' : 'dark',
 };
 
 export const buttonPrimary = {
   background: colors.gold,
-  color: getAdminTheme() === 'light' ? '#FFFDF6' : colors.bg,
+  color: 'var(--accent-ink)',
   border: '1px solid transparent',
-  borderRadius: '6px',
+  borderRadius: '8px',
   padding: '8px 20px',
-  fontFamily: adminFonts.hebrewPrimary,
+  fontFamily: adminFonts.englishBody,
   fontSize: '14px',
-  fontWeight: 500,
+  fontWeight: 700,
   cursor: 'pointer',
-  letterSpacing: '0.02em',
-  boxShadow: '0 1px 3px rgba(0,0,0,.25)',
 };
 
 export const buttonSecondary = {
   background: 'transparent',
   color: colors.text,
   border: `1px solid ${colors.border}`,
-  borderRadius: '6px',
+  borderRadius: '8px',
   padding: '8px 16px',
-  fontFamily: adminFonts.hebrewPrimary,
+  fontFamily: adminFonts.englishBody,
   fontSize: '14px',
+  fontWeight: 600,
   cursor: 'pointer',
 };
 
@@ -114,9 +126,10 @@ export const buttonDanger = {
   background: colors.dangerBg,
   color: colors.danger,
   border: `1px solid ${colors.danger}`,
-  borderRadius: '6px',
+  borderRadius: '8px',
   padding: '8px 16px',
-  fontFamily: adminFonts.hebrewPrimary,
+  fontFamily: adminFonts.englishBody,
   fontSize: '14px',
+  fontWeight: 600,
   cursor: 'pointer',
 };

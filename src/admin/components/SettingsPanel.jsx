@@ -30,9 +30,11 @@ function InfoIcon({ tip }) {
   );
 }
 
+// Search ("jump to setting") anchors: every section gets id "set-<title-slug>" unless it has its own.
 function Section({ title, children, id }) {
+  const anchor = id || (typeof title === 'string' ? `set-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}` : undefined);
   return (
-    <div id={id} style={{
+    <div id={anchor} style={{
       background: colors.surface,
       borderRadius: '4px',
       border: `1px solid ${colors.muted}`,
@@ -44,7 +46,7 @@ function Section({ title, children, id }) {
         fontSize: '15px',
         color: colors.text,
         marginBottom: '14px',
-        borderLeft: '3px solid rgba(212,168,75,0.45)',
+        borderLeft: '3px solid var(--accent)',
         paddingLeft: '10px',
       }}>
         {title}
@@ -288,7 +290,7 @@ export default function SettingsPanel({ settings = {}, onSave, slides = [], onUp
         <ScreenLook local={local} update={update} updateNested={updateNested} />
       </Section>
 
-      <Section title={<>Weather <span dir="rtl" lang="he" style={{ marginLeft: '8px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>מזג האוויר</span></>}>
+      <Section id="set-weather" title={<>Weather <span dir="rtl" lang="he" style={{ marginLeft: '8px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>מזג האוויר</span></>}>
         <WeatherSettings local={local} updateNested={updateNested} zip={locationZip} slides={slides} onUpdateSlides={onUpdateSlides} onCreateSlide={onCreateSlide} />
       </Section>
 

@@ -1,0 +1,77 @@
+/* Admin design tokens — Direction A "Seal" (docs/design/2026-10-18-admin-upgrade/DESIGN-NOTES.md).
+   Light by default; follows the phone/OS via prefers-color-scheme; <html data-theme="light|dark">
+   overrides it (set by admin-tokens.js, remembered in localStorage). Admin components never
+   hard-code colours: they use these variables (via `colors` in admin-tokens.js). */
+:root {
+  --bg:#F4F1EA; --surface:#FFFFFF; --surface-2:#FAF8F3; --sunken:#ECE7DC;
+  --text:#1D1B17; --text-2:#5E5850; --text-3:#8F887C;
+  --line:rgba(29,27,23,.10); --line-strong:rgba(29,27,23,.18);
+  --accent:#B4322A; --accent-ink:#FFFFFF; --accent-soft:#F6E3DF;
+  --gold:#A87B22; --gold-soft:#F3E8CF;
+  --ok:#2F7D4F; --ok-soft:#DDEEE3; --warn:#B46A12; --warn-soft:#F7E8D2; --danger:#C0362C; --danger-soft:#F8E2DF;
+  --scrim:rgba(29,27,23,.38);
+  --e1:0 1px 2px rgba(40,30,15,.06),0 1px 1px rgba(40,30,15,.04);
+  --e2:0 4px 14px rgba(40,30,15,.08),0 1px 3px rgba(40,30,15,.06);
+  --e3:0 18px 50px rgba(40,30,15,.18),0 4px 12px rgba(40,30,15,.08);
+  --area-screen:#0E86C0; --area-schedule:#12875A; --area-announce:#D2641A; --area-look:#7C4FD6;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
+    --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#7E776C;
+    --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
+    --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
+    --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
+    --ok:#5CC48A; --ok-soft:rgba(92,196,138,.14); --warn:#E5A04A; --warn-soft:rgba(229,160,74,.15); --danger:#F06A5E; --danger-soft:rgba(240,106,94,.15);
+    --scrim:rgba(0,0,0,.55);
+    --e1:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(0,0,0,.4);
+    --e2:0 1px 0 rgba(255,255,255,.04) inset,0 6px 18px rgba(0,0,0,.45);
+    --e3:0 1px 0 rgba(255,255,255,.05) inset,0 24px 60px rgba(0,0,0,.6);
+    --area-screen:#38BDF8; --area-schedule:#34D399; --area-announce:#FB923C; --area-look:#A78BFA;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
+  --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#7E776C;
+  --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
+  --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
+  --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
+  --ok:#5CC48A; --ok-soft:rgba(92,196,138,.14); --warn:#E5A04A; --warn-soft:rgba(229,160,74,.15); --danger:#F06A5E; --danger-soft:rgba(240,106,94,.15);
+  --scrim:rgba(0,0,0,.55);
+  --e1:0 1px 0 rgba(255,255,255,.03) inset,0 1px 2px rgba(0,0,0,.4);
+  --e2:0 1px 0 rgba(255,255,255,.04) inset,0 6px 18px rgba(0,0,0,.45);
+  --e3:0 1px 0 rgba(255,255,255,.05) inset,0 24px 60px rgba(0,0,0,.6);
+  --area-screen:#38BDF8; --area-schedule:#34D399; --area-announce:#FB923C; --area-look:#A78BFA;
+  color-scheme: dark;
+}
+:root {
+  --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:22px; --r-xl:28px; --r-pill:999px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
+  --f-ui:'Manrope Variable','Manrope','Rubik Variable','Rubik',system-ui,sans-serif;
+  --f-display:'Fraunces Variable','Fraunces',Georgia,serif;
+  --f-he:'Rubik Variable','Rubik','Manrope Variable',system-ui,sans-serif;
+  --t-fast:140ms; --t-base:220ms; --t-sheet:340ms; --ease:cubic-bezier(.2,.8,.2,1);
+  /* Height of the mobile bottom tab bar (0 on desktop); the Save bar sits above it. */
+  --tt-tabbar-h:0px;
+}
+
+html { -webkit-text-size-adjust: 100%; background: var(--bg); }
+body { background: var(--bg); color: var(--text); font-family: var(--f-ui); -webkit-font-smoothing: antialiased; }
+::selection { background: var(--accent-soft); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input::placeholder, textarea::placeholder { color: var(--text-3); }
+
+/* Search-result "jump to setting": brief highlight on the target (finite, transform-free). */
+@keyframes tt-flash-kf { 0% { box-shadow: 0 0 0 0 var(--accent); background-color: var(--accent-soft); } 70% { box-shadow: 0 0 0 4px var(--accent-soft); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.tt-flash { animation: tt-flash-kf 1.8s var(--ease) 1; border-radius: 12px; }
+
+/* Collapsible body (grid-rows trick: animates height without measuring). */
+.tt-coll-body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows var(--t-base) var(--ease); }
+.tt-coll-body[data-open="true"] { grid-template-rows: 1fr; }
+.tt-coll-body > div { overflow: hidden; min-height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}

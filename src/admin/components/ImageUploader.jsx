@@ -229,7 +229,7 @@ export default function ImageUploader({ onSlideCreated }) {
               display: 'inline-block',
               padding: '3px 10px',
               borderRadius: '4px',
-              background: isVideo ? 'rgba(99,102,241,0.2)' : isGif ? 'rgba(34,197,94,0.2)' : 'rgba(212,168,75,0.2)',
+              background: isVideo ? 'rgba(99,102,241,0.2)' : isGif ? 'rgba(34,197,94,0.2)' : 'var(--accent-soft)',
               color: isVideo ? '#818cf8' : isGif ? '#4ade80' : colors.gold,
               fontFamily: adminFonts.englishBody,
               fontSize: '12px',

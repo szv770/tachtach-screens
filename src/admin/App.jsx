@@ -3,7 +3,15 @@ import useSectionRoute from './hooks/useSectionRoute.js';
 import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
 import { canOpenSection } from '../shared/permissions.js';
-import AdminLayout, { navItems } from './components/AdminLayout.jsx';
+import AdminLayout from './components/AdminLayout.jsx';
+import { SECTION_KEYS } from './nav.js';
+import Home from './components/Home.jsx';
+import GlobalSearch from './components/GlobalSearch.jsx';
+import NewSheet from './components/NewSheet.jsx';
+import UiKit from './components/UiKit.jsx';
+import ThemeSwitch from './components/ThemeSwitch.jsx';
+import { confirmLeave } from './components/ui/dirty.js';
+import { jumpTo } from './search/jump.js';
 import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
@@ -26,16 +34,14 @@ import { TOUR_KEY } from './help/helpContent.js';
 import ToastContainer from './components/ToastContainer.jsx';
 import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
-// Admin sections that have their own URL (/admin/<key>).
-const SECTION_KEYS = navItems.map((n) => n.key);
 
 export default function App() {
-  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'slides');
+  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'home');
   const { me, ready: meReady, refreshMe } = useMe();
   const role = me?.role;
   // A section this person's role can't open (e.g. an editor following a /admin/team
-  // link) shows Slides instead, and the address bar is tidied without a Back-button trap.
-  const activeSection = canOpenSection(role, routeSection) ? routeSection : 'slides';
+  // link) shows Home instead, and the address bar is tidied without a Back-button trap.
+  const activeSection = canOpenSection(role, routeSection) ? routeSection : 'home';
   useEffect(() => {
     if (!meReady || activeSection === routeSection) return;
     window.history.replaceState({ section: activeSection }, '', `/admin/${activeSection}`);
@@ -43,11 +49,14 @@ export default function App() {
   }, [meReady, activeSection, routeSection, setRouteSection]);
   const setActiveSection = useCallback((key) => {
     if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return; }
+    if (key !== routeSection && !confirmLeave()) return;
     setRouteSection(key);
-  }, [role, setRouteSection]);
+  }, [role, routeSection, setRouteSection]);
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };
@@ -64,6 +73,43 @@ export default function App() {
     fetchScheduleTemplates, saveScheduleTemplate, updateScheduleTemplate, deleteScheduleTemplate,
     refresh, screenCommand,
   } = useAdminState();
+
+  const siteName = state?.settings?.siteName || 'My screen';
+  const canPost = canOpenSection(role, 'announcements');
+
+  // "/" opens search from anywhere (unless typing in a field).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target;
+      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  const pickNew = (kind) => {
+    setNewOpen(false);
+    if (kind === 'quick') setQuickOpen(true);
+    else setComposer({ display: kind });
+  };
+
+  // Run what a search result (or Home tile) asks for.
+  const runAction = (a) => {
+    if (!a) return;
+    switch (a.type) {
+      case 'go': setActiveSection(a.section); if (a.anchor || a.match) jumpTo({ anchor: a.anchor, match: a.match }); break;
+      case 'new': setComposer({ display: a.kind }); break;
+      case 'quick': setQuickOpen(true); break;
+      case 'command': screenCommand(a.name); break;
+      case 'preview': window.open('/screen?preview=true', '_blank', 'noopener'); break;
+      case 'edit-announcement': setComposer(a.item); break;
+      case 'toggle-announcement': updateAnnouncement(a.item.id, { enabled: a.enabled }, a.enabled ? 'Resumed' : 'Paused'); break;
+      default: break;
+    }
+  };
 
   // Start-up animation (public/splash/) fades out once the panel can render.
   useEffect(() => { if (!loading && meReady) window.ttSplash?.done(); }, [loading, meReady]);
@@ -116,6 +162,15 @@ export default function App() {
 
   const renderSection = () => {
     switch (activeSection) {
+      case 'home':
+        return (
+          <Home
+            state={state} me={me} siteName={siteName}
+            onGo={setActiveSection} onQuick={() => setQuickOpen(true)} onCommand={screenCommand}
+          />
+        );
+      case 'kit':
+        return <UiKit />;
       case 'slides':
         return (
           <SlideManager
@@ -174,7 +229,15 @@ export default function App() {
       case 'team':
         return <TeamPanel />;
       case 'account':
-        return <AccountPanel me={me} onChanged={refreshMe} />;
+        return (
+          <>
+            <div style={{ background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-md)', padding: '14px 16px', marginBottom: '16px' }}>
+              <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', fontWeight: 700, color: colors.dim, marginBottom: '8px' }}>Appearance on this device</div>
+              <ThemeSwitch />
+            </div>
+            <AccountPanel me={me} onChanged={refreshMe} />
+          </>
+        );
       case 'custom-days':
         return (
           <CustomDaysEditor
@@ -272,38 +335,16 @@ export default function App() {
         onSectionChange={setActiveSection}
         preview={previewSlot}
         me={me}
+        siteName={siteName}
+        canPost={canPost && !tourOpen}
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenNew={() => setNewOpen(true)}
       >
         {renderSection()}
       </AdminLayout>
       {tourOpen && <WelcomeTour onClose={closeTour} onGo={setActiveSection} />}
-      {!tourOpen && canOpenSection(role, 'announcements') && (
-        <button
-          type="button"
-          onClick={() => setQuickOpen(true)}
-          aria-label="Quick announcement"
-          title="Quick announcement"
-          style={{
-            position: 'fixed',
-            right: 'calc(16px + env(safe-area-inset-right))',
-            bottom: 'calc(16px + env(safe-area-inset-bottom))',
-            zIndex: 900,
-            width: '56px',
-            height: '56px',
-            borderRadius: '50%',
-            border: `1px solid ${colors.goldBd}`,
-            background: colors.gold,
-            color: '#1a1304',
-            fontSize: '26px',
-            lineHeight: 1,
-            fontFamily: adminFonts.englishBody,
-            fontWeight: 700,
-            cursor: 'pointer',
-            boxShadow: '0 4px 18px rgba(0,0,0,.45)',
-          }}
-        >
-          {'+'}
-        </button>
-      )}
+      <NewSheet open={newOpen} onClose={() => setNewOpen(false)} onPick={pickNew} />
+      <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} state={state} role={role} onRun={runAction} />
       {quickOpen && (
         <QuickAnnounceSheet
           onClose={() => setQuickOpen(false)}
