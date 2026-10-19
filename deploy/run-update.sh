@@ -140,14 +140,25 @@ run_update_sh() { # <mode> [rollback-target]
 
 last_stage() { grep -o 'TT_STAGE=[a-z]*' "$RUN_LOG" 2>/dev/null | tail -n 1 | cut -d= -f2 || true; }
 
-# The root-only part of an update: refresh units, restart, and check the server really came back.
+# The root-only part of an update: restart the services and check the server really came back.
+# DELIBERATELY NOT here: install-services.sh. That script and the unit templates it reads live in the
+# project folder, which the app's user (the web server's user) can write. Running them as root would turn
+# "someone compromised the web process" into "root on the Pi". Units are refreshed only when a person
+# runs deploy/update.sh by hand (it uses sudo for that step). If a new version changes deploy/*.service,
+# the log says so (see changed_units).
+changed_units() {
+  [ -n "$FROM" ] && [ -n "$TO" ] && [ "$FROM" != "$TO" ] || return 0
+  local n
+  n="$(git_owner diff --name-only "$FROM" "$TO" -- deploy 2>/dev/null | grep -E '\.(service|timer|path)$|install-services\.sh$|run-update\.sh$|update-helper\.mjs$' | head -5 || true)"
+  if [ -n "$n" ]; then
+    say "NOTE: this update changed system files ($(printf '%s' "$n" | tr '\n' ' ')). Run deploy/update.sh once by hand on the Pi to apply them."
+  fi
+}
 finish_privileged() {
   if [ "$DRY" = "1" ]; then
-    say "DRY RUN: would run install-services.sh and restart tachtach-server and tachtach-kiosk"
+    say "DRY RUN: would restart tachtach-server and tachtach-kiosk"
     return "${TT_DRY_RESTART_RC:-0}"
   fi
-  say "Refreshing systemd units..."
-  PI_USER="$TT_OWNER" bash "$PROJECT_DIR/deploy/install-services.sh" >> "$RUN_LOG" 2>&1 || return 1
   say "Restarting services..."
   systemctl restart tachtach-server >> "$RUN_LOG" 2>&1 || return 1
   systemctl restart tachtach-kiosk >> "$RUN_LOG" 2>&1 || true
@@ -213,6 +224,7 @@ if [ "$ACTION" = "update" ]; then
   fi
   if [ "${OK:-0}" = "1" ]; then
     if [ -n "$TO" ] && [ "$TO" != "$FROM" ]; then printf '%s' "$FROM" > "$STATE_DIR/previous-commit"; PREVIOUS="$FROM"; fi
+    changed_units
     say "=== update complete: ${FROM:0:7} -> ${TO:0:7} ==="
     write_status success "Updated."
     FINISHED_OK=1; exit 0
