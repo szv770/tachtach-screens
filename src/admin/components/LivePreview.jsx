@@ -9,7 +9,7 @@ const TYPE_NAMES = {
   ZMANIM: 'Zmanim', LIMUDIM: 'Limudim', HAYOM_YOM: 'Hayom Yom', PIRKEI_AVOS: 'Pirkei Avos',
   DAILY_QUOTE: 'Daily Quote', DAILY_WORD: 'Daily Word', PARSHA_TIDBITS: 'Parsha Tidbits',
   SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'RSS Feed', MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard',
-  MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen', VIDEO_SLIDE: 'Video', IMAGE_SLIDE: 'Image',
+  MIVTZAH_LIVE_EMBED: 'Mivtzah Live Screen', VIDEO_SLIDE: 'Video', PDF_SLIDE: 'PDF', IMAGE_SLIDE: 'Image',
   GOOGLE_PHOTOS_SLIDE: 'Google Photos', ANNOUNCEMENT: 'Message',
 };
 

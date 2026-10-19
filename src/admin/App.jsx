@@ -209,6 +209,7 @@ export default function App() {
             announcements={state?.announcements || []}
             onNewMessage={() => setComposer({ display: 'slide' })}
             onEditAnnouncement={(item) => setComposer(item)}
+            onDeleteAnnouncement={deleteAnnouncement}
             onToggleAnnouncement={(item, enabled) => updateAnnouncement(item.id, { enabled }, enabled ? 'Resumed' : 'Paused')}
           />
         );

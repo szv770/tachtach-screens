@@ -31,7 +31,7 @@ export default function SizeCard({ rec }) {
           <li><strong>Pictures</strong> (JPEG, PNG, WebP): this size or larger. Bigger pictures are shrunk to this size, never enlarged.</li>
           <li><strong>GIFs</strong> are kept exactly as uploaded, so use one close to this size.</li>
           <li><strong>Videos</strong> (MP4 or WebM, up to 50 MB) play as they are. A 1920&times;1080 clip is usually plenty and plays smoothest.</li>
-          <li><strong>PDFs</strong> can not be shown. Export each page as a picture at this size and upload those.</li>
+          <li><strong>PDFs</strong> (up to 30 pages, 25 MB) are turned into one picture per page at this size and shown page by page as one slide. Set the seconds per page when you add it.</li>
         </ul>
       </Collapsible>
     </section>

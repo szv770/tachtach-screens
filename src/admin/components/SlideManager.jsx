@@ -9,7 +9,8 @@ import Icon from './ui/Icon.jsx';
 import NewSlideFlow from './slides/NewSlideFlow.jsx';
 import SlideEditSheet from './slides/SlideEditSheet.jsx';
 import { SLIDE_OPEN_EVENT, takeSlideOpen } from './slides/openRequest.js';
-import { slideTitle, isDeletable, isEmbedType } from './slides/slideTypes.js';
+import { slideTitle, isDeletable, isEmbedType, typeInfo } from './slides/slideTypes.js';
+import Sheet from './ui/Sheet.jsx';
 
 const STATUS_TEXT = { draft: 'Draft', scheduled: 'Scheduled', paused: 'Paused', archived: 'Ended' };
 
@@ -26,12 +27,14 @@ const iconBtn = { width: 44, height: 44, flexShrink: 0, display: 'grid', placeIt
  */
 export default function SlideManager({
   slides = [], onUpdate, onCreate, onDelete, settings = {}, onSaveSettings, onNavigate,
-  announcements = [], onNewMessage, onEditAnnouncement, onToggleAnnouncement, caps = [],
+  announcements = [], onNewMessage, onEditAnnouncement, onToggleAnnouncement, onDeleteAnnouncement, caps = [],
 }) {
   const isMobile = useIsMobile();
   const canEdit = can(caps, 'slides.edit');
   const canDelete = can(caps, 'slides.delete');
   const canEditAnn = can(caps, 'announcements.edit');
+  const canDeleteAnn = can(caps, 'announcements.delete') && !!onDeleteAnnouncement;
+  const [confirmMsg, setConfirmMsg] = useState(null); // announcement to delete
   const [newOpen, setNewOpen] = useState(false);
   const [editId, setEditId] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -71,14 +74,22 @@ export default function SlideManager({
     if (from !== null && to !== null) move(from, to);
   };
 
+  // The pencil: most slides open their popup; Photos, News feed, Web page, Schedule and Daily Word live on their own page.
+  const openEdit = (slide) => {
+    const g = typeInfo(slide.type)?.editGo;
+    if (g) go(g.section, g.tab ? { tab: g.tab } : undefined); else setEditId(slide.id);
+  };
+
   // Requests from search: open "New slide" or one slide's popup (the first slide of that type).
   useEffect(() => {
     const run = (req) => {
       if (!req || !canEdit) return;
       if (req.kind === 'new') setNewOpen(true);
       else if (req.kind === 'edit') {
+        const g = typeInfo(req.type)?.editGo;
+        if (g) { go(g.section, g.tab ? { tab: g.tab } : undefined); return; }
         const s = slidesRef.current.find((x) => x.type === req.type);
-        if (s) setEditId(s.id); else notify('That slide is not in your list yet. Use New slide to add it.', 'error');
+        if (s) openEdit(s); else notify('That slide is not in your list yet. Use New slide to add it.', 'error');
       }
     };
     run(takeSlideOpen());
@@ -186,8 +197,11 @@ export default function SlideManager({
                 : !canEdit && canDelete && isDeletable(slide)
                   ? <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmDelete(slide)} aria-label={`Delete ${title(slide)}`} title="Delete this slide" data-testid="slide-delete-inline">{'\u00D7'}</button>
                   : (canEdit && (
-                  <button type="button" style={iconBtn} onClick={() => setEditId(slide.id)} aria-label={`Edit ${title(slide)}`} title="This slide's options" data-testid="slide-pencil"><Pencil /></button>
+                  <button type="button" style={iconBtn} onClick={() => openEdit(slide)} aria-label={`Edit ${title(slide)}`} title={typeInfo(slide.type)?.editGo ? 'Open its page' : "This slide's options"} data-testid="slide-pencil"><Pencil /></button>
                 ))}
+              {isAnn && ann && canDeleteAnn && (
+                <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(ann)} aria-label={`Delete message: ${title(slide)}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>
+              )}
             </div>
           );
         })}
@@ -235,6 +249,17 @@ export default function SlideManager({
           onDelete={() => setConfirmDelete(editing)}
         />
       )}
+
+      <Sheet open={!!confirmMsg} onClose={() => setConfirmMsg(null)} title="Delete this message?" label="Delete message" zIndex={1250}>
+        <p style={{ margin: '4px 0 16px', fontSize: '15px', color: colors.dim, lineHeight: 1.5 }}>
+          It disappears from the screen. You can tap Undo straight after.
+        </p>
+        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => setConfirmMsg(null)} style={{ ...buttonSecondary, minHeight: '48px', padding: '0 20px' }} data-testid="message-delete-cancel">Cancel</button>
+          <button type="button" data-testid="message-delete-confirm" onClick={() => { const a = confirmMsg; setConfirmMsg(null); onDeleteAnnouncement?.(a.id); }}
+            style={{ minHeight: '48px', padding: '0 20px', borderRadius: 'var(--r-sm)', border: 'none', background: colors.danger, color: '#fff', fontWeight: 800, fontSize: '15px', fontFamily: adminFonts.englishBody, cursor: 'pointer' }}>Delete</button>
+        </div>
+      </Sheet>
 
       {confirmDelete && (
         <ConfirmDialog

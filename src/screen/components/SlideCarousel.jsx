@@ -12,6 +12,7 @@ import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
+import PdfSlide from './slides/PdfSlide.jsx';
 import ScheduleSlide from './slides/ScheduleSlide.jsx';
 import RSSSlide from './slides/RSSSlide.jsx';
 import WeatherSlide from './slides/WeatherSlide.jsx';
@@ -45,7 +46,7 @@ function legacyItem(slide) {
   };
 }
 
-const MEDIA = new Set(['IMAGE_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED', 'WEB_PAGE']);
+const MEDIA = new Set(['IMAGE_SLIDE', 'PDF_SLIDE', 'VIDEO_SLIDE', 'GOOGLE_PHOTOS_SLIDE', 'MIVTZAH_LIVE_EMBED', 'WEB_PAGE']);
 
 const VARIANTS = {
   smooth: { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.48, ease: [0.22, 0.7, 0.2, 1] } }, exit: { opacity: 0, transition: { duration: 0.26, ease: 'easeIn' } } },
@@ -81,6 +82,7 @@ export default function SlideCarousel({
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
+      case 'PDF_SLIDE': return <PdfSlide slide={slide} tokens={tokens} onRequestDuration={onRequestDuration} />;
       case 'VIDEO_SLIDE': return <VideoSlide slide={slide} tokens={tokens} onEnded={onVideoEnded} />;
       case 'TEXT_SLIDE':
       case 'custom':

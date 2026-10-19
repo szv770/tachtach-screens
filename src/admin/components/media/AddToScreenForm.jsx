@@ -2,20 +2,28 @@ import React from 'react';
 import { NumberField } from '../ui.jsx';
 import Collapsible from '../ui/Collapsible.jsx';
 import { Field, Choices, SwitchRow, fieldStyle } from '../look/kit.jsx';
+import { pdfTotalSeconds, PAGE_SECONDS_MIN, PAGE_SECONDS_MAX } from '../../../shared/pdfPages.js';
 import { DISPLAY_MODES, EDGE_TREATMENTS, optionsSummary } from './mediaOptions.js';
 
 /** Label + how long, and (closed) the display options, for putting a picture or video on the screen. */
 export default function AddToScreenForm({ item, value, onChange }) {
   const isVideo = item.mediaType === 'video';
+  const isPdf = item.mediaType === 'pdf';
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div>
       <Field label="Label (only you see it)" htmlFor="tt-media-label">
         <input id="tt-media-label" style={fieldStyle} value={value.label} maxLength={80} placeholder="e.g. Event flyer, promo clip" onChange={(e) => set({ label: e.target.value })} />
       </Field>
+      {isPdf ? (
+        <Field label="Seconds on each page" hint={`${item.pages || 1} page${(item.pages || 1) === 1 ? '' : 's'}: the slide stays on for ${pdfTotalSeconds(item.pages || 1, value.pageSeconds)} seconds in all.`}>
+          <NumberField value={value.pageSeconds} onCommit={(n) => set({ pageSeconds: n })} min={PAGE_SECONDS_MIN} max={PAGE_SECONDS_MAX} style={{ ...fieldStyle, width: '140px' }} ariaLabel="Seconds on each page" />
+        </Field>
+      ) : (
       <Field label={isVideo ? 'How long (seconds, 0 = play the whole clip)' : 'How long on screen (seconds)'}>
         <NumberField value={value.duration} onCommit={(n) => set({ duration: n })} min={0} max={300} style={{ ...fieldStyle, width: '140px' }} ariaLabel="Seconds on screen" />
       </Field>
+      )}
       <Collapsible title="Display options" summary={optionsSummary(item, value)} style={{ marginTop: '16px' }}>
         {!isVideo && (
           <Field label="How the picture fills the screen">

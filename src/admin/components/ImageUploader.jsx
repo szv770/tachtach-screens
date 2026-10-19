@@ -4,11 +4,12 @@ import { getCsrfToken } from './look/kit.jsx';
 import AddToScreenForm from './media/AddToScreenForm.jsx';
 import { defaultOptions, buildSlide } from './media/mediaOptions.js';
 import { imageAdvice, sizeText } from '../../shared/screenSize.js';
+import { PDF_MAX_BYTES, PDF_MAX_PAGES } from '../../shared/pdfPages.js';
 
 // SlideManager imports these two from here; they live in media/mediaOptions.js now.
 export { DISPLAY_MODES, EDGE_TREATMENTS } from './media/mediaOptions.js';
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm';
+const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,.pdf';
 const btn = { minHeight: '44px', padding: '0 20px' };
 
 /**
@@ -27,7 +28,9 @@ export default function ImageUploader({ onSlideCreated, rec, canAdd = true, onUp
   const upload = async (file) => {
     if (!file) return;
     setError(null);
-    setUploading(true);
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+    if (isPdf && file.size > PDF_MAX_BYTES) { setError(`This PDF is too big. The limit is ${Math.round(PDF_MAX_BYTES / 1048576)} MB.`); return; }
+    setUploading(isPdf ? 'pdf' : true);
     try {
       const formData = new FormData();
       formData.append('media', file);
@@ -86,10 +89,10 @@ export default function ImageUploader({ onSlideCreated, rec, canAdd = true, onUp
         >
           <input ref={fileRef} type="file" accept={ACCEPT} data-testid="file-input" onChange={(e) => upload(e.target.files?.[0])} style={{ display: 'none' }} />
           <button type="button" style={{ ...buttonPrimary, ...btn, opacity: uploading ? 0.6 : 1 }} onClick={() => fileRef.current?.click()} disabled={uploading}>
-            {uploading ? 'Uploading...' : 'Choose a picture or video'}
+            {uploading === 'pdf' ? 'Making the pages...' : uploading ? 'Uploading...' : 'Choose a picture, video or PDF'}
           </button>
           <p style={{ fontSize: '13px', color: colors.dim, margin: '12px 0 0', lineHeight: 1.5 }}>
-            or drop a file here. Pictures (JPEG, PNG, WebP), GIFs, or videos (MP4, WebM), up to 50 MB.
+            or drop a file here. Pictures (JPEG, PNG, WebP), GIFs, videos (MP4, WebM) up to 50 MB, or a PDF (up to {PDF_MAX_PAGES} pages, {Math.round(PDF_MAX_BYTES / 1048576)} MB).
             {rec && <><br />Best size for this screen: <strong style={{ color: colors.text }}>{sizeText(rec.width, rec.height)}</strong>.</>}
           </p>
         </div>
@@ -105,7 +108,7 @@ export default function ImageUploader({ onSlideCreated, rec, canAdd = true, onUp
               : <img src={`/uploads/${result.filename}`} alt="Uploaded preview" style={{ maxWidth: '100%', maxHeight: '280px', objectFit: 'contain' }} />}
           </div>
           <p style={{ fontSize: '13px', color: colors.dim, margin: '8px 0 0' }}>
-            {result.mediaType.toUpperCase()}{result.width ? ` · ${sizeText(result.width, result.height)}` : ''}
+            {result.mediaType.toUpperCase()}{result.pages ? ` · ${result.pages} page${result.pages === 1 ? '' : 's'}` : ''}{result.width ? ` · ${sizeText(result.width, result.height)}` : ''}
           </p>
           {advice && (
             <div role="status" data-testid="size-advice" style={{

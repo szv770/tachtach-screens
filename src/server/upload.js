@@ -4,17 +4,19 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir, writeFile, stat } from 'fs/promises';
+import { extraPagesIn } from '../shared/pdfPages.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const UPLOAD_DIR = path.resolve(__dirname, '../../data/uploads');
+export const UPLOAD_DIR = path.resolve(__dirname, '../../data/uploads');
 
 await mkdir(UPLOAD_DIR, { recursive: true });
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const GIF_TYPE = 'image/gif';
 const VIDEO_TYPES = ['video/mp4', 'video/webm'];
-const ALL_ALLOWED = [...IMAGE_TYPES, GIF_TYPE, ...VIDEO_TYPES];
+const PDF_TYPE = 'application/pdf';
+const ALL_ALLOWED = [...IMAGE_TYPES, GIF_TYPE, ...VIDEO_TYPES, PDF_TYPE];
 
 const storage = multer.memoryStorage();
 export const upload = multer({
@@ -22,7 +24,7 @@ export const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB for videos
   fileFilter: (_req, file, cb) => {
     if (ALL_ALLOWED.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Allowed: JPEG, PNG, WebP, GIF, MP4, WebM'));
+    else cb(new Error('Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, PDF'));
   },
 });
 
@@ -33,6 +35,7 @@ export function getMediaType(mimetype) {
   if (IMAGE_TYPES.includes(mimetype)) return 'image';
   if (mimetype === GIF_TYPE) return 'gif';
   if (VIDEO_TYPES.includes(mimetype)) return 'video';
+  if (mimetype === PDF_TYPE) return 'pdf';
   return 'unknown';
 }
 
@@ -152,8 +155,10 @@ export async function listMedia() {
         sizeCache.set(filename, dims);
       } catch { dims = null; }
     }
+    // A PDF is page 1 as <id>.jpg plus <id>-p02.jpg ... : one library row, mediaType 'pdf'.
+    const extra = mediaType === 'image' ? extraPagesIn(id, names) : [];
     items.push({
-      id, filename, mediaType, bytes: st.size, uploadedAt: st.mtimeMs,
+      id, filename, mediaType: extra.length ? 'pdf' : mediaType, pages: extra.length ? 1 + extra.length : undefined, bytes: st.size, uploadedAt: st.mtimeMs,
       width: dims?.width, height: dims?.height,
       blurFilename: names.has(`${id}-blur.jpg`) ? `${id}-blur.jpg` : undefined,
     });

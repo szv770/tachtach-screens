@@ -91,7 +91,7 @@ export default function MediaLibrary({ rec, slides = [], canUpload, canDelete, c
                       ? <span style={{ color: colors.success, fontWeight: 700 }}>On screen{used.length > 1 ? ` ×${used.length}` : ''}</span>
                       : <span>Not on screen</span>}
                   </div>
-                  <div>{it.width ? `${sizeText(it.width, it.height)} · ` : ''}{formatBytes(it.bytes)}</div>
+                  <div>{it.mediaType === 'pdf' ? `${it.pages} pages · ` : ''}{it.width ? `${sizeText(it.width, it.height)} · ` : ''}{formatBytes(it.bytes)}</div>
                 </div>
                 <div style={{ padding: '6px 12px 12px', display: 'grid', gap: '6px', marginTop: 'auto' }}>
                   {canAdd && <button type="button" style={{ ...buttonPrimary, ...small }} onClick={() => openAdd(it)}>Add to screen</button>}

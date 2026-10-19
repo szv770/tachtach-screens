@@ -134,6 +134,9 @@ ssh pi@tachtach.local 'bash /home/pi/tachtach-screens/deploy/update.sh'
 Your `data/` folder (slides, settings, messages, admin password) is never
 touched by this — pulls new code, keeps your content.
 
+**PDF slides** need `poppler-utils` on the Pi (`pi-setup.sh` installs it). On a Pi set up earlier, run once:
+`sudo apt install poppler-utils`. Without it the admin says so in plain words when you upload a PDF.
+
 ---
 
 ## Architecture summary (why it's set up this way)

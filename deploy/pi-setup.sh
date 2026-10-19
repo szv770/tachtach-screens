@@ -96,6 +96,8 @@ echo "[2/6] Installing Chromium and unclutter..."
 apt-get update -qq
 apt-get install -y --no-install-recommends chromium unclutter-xfixes \
   || apt-get install -y --no-install-recommends chromium-browser unclutter-xfixes
+# poppler-utils (pdftoppm/pdfinfo) turns an uploaded PDF into one picture per page for PDF slides.
+apt-get install -y --no-install-recommends poppler-utils || echo "WARNING: poppler-utils not installed - PDF slides will not work until: sudo apt install poppler-utils"
 
 # ── 3. Install dependencies and build ─────────────────────────────────────────
 

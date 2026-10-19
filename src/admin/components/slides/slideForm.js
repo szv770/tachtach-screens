@@ -4,9 +4,10 @@
 import { ZMANIM_DISPLAY } from '../../../shared/constants.js';
 import { normalizeWebUrl } from '../../../shared/embedCheck.js';
 import { LIMUDIM_ITEMS, typeInfo } from './slideTypes.js';
+import { clampPageSeconds, pdfTotalSeconds, PAGE_SECONDS_MIN, PAGE_SECONDS_MAX } from '../../../shared/pdfPages.js';
 
 /** Slide fields this form may write (all are in the server's SLIDE_FIELDS whitelist). */
-export const SLIDE_KEYS = ['label', 'duration', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom'];
+export const SLIDE_KEYS = ['label', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom'];
 
 const ALL_ZMANIM = ZMANIM_DISPLAY.map((z) => z.k);
 
@@ -39,6 +40,7 @@ export function initialValues(slide, settings = {}) {
     v.kenBurns = !!slide.kenBurns;
     v.imageDisplayMode = slide.imageDisplayMode || 'fit';
   }
+  if (sections.includes('pdf')) { v.pageSeconds = String(clampPageSeconds(slide.pageSeconds)); v.displayMode = slide.displayMode || 'fit'; v.edgeTreatment = slide.edgeTreatment || 'dark'; }
   if (sections.includes('rss')) { v.rssDisplayMode = slide.rssDisplayMode || 'latest'; v.style = slide.style || ''; }
   if (sections.includes('web') || sections.includes('embed')) v.embedUrl = slide.embedUrl || '';
   if (sections.includes('web')) { v.webRefreshSec = Number(slide.webRefreshSec) || 0; v.webZoom = Number(slide.webZoom) || 100; }
@@ -61,8 +63,13 @@ export function splitValues(values, changed, slide) {
   for (const k of changed) {
     const val = values[k];
     if (k === 'label') slidePatch.label = String(val || '').trim() || undefined;
-    else if (k === 'duration') slidePatch.duration = clampInt(val, 1, 600, 'Seconds on screen');
-    else if (k === 'photoInterval') slidePatch.photoInterval = clampInt(val, 1, 600, 'Seconds per photo');
+    else if (k === 'duration') { if (slide.type !== 'PDF_SLIDE') slidePatch.duration = clampInt(val, 1, 600, 'Seconds on screen'); }
+    else if (k === 'pageSeconds') {
+      const n = Math.round(Number(val));
+      if (!Number.isFinite(n) || n < PAGE_SECONDS_MIN || n > PAGE_SECONDS_MAX) throw new Error(`Seconds on each page must be a number from ${PAGE_SECONDS_MIN} to ${PAGE_SECONDS_MAX}.`);
+      slidePatch.pageSeconds = n;
+      slidePatch.duration = pdfTotalSeconds(Array.isArray(slide.pdfPages) ? slide.pdfPages.length : 1, n);
+    } else if (k === 'photoInterval') slidePatch.photoInterval = clampInt(val, 1, 600, 'Seconds per photo');
     else if (k === 'embedUrl') {
       const raw = String(val || '').trim();
       if (!raw) slidePatch.embedUrl = undefined;

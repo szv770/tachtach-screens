@@ -122,6 +122,28 @@ export function TypeFields({ slide, form, go, settings }) {
       <Hint key="ph">Sync, photo limit and which album live in Media. <LinkButton onClick={() => go?.('images', { tab: 'photos' })}>Open Photo albums</LinkButton></Hint>,
     );
   }
+  if (sections.includes('pdf')) {
+    const n = Array.isArray(slide.pdfPages) ? slide.pdfPages.length : 1;
+    out.push(
+      <Field key="ps" label="Seconds on each page" hint={`${n} page${n === 1 ? '' : 's'}. The whole PDF plays once each time the slide comes up.`}>
+        <input aria-label="Seconds on each page" inputMode="numeric" value={v.pageSeconds} onChange={(e) => /^\d*$/.test(e.target.value) && set('pageSeconds', e.target.value)} style={{ ...fieldStyle, maxWidth: '120px' }} data-testid="f-pageseconds" />
+      </Field>,
+      <Field key="pfit" label="How each page fits the screen">
+        <select aria-label="Display mode" value={v.displayMode} onChange={(e) => set('displayMode', e.target.value)} style={fieldStyle}>
+          {IMAGE_FIT.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+        </select>
+      </Field>,
+    );
+    if (v.displayMode === 'fit') {
+      out.push(
+        <Field key="pedge" label="Around a page that does not fill the screen">
+          <select aria-label="Around the page" value={v.edgeTreatment} onChange={(e) => set('edgeTreatment', e.target.value)} style={fieldStyle}>
+            {IMAGE_EDGE.filter((m) => m.value !== 'blur').map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+          </select>
+        </Field>,
+      );
+    }
+  }
   if (sections.includes('rss')) {
     out.push(
       <Field key="rm" label="Which item">
@@ -219,9 +241,9 @@ export function BasicFields({ slide, form }) {
       <Field label="Name on the slide list" htmlFor="slide-label" hint="Leave blank to use the standard name.">
         <input id="slide-label" value={v.label} placeholder={info?.label || 'Name'} onChange={(e) => form.set('label', e.target.value)} style={fieldStyle} maxLength={80} />
       </Field>
-      <Field label="Seconds on screen" htmlFor="slide-seconds">
+      {slide.type !== 'PDF_SLIDE' && <Field label="Seconds on screen" htmlFor="slide-seconds">
         <input id="slide-seconds" inputMode="numeric" value={v.duration} onChange={(e) => /^\d*$/.test(e.target.value) && form.set('duration', e.target.value)} style={{ ...fieldStyle, maxWidth: '120px' }} data-testid="f-duration" />
-      </Field>
+      </Field>}
     </>
   );
 }

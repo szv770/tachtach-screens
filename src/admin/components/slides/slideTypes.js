@@ -16,6 +16,7 @@ import { primaryText } from '../../../shared/announcements.js';
 //               { kind: 'builtin' }                   built-in page: turn on its row (or add it), then set it up
 //               { kind: 'web' }                       web address form, creates the slide here
 //               { kind: 'embed' }                     web address form for an embed slide
+//   editGo    the pencil goes to this page ({ section, tab? }) instead of opening a popup
 //   edit      sections shown in the pencil popup (see SlideEditSheet FIELD_SECTIONS); duration + label are always there
 //   deletable can the row be deleted (built-in pages are only switched off)
 //   defaults  fields a new row starts with
@@ -32,9 +33,10 @@ export const SLIDE_TYPES = [
   // Media (one card, variants inside)
   { id: 'IMAGE_SLIDE', label: 'Image', variant: 'Image', group: 'media', icon: 'image', desc: 'A picture from your library.', create: { kind: 'navigate', section: 'images', tab: 'library' }, edit: ['image', 'fullscreen'], deletable: true, defaults: { duration: 15 } },
   { id: 'VIDEO_SLIDE', label: 'Video', variant: 'Video', group: 'media', icon: 'play', desc: 'A video from your library.', create: { kind: 'navigate', section: 'images', tab: 'library' }, edit: ['fullscreen'], deletable: true, defaults: { duration: 30 } },
-  { id: 'GOOGLE_PHOTOS_SLIDE', label: 'Google Photos', variant: 'Photo album', group: 'media', icon: 'image', desc: 'A shared Google Photos album.', create: { kind: 'navigate', section: 'images', tab: 'photos' }, edit: ['photos', 'fullscreen'], deletable: true, defaults: { duration: 30 } },
-  { id: 'WEB_PAGE', label: 'Web page', variant: 'Web page', group: 'media', icon: 'external', desc: 'Show any website, such as a live fundraiser screen.', create: { kind: 'web' }, edit: ['web', 'fullscreen'], deletable: true, defaults: { label: 'Web page', duration: 30 } },
-  { id: 'RSS_SLIDE', label: 'News feed', variant: 'News feed', group: 'media', icon: 'rss', desc: 'Headlines or a daily item from a feed.', create: { kind: 'navigate', section: 'images', tab: 'feeds' }, edit: ['rss'], deletable: true, defaults: { duration: 15 } },
+  { id: 'PDF_SLIDE', label: 'PDF', variant: 'PDF', group: 'media', icon: 'copy', desc: 'A PDF shown page by page.', create: { kind: 'navigate', section: 'images', tab: 'library' }, edit: ['pdf', 'fullscreen'], deletable: true, defaults: { duration: 30, pageSeconds: 10 } },
+  { id: 'GOOGLE_PHOTOS_SLIDE', label: 'Google Photos', variant: 'Photo album', group: 'media', icon: 'image', desc: 'A shared Google Photos album.', create: { kind: 'navigate', section: 'images', tab: 'photos' }, edit: ['photos', 'fullscreen'], editGo: { section: 'images', tab: 'photos' }, deletable: true, defaults: { duration: 30 } },
+  { id: 'WEB_PAGE', label: 'Web page', variant: 'Web page', group: 'media', icon: 'external', desc: 'Show any website, such as a live fundraiser screen.', create: { kind: 'web' }, edit: ['web', 'fullscreen'], editGo: { section: 'images', tab: 'web' }, deletable: true, defaults: { label: 'Web page', duration: 30 } },
+  { id: 'RSS_SLIDE', label: 'News feed', variant: 'News feed', group: 'media', icon: 'rss', desc: 'Headlines or a daily item from a feed.', create: { kind: 'navigate', section: 'images', tab: 'feeds' }, edit: ['rss'], editGo: { section: 'images', tab: 'feeds' }, deletable: true, defaults: { duration: 15 } },
 
   // Text
   { id: 'ANNOUNCEMENT', label: 'Message', group: 'text', icon: 'message', desc: 'Text, event, list or time. Opens the composer.', create: { kind: 'composer' }, edit: [], deletable: true },
@@ -45,8 +47,8 @@ export const SLIDE_TYPES = [
   { id: 'HAYOM_YOM', label: 'Hayom Yom', group: 'builtin', icon: 'word', desc: 'The day\'s Hayom Yom teaching.', create: { kind: 'builtin' }, edit: ['hayomYom'], defaults: { duration: 25 } },
   { id: 'PIRKEI_AVOS', label: 'Pirkei Avos', group: 'builtin', icon: 'word', desc: 'This week\'s chapter. Seasonal.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 13 } },
   { id: 'WEATHER', label: 'Weather', group: 'builtin', icon: 'sun', desc: 'Current conditions and forecast.', create: { kind: 'builtin' }, edit: ['weather'], defaults: { duration: 15 } },
-  { id: 'DAILY_WORD', label: 'Daily Word', group: 'builtin', icon: 'word', desc: 'A new word every day.', create: { kind: 'builtin' }, edit: ['dailyWord'], defaults: { duration: 20 } },
-  { id: 'SCHEDULE', label: 'Schedule / Seder', group: 'builtin', icon: 'calendar', desc: 'The day\'s timetable.', create: { kind: 'builtin' }, edit: ['schedule'], defaults: { duration: 20 } },
+  { id: 'DAILY_WORD', label: 'Daily Word', group: 'builtin', icon: 'word', desc: 'A new word every day.', create: { kind: 'builtin' }, edit: ['dailyWord'], editGo: { section: 'daily-word' }, defaults: { duration: 20 } },
+  { id: 'SCHEDULE', label: 'Schedule / Seder', group: 'builtin', icon: 'calendar', desc: 'The day\'s timetable.', create: { kind: 'builtin' }, edit: ['schedule'], editGo: { section: 'schedule' }, defaults: { duration: 20 } },
   { id: 'DAILY_QUOTE', label: 'Daily Quote', group: 'builtin', icon: 'message', desc: 'A daily vort or quote.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 12 } },
   { id: 'PARSHA_TIDBITS', label: 'Parsha Tidbits', group: 'builtin', icon: 'list', desc: 'Short points on the weekly parsha.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 25 } },
 

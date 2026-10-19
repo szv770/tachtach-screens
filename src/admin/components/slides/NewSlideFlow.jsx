@@ -95,7 +95,7 @@ export default function NewSlideFlow({ open, onClose, slides, onCreate, onUpdate
           if (!created) return;
         }
         finish();
-        if (id) onEdit?.(id);
+        if (id && !t.editGo) onEdit?.(id);
       } finally { setBusy(false); }
     }
   };
@@ -107,7 +107,7 @@ export default function NewSlideFlow({ open, onClose, slides, onCreate, onUpdate
     setBusy(true);
     try {
       const created = await onCreate({ type: web.id, ...(web.defaults || {}), embedUrl: value, enabled: true });
-      if (created) { finish(); onEdit?.(created.id); }
+      if (created) { finish(); if (!web.editGo) onEdit?.(created.id); }
     } finally { setBusy(false); }
   };
 

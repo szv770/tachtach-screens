@@ -1,5 +1,6 @@
 // Shared choices + the slide a media item becomes. Pure (no React) so the uploader, the library
 // and the tests agree.
+import { PDF_DEFAULT_PAGE_SECONDS, clampPageSeconds, pdfTotalSeconds, pdfPageUrls } from '../../../shared/pdfPages.js';
 
 export const DISPLAY_MODES = [
   { value: 'fit', label: 'Fit (show full)' },
@@ -17,11 +18,28 @@ export const EDGE_TREATMENTS = [
 /** Starting options for adding an item to the screen (videos stay on for the whole clip). */
 export function defaultOptions(item) {
   const video = item?.mediaType === 'video';
-  return { label: '', displayMode: 'fit', edgeTreatment: 'blur', duration: video ? 45 : 10, fullscreen: false };
+  return { label: '', displayMode: 'fit', edgeTreatment: item?.mediaType === 'pdf' ? 'dark' : 'blur', duration: video ? 45 : 10, pageSeconds: PDF_DEFAULT_PAGE_SECONDS, fullscreen: false };
 }
 
 /** The POST /api/slides body for a media item (an upload result or a library row). */
 export function buildSlide(item, o) {
+  if (item.mediaType === 'pdf') {
+    const pages = item.pages || 1;
+    return {
+      type: 'PDF_SLIDE',
+      mediaId: item.id,
+      mediaType: 'pdf',
+      imageUrl: `/uploads/${item.filename}`,
+      pdfPages: pdfPageUrls(item.id, pages),
+      pageSeconds: clampPageSeconds(o.pageSeconds),
+      duration: pdfTotalSeconds(pages, o.pageSeconds),
+      displayMode: o.displayMode,
+      edgeTreatment: o.displayMode === 'fit' ? o.edgeTreatment : undefined,
+      fullscreen: !!o.fullscreen,
+      label: o.label || undefined,
+      enabled: true,
+    };
+  }
   const isVideo = item.mediaType === 'video';
   return {
     type: isVideo ? 'VIDEO_SLIDE' : 'IMAGE_SLIDE',
@@ -43,6 +61,7 @@ export function buildSlide(item, o) {
 
 /** One line for the closed "Display options" row. */
 export function optionsSummary(item, o) {
+  if (item?.mediaType === 'pdf') return `${(DISPLAY_MODES.find((m) => m.value === o.displayMode)?.label || 'Fit').split(' ')[0]}${o.fullscreen ? ', whole screen' : ''}`;
   if (item?.mediaType === 'video') return `Plays the whole clip${o.fullscreen ? ', whole screen' : ''}`;
   const mode = DISPLAY_MODES.find((m) => m.value === o.displayMode)?.label.split(' ')[0] || 'Fit';
   const edge = o.displayMode === 'fit' ? `, ${(EDGE_TREATMENTS.find((e) => e.value === o.edgeTreatment)?.label || '').toLowerCase()} edges` : '';

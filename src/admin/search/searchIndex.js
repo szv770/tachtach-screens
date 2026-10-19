@@ -68,6 +68,7 @@ export const SETTINGS_INDEX = [
   S('slides', 'Image slide: fit and edge look', 'picture fit fill stretch blur gradient pencil edit slide', { slide: { kind: 'edit', type: 'IMAGE_SLIDE' } }),
   S('slides', 'Google Photos slide: layout and timing', 'album collage carousel seconds per photo pencil edit slide', { slide: { kind: 'edit', type: 'GOOGLE_PHOTOS_SLIDE' } }),
   S('slides', 'News feed slide: item and look', 'rss classic grand sleek pencil edit slide', { slide: { kind: 'edit', type: 'RSS_SLIDE' } }),
+  S('slides', 'PDF slide: seconds per page and fit', 'pdf pages document flyer upload pencil edit slide', { slide: { kind: 'edit', type: 'PDF_SLIDE' } }),
   S('slides', 'Mivtzah live screen address', 'embed mivtzah url pencil edit slide', { slide: { kind: 'edit', type: 'MIVTZAH_LIVE_EMBED' } }),
   S('images', 'Upload an image, GIF or video', 'photo picture gif media library upload file', { tab: 'library', anchor: 'media-upload' }),
   S('images', 'Best picture size for this screen (recommended resolution)', 'resolution size pixels 4k 1080p 3840 1920 portrait landscape aspect ratio safe edges', { tab: 'library', anchor: 'media-size' }),
