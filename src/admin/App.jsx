@@ -17,7 +17,7 @@ import LivePreview from './components/LivePreview.jsx';
 import ScreenControls from './components/ScreenControls.jsx';
 import SlideManager from './components/SlideManager.jsx';
 import { requestSlideOpen } from './components/slides/openRequest.js';
-import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.jsx';
+import AnnouncePage from './components/announcements/AnnouncePage.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
@@ -77,6 +77,7 @@ export default function App() {
   // Announcement composer (overlay): null | an item to edit | a preset for a new one.
   const [composer, setComposer] = useState(null);
   const [quickOpen, setQuickOpen] = useState(false);
+  const [quickStart, setQuickStart] = useState(null); // a template to open straight into its fill step
   const [newOpen, setNewOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
@@ -98,6 +99,7 @@ export default function App() {
 
   const siteName = state?.settings?.siteName || 'My screen';
   const canPost = canOpenSection(role, 'announcements');
+  const myCaps = me ? (me.caps || []) : effectiveCaps({ role: 'editor' });
 
   // "/" opens search from anywhere (unless typing in a field).
   useEffect(() => {
@@ -238,7 +240,9 @@ export default function App() {
         );
       case 'announcements':
         return (
-          <AnnouncementsPanel
+          <AnnouncePage
+            caps={myCaps}
+            onUseQuick={(t) => { setQuickStart(t); setQuickOpen(true); }}
             announcements={state?.announcements || []}
             settings={state?.settings || {}}
             onSaveSettings={updateSettings}
@@ -333,8 +337,12 @@ export default function App() {
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} state={state} role={role} onRun={runAction} />
       {quickOpen && (
         <QuickAnnounceSheet
-          onClose={() => setQuickOpen(false)}
+          key={quickStart?.id || 'list'}
+          caps={myCaps}
+          startWith={quickStart}
+          onClose={() => { setQuickOpen(false); setQuickStart(null); }}
           onPost={quickPostAnnouncement}
+          onManage={() => { setQuickOpen(false); setQuickStart(null); goSection('announcements', { tab: 'quick' }); }}
         />
       )}
       {composer && (

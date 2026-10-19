@@ -19,6 +19,7 @@ export const LAYOUT_OPTIONS = [
   { value: 'quote', label: 'Quote', explain: 'A short saying, set large, with its source.' },
   { value: 'sicha', label: 'Sicha', explain: 'An excerpt at a readable size. Long text splits into pages (1/3, 2/3...).' },
   { value: 'letter', label: 'Letter', explain: 'A letter with a date, greeting, body and signature. Long letters page the same way.' },
+  { value: 'notice', label: 'Notice', explain: 'A small line, one BIG name or time, a small line. What quick messages use.' },
   { value: 'classic', label: 'Classic', explain: 'The original templates and styled cards.' },
 ];
 
@@ -118,6 +119,7 @@ export function emptyItem(display = 'slide') {
       quote: { text: '', textHe: '', source: '', sourceHe: '' },
       sicha: { title: '', titleHe: '', body: '', source: '' },
       letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
+      notice: { pre: '', focus: '', post: '', preHe: '', focusHe: '', postHe: '' },
     },
     look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
     slide: { duration: 12, label: '' },
@@ -150,6 +152,7 @@ export function withDefaults(item) {
       quote: { ...base.content.quote, ...(c.quote || {}) },
       sicha: { ...base.content.sicha, ...(c.sicha || {}) },
       letter: { ...base.content.letter, ...(c.letter || {}) },
+      notice: { ...base.content.notice, ...(c.notice || {}) },
     },
     look: { ...base.look, ...(item?.look || {}), layout: item?.look?.layout || 'classic' },
     slide: { ...base.slide, ...(item?.slide || {}) },

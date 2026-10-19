@@ -505,6 +505,21 @@ export default function AnnouncementComposer({
         <p style={{ ...label, color: colors.muted }}>Shown at a fixed readable size. If it does not fit, it splits into pages that step every 12 seconds, and a slide stays on screen long enough for all of them.</p>
       </>
     );
+  } else if (layout === 'notice') {
+    textFields = (
+      <>
+        <Field title="Small line above"><TextInput value={c.notice.pre} onChange={(v) => set('content.notice.pre', v)} ariaLabel="Small line above" /></Field>
+        <Field title="Big text (a name, a time...)"><TextInput value={c.notice.focus} onChange={(v) => set('content.notice.focus', v)} ariaLabel="Big text" /></Field>
+        <Field title="Small line below"><TextInput value={c.notice.post} onChange={(v) => set('content.notice.post', v)} ariaLabel="Small line below" /></Field>
+        <Field title="Hebrew (all three lines, optional)">
+          <TextInput rtl value={c.notice.preHe} onChange={(v) => set('content.notice.preHe', v)} ariaLabel="Small line above in Hebrew" />
+          <div style={{ height: '6px' }} />
+          <TextInput rtl value={c.notice.focusHe} onChange={(v) => set('content.notice.focusHe', v)} ariaLabel="Big text in Hebrew" />
+          <div style={{ height: '6px' }} />
+          <TextInput rtl value={c.notice.postHe} onChange={(v) => set('content.notice.postHe', v)} ariaLabel="Small line below in Hebrew" />
+        </Field>
+      </>
+    );
   } else if (layout === 'letter') {
     textFields = (
       <>

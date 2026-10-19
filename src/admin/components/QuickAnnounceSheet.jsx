@@ -1,143 +1,116 @@
 import React, { useState } from 'react';
-import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
-import useIsMobile from '../hooks/useIsMobile.js';
+import { colors, adminFonts } from '../styles/admin-tokens.js';
+import Sheet from './ui/Sheet.jsx';
+import Icon from './ui/Icon.jsx';
+import QuickFill from './quick/QuickFill.jsx';
+import { Chip, Row, Btn, ErrorLine, labelStyle, field } from './quick/bits.jsx';
+import useQuickTemplates from '../hooks/useQuickTemplates.js';
+import { can } from '../../shared/permissions.js';
+import { lengthLabel } from '../../shared/quickTemplates.js';
 import { emptyItem, endOfDay } from './announcements/helpers.js';
 
 const DURATIONS = [
   { key: '15', label: '15 min', minutes: 15 },
   { key: '60', label: '1 hour', minutes: 60 },
   { key: 'eod', label: 'Rest of today', minutes: null, eod: true },
-  { key: 'forever', label: "Until I remove it", minutes: null },
+  { key: 'forever', label: 'Until I remove it', minutes: null },
 ];
 
-/**
- * The fast path for "post something to the screen right now" — a handful of
- * fields instead of the full composer, for posting from a phone in a hurry.
- * Always creates a plain Big-words slide; anything fancier (banner, takeover,
- * a specific layout, recurrence) still goes through the full Announcements tab.
- */
-export default function QuickAnnounceSheet({ onClose, onPost }) {
-  const isMobile = useIsMobile();
-  const [headlineHe, setHeadlineHe] = useState('');
-  const [headlineEn, setHeadlineEn] = useState('');
-  const [showEnglish, setShowEnglish] = useState(false);
-  const [durationKey, setDurationKey] = useState('eod');
-  const [saving, setSaving] = useState(false);
+const showText = (t) => t.text.replace(/\{(\w+)\}/g, (_, k) => `‹${t.blanks.find((b) => b.key === k)?.label || k}›`);
+
+function TemplateRow({ t, onPick }) {
+  return (
+    <button type="button" data-testid="quick-template" data-id={t.id} onClick={() => onPick(t)} style={{
+      display: 'flex', alignItems: 'center', gap: '12px', width: '100%', minHeight: '60px', padding: '10px 14px', textAlign: 'left', cursor: 'pointer',
+      background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-md)', color: colors.text, fontFamily: adminFonts.englishBody,
+    }}>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span dir="auto" style={{ display: 'block', fontSize: '16px', fontWeight: 700, lineHeight: 1.3 }}>{showText(t)}</span>
+        <span style={{ display: 'block', fontSize: '12.5px', color: colors.dim, marginTop: '2px' }}>{lengthLabel(t.length)}{t.display !== 'slide' ? ` · ${t.display}` : ''}</span>
+      </span>
+      <Icon name="chevron" size={18} style={{ color: colors.muted }} />
+    </button>
+  );
+}
+
+/** The free-text fast path (the old Quick Announcement): a Big-words slide. */
+function WriteYourOwn({ onPost, onBack, onDone }) {
+  const [he, setHe] = useState('');
+  const [en, setEn] = useState('');
+  const [key, setKey] = useState('eod');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-
-  const canSend = headlineHe.trim() || headlineEn.trim();
-
   const submit = async () => {
-    if (!canSend || saving) return;
-    setSaving(true);
-    setError('');
+    if (busy || !(he.trim() || en.trim())) return;
+    setBusy(true); setError('');
     const item = emptyItem('slide');
-    item.content.headlineHe = headlineHe.trim();
-    item.content.headlineEn = headlineEn.trim();
-    const dur = DURATIONS.find((d) => d.key === durationKey) || DURATIONS[2];
-    item.when.expiresAt = dur.eod ? endOfDay(new Date()).toISOString() : dur.minutes ? new Date(Date.now() + dur.minutes * 60000).toISOString() : null;
+    item.content.headlineHe = he.trim();
+    item.content.headlineEn = en.trim();
+    const d = DURATIONS.find((x) => x.key === key) || DURATIONS[2];
+    item.when.expiresAt = d.eod ? endOfDay(new Date()).toISOString() : d.minutes ? new Date(Date.now() + d.minutes * 60000).toISOString() : null;
     const created = await onPost(item);
-    setSaving(false);
-    if (created) onClose();
-    else setError("Couldn't post — try again.");
+    setBusy(false);
+    if (created) onDone(created); else setError("Couldn't post. Try again.");
   };
+  return (
+    <div data-testid="quick-custom">
+      <Btn onClick={onBack} style={{ minHeight: '44px', padding: '0 14px', margin: '4px 0 12px' }}>Back</Btn>
+      <label style={labelStyle} htmlFor="qc-en">Message</label>
+      <textarea id="qc-en" autoFocus rows={2} dir="auto" placeholder="What should the screen say?" value={en} onChange={(e) => setEn(e.target.value)} style={{ ...field, resize: 'vertical', marginBottom: '10px' }} />
+      <label style={labelStyle} htmlFor="qc-he">Hebrew (optional)</label>
+      <textarea id="qc-he" dir="rtl" rows={2} placeholder="מה להודיע?" value={he} onChange={(e) => setHe(e.target.value)} style={{ ...field, resize: 'vertical', fontSize: '20px', marginBottom: '14px' }} />
+      <div style={labelStyle}>How long should it show?</div>
+      <Row style={{ marginBottom: '14px' }}>{DURATIONS.map((d) => <Chip key={d.key} on={key === d.key} onClick={() => setKey(d.key)}>{d.label}</Chip>)}</Row>
+      <ErrorLine>{error}</ErrorLine>
+      <Btn primary onClick={submit} disabled={busy || !(he.trim() || en.trim())} style={{ width: '100%', minHeight: '52px', fontSize: '16px' }}>{busy ? 'Posting…' : 'Post to screen'}</Btn>
+    </div>
+  );
+}
+
+/**
+ * The quick-message sheet (the "+" sheet's first kind, and Announce > Quick messages > Use):
+ * pick a saved template, fill its blanks, post. Everything posts as an ordinary announcement.
+ * `startWith` opens a template's fill step directly.
+ */
+export default function QuickAnnounceSheet({ onClose, onPost, onManage, caps = [], startWith = null }) {
+  const qt = useQuickTemplates();
+  const [picked, setPicked] = useState(startWith);
+  const [view, setView] = useState(startWith ? 'fill' : 'list');
+  const mine = qt.templates.filter((t) => t.mine);
+  const shared = qt.templates.filter((t) => t.shared);
+  const done = () => onClose();
 
   return (
-    <div
-      role="presentation"
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 10000,
-        background: isMobile ? 'rgba(10,8,5,.7)' : 'rgba(10,8,5,.6)',
-        display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: colors.bg,
-          border: isMobile ? 'none' : `1px solid ${colors.goldBd}`,
-          borderRadius: isMobile ? '14px 14px 0 0' : '12px',
-          width: isMobile ? '100%' : '480px',
-          maxWidth: '100%',
-          maxHeight: '92dvh',
-          overflowY: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          padding: `16px 18px calc(18px + env(safe-area-inset-bottom))`,
-          boxShadow: '0 -8px 32px rgba(0,0,0,.5)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.gold, textTransform: 'uppercase', letterSpacing: '1.5px', fontWeight: 700 }}>
-            Quick Announcement
-          </span>
-          <button onClick={onClose} aria-label="Close" style={{ background: 'transparent', border: `1px solid ${colors.muted}`, borderRadius: '6px', color: colors.dim, fontSize: '18px', cursor: 'pointer', minWidth: '40px', minHeight: '40px', lineHeight: 1, fontFamily: adminFonts.englishBody }}>
-            {'×'}
-          </button>
+    <Sheet open onClose={onClose} title="Quick message" label="Quick message" zIndex={1300}>
+      {view === 'fill' && picked && (
+        <QuickFill tpl={picked} recents={qt.recents} canTakeover={can(caps, 'announcements.takeover')} onPost={onPost}
+          onBack={startWith ? undefined : () => { setView('list'); setPicked(null); }} onDone={done} onRecents={qt.addRecents} />
+      )}
+      {view === 'custom' && <WriteYourOwn onPost={onPost} onBack={() => setView('list')} onDone={done} />}
+      {view === 'list' && (
+        <div data-testid="quick-list">
+          <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13.5px', color: colors.dim, margin: '4px 0 12px' }}>Tap one, fill in the blanks, post. It is on the screen in seconds.</p>
+          {qt.loading && <div style={{ color: colors.dim, fontFamily: adminFonts.englishBody, padding: '16px 0' }}>Loading…</div>}
+          <ErrorLine>{qt.error}</ErrorLine>
+          {mine.length > 0 && (
+            <section aria-label="My templates" style={{ marginBottom: '16px' }}>
+              <div style={labelStyle}>My templates</div>
+              <div style={{ display: 'grid', gap: '8px' }}>{mine.map((t) => <TemplateRow key={t.id} t={t} onPick={(x) => { setPicked(x); setView('fill'); }} />)}</div>
+            </section>
+          )}
+          {shared.length > 0 && (
+            <section aria-label="Shared templates" style={{ marginBottom: '16px' }}>
+              <div style={labelStyle}>Shared</div>
+              <div style={{ display: 'grid', gap: '8px' }}>{shared.map((t) => <TemplateRow key={t.id} t={t} onPick={(x) => { setPicked(x); setView('fill'); }} />)}</div>
+            </section>
+          )}
+          {!qt.loading && !qt.templates.length && !qt.error && <div style={{ color: colors.dim, fontFamily: adminFonts.englishBody, padding: '8px 0 16px' }}>No quick messages yet. Add one under Announce.</div>}
+          <Row style={{ marginTop: '8px' }}>
+            <Btn onClick={() => setView('custom')} data-testid="quick-own" style={{ flex: 1 }}>Write your own</Btn>
+            {onManage && <Btn onClick={onManage} style={{ flex: 1 }} data-testid="quick-manage">Edit my templates</Btn>}
+          </Row>
         </div>
-
-        <textarea
-          autoFocus
-          dir="rtl"
-          rows={3}
-          placeholder="מה להודיע?"
-          value={headlineHe}
-          onChange={(e) => setHeadlineHe(e.target.value)}
-          style={{ ...inputStyle, width: '100%', resize: 'vertical', fontSize: '20px', textAlign: 'right', marginBottom: '8px' }}
-        />
-
-        {showEnglish ? (
-          <input
-            type="text"
-            placeholder="English (optional)"
-            value={headlineEn}
-            onChange={(e) => setHeadlineEn(e.target.value)}
-            style={{ ...inputStyle, width: '100%', marginBottom: '14px' }}
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowEnglish(true)}
-            style={{ background: 'transparent', border: 'none', color: colors.dim, fontFamily: adminFonts.englishBody, fontSize: '13px', cursor: 'pointer', padding: '4px 0 14px', textDecoration: 'underline' }}
-          >
-            + Add English
-          </button>
-        )}
-
-        <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-          How long should it show?
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
-          {DURATIONS.map((d) => (
-            <button
-              key={d.key}
-              type="button"
-              onClick={() => setDurationKey(d.key)}
-              style={{
-                ...buttonSecondary,
-                padding: '8px 14px',
-                minHeight: '40px',
-                borderColor: durationKey === d.key ? colors.gold : colors.border,
-                background: durationKey === d.key ? colors.goldBg : buttonSecondary.background,
-                color: durationKey === d.key ? colors.gold : buttonSecondary.color,
-              }}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-
-        {error && <div style={{ color: colors.danger, fontFamily: adminFonts.englishBody, fontSize: '13px', marginBottom: '10px' }}>{error}</div>}
-
-        <button
-          type="button"
-          onClick={submit}
-          disabled={!canSend || saving}
-          style={{ ...buttonPrimary, width: '100%', minHeight: '48px', fontSize: '16px', opacity: !canSend || saving ? 0.6 : 1 }}
-        >
-          {saving ? 'Posting…' : 'Post to screen'}
-        </button>
-      </div>
-    </div>
+      )}
+    </Sheet>
   );
 }
