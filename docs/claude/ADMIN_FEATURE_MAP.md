@@ -12,14 +12,22 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 
 | Area | Feature | Admin control | Status |
 |---|---|---|---|
-| Slides | Enable/disable, reorder, per-slide duration, label | `SlideManager` | OK |
-| Slides | Fullscreen (image/video/photos/embed) | `SlideManager` | OK |
-| Slides | Zmanim visible list | Slides > Zmanim > Edit (`zmanimVisible`) | OK (now PATCH) |
-| Slides | Limudim language/items | Slides > Limudim > Edit | OK (now PATCH) |
-| Slides | Mivtzah embed URL | Slides > Embed > Edit | OK |
-| Slides | Image fit mode + edge treatment (`displayMode`, `edgeTreatment`) | Slides > Image > Edit | Fixed (was upload-only) |
+| Slides | Enable/disable (instant + Undo toast), reorder, label, seconds | `SlideManager` row + pencil popup (`slides/SlideEditSheet`) | OK (Phase 3A) |
+| Slides | New slide: 2 steps, cards by type | `slides/NewSlideFlow` over registry `slides/slideTypes.js` | OK (Phase 3A) |
+| Slides | Fullscreen (image/video/photos/embed/web) | Popup > Advanced | OK |
+| Slides | Zmanim visible list | Popup on Zmanim (`zmanimVisible`) | OK (PATCH) |
+| Slides | Limudim language/items | Popup on Limudim (`limudimLang`, `limudimItems`) | OK (PATCH) |
+| Slides | Hayom Yom language | Popup on Hayom Yom (`hayomYomLang`; also Look & Settings > What shows) | OK |
+| Slides | Weather units + rail readout | Popup on Weather (`weather.units`, `weather.enabled`; also Location & weather) | OK |
+| Slides | Web page address / reload / zoom / check | Popup on a Web page slide (`embedUrl`, `webRefreshSec`, `webZoom`, `/api/embed-probe`); created in New slide or Media > Web pages | OK |
+| Slides | Mivtzah embed URL | Popup on the embed slide | OK |
+| Slides | Image fit mode + edge treatment (`displayMode`, `edgeTreatment`) | Popup on an Image slide | OK |
+| Slides | Google Photos layout/seconds/order/Ken Burns | Popup on a Photos slide (slide fields only; album sync/limit stay in Media > Photo albums) | OK |
+| Slides | News feed item + look (`rssDisplayMode`, `style`) | Popup on a feed slide | OK |
+| Slides | Schedule / Daily Word slide | Popup has the seconds plus an "Open Schedule" / "Open Daily Word" link | OK |
 | Slides | Video slide URL, image blur backdrop | Media upload | Fixed (server whitelist dropped `videoUrl`/`blurUrl`/`edgeTreatment`/`isGif`, so new videos were blank) |
-| Slides | Delete custom slides | `SlideManager` (+ toast) | OK |
+| Slides | Delete custom slides (needs `slides.delete`) | Popup > Delete (people with delete only get a x on the row); built-in pages can only be switched off; messages are deleted in Announcements | OK |
+| Daily Word | Edit a word from "Coming up" | Pencil on every row opens the in-place form (edits the list word by id, so pinned / ordered / today's rows all work; Archive untouched) | OK |
 | Schedule | Per-date schedules, blocks, paste/import | Schedule > By date / Paste / Weekly | OK (Phase 3) |
 | Schedule | Weekly entries, categories (+ per-category default alert), templates, alerts | Schedule > Weekly | OK |
 | Schedule | Whole weekly schedule by paste (`@ every Sun-Thu`), copy as text, save/switch weekly templates (auto-backup on replace) | Schedule > Weekly > Active weekly schedule (`schedule/ScheduleWeekly.jsx`; `PUT /api/schedule/weekly`) | New |
