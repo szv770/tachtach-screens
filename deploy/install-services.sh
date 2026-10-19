@@ -47,6 +47,15 @@ render tachtach-kiosk-restart.timer
 # data/ must exist for ReadWritePaths= or the server unit fails to start.
 mkdir -p "$PROJECT_DIR/data"
 chown "$PI_USER:$PI_USER" "$PROJECT_DIR/data"
+# Secrets (password hashes, sessions, 2-step + push keys, TLS key) are owner-only.
+chmod 700 "$PROJECT_DIR/data"
+for f in users.json auth.json push.json undo.json; do
+  [ -f "$PROJECT_DIR/data/$f" ] && chmod 600 "$PROJECT_DIR/data/$f"
+done
+if [ -d "$PROJECT_DIR/data/tls" ]; then
+  chmod 700 "$PROJECT_DIR/data/tls"
+  chmod 600 "$PROJECT_DIR/data/tls/"*.key "$PROJECT_DIR/data/tls/"*.pem 2>/dev/null || true
+fi
 
 systemctl daemon-reload
 systemctl enable tachtach-server.service tachtach-kiosk.service tachtach-kiosk-restart.timer

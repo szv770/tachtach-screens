@@ -16,6 +16,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { tightenDataPermissions } from './dataPerms.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -39,7 +40,7 @@ export async function ensureLocalCert() {
   if (process.env.LOCAL_TLS === '0') return null;
   try {
     if (!existsSync(KEY) || !existsSync(CRT)) {
-      mkdirSync(DIR, { recursive: true });
+      mkdirSync(DIR, { recursive: true, mode: 0o700 });
       await run('openssl', [
         'req', '-x509', '-nodes', '-newkey', 'rsa:2048', '-sha256', '-days', '3650',
         '-keyout', KEY, '-out', CRT,
@@ -48,6 +49,7 @@ export async function ensureLocalCert() {
       ], { timeout: 30000 });
       console.log('[tls] Generated a local kiosk certificate in data/tls/');
     }
+    tightenDataPermissions({ dataDir: path.join(ROOT, 'data') }); // the private key must be 0600
     return { key: readFileSync(KEY), cert: readFileSync(CRT) };
   } catch (err) {
     console.warn(`[tls] Local HTTPS is unavailable (${err.message.split('\n')[0]}); the kiosk will use plain http.`);

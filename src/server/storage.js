@@ -1,7 +1,8 @@
-import { readFile, writeFile, rename, copyFile, mkdir, unlink } from 'fs/promises';
+import { readFile, writeFile, rename, copyFile, mkdir, unlink, chmod } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { SECRET_FILES, SECRET_FILE_MODE, DATA_DIR_MODE, tightenDataPermissions } from './dataPerms.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,8 +33,10 @@ const NO_BACKUP_FILES = new Set(['auth.json', 'users.json']);
 /**
  * Ensure the data/ and data/uploads/ directories exist.
  */
+let permsTightened = false;
 export async function ensureDataDir() {
-  await mkdir(DATA_DIR, { recursive: true });
+  await mkdir(DATA_DIR, { recursive: true, mode: DATA_DIR_MODE });
+  if (!permsTightened) { permsTightened = true; tightenDataPermissions({ dataDir: DATA_DIR }); } // data/ 0700, secret files 0600 (only what this process owns), once per start
   await mkdir(path.join(DATA_DIR, 'uploads'), { recursive: true });
   await mkdir(path.join(DATA_DIR, 'rss-cache'), { recursive: true });
 }
@@ -87,7 +90,10 @@ export async function writeJSON(filename, data) {
 
     // Write to temp file, then atomically rename
     const jsonStr = JSON.stringify(data, null, 2);
-    await writeFile(tmpPath, jsonStr, 'utf-8');
+    // Secret files are born 0600 (the rename keeps the mode), never briefly world-readable.
+    const mode = SECRET_FILES.includes(filename) ? SECRET_FILE_MODE : undefined;
+    await writeFile(tmpPath, jsonStr, { encoding: 'utf-8', ...(mode ? { mode } : {}) });
+    if (mode) await chmod(tmpPath, mode).catch(() => {}); // an old .tmp left behind keeps its mode otherwise
     try {
       await rename(tmpPath, filePath);
     } catch (renameErr) {
@@ -95,7 +101,7 @@ export async function writeJSON(filename, data) {
       // Fall back to direct write (not atomic, but better than crashing).
       if (renameErr.code === 'EPERM' || renameErr.code === 'EBUSY') {
         console.warn(`[storage] Atomic rename failed for ${filename}, falling back to direct write`);
-        await writeFile(filePath, jsonStr, 'utf-8');
+        await writeFile(filePath, jsonStr, { encoding: 'utf-8', ...(mode ? { mode } : {}) });
         // Clean up the tmp file
         await unlink(tmpPath).catch(() => {});
       } else {
