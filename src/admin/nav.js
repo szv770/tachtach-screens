@@ -8,7 +8,7 @@ export const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen' },
   { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
-  { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts', area: 'schedule' },
+  { key: 'schedule', en: 'Schedule', desc: 'Weekly timetable, one-day changes & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
   { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers', area: 'announce' },
   // Look & Settings: small sorted pages in three groups (see LOOK_GROUPS).

@@ -21,10 +21,14 @@ function findByText(scope, text) {
 
 /** Make an element's hidden surroundings visible: closed Collapsible (itself or ancestors) / <details>. */
 function reveal(el) {
+  // React applies a programmatic click a tick later, so `data-open` can't tell us we already opened this
+  // one: remember it, or the same Collapsible is clicked twice (open, then closed again).
+  const done = new Set();
   const open = (coll) => {
+    if (done.has(coll)) return;
     const body = coll.querySelector(':scope > .tt-coll-body');
     const header = coll.querySelector(':scope > button');
-    if (body && body.dataset.open !== 'true' && header) header.click();
+    if (body && body.dataset.open !== 'true' && header) { done.add(coll); header.click(); }
   };
   if (el.classList?.contains('tt-coll')) open(el);
   for (let p = el; p && p !== document.body; p = p.parentElement) {
