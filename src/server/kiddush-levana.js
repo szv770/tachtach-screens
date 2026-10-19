@@ -69,6 +69,21 @@ export async function preview(now = new Date()) {
   };
 }
 
+/**
+ * Read-modify-write of settings.json under the SAME lock as PATCH/PUT /api/settings (audit low), so a
+ * Kiddush Levana save can't read the old file and overwrite a Look/Settings save made in between.
+ * saveSettings broadcasts `settings-update`. Loaded lazily (routes/api.js is heavy and imports this file's siblings).
+ */
+export async function updateSettingsLocked(mutate) {
+  const api = await import('./routes/api.js');
+  return api.withSettingsLock(async () => {
+    const settings = (await readJSON('settings.json')) || {};
+    mutate(settings);
+    await api.saveSettings(settings, { restartScheduler: false });
+    return settings;
+  });
+}
+
 /** Admin routes (behind requireAuth + enforceRole: announcements.edit for writes). */
 export const kiddushLevanaRouter = Router();
 
@@ -79,11 +94,9 @@ kiddushLevanaRouter.get('/kiddush-levana', async (_req, res) => {
 kiddushLevanaRouter.put('/kiddush-levana/settings', async (req, res) => {
   try {
     const b = req.body || {};
-    const next = normalizeKlSettings({ ...(await readJSON('settings.json'))?.kiddushLevana, ...b });
-    const settings = (await readJSON('settings.json')) || {};
-    settings.kiddushLevana = next;
-    await writeJSON('settings.json', settings);
-    broadcast('settings-update', settings);
+    await updateSettingsLocked((settings) => {
+      settings.kiddushLevana = normalizeKlSettings({ ...settings.kiddushLevana, ...b });
+    });
     res.json(await preview());
   } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not save.' }); }
 });
@@ -113,18 +126,17 @@ kiddushLevanaRouter.put('/kiddush-levana/override/:key', async (req, res) => {
     const key = String(req.params.key);
     if (!/^-?\d{1,6}$/.test(key)) return res.status(400).json({ error: 'Unknown month.' });
     const b = req.body || {};
-    const settings = (await readJSON('settings.json')) || {};
-    const kl = normalizeKlSettings(settings.kiddushLevana);
-    const overrides = { ...kl.overrides };
-    if (b.reset === true) delete overrides[key];
-    else {
-      const next = normalizeOverrides({ [key]: { start: b.start, end: b.end, hide: b.hide === true } });
-      if (b.start != null && b.end != null && Number(b.end) <= Number(b.start)) return res.status(400).json({ error: 'The cutoff has to be after the start.' });
-      if (next[key]) overrides[key] = next[key]; else delete overrides[key];
-    }
-    settings.kiddushLevana = normalizeKlSettings({ ...settings.kiddushLevana, overrides });
-    await writeJSON('settings.json', settings);
-    broadcast('settings-update', settings);
+    if (b.reset !== true && b.start != null && b.end != null && Number(b.end) <= Number(b.start)) return res.status(400).json({ error: 'The cutoff has to be after the start.' });
+    await updateSettingsLocked((settings) => {
+      const kl = normalizeKlSettings(settings.kiddushLevana);
+      const overrides = { ...kl.overrides };
+      if (b.reset === true) delete overrides[key];
+      else {
+        const next = normalizeOverrides({ [key]: { start: b.start, end: b.end, hide: b.hide === true } });
+        if (next[key]) overrides[key] = next[key]; else delete overrides[key];
+      }
+      settings.kiddushLevana = normalizeKlSettings({ ...settings.kiddushLevana, overrides });
+    });
     res.json(await monthsPreview(req.query.count));
   } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not save.' }); }
 });

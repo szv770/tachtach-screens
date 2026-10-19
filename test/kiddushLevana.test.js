@@ -380,3 +380,12 @@ test('share text and page: rules, months, edits, questions', () => {
   assert.equal((html.match(/<tr/g) || []).length, 15);
   assert.ok(klRules({ startAfterDays: 3, endRule: 'fifteen', skipCustoms: false }).join(' ').includes('3 days after the molad'));
 });
+
+test('audit low: Kiddush Levana saves go through the shared settings lock (no raw settings.json write in the routes)', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../src/server/kiddush-levana.js', import.meta.url), 'utf8');
+  const routes = src.slice(src.indexOf('export const kiddushLevanaRouter'));
+  assert.doesNotMatch(routes.replace(/updateSettingsLocked[\s\S]*?\n}\n/, ''), /writeJSON\('settings\.json'/);
+  assert.match(src, /api\.withSettingsLock\(/);
+  assert.match(src, /api\.saveSettings\(settings, \{ restartScheduler: false \}\)/);
+});
