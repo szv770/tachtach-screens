@@ -115,12 +115,9 @@ export default function ScheduleSection(props) {
 
   return (
     <div style={{ minWidth: 0 }}>
-      <div style={{ marginBottom: '14px' }}>
-        <h2 style={{ fontFamily: 'var(--f-display)', fontSize: '28px', fontWeight: 600, color: colors.text, margin: 0 }}>Schedule</h2>
-        <p style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim, marginTop: '4px', lineHeight: 1.5 }}>
-          Your base schedule repeats every week. A date you change on its own (Shabbos, Yom Tov, a trip) wins over it.
-        </p>
-      </div>
+      <p style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim, margin: '0 0 14px', lineHeight: 1.5 }}>
+        Your base schedule repeats every week. A date you change on its own (Shabbos, Yom Tov, a trip) wins over it.
+      </p>
 
       {!hasBase ? (
         <section id="sched-week" data-testid="first-run" style={{ background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-lg)', padding: isMobile ? '20px 16px' : '28px', boxShadow: 'var(--e1)', marginBottom: '16px' }}>

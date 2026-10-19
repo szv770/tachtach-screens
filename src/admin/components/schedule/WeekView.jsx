@@ -2,25 +2,32 @@
  * The base (weekly) schedule as a simple week: Sunday-Shabbos columns on a wide screen, day chips + one
  * day's timeline on a phone. Tap a block to edit it. "Copy this day to..." and "Add a block" live here.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts, alpha } from '../../styles/admin-tokens.js';
 import Sheet from '../ui/Sheet.jsx';
 import { formatTime12 } from '../../../shared/schedulePaste.js';
 import { DAY_CODES } from '../../../shared/scheduleDays.js';
 import { blocksOnDay } from '../../../shared/scheduleWeek.js';
 import { resolveStages } from '../../../shared/scheduleStages.js';
-import { chip, Dot, DayChips, primaryBtn, secondaryBtn, subtleBtn } from './scheduleFields.jsx';
+import { chip, DayChips, primaryBtn, secondaryBtn, subtleBtn } from './scheduleFields.jsx';
 
-const WIDE_QUERY = '(min-width: 1000px)';
-function useWide() {
-  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia?.(WIDE_QUERY).matches);
+// The 7-column grid only when the page area itself is wide enough (the sidebar and live-preview panel eat space),
+// otherwise day chips + one day's timeline.
+const GRID_MIN_PX = 980;
+function useWideBox() {
+  const ref = useRef(null);
+  const [wide, setWide] = useState(false);
   useEffect(() => {
-    const mql = window.matchMedia(WIDE_QUERY);
-    const on = (e) => setWide(e.matches);
-    mql.addEventListener('change', on);
-    return () => mql.removeEventListener('change', on);
+    const el = ref.current;
+    if (!el) return undefined;
+    const measure = () => setWide(el.getBoundingClientRect().width >= GRID_MIN_PX);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
-  return wide;
+  return [ref, wide];
 }
 
 const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Shabbos'];
@@ -74,7 +81,7 @@ function CopyDaySheet({ open, from, onClose, onCopy }) {
 }
 
 export default function WeekView({ entries, categories, canEdit, onOpenBlock, onAddBlock, onCopyDay, startDay }) {
-  const wide = useWide();
+  const [boxRef, wide] = useWideBox();
   const today = new Date().getDay();
   const [day, setDay] = useState(startDay ?? today);
   const [copyFrom, setCopyFrom] = useState(null);
@@ -86,7 +93,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
   );
 
   return (
-    <div data-testid="week-view">
+    <div data-testid="week-view" ref={boxRef} style={{ minWidth: 0 }}>
       {wide ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: '10px', alignItems: 'start' }}>
           {DAY_LONG.map((name, i) => (
@@ -120,7 +127,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
             ))}
           </div>
           <div style={{ fontFamily: 'var(--f-display)', fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>{DAY_LONG[day]}{day === today ? ' (today)' : ''}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '8px' }}>
             {blocksOnDay(entries, day).map((e) => <BlockCard key={e.id} entry={e} categories={categories} onOpen={(en) => onOpenBlock(en, day)} />)}
             {count(day) === 0 && <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.muted, padding: '10px 2px' }}>Nothing scheduled on {DAY_LONG[day]}.</div>}
           </div>

@@ -242,3 +242,7 @@ Example:
 
 If I give you an existing schedule in this format and ask for changes, return the whole changed schedule in the same format.
 ````
+
+## Not in the text format
+
+Per-block **Attention stages** ("just started" minutes, in-session badge; see `docs/claude/ARCHITECTURE.md`) and category defaults are set in the admin (Schedule > a block, or Categories), not in pasted text, so "Copy as text" does not include them. Pasting a weekly schedule replaces blocks and therefore their stages; the old week is kept as an Auto-backup. The wizard and week view save through `PUT /api/schedule/weekly { entries }` instead, which keeps them.

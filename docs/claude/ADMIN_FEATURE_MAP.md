@@ -29,10 +29,13 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | Slides | Video slide URL, image blur backdrop | Media upload | Fixed (server whitelist dropped `videoUrl`/`blurUrl`/`edgeTreatment`/`isGif`, so new videos were blank) |
 | Slides | Delete custom slides (needs `slides.delete`) | Popup > Delete (people with delete only get a x on the row); built-in pages can only be switched off; messages are deleted in Announcements | OK |
 | Daily Word | Edit a word from "Coming up" | Pencil on every row opens the in-place form (edits the list word by id, so pinned / ordered / today's rows all work; Archive untouched) | OK |
-| Schedule | Per-date schedules, blocks, paste/import | Schedule > By date / Paste / Weekly | OK (Phase 3) |
-| Schedule | Weekly entries, categories (+ per-category default alert), templates, alerts | Schedule > Weekly | OK |
-| Schedule | Whole weekly schedule by paste (`@ every Sun-Thu`), copy as text, save/switch weekly templates (auto-backup on replace) | Schedule > Weekly > Active weekly schedule (`schedule/ScheduleWeekly.jsx`; `PUT /api/schedule/weekly`) | New |
-| Schedule | Claude prompt types (day/Shabbos, weekly) | Paste / Import and Weekly > "Copy Claude prompt for…" (`PROMPT_TYPES`) | New |
+| Schedule | Per-date schedules, blocks, paste/import | Schedule > Change one day / Paste / AI import (closed sections; search "change one day") | OK (Phase 4) |
+| Schedule | Weekly entries (week view + block sheet), categories (+ per-category default alert), saved schedules (templates), alerts | Schedule > week view, Categories, Saved schedules | OK (Phase 4; old Weekly tab and `ScheduleEditor.jsx` removed, nothing lost) |
+| Schedule | **Build my year schedule** wizard (days -> blocks -> review -> save; paste from AI alternative) and "Rebuild with wizard" | Schedule first view / week view (`schedule/ScheduleWizard.jsx`; `PUT /api/schedule/weekly {entries}`) | New |
+| Schedule | Copy a day to other days, change only one day of a shared block | Week view (`schedule/WeekView.jsx`, `src/shared/scheduleWeek.js`) | New |
+| Schedule | Attention stages (before-start countdown, "just started" minutes, in-session badge) per block and per category | Block sheet / Categories > Attention stages (`stages` on entries/categories; kiosk rendering is a later track) | New (admin + data only) |
+| Schedule | Whole weekly schedule by paste (`@ every Sun-Thu`), copy as text, save/switch weekly templates (auto-backup on replace) | Schedule > Paste / AI import (A whole week), week view "Copy as text", Saved schedules (`PUT /api/schedule/weekly`) | OK (moved in Phase 4) |
+| Schedule | Claude prompt types (day/Shabbos, weekly) | Paste / AI import and the wizard's "Paste from Claude / AI instead" (`PROMPT_TYPES`) | OK |
 | Settings | Weather: rail readout, units, location (read-only, from Location), Weather page toggle (WEATHER slide), Test button | Settings > Weather (`WeatherSettings`; `GET /api/weather/preview`) | Regrouped |
 | Schedule | Slide language (`settings.language`) | Settings > Schedule Display | Fixed (no UI) |
 | Schedule | Display mode / scroll speed / start | Settings > Schedule Display | OK |
