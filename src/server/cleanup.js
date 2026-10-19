@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { readdir, unlink, stat, rmdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { readJSON } from './storage.js';
+import { uploadFilesFromSettings, isFileReferenced } from '../shared/uploadRefs.js';
 import { purgeArchived } from './announcements-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -22,7 +23,7 @@ const DAY_MS = 24 * HOUR_MS;
  */
 async function getReferencedUploadFiles() {
   const slides = (await readJSON('slides.json')) ?? [];
-  const referenced = new Set();
+  const referenced = new Set(uploadFilesFromSettings(await readJSON('settings.json')));
 
   for (const slide of slides) {
     // filename and blurFilename are stored as bare filenames
@@ -54,21 +55,6 @@ async function getReferencedUploadFiles() {
   }
 
   return referenced;
-}
-
-/**
- * Check if a file in uploads/ is referenced by any slide.
- */
-function isFileReferenced(filename, referencedFiles) {
-  if (referencedFiles.has(filename)) return true;
-
-  // Also check by mediaId prefix match (UUID-based files like UUID.jpg, UUID-blur.jpg)
-  for (const ref of referencedFiles) {
-    if (filename.startsWith(ref + '.') || filename.startsWith(ref + '-')) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /**

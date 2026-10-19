@@ -43,8 +43,9 @@ export default function LogoPage({ settings = {}, onSave, slides = [] }) {
       if (!res.ok) { const b = await res.json().catch(() => ({})); notify(b.error || 'Logo upload failed.', 'error'); return; }
       const data = await res.json();
       // The server already replaced the old file, so save the new URL now (the screen would point at a deleted file otherwise).
-      const ok = await onSave({ credit: { logo: { ...(settings.credit?.logo || {}), url: data.url } } }, 'Logo uploaded');
-      if (ok !== false) form.setValues((v) => ({ ...v, credit: { ...(v.credit || {}), logo: { ...(v.credit?.logo || {}), url: data.url } } }));
+      // The logo only shows while the credit line is on, so uploading one turns it on (a logo that silently stays hidden looked like a bug).
+      const ok = await onSave({ credit: { enabled: true, logo: { ...(settings.credit?.logo || {}), url: data.url } } }, 'Logo uploaded');
+      if (ok !== false) form.setValues((v) => ({ ...v, credit: { ...(v.credit || {}), enabled: true, logo: { ...(v.credit?.logo || {}), url: data.url } } }));
     } catch { notify('Logo upload failed.', 'error'); } finally { setUploading(false); e.target.value = ''; }
   };
   const remove = async () => {
