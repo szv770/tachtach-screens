@@ -36,8 +36,8 @@ function Plain({ text }) {
 }
 
 function Terminal({ text, portrait, still }) {
-  const { light } = useDesign();
-  const ink = light ? 'color-mix(in srgb, var(--accent) 45%, #fff)' : 'var(--accent)';
+  // Always a real terminal: phosphor green on black, whatever the theme (owner: 'nerdy feel').
+  const ink = '#6df08f';
   const n = [...text].length;
   const heb = HE.test(text);
   const avail = portrait ? 760 : 1400;

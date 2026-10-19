@@ -36,7 +36,7 @@ export const FALLBACK_WAKE_MINUTES = 6 * 60;
 const MIN = 60000;
 
 export function defaultConfig() {
-  return { manual: null, scheduleEnabled: false, windows: [], resumed: [], emergency: false };
+  return { manual: null, scheduleEnabled: false, windows: [], resumed: [], emergency: true };
 }
 
 // ── small helpers ───────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ export function sanitizeConfig(raw) {
     scheduleEnabled: r.scheduleEnabled === true,
     windows: sanitizeWindows(r.windows),
     resumed: (Array.isArray(r.resumed) ? r.resumed : []).filter((k) => typeof k === 'string' && /^[\w-]+@\d{4}-\d{2}-\d{2}$/.test(k)).slice(-30),
-    emergency: r.emergency === true,
+    emergency: r.emergency !== false, // default ON: an Emergency-style takeover shows through a freeze
   };
 }
 

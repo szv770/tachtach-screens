@@ -45,7 +45,7 @@ test('a timed freeze resumes by itself, with no leftover state', async () => {
   h.clock += 2 * 60000; await c.evaluate();
   assert.equal(c.getKioskView().active, null);
   assert.equal(h.disk.manual, null);
-  assert.deepEqual(h.events.at(-1).data, { active: null, emergency: false });
+  assert.deepEqual(h.events.at(-1).data, { active: null, emergency: true });
 });
 
 test('survives a restart (re-armed from freeze.json) and drops one that ran out while down', async () => {
@@ -97,10 +97,10 @@ test('manual freeze beats the window; schedule validation and the emergency sett
   await c.set({ mode: 'message', message: 'Hi', duration: 'manual' });
   assert.equal(c.getKioskView().active.source, 'manual');
   await assert.rejects(c.saveSchedule({ windows: [{ days: [], from: '1:00', to: '2:00' }] }), FreezeError);
+  assert.equal(c.getKioskView().emergency, true); // default ON
+  await c.saveSchedule({ emergency: false });
   assert.equal(c.getKioskView().emergency, false);
-  await c.saveSchedule({ emergency: true });
-  assert.equal(c.getKioskView().emergency, true);
-  assert.equal(h.disk.emergency, true);
+  assert.equal(h.disk.emergency, false);
 });
 
 test('Resume with the same view does not re-broadcast on idle ticks', async () => {

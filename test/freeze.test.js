@@ -171,7 +171,8 @@ test('sanitizers drop junk and cap lengths', () => {
   assert.notEqual(w[1].id, 'x');
   const c = sanitizeConfig({ manual: { mode: 'message', message: 'm'.repeat(500), until: 'nope' }, emergency: 'yes' });
   assert.equal(c.manual, null);
-  assert.equal(c.emergency, false);
+  assert.equal(c.emergency, true);
+  assert.equal(sanitizeConfig({ emergency: false }).emergency, false);
   assert.equal(sanitizeConfig({ manual: { mode: 'message', message: 'm'.repeat(500) } }).manual.message.length, 120);
   assert.deepEqual(sanitizeConfig(null), defaultConfig());
 });
