@@ -2,17 +2,17 @@ import React from 'react';
 import { F, he, Bidi } from '../../design/ui.jsx';
 import { isHebrew } from '../../design/time.js';
 import { BANNER_HEIGHT } from './Banner.jsx';
+import { startedLines } from '../../../shared/stageStrings.js';
 
 /**
  * Attention stage 2 (src/shared/stageNow.js): "Seder just started", in the banner row for the
  * few minutes after a block begins. An accent strip (the one loud banner), static: no motion,
- * never pauses the rotation. English "<name> just started" and Hebrew "עכשיו: <name>" (a
- * gender-neutral form: "now: X"), each only when that name exists.
+ * never pauses the rotation. English "<name> just started" and Hebrew "כעת: <name>" (gender-neutral "now: X"); the words are in
+ * src/shared/stageStrings.js, each line only when that name exists.
  */
 export default function StageBanner({ started }) {
   if (!started) return null;
-  const en = started.name ? `${started.name} just started` : '';
-  const hbName = started.nameHe ? `עכשיו: ${started.nameHe}` : '';
+  const { en, he: hbName } = startedLines(started); // wording lives in src/shared/stageStrings.js
   const enIsHe = isHebrew(started.name);
   return (
     <div data-stage="started" style={{

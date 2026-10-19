@@ -1,4 +1,5 @@
 import React from 'react';
+import { sessionKicker } from '../../shared/stageStrings.js';
 import Clock from './Clock.jsx';
 import PinnedNotes from './PinnedNotes.jsx';
 import { CreditContent, creditShown, creditSpot } from './Credit.jsx';
@@ -122,6 +123,7 @@ export function SessionBadge({ item, align = 'left' }) {
   if (!item) return null;
   const end = fmt12(item.endMins);
   const nameHe = item.nameHe;
+  const kicker = sessionKicker(item); // wording: src/shared/stageStrings.js
   const right = align === 'right';
   return (
     <div data-stage="session" style={{
@@ -129,7 +131,10 @@ export function SessionBadge({ item, align = 'left' }) {
       padding: '14px 22px 16px', textAlign: align,
       [right ? 'borderRight' : 'borderLeft']: '8px solid var(--accent)',
     }}>
-      <div style={{ fontFamily: F.en, fontSize: 19, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Now in session</div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, justifyContent: right ? 'flex-end' : 'flex-start', color: 'var(--accent)' }}>
+        <span style={{ fontFamily: F.en, fontSize: 19, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>{kicker.en}</span>
+        {kicker.he && <Bidi text={kicker.he} fallback="rtl" style={{ fontFamily: F.he, fontSize: he(22), fontWeight: 600 }} />}
+      </div>
       {nameHe ? (
         <Bidi as="div" text={nameHe} fallback="rtl" style={{ fontFamily: F.heD, fontSize: he(36), fontWeight: 600, lineHeight: 1.15, marginTop: 4, textAlign: align }} />
       ) : (
