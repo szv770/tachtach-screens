@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
 import pushRouter from './routes/push.js';
+import statusRouter from './routes/status.js';
 import { startPushMonitor } from './push.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
@@ -445,6 +446,7 @@ export function createApp() {
   app.use('/api', savedLettersRouter);
   app.use('/api', kiddushLevanaRouter);
   app.use('/api', dailyWordsRouter);
+  app.use('/api', statusRouter); // /screen/status + /health (read-only)
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);

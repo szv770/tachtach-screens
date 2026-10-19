@@ -1,6 +1,9 @@
 import crypto from 'crypto';
 
 const clients = new Map(); // id -> { res, isPreview }
+// When a real screen (not the admin preview) was last on the stream: now while one is connected,
+// else when the last one dropped. Read by /api/screen/status and the health check. In memory only.
+let kioskLastSeenAt = null;
 const MAX_KIOSK_CLIENTS = 20;
 const MAX_PREVIEW_CLIENTS = 10;
 
@@ -34,10 +37,12 @@ export function addClient(res, isPreview = false) {
   res.write(`data: ${JSON.stringify({ type: 'connected', data: { id } })}\n\n`);
 
   clients.set(id, { res, isPreview });
+  if (!isPreview) kioskLastSeenAt = Date.now();
 
   // Remove on disconnect
   res.on('close', () => {
     clients.delete(id);
+    if (!isPreview) kioskLastSeenAt = Date.now();
   });
 
   // Enforce max clients — separate limits for kiosk vs preview, evict oldest of same type
@@ -99,6 +104,11 @@ export function getKioskClientCount() {
   let n = 0;
   for (const [, c] of clients) if (!c.isPreview) n++;
   return n;
+}
+
+/** Epoch ms the real screen was last connected (null = not since this server started). */
+export function getKioskLastSeenAt() {
+  return getKioskClientCount() > 0 ? Date.now() : kioskLastSeenAt;
 }
 
 /**

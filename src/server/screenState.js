@@ -5,7 +5,7 @@
 
 import { sanitizeDisplay } from '../shared/screenSize.js';
 
-let state = { slideIndex: 0, slideId: null, isPaused: false };
+let state = { slideIndex: 0, slideId: null, isPaused: false, reportedAt: null };
 // What the real screen last said about its own size ({ width, height, dpr, orientation, canvas, reportedAt }).
 // In memory only: the kiosk re-reports on load, on resize and every few minutes.
 let display = null;
@@ -27,4 +27,6 @@ export function setScreenState({ slideIndex, slideId, isPaused, display: reporte
   if (typeof slideIndex === 'number') state.slideIndex = slideIndex;
   if (slideId !== undefined) state.slideId = slideId;
   if (typeof isPaused === 'boolean') state.isPaused = isPaused;
+  // The kiosk itself reported (not the admin's pause/resume buttons, which pass only isPaused).
+  if (typeof slideIndex === 'number' || slideId !== undefined) state.reportedAt = Date.now();
 }
