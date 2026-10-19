@@ -107,12 +107,41 @@ export function UpNextCard({ item, align = 'left' }) {
   );
 }
 
+/**
+ * "Now in session: Night Seder · ends 9:45 AM" (attention stage 3). A quiet raised card with an
+ * accent bar (the up-next card is the loud accent-filled one); static, no animation.
+ */
+export function SessionBadge({ item, align = 'left' }) {
+  if (!item) return null;
+  const end = fmt12(item.endMins);
+  const nameHe = item.nameHe;
+  const right = align === 'right';
+  return (
+    <div data-stage="session" style={{
+      background: 'var(--raised)', borderRadius: 22, width: '100%', marginBottom: 14, flex: 'none', boxSizing: 'border-box',
+      padding: '14px 22px 16px', textAlign: align, borderInlineStart: 'none',
+      [right ? 'borderRight' : 'borderLeft']: '8px solid var(--accent)',
+    }}>
+      <div style={{ fontFamily: F.en, fontSize: 19, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--accent)' }}>Now in session</div>
+      {nameHe ? (
+        <Bidi as="div" text={nameHe} fallback="rtl" style={{ fontFamily: F.heD, fontSize: he(36), fontWeight: 600, lineHeight: 1.15, marginTop: 4, textAlign: align }} />
+      ) : (
+        <Bidi as="div" text={item.name} style={{ fontFamily: F.enD, fontSize: 34, fontWeight: 700, lineHeight: 1.15, marginTop: 4, textAlign: align }} />
+      )}
+      {nameHe && item.name && <Bidi as="div" text={item.name} style={{ fontFamily: F.en, fontSize: 22, color: 'var(--dim)', marginTop: 2, textAlign: align }} />}
+      <div style={{ fontFamily: F.en, fontSize: 23, color: 'var(--dim)', marginTop: 6, fontWeight: 500 }}>
+        {item.endKind === 'until' ? 'until' : 'ends'} <span className="tt-num" style={{ color: 'var(--text)', fontWeight: 600 }}>{end.t}</span> {end.ap}
+      </div>
+    </div>
+  );
+}
+
 export default function Rail({
-  clock, cache = {}, settings = {}, customDays, notes = [], upNext = null, weather, credit, portrait = false, side = 'left', now = new Date(),
+  clock, cache = {}, settings = {}, customDays, notes = [], upNext = null, session = null, weather, credit, portrait = false, side = 'left', now = new Date(),
 }) {
   const { graphics } = useDesign();
   const vis = settings.visibility || {};
-  const busy = !!upNext || notes.length > 0;
+  const busy = !!upNext || !!session || notes.length > 0;
   const align = side === 'right' && !portrait ? 'right' : 'left';
   const hd = vis.hebrewDate !== false ? hebrewDateText(cache.hebrewDate) : '';
   const parsha = vis.parsha !== false && (cache.parsha?.hebrew || cache.parsha?.name) ? cache.parsha : null;
@@ -179,6 +208,7 @@ export default function Rail({
   const wx = showWeather ? <WeatherReadout weather={weather} busy={busy} compact={portrait} align={align} /> : null;
   const cards = (
     <>
+      <SessionBadge item={session} align={align} />
       <UpNextCard item={upNext} align={align} />
       <PinnedNotes pinned={notes} visibility={vis} align={align} />
     </>
@@ -191,7 +221,7 @@ export default function Rail({
         <div style={{ gridColumn: 2, gridRow: 1, textAlign: 'right' }}>{dates}</div>
         <div style={{ gridColumn: 1, gridRow: 2, marginTop: 28, alignSelf: 'center' }}>{wx}</div>
         <div style={{ gridColumn: 2, gridRow: 2, marginTop: 28, alignSelf: 'center' }}>{parshaEl}</div>
-        {(upNext || notes.length > 0) && <div style={{ gridColumn: '1 / -1', marginTop: 22 }}>{cards}</div>}
+        {(upNext || session || notes.length > 0) && <div style={{ gridColumn: '1 / -1', marginTop: 22 }}>{cards}</div>}
       </div>
     );
   }

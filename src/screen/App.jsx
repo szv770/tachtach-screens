@@ -18,7 +18,9 @@ import HiddenAccess from './components/HiddenAccess.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
-import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
+import { getEffectiveSchedule, toISODate, addDaysISO } from '../shared/scheduleResolution.js';
+import { computeStageNow } from '../shared/stageNow.js';
+import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 
 /**
@@ -442,6 +444,20 @@ function AppContent() {
     }
   }
 
+  // Attention stages 2 and 3 (src/shared/stageNow.js): "X just started" banner and the rail's
+  // "Now in session" badge. Computed here from the effective schedules of today and yesterday
+  // (a block can run past midnight); same gating as the up-next card.
+  let stageNow = { started: null, session: null };
+  if (isScheduleSlideOn(state?.slides)) {
+    const yISO = addDaysISO(scheduleDateISO, -1);
+    stageNow = computeStageNow({
+      today: effectiveSchedule.entries,
+      yesterday: getEffectiveSchedule(state?.schedule, state?.scheduleDates, yISO).entries,
+      categories: effectiveSchedule.categories,
+      nowMins: nowDate.getHours() * 60 + nowDate.getMinutes() + nowDate.getSeconds() / 60,
+    });
+  }
+
   const rail = (
     <Rail
       clock={clock}
@@ -450,6 +466,7 @@ function AppContent() {
       customDays={state?.customDays}
       notes={ann.notes.map(toNoteRow)}
       upNext={upNext}
+      session={stageNow.session}
       weather={state?.cache?.weather}
       credit={settings.credit}
       portrait={isPortrait}
@@ -488,7 +505,10 @@ function AppContent() {
   );
 
   const liveBanners = ann.banners.map(toBannerRow);
-  const banner = liveBanners.length > 0 ? (
+  // "X just started" replaces the banner row for its few minutes; other banners come back after.
+  const banner = stageNow.started && !ann.takeover ? (
+    <StageBanner started={stageNow.started} />
+  ) : liveBanners.length > 0 ? (
     <Banner banners={liveBanners} bannerSettings={settings.banner} motion={settings.motion} />
   ) : null;
 
