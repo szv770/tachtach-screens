@@ -4,7 +4,7 @@ import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
 import { canOpenSection, effectiveCaps } from '../shared/permissions.js';
 import AdminLayout from './components/AdminLayout.jsx';
-import { SECTION_KEYS, SECTION_ALIASES, resolveTarget } from './nav.js';
+import { SECTION_KEYS, SECTION_ALIASES, SECTION_TABS, resolveTarget } from './nav.js';
 import { writeQueryParam } from './hooks/useQueryParam.js';
 import Home from './components/Home.jsx';
 import GlobalSearch from './components/GlobalSearch.jsx';
@@ -68,7 +68,7 @@ export default function App() {
     if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return false; }
     if (key !== routeSection && !confirmLeave()) return false;
     setRouteSection(key);
-    if (key === 'images') writeQueryParam('tab', tab);
+    if (SECTION_TABS[key]) writeQueryParam('tab', tab);
     return true;
   }, [role, routeSection, setRouteSection]);
   // Go to a section, optionally on one of its tabs (Media: library | photos | web | feeds). Returns false when the person

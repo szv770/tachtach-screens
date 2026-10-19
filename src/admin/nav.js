@@ -57,6 +57,18 @@ export const MEDIA_TABS = [
 export const MEDIA_TAB_VALUES = MEDIA_TABS.map((t) => t.value);
 export const DEFAULT_MEDIA_TAB = 'library';
 
+/** The Announce page's tabs (`/admin/announcements?tab=posts|quick|letters`; the first is the default). */
+export const ANNOUNCE_TABS = [
+  { value: 'posts', label: 'Announcements' },
+  { value: 'quick', label: 'Quick messages' },
+  { value: 'letters', label: 'Letters' },
+];
+export const ANNOUNCE_TAB_VALUES = ANNOUNCE_TABS.map((t) => t.value);
+export const DEFAULT_ANNOUNCE_TAB = 'posts';
+
+/** Sections that keep a tab in the address bar. */
+export const SECTION_TABS = { images: MEDIA_TAB_VALUES, announcements: ANNOUNCE_TAB_VALUES };
+
 /**
  * Turn anything a link or button can ask for into { section, tab }:
  * 'images', 'images?tab=web', and the retired 'rss-feeds' (= Media > News feeds).
@@ -66,7 +78,7 @@ export function resolveTarget(raw) {
   let section = SECTION_ALIASES[path] || path;
   let tab = new URLSearchParams(query).get('tab') || null;
   if (path === 'rss-feeds' && !tab) tab = 'feeds';
-  if (section !== 'images' || !MEDIA_TAB_VALUES.includes(tab)) tab = null;
+  if (!SECTION_TABS[section]?.includes(tab)) tab = null;
   return { section, tab };
 }
 
