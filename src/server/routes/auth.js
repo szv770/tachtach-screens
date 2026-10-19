@@ -3,6 +3,7 @@ import users, { validatePassword, normalizeUsername } from '../users.js';
 import activity from '../activity.js';
 import { csrfProtection } from '../middleware.js';
 import { loginPage, invitePage, signinPage, noticePage } from '../authPages.js';
+import { withNonce } from '../csp.js';
 
 const router = Router();
 
@@ -90,7 +91,7 @@ router.get('/login', async (req, res) => {
     return res.redirect(safeNext(req.query.next));
   }
   // The username box only appears once there is more than one person.
-  res.send(loginPage({ askUsername: (await users.userCount()) > 1 }));
+  res.send(withNonce(loginPage({ askUsername: (await users.userCount()) > 1 }), res.locals.cspNonce));
 });
 
 // ─── POST /login ─────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ router.get('/invite/:token', async (req, res) => {
   const peek = await users.peekLink(req.params.token, 'invite');
   if (peek.state !== 'ok') return res.status(404).send(noticePage({ title: 'Invite', message: LINK_GONE[peek.state] }));
   const { name, username, role } = peek.user;
-  res.send(invitePage({ token: req.params.token, name, username, role }));
+  res.send(withNonce(invitePage({ token: req.params.token, name, username, role }), res.locals.cspNonce));
 });
 
 router.post('/invite/:token', async (req, res) => {
@@ -210,7 +211,7 @@ router.get('/signin/:token', async (req, res) => {
   noStore(res);
   const peek = await users.peekLink(req.params.token, 'signin');
   if (peek.state !== 'ok') return res.status(404).send(noticePage({ title: 'Sign-in link', message: LINK_GONE[peek.state] }));
-  res.send(signinPage({ token: req.params.token, name: peek.user.name }));
+  res.send(withNonce(signinPage({ token: req.params.token, name: peek.user.name }), res.locals.cspNonce));
 });
 
 router.post('/signin/:token', async (req, res) => {

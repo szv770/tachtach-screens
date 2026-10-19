@@ -14,10 +14,7 @@
   <title>TachTach-Screens — Admin</title>
   <link rel="stylesheet" href="/splash/splash.css">
   <script src="/splash/splash.js"></script>
-  <script>
-    /* Apply the saved Light/Dark choice before first paint (no flash). Default = follow the device. */
-    try { var t = localStorage.getItem('tachtach-admin-theme-v2'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
-  </script>
+  <script src="/splash/theme-init.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html { -webkit-text-size-adjust: 100%; }

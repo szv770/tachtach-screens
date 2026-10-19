@@ -12,6 +12,7 @@ import { startPushMonitor } from './push.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
+import { cspMiddleware } from './csp.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
@@ -171,6 +172,7 @@ export function createApp() {
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     next();
   });
+  app.use(cspMiddleware); // Content-Security-Policy for /admin, /screen, /login, /invite, /signin
 
   // ── 0c. Never let an intermediary (Cloudflare Tunnel, browser bfcache) cache
   // auth-sensitive responses — a cached /login or /admin response served back
