@@ -2,6 +2,14 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
+## Added 2026-10-19 (owner, after phases 5-6 reports) — next pass
+
+- **Kiddush Levana: upcoming-months view** — show many months ahead (12-24) in a clean sleek list (molad, can start, cutoff, last night) in Announce > Kiddush Levana, with a printable/shareable view for the rabbi, and let the admin EDIT a month (override start/end, or skip/hide a month). Rail note: English by default, Hebrew as an optional extra (not forced). Confirm cutoff/customs with the rabbi (see docs/kiddush-levana-next-14-months.md). Window that opens in the small hours counts from that moment; first real evening is the next night (owner OK'd by not objecting; explain plainly).
+- **Seder stages by category kind** — each schedule category gets a kind (Seder / Davening / Break / Meal / Other); Seder-kind gets the full 'Get moving' urgency + 'just started' + in-session badge; Break/Meal get no urgency (or a soft one). Defaults per kind, per-entry override stays. End times matter: owner will enter end times for everything.
+- **Long text = sleek auto-scroll instead of pages** for Sicha, Letter and Hayom Yom (and Tanya/long quotes): one slide, smooth slow vertical scroll (transform only, finite per slide, fade-edge overlays, no blur), speed by length; keep pagination as a fallback when motion is Minimal. Upgrade both layouts together.
+- **Better Hebrew wording for the in-session badge** (currently 'עכשיו: X') — find a natural, gender-neutral line (e.g. 'כעת בסדר: X' / 'בעיצומו: X' — check with a native speaker).
+- Banner row holds one strip: the 'just started' banner replacing other banners for a few minutes is accepted.
+
 ## Added 2026-10-14 (owner, after seeing the new screen + admin)
 
 ### Google Photos
