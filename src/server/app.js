@@ -13,12 +13,13 @@ import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
 import { cspMiddleware } from './csp.js';
+import { publicErrorMessage } from './safeError.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
 import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
-import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import quickTemplatesRouter from './routes/quick-templates.js';
 import savedLettersRouter from './routes/saved-letters.js';
+import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
@@ -187,7 +188,7 @@ export function createApp() {
   // ── 1. Body parsing ──────────────────────────────────────────────────
   // /api/schedule/dates* and /blocks* parse their own bodies (256 kB — a
   // pasted multi-week schedule is bigger than 16 kB); see routes/schedule-dates.js.
-  // /api/daily-words does too (512 kB): the whole word list is saved at once and
+  // /api/daily-words does too (256 kB, the client no longer sends the archive): the whole word list is saved at once and
   // is ~20 kB, so the 16 kB cap here made every edit fail with "request entity
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
@@ -433,9 +434,9 @@ export function createApp() {
   app.use('/api', teamRouter);
   app.use('/api', pushRouter);
   app.use('/api', announcementsRouter);
-  app.use('/api', dailyWordsRouter);
   app.use('/api', quickTemplatesRouter);
   app.use('/api', savedLettersRouter);
+  app.use('/api', dailyWordsRouter);
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
@@ -460,9 +461,9 @@ export function createApp() {
       return res.status(400).json({ error: 'Invalid request data. Check the format and try again.' });
     }
 
-    res.status(err.status || 500).json({
-      error: err.expose ? err.message : 'An unexpected error occurred. Please try again.',
-    });
+    // Never echo err.message (can carry paths / internals): fixed text per status.
+    const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 600 ? err.status : 500;
+    res.status(status).json({ error: publicErrorMessage(status) });
   });
 
   return app;

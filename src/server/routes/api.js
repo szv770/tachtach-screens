@@ -1,3 +1,4 @@
+import { clientError, isClientError, networkReason } from '../safeError.js';
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -49,7 +50,7 @@ const fontUpload = multer({
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (FONT_EXTS.includes(ext)) cb(null, true);
-    else cb(new Error('Only .ttf, .otf, .woff, and .woff2 font files are allowed.'));
+    else cb(clientError('Only .ttf, .otf, .woff, and .woff2 font files are allowed.'));
   },
 });
 
@@ -599,7 +600,7 @@ router.get('/weather/preview', async (req, res) => {
       hi: w.today?.hi ?? null, lo: w.today?.lo ?? null, fetchedAt: w.fetchedAt,
     });
   } catch (err) {
-    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${err.message}. Check the zip code and that the Pi is online.` });
+    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${networkReason(err)}. Check the zip code and that the Pi is online.` });
   }
 });
 
@@ -690,7 +691,7 @@ const logoUpload = multer({
   limits: { fileSize: 2 * 1024 * 1024 }, // 2 MB
   fileFilter: (_req, file, cb) => {
     if (LOGO_TYPES.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Allowed logo formats: JPEG, PNG, SVG, WebP.'));
+    else cb(clientError('Allowed logo formats: JPEG, PNG, SVG, WebP.'));
   },
 });
 
@@ -700,7 +701,7 @@ router.post('/logo', (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ error: 'Logo too large. Maximum size is 2 MB.' });
       }
-      return res.status(400).json({ error: err.message || 'Logo upload rejected.' });
+      return res.status(400).json({ error: isClientError(err) ? err.message : 'Logo upload rejected.' });
     }
     next();
   });
@@ -760,7 +761,7 @@ router.post('/upload', (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ error: 'File too large. Maximum size is 50 MB.' });
       }
-      if (err.message) {
+      if (isClientError(err)) {
         return res.status(400).json({ error: err.message });
       }
       return res.status(400).json({ error: 'Upload rejected.' });
@@ -1017,7 +1018,7 @@ router.post('/fonts', (req, res, next) => {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(413).json({ error: 'Font file too large. Maximum size is 5 MB.' });
       }
-      return res.status(400).json({ error: err.message || 'Font upload rejected.' });
+      return res.status(400).json({ error: isClientError(err) ? err.message : 'Font upload rejected.' });
     }
     next();
   });
@@ -1095,7 +1096,7 @@ router.post('/rss/preview', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('[api] POST /rss/preview error:', err.message);
-    res.status(502).json({ error: `Failed to fetch feed: ${err.message}` });
+    res.status(502).json({ error: `Failed to fetch feed: ${networkReason(err)}` });
   }
 });
 

@@ -4,6 +4,7 @@ import activity from '../activity.js';
 import { csrfProtection } from '../middleware.js';
 import { loginPage, invitePage, signinPage, noticePage } from '../authPages.js';
 import { withNonce } from '../csp.js';
+import { sendPush } from '../push.js';
 
 const router = Router();
 
@@ -150,6 +151,15 @@ async function totpStep(req, res, stage) {
     clearPreAuthCookie(res);
     await startSession(req, res, pre.user, stage === 'enroll' ? 'Signed in (set up 2-step)' : 'Signed in');
     setTrustedCookie(req, res, await users.trustDevice(pre.user.id));
+    if (stage === 'enroll') {
+      // A password alone can enrol a fresh authenticator (audit L2): make that visible.
+      activity.record({ user: pre.user, action: 'Linked a new authenticator app (first-time 2-step set-up)' }).catch(() => {});
+      sendPush({
+        title: 'New 2-step sign-in set up',
+        body: `${pre.user.name || pre.user.username} linked an authenticator app and signed in. If that wasn't them, open Team and remove the login.`,
+        tag: 'totp-enroll',
+      }).catch(() => {});
+    }
     return res.status(200).json({ success: true });
   } catch (err) {
     console.error('[auth] 2-step error:', err.message);

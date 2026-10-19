@@ -100,7 +100,7 @@ export default function DailyWordPanel() {
 
   const save = async (next, okMsg) => {
     setBusy(true);
-    try { setFile(await apiFetch('/api/daily-words', { method: 'PUT', body: JSON.stringify(next) })); if (okMsg) show(okMsg); return true; }
+    try { setFile(await apiFetch('/api/daily-words', { method: 'PUT', body: JSON.stringify((({ history, ...rest }) => rest)(next)) }  /* history is the server's own; keeps the body small */)); if (okMsg) show(okMsg); return true; }
     catch (e) { show(e.message, 'error'); return false; }
     finally { setBusy(false); }
   };

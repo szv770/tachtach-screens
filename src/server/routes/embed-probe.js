@@ -6,6 +6,7 @@
  * forbid framing. SSRF-guarded: http(s) only, and the host must not resolve to
  * a loopback / private / link-local address (also re-checked after redirects).
  */
+import { clientError, isClientError, networkReason } from '../safeError.js';
 import { Router } from 'express';
 import dns from 'dns/promises';
 import fetch from 'node-fetch';
@@ -17,9 +18,9 @@ const MAX_REDIRECTS = 5;
 
 async function assertPublic(u) {
   const host = u.hostname.replace(/^\[|\]$/g, '');
-  if (isPrivateAddress(host)) throw new Error('That address is on a private network.');
+  if (isPrivateAddress(host)) throw clientError('That address is on a private network.');
   const addrs = await dns.lookup(host, { all: true });
-  if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) throw new Error('That address is on a private network.');
+  if (!addrs.length || addrs.some((a) => isPrivateAddress(a.address))) throw clientError('That address is on a private network.');
 }
 
 /**
@@ -48,9 +49,9 @@ export async function fetchHeaders(startUrl, { guard = assertPublic, timeoutMs =
       res.headers.forEach((v, k) => { headers[k.toLowerCase()] = v; });
       return { status: res.status, headers, finalUrl: url };
     }
-    throw new Error('Too many redirects.');
+    throw clientError('Too many redirects.');
   } catch (err) {
-    if (ctrl.signal.aborted) throw new Error('The site took too long to answer (over 10 seconds).');
+    if (ctrl.signal.aborted) throw clientError('The site took too long to answer (over 10 seconds).');
     throw err;
   } finally {
     clearTimeout(timer);
@@ -79,7 +80,7 @@ router.get('/embed-probe', async (req, res) => {
         : policy.reason,
     });
   } catch (err) {
-    res.status(502).json({ error: `Could not reach the site: ${err.message}` });
+    res.status(502).json({ error: `Could not reach the site: ${isClientError(err) ? err.message : networkReason(err)}` });
   }
 });
 

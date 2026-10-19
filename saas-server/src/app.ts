@@ -8,6 +8,21 @@ import healthRouter from './routes/health.js';
 
 const PgSession = connectPgSimple(session);
 
+/**
+ * Sessions are signed with SESSION_SECRET. In production a missing secret must stop
+ * the server (a public fallback constant would make sessions forgeable); locally a
+ * dev-only constant keeps `npm run dev` working.
+ */
+export function resolveSessionSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.SESSION_SECRET;
+  if (secret) return secret;
+  if (env.NODE_ENV === 'production') {
+    throw new Error('SESSION_SECRET must be set in production (refusing to start with a built-in secret).');
+  }
+  console.warn('[saas-server] SESSION_SECRET not set: using an insecure development secret.');
+  return 'dev-secret-change-in-production';
+}
+
 export function createApp() {
   const app = express();
 
@@ -26,7 +41,7 @@ export function createApp() {
 
   app.use(session({
     store: sessionStore,
-    secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+    secret: resolveSessionSecret(),
     resave: false,
     saveUninitialized: false,
     cookie: {

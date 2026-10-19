@@ -52,3 +52,17 @@ test('isPrivateAddress', () => {
   for (const ip of ['127.0.0.1', '10.1.2.3', '192.168.0.9', '172.16.5.5', '169.254.169.254', '::1', 'fe80::1', '0.0.0.0', '::ffff:127.0.0.1', '100.64.0.1', '']) assert.equal(isPrivateAddress(ip), true, ip);
   for (const ip of ['8.8.8.8', '104.18.0.1', '172.32.0.1', '2606:4700::1']) assert.equal(isPrivateAddress(ip), false, ip);
 });
+
+test('isPrivateAddress: every IPv6 spelling of a private IPv4 is refused', () => {
+  const bad = ['::ffff:7f00:1', '::ffff:7f00:0001', '0:0:0:0:0:ffff:7f00:1', '::ffff:127.0.0.1', '::ffff:10.0.0.1', '::ffff:a00:1',
+    '::ffff:c0a8:1', '::ffff:a9fe:a9fe', '64:ff9b::7f00:1', '64:ff9b::127.0.0.1', '64:ff9b::a9fe:a9fe', '64:ff9b:1::1',
+    '2002:7f00:1::', '2002:a00:1::1', '::7f00:1', '::127.0.0.1', '2001:0:4136:e378:8000:63bf:3fff:fdd2', '2001:db8::1',
+    'fc00::1', 'fd12:3456::1', 'fe80::1%eth0', 'fec0::1', 'ff02::1', '[::1]', '0:0:0:0:0:0:0:1', '::'];
+  for (const ip of bad) assert.equal(isPrivateAddress(ip), true, ip);
+  const good = ['::ffff:808:808', '::ffff:8.8.8.8', '64:ff9b::808:808', '2002:808:808::', '2606:4700::1111', '2a00:1450:4001::200e'];
+  for (const ip of good) assert.equal(isPrivateAddress(ip), false, ip);
+});
+
+test('isPrivateAddress: hostnames are not judged as addresses (fc*/fd* names are fine)', () => {
+  for (const h of ['fcbarcelona.com', 'fdic.gov', 'example.com', 'localhost.example.org']) assert.equal(isPrivateAddress(h), false, h);
+});

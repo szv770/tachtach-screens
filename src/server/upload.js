@@ -1,3 +1,4 @@
+import { clientError } from './safeError.js';
 import multer from 'multer';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,7 +25,7 @@ export const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB for videos
   fileFilter: (_req, file, cb) => {
     if (ALL_ALLOWED.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, PDF'));
+    else cb(clientError('Allowed: JPEG, PNG, WebP, GIF, MP4, WebM, PDF'));
   },
 });
 

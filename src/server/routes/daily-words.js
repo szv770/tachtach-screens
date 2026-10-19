@@ -61,7 +61,8 @@ export function startDailyWordRecorder() {
 }
 
 const router = Router();
-router.use('/daily-words', express.json({ limit: '512kb' }));
+// 256 kB ≈ 650 typical words (the 45-word starter list is ~17 kB; ~390 bytes/word).
+router.use('/daily-words', express.json({ limit: '256kb' }));
 
 router.get('/daily-words', async (_req, res) => {
   try { res.json(await readDailyWords()); } catch { res.status(500).json({ error: 'Failed to read the word list.' }); }
