@@ -212,11 +212,12 @@ export default function SlideManager({
         <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: 'var(--r-md)', border: `1px dashed ${colors.border}` }}>
           <div style={{ fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Also in the rotation, after these slides (from Announcements):</div>
           {appended.map((a) => (
-            <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+            <div key={a.id} data-testid="appended-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
               <span dir="auto" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px', color: colors.text }}>
                 {primaryText(a).split('\n')[0] || 'Message'}
               </span>
               {canEditAnn && <button type="button" onClick={() => onEditAnnouncement?.(a)} style={{ ...buttonSecondary, padding: '4px 12px', minHeight: '44px', fontSize: '13px' }}>Edit</button>}
+              {canDeleteAnn && <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(a)} aria-label={`Delete message: ${primaryText(a).split('\n')[0] || 'Message'}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>}
             </div>
           ))}
         </div>
