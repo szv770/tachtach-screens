@@ -22,6 +22,8 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
   --raised: color-mix(in srgb, var(--lift) var(--liftPct), var(--bg));
   --hi: color-mix(in srgb, var(--text) 11%, var(--raised));
   --rule: color-mix(in srgb, var(--text) 15%, transparent);
+  /* Monospace for the Freeze > Message > Terminal look: no font role, no download (system stack, DejaVu Sans Mono on the Pi). */
+  --f-mono: ui-monospace, 'DejaVu Sans Mono', 'Liberation Mono', 'SF Mono', Menlo, Consolas, monospace;
   background: var(--bg);
   color: var(--text);
   font-family: var(--f-en);

@@ -22,6 +22,8 @@ import { getEffectiveSchedule, toISODate, addDaysISO } from '../shared/scheduleR
 import { computeStageNow } from '../shared/stageNow.js';
 import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
+import FrozenScreen from './components/FrozenScreen.jsx';
+import { freezeInForce, coversScreen, isEmergencyTakeover } from '../shared/freeze.js';
 
 /**
  * Normalize a server countdown payload (SSE `countdown-start` or
@@ -119,11 +121,20 @@ function AppContent() {
     () => buildRotation(state?.slides || [], ann.slides),
     [state?.slides, ann],
   );
-  // Newest "pause everything else" slide replaces the slide area.
-  const holdSlide = React.useMemo(() => (ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann]);
+  // Freeze / Blank screen (src/shared/freeze.js): while one is in force it wins over takeovers, holds
+  // and countdown overlays. The one exception is the admin's 'Emergency announcements still show'
+  // setting, which lets a takeover in the Emergency style through.
+  const freezeView = state?.freeze;
+  const freezeActive = freezeInForce(freezeView, clock.time.getTime()) ? freezeView.active : null;
+  const freezeOn = !!freezeActive;
+  const emergencyShows = freezeOn && !!freezeView.emergency && isEmergencyTakeover(ann.takeover);
+  const takeover = freezeOn && !emergencyShows ? null : ann.takeover;
 
-  // Takeovers and holds pause the rotation timer; banners never do.
-  const slideRotation = useSlideRotation(allSlides, { paused: !!ann.takeover || !!holdSlide });
+  // Newest "pause everything else" slide replaces the slide area.
+  const holdSlide = React.useMemo(() => (!freezeOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, freezeOn]);
+
+  // Takeovers, holds and a freeze pause the rotation timer; banners never do.
+  const slideRotation = useSlideRotation(allSlides, { paused: !!takeover || !!holdSlide || freezeOn });
 
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
@@ -231,6 +242,9 @@ function AppContent() {
         break;
       case 'schedule-dates-update':
         setState(prev => prev ? { ...prev, scheduleDates: data } : prev);
+        break;
+      case 'freeze-update':
+        setState(prev => prev ? { ...prev, freeze: data } : prev);
         break;
       case 'daily-words-update':
         setState(prev => prev ? { ...prev, dailyWords: data } : prev);
@@ -424,6 +438,31 @@ function AppContent() {
   const isPortrait = settings.orientation === 'portrait';
   const railSide = (settings.layout?.railSide || settings.clockSide) === 'right' ? 'right' : 'left';
 
+  // Preview iframes (admin) say so, so nobody mistakes the frozen preview for a broken one.
+  const freezeHint = _isPreview && freezeOn ? (
+    <div style={{
+      position: 'absolute', top: 8, left: 8, zIndex: 9998, background: 'var(--accent)', color: 'var(--onAccent)',
+      fontFamily: 'var(--f-en)', fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 8,
+    }}>Preview of frozen screen</div>
+  ) : null;
+
+  // Blank / Logo only / Message: one full-screen view, everything else unmounted (no rail, banner or slide
+  // underneath, nothing animating). Mode 'freeze' falls through to the normal screen with the rotation stopped.
+  if (freezeActive && coversScreen(freezeActive.mode)) {
+    return (
+      <ScreenScaler portrait={isPortrait}>
+        <DesignRoot
+          settings={settings} fontsList={state?.fonts} themeId={active.themeId} phase={phase} portrait={isPortrait}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          <FrozenScreen freeze={freezeActive} credit={settings.credit} portrait={isPortrait} motion={settings.motion} />
+          {emergencyShows && <AnnouncementTakeover item={ann.takeover} tokens={tokens} clock={clock} />}
+          {freezeHint}
+        </DesignRoot>
+      </ScreenScaler>
+    );
+  }
+
   // Up-next card: only when a schedule item starts within rail.upNextMinutes
   // (default 5) of now, from the effective per-date schedule. Never on the
   // schedule page, which already shows the next item.
@@ -431,7 +470,7 @@ function AppContent() {
   const onSchedulePage = (holdSlide || slideRotation.currentSlide)?.type === 'SCHEDULE';
   let upNext = null;
   // Owner rule: with the Schedule slide switched off, no schedule-driven updates.
-  if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !ann.takeover) {
+  if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !takeover) {
     const nowM = nowDate.getHours() * 60 + nowDate.getMinutes();
     const next = (effectiveSchedule.entries || [])
       .filter((e) => e.enabled !== false)
@@ -497,7 +536,7 @@ function AppContent() {
         onRequestDuration={slideRotation.setOverrideDuration}
         googleAlbums={state?.googleAlbums || []}
         schedule={effectiveSchedule}
-        countdown={countdown?.mode === 'slide' ? countdown : null}
+        countdown={!freezeOn && countdown?.mode === 'slide' ? countdown : null}
         onCountdownComplete={() => setCountdown(null)}
         credit={settings.credit}
         rssCache={rssCache}
@@ -512,10 +551,10 @@ function AppContent() {
 
   const liveBanners = ann.banners.map(toBannerRow);
   // "X just started" replaces the banner row for its few minutes; other banners come back after.
-  const banner = stageNow.started && !ann.takeover ? (
+  const banner = stageNow.started && !takeover ? (
     <StageBanner started={stageNow.started} />
   ) : liveBanners.length > 0 ? (
-    <Banner banners={liveBanners} bannerSettings={settings.banner} motion={settings.motion} />
+    <Banner banners={liveBanners} bannerSettings={settings.banner} motion={freezeOn ? 'minimal' : settings.motion} />
   ) : null;
 
   return (
@@ -541,11 +580,12 @@ function AppContent() {
           clockSide={railSide}
           portrait={isPortrait}
         />
-        <AnnouncementTakeover item={ann.takeover} tokens={tokens} clock={clock} />
-        {countdown?.mode === 'takeover' && (
+        <AnnouncementTakeover item={takeover} tokens={tokens} clock={clock} />
+        {!freezeOn && countdown?.mode === 'takeover' && (
           <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={() => setCountdown(null)} />
         )}
         <HiddenAccess tokens={tokens} />
+        {freezeHint}
 
         {_isDatePreview && (
           <div style={{
