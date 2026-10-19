@@ -13,7 +13,7 @@ import React from 'react';
 import { colors, adminFonts, inputStyle } from '../../styles/admin-tokens.js';
 import Collapsible from '../ui/Collapsible.jsx';
 import SegmentedControl from '../ui/SegmentedControl.jsx';
-import { resolveStages, stagesSummary, DEFAULT_JUST_STARTED } from '../../../shared/scheduleStages.js';
+import { resolveStages, stagesSummary, kindOf, KIND_DEFAULTS } from '../../../shared/scheduleStages.js';
 
 const LEAD_OPTIONS = [0, 1, 2, 5, 10, 15];
 const STARTED_OPTIONS = [1, 2, 3, 5, 10, 15];
@@ -45,13 +45,13 @@ function Stage({ n, title, children, hint }) {
  * @param {object}   [props.entry]        the block (summary)
  */
 export default function AttentionStages({
-  mode = 'entry', stages, onStages, lead = 0, onLead, leadDisplay = 'slide', onLeadDisplay, category, entry, disabled = false, id,
+  mode = 'entry', kind, stages, onStages, lead = 0, onLead, leadDisplay = 'slide', onLeadDisplay, category, entry, disabled = false, id,
 }) {
   const isEntry = mode === 'entry';
   const st = stages || {};
   const resolved = isEntry
     ? resolveStages({ ...(entry || {}), alertBefore: lead, countdownDisplay: leadDisplay, stages }, category)
-    : resolveStages({ alertBefore: lead, stages }, null);
+    : resolveStages({ alertBefore: lead, stages }, { kind });
   const summary = stagesSummary(resolved);
 
   const set = (key, value) => {
@@ -62,10 +62,13 @@ export default function AttentionStages({
   const inherit = (what) => (isEntry && category ? `Same as ${category.name}${what ? ` (${what})` : ''}` : 'Automatic');
   const startedVal = st.justStarted === undefined ? '' : String(st.justStarted);
   const sessionVal = st.inSession === undefined ? 'auto' : st.inSession ? 'on' : 'off';
-  const catStarted = category?.stages?.justStarted;
-  const catSession = category?.stages?.inSession;
-  const startedInherit = catStarted !== undefined ? (catStarted > 0 ? `${catStarted} min` : 'off') : (lead > 0 ? `${DEFAULT_JUST_STARTED} min` : 'off');
-  const sessionInherit = catSession === undefined ? 'off' : catSession ? 'on' : 'off';
+  // What "Default" means here: the category's own value, else the category kind's.
+  const base = resolveStages({ alertBefore: lead, countdownDisplay: leadDisplay }, isEntry ? category : { kind });
+  const baseKind = isEntry ? kindOf(category) : kindOf({ kind });
+  const startedInherit = base.justStarted > 0 ? `${base.justStarted} min` : 'off';
+  const sessionInherit = base.inSession ? 'on' : 'off';
+  const quietKind = !KIND_DEFAULTS[baseKind].countdown;
+  const countdownVal = st.countdown === undefined ? 'auto' : st.countdown ? 'on' : 'off';
 
   return (
     <Collapsible id={id} title="Attention stages" summary={summary} icon="bolt" style={{ boxShadow: 'none' }}>
@@ -82,6 +85,14 @@ export default function AttentionStages({
               options={[{ value: 'slide', label: 'In the slides' }, { value: 'takeover', label: 'Full screen' }]} />
           )}
         </div>
+        {(quietKind || st.countdown !== undefined) && (
+          <div style={{ marginTop: '10px' }}>
+            <p style={help}>{quietKind ? 'This kind is quiet by default (no countdown). Choose On to give this one a countdown anyway.' : 'Choose Off to silence the countdown for this one.'}</p>
+            <SegmentedControl ariaLabel="Countdown for this one" fill value={countdownVal}
+              onChange={(v) => set('countdown', v === 'auto' ? undefined : v === 'on')}
+              options={[{ value: 'auto', label: `Default (${quietKind ? 'off' : 'on'})` }, { value: 'on', label: 'On' }, { value: 'off', label: 'Off' }]} />
+          </div>
+        )}
       </Stage>
       <Stage n={2} title="Just started" hint={`A short message right after the start time ("Seder just started").`}>
         <select aria-label="Just started message" disabled={disabled} value={startedVal}

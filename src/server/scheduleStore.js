@@ -11,6 +11,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from './storage.js';
 import { findCategory, newCategoryId } from '../shared/schedulePaste.js';
+import { fillCategoryKinds, inferKind, isKind as isKindValue } from '../shared/scheduleStages.js';
 import { toISODate, addDaysISO, isISODate, dateFromISO } from '../shared/scheduleResolution.js';
 
 export const DATES_FILE = 'schedule-dates.json';
@@ -19,15 +20,15 @@ const ZMANIM_FILE = 'zmanim-dates.json';
 
 /** Owner's chosen starting categories (2026-10-14). Added if missing; never removed. */
 export const DEFAULT_CATEGORIES = [
-  { name: 'Davening', color: '#D4A84B', icon: 'prayer', defaultAlert: 5 },
-  { name: 'Shiur', color: '#2DD4BF', icon: 'book', defaultAlert: 5 },
-  { name: 'Seder', color: '#38BDF8', icon: 'book', defaultAlert: 5 },
-  { name: 'Meals', color: '#F97316', icon: 'meal' },
+  { name: 'Davening', kind: 'davening', color: '#D4A84B', icon: 'prayer', defaultAlert: 5 },
+  { name: 'Shiur', kind: 'seder', color: '#2DD4BF', icon: 'book', defaultAlert: 5 },
+  { name: 'Seder', kind: 'seder', color: '#38BDF8', icon: 'book', defaultAlert: 5 },
+  { name: 'Meals', kind: 'meal', color: '#F97316', icon: 'meal' },
   { name: 'Mivtzoim', color: '#EF4444', icon: 'megaphone' },
   { name: 'Farbrengen', color: '#EAB308', icon: 'music' },
   { name: 'Events', color: '#A855F7', icon: 'calendar' },
   { name: 'Trips', color: '#FACC15', icon: 'bus' },
-  { name: 'Breaks', color: '#A0696A', icon: 'coffee' },
+  { name: 'Breaks', kind: 'break', color: '#A0696A', icon: 'coffee' },
 ];
 const SEED_MARKER = 'default-categories-2026-10';
 const ALERT_SEED_MARKER = 'category-default-alerts-2026-10';
@@ -97,6 +98,7 @@ export function addCategories(schedule, newCats) {
       color: nc.color || NEW_CATEGORY_PALETTE[schedule.categories.length % NEW_CATEGORY_PALETTE.length],
       ...(nc.icon ? { icon: nc.icon } : {}),
       ...(nc.defaultAlert > 0 ? { defaultAlert: nc.defaultAlert } : {}),
+      kind: isKindValue(nc.kind) ? nc.kind : (inferKind(nc.name) || 'other'),
     };
     schedule.categories.push(cat);
     added.push(cat);
@@ -147,6 +149,22 @@ export async function ensureCategoryDefaultAlerts() {
     blocks.seeded.push(ALERT_SEED_MARKER);
     await writeBlocksFile(blocks);
     return updated;
+  });
+}
+
+/**
+ * Give every category without a `kind` one guessed from its name (Seder-ish -> seder, meals -> meal,
+ * breaks -> break, davening -> davening, else other). Idempotent and safe on every start: a kind
+ * that is already set (owner edits included) is never touched.
+ * @returns {Promise<string[]>} names of categories that got a kind
+ */
+export async function ensureCategoryKinds() {
+  return withScheduleLock(async () => {
+    const schedule = await readJSON('schedule.json');
+    if (!schedule || !Array.isArray(schedule.categories)) return [];
+    const { categories, changed } = fillCategoryKinds(schedule.categories);
+    if (changed.length) await writeJSON('schedule.json', { ...schedule, categories });
+    return changed;
   });
 }
 

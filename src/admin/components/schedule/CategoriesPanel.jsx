@@ -9,14 +9,25 @@ import { ConfirmDialog } from '../ui.jsx';
 import { ScheduleIcon } from '../../../shared/ScheduleIcons.jsx';
 import { IconPicker } from './IconPicker.jsx';
 import AttentionStages from './AttentionStages.jsx';
-import { Field, textInput, primaryBtn, Dot } from './scheduleFields.jsx';
+import { Field, textInput, primaryBtn, Dot, chip } from './scheduleFields.jsx';
+import { KINDS, KIND_LABELS, KIND_HINTS, kindOf, inferKind } from '../../../shared/scheduleStages.js';
 
-const ALERTS = [1, 2, 5, 10, 15];
+/** "What kind of thing is this?" as plain-English chips; the kind sets which attention stages are on by default. */
+function KindChips({ value, onChange, name }) {
+  return (
+    <div role="radiogroup" aria-label={`Kind for ${name}`} data-testid="kind-chips" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+      {KINDS.map((k) => (
+        <button key={k} type="button" role="radio" aria-checked={value === k} data-kind={k} onClick={() => onChange(k)} style={chip(value === k)}>{KIND_LABELS[k]}</button>
+      ))}
+    </div>
+  );
+}
 
 export default function CategoriesPanel({ categories, onUpdate, entries = [], canEdit }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState('#D4A84B');
   const [icon, setIcon] = useState('');
+  const [newKind, setNewKind] = useState(null);
   const [confirm, setConfirm] = useState(null);
   const patch = (id, ch) => onUpdate(categories.map((c) => {
     if (c.id !== id) return c;
@@ -28,16 +39,17 @@ export default function CategoriesPanel({ categories, onUpdate, entries = [], ca
     const n = name.trim();
     if (!n) return;
     const cat = { id: `${n.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`, name: n, color };
+    cat.kind = newKind || inferKind(n) || 'other';
     if (icon) cat.icon = icon;
     onUpdate([...categories, cat]);
-    setName(''); setIcon('');
+    setName(''); setIcon(''); setNewKind(null);
   };
   const used = (id) => entries.filter((e) => e.category === id).length;
 
   return (
     <div data-testid="categories-panel">
       <p style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim, lineHeight: 1.5, margin: '0 0 12px' }}>
-        Categories colour-code your blocks and carry defaults. "Default reminder" is the countdown given to new blocks of that category.
+        Categories colour-code your blocks and carry defaults. The kind (Seder, Davening, Break, Meal, Other) decides how urgent the screen gets: seder gets the full "get moving" treatment, breaks and meals stay quiet.
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {categories.map((c) => (
@@ -59,7 +71,12 @@ export default function CategoriesPanel({ categories, onUpdate, entries = [], ca
                   </div>
                   <IconPicker value={c.icon || ''} onChange={(ic) => patch(c.id, { icon: ic || undefined })} label="Icon" />
                 </div>
-                <AttentionStages mode="category" id={`cat-stages-${c.id}`} stages={c.stages}
+                <div style={{ marginBottom: '10px' }}>
+                  <span style={{ display: 'block', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.dim, marginBottom: '4px' }}>What kind is it?</span>
+                  <KindChips value={kindOf(c)} name={c.name} onChange={(k) => patch(c.id, { kind: k })} />
+                  <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, lineHeight: 1.45, margin: '6px 0 0' }}>{KIND_HINTS[kindOf(c)]}</p>
+                </div>
+                <AttentionStages mode="category" kind={kindOf(c)} id={`cat-stages-${c.id}`} stages={c.stages}
                   onStages={(stages) => patch(c.id, { stages })}
                   lead={c.defaultAlert || 0} onLead={(n) => patch(c.id, { defaultAlert: n > 0 ? n : undefined })} />
               </>
@@ -80,6 +97,10 @@ export default function CategoriesPanel({ categories, onUpdate, entries = [], ca
             </Field>
             <IconPicker value={icon} onChange={setIcon} label="Icon" />
             <button type="button" onClick={add} disabled={!name.trim()} style={{ ...primaryBtn, opacity: name.trim() ? 1 : 0.5 }}>Add</button>
+          </div>
+          <div style={{ marginTop: '10px' }}>
+            <span style={{ display: 'block', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.dim, marginBottom: '4px' }}>What kind is it?</span>
+            <KindChips value={newKind || inferKind(name) || 'other'} name="the new category" onChange={setNewKind} />
           </div>
         </div>
       )}

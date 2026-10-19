@@ -8,7 +8,7 @@ import Sheet from '../ui/Sheet.jsx';
 import { formatTime12 } from '../../../shared/schedulePaste.js';
 import { DAY_CODES } from '../../../shared/scheduleDays.js';
 import { blocksOnDay } from '../../../shared/scheduleWeek.js';
-import { resolveStages } from '../../../shared/scheduleStages.js';
+import { resolveStages, missingEndTime } from '../../../shared/scheduleStages.js';
 import { chip, DayChips, primaryBtn, secondaryBtn, subtleBtn } from './scheduleFields.jsx';
 
 // The 7-column grid only when the page area itself is wide enough (the sidebar and live-preview panel eat space),
@@ -50,6 +50,9 @@ function BlockCard({ entry, categories, onOpen, compact }) {
       <span style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: colors.dim }}>{time}</span>
       <span style={{ display: 'block', fontSize: compact ? '14px' : '16px', fontWeight: 700, overflowWrap: 'anywhere', lineHeight: 1.25 }}>{entry.name || entry.nameHe}</span>
       {entry.name && entry.nameHe && <span dir="rtl" style={{ display: 'block', fontSize: '13px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>{entry.nameHe}</span>}
+      {missingEndTime(entry) && !off && (
+        <span data-testid="no-end-chip" style={{ display: 'inline-block', marginTop: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '11px', fontWeight: 700, color: colors.warn, border: `1px solid ${colors.warn}` }}>No end time</span>
+      )}
       {(r.lead > 0 || r.inSession) && (
         <span style={{ display: 'block', fontSize: '11px', color: colors.dim, marginTop: '2px' }}>
           {r.lead > 0 ? `Countdown ${r.lead}m` : ''}{r.lead > 0 && r.inSession ? ' · ' : ''}{r.inSession ? 'In-session badge' : ''}

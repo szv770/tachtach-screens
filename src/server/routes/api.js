@@ -24,7 +24,7 @@ import users from '../users.js';
 import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
-import { sanitizeStages } from '../../shared/scheduleStages.js';
+import { sanitizeStages, isKind } from '../../shared/scheduleStages.js';
 import { getStateExtras } from '../announcements-store.js';
 import { fetchWeather } from '../../fetchers/weather.js';
 import { describeWeather } from '../../shared/weatherCodes.js';
@@ -105,7 +105,7 @@ function pickScheduleEntry(e) {
   }
   return picked;
 }
-const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert', 'stages'];
+const SCHEDULE_CATEGORY_FIELDS = ['id', 'name', 'color', 'icon', 'defaultAlert', 'stages', 'kind'];
 // defaultAlert = minutes of countdown reminder given to pasted entries of this
 // category that have no explicit "alert N" (0/absent = none).
 function pickCategory(c) {
@@ -119,6 +119,7 @@ function pickCategory(c) {
     const st = sanitizeStages(out.stages);
     if (st) out.stages = st; else delete out.stages;
   }
+  if ('kind' in out && !isKind(out.kind)) delete out.kind; // seder | davening | break | meal | other
   return out;
 }
 const SCHEDULE_TEMPLATE_FIELDS = ['name', 'entries', 'categories'];

@@ -24,7 +24,7 @@ Parser/formatter: `src/shared/schedulePaste.js`. Prompt text: `src/shared/schedu
 - Entry: `START[ - END] | English | Hebrew | Category | options`. Times: `7:05 AM`, `7:05am`, `7pm`, `19:05`, `noon`; a range can share AM/PM (`6:40-7:30 PM`). End before start → warning. A 1–6 o'clock time without AM/PM → warning.
 - English/Hebrew are told apart by script, so order mistakes are fine. **The English name is optional** (Hebrew-only lines are fine: `7:05 AM | | שחרית | Davening`); either name can be left out, but at least one is needed. Category matches id or name, any case, singular/plural; an unknown category is created on Apply (warning in the preview).
 - **Default alerts:** a category can carry a `defaultAlert` (Settings: Schedule → Weekly → Categories). Davening, Shiur, Seder and Learning start at 5 minutes; Meals and the rest at none. A line with no `alert` option gets its category's default (the preview marks it "(default)"); `alert N` overrides it and `alert 0` means none.
-- Options (any order, can be split over several `|` fields): `alert N` (minutes; 1, 2, 5, 10, 15 usual, 0–120 accepted), `takeover` (full-screen countdown), `icon NAME`, `off` (hidden).
+- Options (any order, can be split over several `|` fields): `alert N` (minutes; 1, 2, 5, 10, 15 usual, 0–120 accepted), `takeover` (full-screen countdown), `icon NAME`, `started N` ("just started" minutes, 0-30), `badge` / `nobadge` (in-session badge), `kind KIND` (only for a brand-new category: seder, davening, break, meal, other), `off` (hidden).
 - **Errors** (block Apply, shown with line numbers): unreadable date or time, line before any `@`, line without `|`, missing name, too many fields, a date given twice, items under a `clear` header, bad `alert` value.
 - JSON is auto-detected when the text starts with `{`: the `data/schedule-dates.json` shape, `{ "2026-10-17": { "label": "", "entries": [ { "time": "09:30", "name": "…", … } ] }, "2026-10-24": null }` (`null` = clear), optionally wrapped in `{ "dates": { … } }`.
 
@@ -76,6 +76,9 @@ Rules:
 - Other options are optional, space-separated, at the end of the line:
     takeover     make the item's countdown full-screen (use with an alert, e.g. "alert 15 takeover")
     icon NAME    one of: book, prayer, meal, test, bed, bus, sports, bell, megaphone, clock, coffee, music, candle, star, calendar, sparkle
+    started N    show a "just started" message for N minutes (0-30) after the start; "started 0" = none
+    badge        show "now in session" from the start until the end time (so give it an end time); "nobadge" = never
+    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)
     off          keep the item but hide it
 - Don't add commentary, notes or extra columns. If something is unclear, make your best guess and I'll fix it.
 - "@ YYYY-MM-DD clear" (no items) puts a date back on the regular weekly schedule.
@@ -131,6 +134,9 @@ Rules:
 - Other options are optional, space-separated, at the end of the line:
     takeover     make the item's countdown full-screen (use with an alert, e.g. "alert 15 takeover")
     icon NAME    one of: book, prayer, meal, test, bed, bus, sports, bell, megaphone, clock, coffee, music, candle, star, calendar, sparkle
+    started N    show a "just started" message for N minutes (0-30) after the start; "started 0" = none
+    badge        show "now in session" from the start until the end time (so give it an end time); "nobadge" = never
+    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)
     off          keep the item but hide it
 - Don't add commentary, notes or extra columns. If something is unclear, make your best guess and I'll fix it.
 
@@ -181,6 +187,9 @@ Rules:
 - Other options are optional, space-separated, at the end of the line:
     takeover     make the item's countdown full-screen (use with an alert, e.g. "alert 15 takeover")
     icon NAME    one of: book, prayer, meal, test, bed, bus, sports, bell, megaphone, clock, coffee, music, candle, star, calendar, sparkle
+    started N    show a "just started" message for N minutes (0-30) after the start; "started 0" = none
+    badge        show "now in session" from the start until the end time (so give it an end time); "nobadge" = never
+    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)
     off          keep the item but hide it
 - Don't add commentary, notes or extra columns. If something is unclear, make your best guess and I'll fix it.
 - "@ YYYY-MM-DD clear" (no items) puts a date back on the regular weekly schedule.
@@ -220,6 +229,9 @@ Rules:
 - Other options are optional, space-separated, at the end of the line:
     takeover     make the item's countdown full-screen (use with an alert, e.g. "alert 15 takeover")
     icon NAME    one of: book, prayer, meal, test, bed, bus, sports, bell, megaphone, clock, coffee, music, candle, star, calendar, sparkle
+    started N    show a "just started" message for N minutes (0-30) after the start; "started 0" = none
+    badge        show "now in session" from the start until the end time (so give it an end time); "nobadge" = never
+    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)
     off          keep the item but hide it
 - Don't add commentary, notes or extra columns. If something is unclear, make your best guess and I'll fix it.
 
@@ -243,6 +255,6 @@ Example:
 If I give you an existing schedule in this format and ask for changes, return the whole changed schedule in the same format.
 ````
 
-## Not in the text format
+## Category kind and stages
 
-Per-block **Attention stages** ("just started" minutes, in-session badge; see `docs/claude/ARCHITECTURE.md`) and category defaults are set in the admin (Schedule > a block, or Categories), not in pasted text, so "Copy as text" does not include them. Pasting a weekly schedule replaces blocks and therefore their stages; the old week is kept as an Auto-backup. The wizard and week view save through `PUT /api/schedule/weekly { entries }` instead, which keeps them.
+**Category kind and stages.** Every category has a *kind* (Seder / Davening / Break / Meal / Other, set in Schedule > Categories) that decides which attention stages are on by default: Seder = countdown + "just started" 3 min + in-session badge; Davening = countdown (badge optional); Break and Meal = quiet (no countdown, no "just started", no badge; they still show as "up next"); Other = classic. In pasted text a line can carry `started N`, `badge` / `nobadge` (these override the kind for that block), and `kind X` for a category the paste creates (otherwise the kind is guessed from the name). An explicit `alert N` on a Break/Meal line opts that block in to its countdown. "Copy as text" includes `started` / `badge` / `nobadge` so a round trip keeps them; the category's kind itself is not in the text (change it in Categories). The in-session badge needs an end time, so give every block one. Pasting a weekly schedule replaces blocks and therefore their stages; the old week is kept as an Auto-backup.

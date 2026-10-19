@@ -9,6 +9,7 @@
  * Pure logic (conversion, checks) lives in src/shared/scheduleWizard.js; the data tables
  * (day groups, quick block chips) in src/shared/scheduleWizardPresets.js.
  */
+import { missingEndTime } from '../../../shared/scheduleStages.js';
 import React, { useState, useMemo, useEffect } from 'react';
 import { colors, adminFonts, alpha } from '../../styles/admin-tokens.js';
 import Icon from '../ui/Icon.jsx';
@@ -107,6 +108,7 @@ function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCa
       {catOpen && <div style={{ marginTop: '8px' }}><CategoryChips value={block.category} categories={categories} onCreate={onCreateCategory} onChange={(id) => { onChange({ category: id }); setCatOpen(false); }} /></div>}
       {heOpen && <input aria-label={`Block ${index + 1} Hebrew name`} dir="rtl" value={block.nameHe} maxLength={200} placeholder="Hebrew name (optional)"
         onChange={(e) => onChange({ nameHe: e.target.value })} style={{ ...textInput, fontFamily: adminFonts.hebrewPrimary, marginTop: '8px' }} />}
+      {missingEndTime(block) && <div data-testid="no-end-chip" style={{ ...note, color: colors.warn, margin: '8px 0 0' }}>No end time yet. Add one so the screen can show "now in session" and the week reads clearly.</div>}
       {issues.map((i, k) => <div key={k} role="alert" style={{ ...note, color: colors.warn, margin: '8px 0 0' }}>{i.message}</div>)}
     </div>
   );

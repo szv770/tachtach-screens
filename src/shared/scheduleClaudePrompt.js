@@ -104,7 +104,11 @@ function entryRules({ categories }) {
     '- Other options are optional, space-separated, at the end of the line:',
     '    takeover     make the item\'s countdown full-screen (use with an alert, e.g. "alert 15 takeover")',
     `    icon NAME    one of: ${ICON_NAMES.join(', ')}`,
+    '    started N    show a "just started" message for N minutes (0-30) after the start; "started 0" = none',
+    '    badge        show "now in session" from the start until the end time (so give it an end time); "nobadge" = never',
+    '    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)',
     '    off          keep the item but hide it',
+    '- Give every item an end time when you know it (the "now in session" badge and the schedule need it).',
     '- Don\'t add commentary, notes or extra columns. If something is unclear, make your best guess and I\'ll fix it.',
   ];
 }

@@ -9,6 +9,7 @@
  * attention. The weekly schedule is the fallback for every date without its own schedule.
  */
 import React, { useState, useEffect, useCallback } from 'react';
+import { inferKind } from '../../shared/scheduleStages.js';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
 import Collapsible from './ui/Collapsible.jsx';
@@ -63,7 +64,7 @@ export default function ScheduleSection(props) {
   const createCategory = useCallback(async (name) => {
     const existing = findCategory(categories, name);
     if (existing) return existing;
-    const cat = { id: newCategoryId(categories, name), name: name.trim(), color: NEW_COLORS[categories.length % NEW_COLORS.length] };
+    const cat = { id: newCategoryId(categories, name), name: name.trim(), color: NEW_COLORS[categories.length % NEW_COLORS.length], kind: inferKind(name) || 'other' };
     const ok = await onUpdateCategories([...categories, cat]);
     if (ok === false) { notify('Couldn\'t create the category.', 'error'); return null; }
     notify(`Category "${cat.name}" created.`, 'success');

@@ -17,7 +17,7 @@ import screenRouter from './routes/screen.js';
 import { cspMiddleware } from './csp.js';
 import { publicErrorMessage } from './safeError.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
-import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates } from './scheduleStore.js';
+import { ensureDefaultCategories, ensureCategoryDefaultAlerts, ensureCategoryKinds, readScheduleDates } from './scheduleStore.js';
 import announcementsRouter from './routes/announcements.js';
 import quickTemplatesRouter from './routes/quick-templates.js';
 import savedLettersRouter from './routes/saved-letters.js';
@@ -131,6 +131,13 @@ export function createApp() {
         if (upd.length) console.log(`[schedule] Default 5-minute alert set on: ${upd.join(', ')}`);
       } catch (alErr) {
         console.error('[schedule] Default alerts error:', alErr.message);
+      }
+      // Category kinds (Seder / Davening / Break / Meal / Other): fills only a missing kind
+      try {
+        const k = await ensureCategoryKinds();
+        if (k.length) console.log(`[schedule] Category kind filled on: ${k.join(', ')}`);
+      } catch (kErr) {
+        console.error('[schedule] Category kinds error:', kErr.message);
       }
       // Initialize countdown alert system
       try {

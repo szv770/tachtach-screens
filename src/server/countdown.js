@@ -2,6 +2,7 @@ import { readJSON } from './storage.js';
 import { broadcast } from './sse.js';
 import { dayCodeFor, countdownDisplayOf, isScheduleSlideOn } from '../shared/scheduleDays.js';
 import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
+import { resolveStages } from '../shared/scheduleStages.js';
 
 /** @type {Map<string, NodeJS.Timeout>} entry id -> alert start timer */
 const alertTimers = new Map();
@@ -183,8 +184,11 @@ export async function initCountdowns() {
   const { entries, source } = getEffectiveSchedule(schedule, scheduleDates, todayISO);
 
   entries.forEach((entry, i) => {
-    // Skip entries without alertBefore
+    // Skip entries without alertBefore, and blocks whose category kind is quiet (break/meal)
+    // unless the block opted in (src/shared/scheduleStages.js).
     if (!entry.alertBefore || entry.alertBefore <= 0) return;
+    const cat = (schedule.categories || []).find((c) => c.id === entry.category);
+    if (resolveStages(entry, cat).lead <= 0) return;
     scheduleEntryAlert(entry.id ? entry : { ...entry, id: `${todayISO}-${i}` });
   });
 

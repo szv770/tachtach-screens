@@ -28,7 +28,7 @@ import {
   isISODate, weekdayOfISO, upcomingWeekdayISO, addDaysISO, minutesOf, sortEntriesByTime, WEEKDAY_LONG,
 } from './scheduleResolution.js';
 import { DAY_CODES } from './scheduleDays.js';
-import { sanitizeStages } from './scheduleStages.js';
+import { sanitizeStages, isKind, kindOf, inferKind, KINDS } from './scheduleStages.js';
 
 export const FORMAT_NAME = 'TachTach schedule v1';
 export const FORMAT_HEADER = `# ${FORMAT_NAME}`;
@@ -201,7 +201,7 @@ export function newCategoryId(categories, name) {
 
 // ── Options ────────────────────────────────────────────────────────────────
 
-const OPTION_STARTERS = new Set(['alert', 'takeover', 'slide', 'icon', 'off', 'disabled', 'hidden']);
+const OPTION_STARTERS = new Set(['alert', 'takeover', 'slide', 'icon', 'off', 'disabled', 'hidden', 'started', 'badge', 'nobadge', 'kind']);
 function isOptionField(field) {
   const first = String(field || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
   return OPTION_STARTERS.has(first) || /^alert\d+$/.test(first);
@@ -233,6 +233,23 @@ function parseOptions(fields, warn, err) {
       i++;
       if (ICON_NAMES.includes(name)) opts.icon = name;
       else warn(`Unknown icon "${tokens[i] ?? ''}" — ignored. Icons: ${ICON_NAMES.join(', ')}.`);
+    } else if (t === 'started' || t === 'just-started') {
+      // "started 3" = "just started" message for 3 minutes; "started 0" = none
+      const n = Number(String(tokens[i + 1] ?? '').replace(/(m|min|mins|minutes?)$/i, ''));
+      i++;
+      if (Number.isInteger(n) && n >= 0 && n <= 30) {
+        opts.justStarted = n;
+        if (/^(m|min|mins|minute|minutes)$/i.test(tokens[i + 1] || '')) i++;
+      } else err(`"started" needs a number of minutes from 0 to 30, got "${tokens[i] ?? ''}".`);
+    } else if (t === 'badge') {
+      opts.inSession = true;
+    } else if (t === 'nobadge') {
+      opts.inSession = false;
+    } else if (t === 'kind') {
+      const k = String(tokens[i + 1] || '').toLowerCase().replace(/[,;]+$/, '');
+      i++;
+      if (isKind(k)) opts.kind = k;
+      else warn(`Unknown kind "${tokens[i] ?? ''}" — ignored. Kinds: ${KINDS.join(', ')}.`);
     } else if (t === 'off' || t === 'disabled' || t === 'hidden') {
       opts.enabled = false;
     } else {
@@ -304,11 +321,13 @@ export function parseEntryLine(line, ctx) {
   let category = '';
   let categoryIsNew = false;
   let categoryDefaultAlert = 0;
+  let categoryKind = 'other';
   if (catText) {
     const hit = findCategory(ctx.categories, catText);
     if (hit) {
       category = hit.id;
       categoryDefaultAlert = Number(hit.defaultAlert) > 0 ? Math.min(120, Math.round(Number(hit.defaultAlert))) : 0;
+      categoryKind = kindOf(hit);
     } else {
       const key = catText.trim().toLowerCase();
       let nc = ctx.newCats.get(key);
@@ -324,6 +343,13 @@ export function parseEntryLine(line, ctx) {
 
   const opts = parseOptions(optFields, (w) => warnings.push(w), (e) => errors.push(e));
   if (errors.length) return { errors, warnings };
+  if (categoryIsNew) {
+    // A new category's kind: the line's "kind X", else guessed from its name.
+    const nc = ctx.newCats.get(catText.trim().toLowerCase());
+    if (nc) { if (opts.kind) nc.kind = opts.kind; else if (!nc.kind) nc.kind = inferKind(nc.name) || 'other'; categoryKind = nc.kind; }
+  } else if (opts.kind && opts.kind !== categoryKind) {
+    warnings.push(`"kind ${opts.kind}" only applies to a new category; "${catText.trim()}" is already ${categoryKind}. Change it in Schedule > Categories.`);
+  }
   // No explicit "alert N": use the category's default reminder. An explicit
   // "alert 0" means none.
   const alertFromDefault = opts.alertBefore === undefined && categoryDefaultAlert > 0;
@@ -331,6 +357,13 @@ export function parseEntryLine(line, ctx) {
   if (opts.countdownDisplay === 'takeover' && !alertBefore) {
     warnings.push('"takeover" only matters with an alert (e.g. "alert 10 takeover").');
   }
+  // Stage fields (see scheduleStages.js). An explicit "alert N" on a quiet kind (break/meal) is an
+  // opt-in to that countdown for this block.
+  const stages = sanitizeStages({
+    justStarted: opts.justStarted,
+    inSession: opts.inSession,
+    countdown: opts.alertBefore > 0 && (categoryKind === 'break' || categoryKind === 'meal') ? true : undefined,
+  });
   return {
     entry: {
       name, nameHe, time: tr.time, endTime: tr.endTime, category,
@@ -339,6 +372,7 @@ export function parseEntryLine(line, ctx) {
       countdownDisplay: opts.countdownDisplay || 'slide',
       enabled: opts.enabled !== false,
       icon: opts.icon || '',
+      ...(stages ? { stages } : {}),
       ...(categoryIsNew ? { categoryIsNew: true } : {}),
     },
     errors, warnings,
@@ -664,7 +698,8 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
       const key = catIn.toLowerCase();
       let nc = ctx.newCats.get(key);
       if (!nc) {
-        nc = { id: newCategoryId([...(ctx.categories || []), ...ctx.newCats.values()], catIn), name: catIn };
+        nc = { id: newCategoryId([...(ctx.categories || []), ...ctx.newCats.values()], catIn), name: catIn,
+          kind: isKind(e.categoryKind) ? e.categoryKind : (inferKind(catIn) || 'other') };
         ctx.newCats.set(key, nc);
       }
       category = nc.id;
@@ -705,6 +740,9 @@ export function formatEntryLine(e, categories) {
   if (e.alertBefore > 0) opts.push(`alert ${e.alertBefore}${(e.countdownDisplay || e.alertDisplay) === 'takeover' ? ' takeover' : ''}`);
   else if (Number(findCategory(categories, e.category)?.defaultAlert) > 0) opts.push('alert 0'); // keep an explicit "no alert" through a round trip
   if (e.icon) opts.push(`icon ${e.icon}`);
+  const st = sanitizeStages(e.stages);
+  if (st?.justStarted !== undefined) opts.push(`started ${st.justStarted}`);
+  if (st?.inSession !== undefined) opts.push(st.inSession ? 'badge' : 'nobadge');
   if (e.enabled === false) opts.push('off');
   const fields = [time, e.name || '', e.nameHe || '', cat, ...opts];
   while (fields.length > 2 && fields[fields.length - 1] === '') fields.pop();

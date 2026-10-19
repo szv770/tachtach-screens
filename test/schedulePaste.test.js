@@ -160,7 +160,7 @@ test('unknown category → warning + offered as new (one per name)', () => {
 8:00 PM | Farbrengen | התוועדות | farbrengen
 9:00 PM | More | עוד | Farbrengen`);
   assert.deepEqual(r.errors, []);
-  assert.deepEqual(r.newCategories, [{ id: 'farbrengen', name: 'farbrengen' }]);
+  assert.deepEqual(r.newCategories, [{ id: 'farbrengen', name: 'farbrengen', kind: 'other' }]);
   assert.equal(r.days[0].entries[0].category, 'farbrengen');
   assert.equal(r.days[0].entries[0].categoryIsNew, true);
   assert.equal(r.days[0].entries[1].category, 'farbrengen');
