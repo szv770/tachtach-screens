@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import users from './users.js';
-import activity, { describe as describeAction } from './activity.js';
+import activity, { describe as describeAction, areaOf } from './activity.js';
 import { canDo, normalizeApiPath } from '../shared/permissions.js';
 
 /** The signed-in person for a session cookie, or null. Never includes secrets. */
@@ -54,16 +54,35 @@ export function enforceRole(req, res, next) {
   next();
 }
 
-const NOT_LOGGED = /^\/api\/(preview|team|account|me)(\/|$)/;
-/** One line in the activity log for every successful change (never the request body). */
-export function logActivity(req, res, next) {
+const NOT_LOGGED = /^\/api\/(preview|team|account|me|history)(\/|$)/;
+// Loaded on first use: undoIo pulls in the SSE module, whose heartbeat timer would keep short-lived test processes open.
+let undoSvc = null;
+const undoService = async () => (undoSvc ||= (await import('./undoRuntime.js')).undoService);
+
+/**
+ * One line in the activity log for every successful change (never the request body).
+ * For the whitelisted reversible kinds (src/shared/undo.js) the "before" state is read first and a
+ * snapshot is stored in data/undo.json afterwards; the activity line only carries its `undoId`.
+ */
+export async function logActivity(req, res, next) {
   if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) return next();
   const path = normalizeApiPath(req.originalUrl.split('?')[0]);
   if (NOT_LOGGED.test(path)) return next();
   const user = req.user;
-  res.on('finish', () => {
+  let tracker = null;
+  let svc = null;
+  try {
+    svc = await undoService();
+    tracker = await svc.begin(req.method, req.originalUrl.split('?')[0], req.body);
+  } catch (e) { console.warn('[undo] begin:', e.message); }
+  res.on('finish', async () => {
     if (res.statusCode >= 400) return;
-    activity.record({ user, action: describeAction(req.method, path) }).catch((e) => console.error('[activity]', e.message));
+    let rec = null;
+    try { rec = tracker ? await svc.finish(tracker, user) : null; } catch { /* history is best effort */ }
+    activity.record({
+      user, action: describeAction(req.method, path), detail: rec?.label || '',
+      area: areaOf(path), kind: rec?.id ? rec.kind : undefined, undoId: rec?.id || undefined,
+    }).catch((e) => console.error('[activity]', e.message));
   });
   next();
 }

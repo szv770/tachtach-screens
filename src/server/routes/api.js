@@ -1407,4 +1407,8 @@ router.get('/preview-state', async (req, res) => {
   }
 });
 
+// Used by History > Undo (src/server/undoIo.js) so an undone settings change is saved exactly like a normal one.
+export { saveSettings, withSettingsLock };
+export const normalizeForSave = (settings) => normalizeSettings(settings).settings;
+
 export default router;

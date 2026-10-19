@@ -9,6 +9,7 @@ import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, local
 import teamRouter from './routes/team.js';
 import pushRouter from './routes/push.js';
 import statusRouter from './routes/status.js';
+import historyRouter from './routes/history.js';
 import { startPushMonitor } from './push.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
@@ -446,6 +447,8 @@ export function createApp() {
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api', teamRouter);
   app.use('/api', pushRouter);
+  app.use('/api', statusRouter); // /screen/status + /health (read-only)
+  app.use('/api', historyRouter); // /history + undo
   app.use('/api', announcementsRouter);
   app.use('/api', quickTemplatesRouter);
   app.use('/api', savedLettersRouter);
