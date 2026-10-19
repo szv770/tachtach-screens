@@ -37,6 +37,9 @@ import DailyWordPanel from './components/DailyWordPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
 import TeamPanel from './components/TeamPanel.jsx';
 import AccountPanel from './components/AccountPanel.jsx';
+import HistoryPage from './components/ops/HistoryPage.jsx';
+import HealthPage from './components/ops/HealthPage.jsx';
+import ChangeDaySheet from './components/schedule/ChangeDaySheet.jsx';
 import WelcomeTour from './components/WelcomeTour.jsx';
 import { TOUR_KEY } from './help/helpContent.js';
 import ToastContainer from './components/ToastContainer.jsx';
@@ -79,6 +82,7 @@ export default function App() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickStart, setQuickStart] = useState(null); // a template to open straight into its fill step
   const [newOpen, setNewOpen] = useState(false);
+  const [changeDay, setChangeDay] = useState(null); // null | 'today' | 'tomorrow': the one-day schedule sheet (Home and Schedule)
   const [searchOpen, setSearchOpen] = useState(false);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
@@ -128,6 +132,7 @@ export default function App() {
       case 'slide-popup': if (setActiveSection(a.section || 'slides') !== false) requestSlideOpen(a.slide); break;
       case 'new': setComposer({ display: a.kind }); break;
       case 'quick': setQuickOpen(true); break;
+      case 'change-day': setChangeDay(a.when || 'tomorrow'); break;
       case 'command': screenCommand(a.name); break;
       case 'preview': window.open('/screen?preview=true', '_blank', 'noopener'); break;
       case 'edit-announcement': setComposer(a.item); break;
@@ -193,8 +198,13 @@ export default function App() {
           <Home
             state={state} me={me} siteName={siteName}
             onGo={setActiveSection} onQuick={() => setQuickOpen(true)} onCommand={screenCommand}
+            onNew={(kind) => setComposer({ display: kind })} onRefreshData={refresh} onChangeDay={setChangeDay}
           />
         );
+      case 'history':
+        return <HistoryPage me={me} onChanged={() => retry({ silent: true })} />;
+      case 'health':
+        return <HealthPage me={me} onGo={setActiveSection} />;
       case 'kit':
         return <UiKit />;
       case 'slides':
@@ -222,6 +232,7 @@ export default function App() {
             settings={state?.settings || {}}
             onRefreshSchedule={fetchSchedule}
             onNavigate={goSection}
+            onChangeDay={setChangeDay}
             caps={me ? (me.caps || []) : effectiveCaps({ role: 'editor' })}
             entries={state?.scheduleEntries || []}
             categories={state?.scheduleCategories || []}
@@ -268,6 +279,16 @@ export default function App() {
               <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', fontWeight: 700, color: colors.dim, marginBottom: '8px' }}>Appearance on this device</div>
               <ThemeSwitch />
             </div>
+            <button type="button" data-testid="account-history" onClick={() => setActiveSection('history')} style={{
+              display: 'flex', alignItems: 'center', gap: '12px', width: '100%', minHeight: '64px', padding: '10px 16px', marginBottom: '16px', textAlign: 'left', cursor: 'pointer',
+              background: colors.card, borderRadius: 'var(--r-md)', boxShadow: 'var(--e1)', border: '1px solid var(--line)', color: colors.text, fontFamily: adminFonts.englishBody,
+            }}>
+              <span style={{ flex: 1 }}>
+                <span style={{ display: 'block', fontSize: '16px', fontWeight: 700 }}>Recent changes</span>
+                <span style={{ display: 'block', fontSize: '13px', color: colors.dim }}>See who changed what, and undo a mistake</span>
+              </span>
+              <span aria-hidden style={{ color: colors.muted, fontSize: '20px' }}>›</span>
+            </button>
             <AccountPanel me={me} onChanged={refreshMe} />
           </>
         );
@@ -333,6 +354,15 @@ export default function App() {
       >
         {renderSection()}
       </AdminLayout>
+      {changeDay && (
+        <ChangeDaySheet
+          open startWith={changeDay} tz={state?.settings?.location?.timezone}
+          schedule={{ entries: state?.scheduleEntries || [], categories: state?.scheduleCategories || [] }}
+          scheduleDates={state?.scheduleDates || {}}
+          onClose={() => setChangeDay(null)}
+          onSaved={() => retry({ silent: true })}
+        />
+      )}
       {tourOpen && <WelcomeTour onClose={closeTour} onGo={setActiveSection} />}
       <NewSheet open={newOpen} onClose={() => setNewOpen(false)} onPick={pickNew} />
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} state={state} role={role} onRun={runAction} />

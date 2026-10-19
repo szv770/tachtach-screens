@@ -37,6 +37,9 @@ const PATHS = {
   revert: 'M4 9h11a5 5 0 0 1 0 10H8M4 9l4-4M4 9l4 4',
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0',
   copy: 'M9 9h11v11H9zM5 15V4h11',
+  pulse: 'M3 12h4l2.5-6.5 4 13 2.5-6.5H21',
+  history: 'M3.5 12a8.5 8.5 0 1 0 2.6-6.1M3.5 4v4.5H8M12 8v4.2l3 1.8',
+  refresh: 'M20 11a8 8 0 1 0-2.3 6M20 4v7h-7',
   tile: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
 };
 

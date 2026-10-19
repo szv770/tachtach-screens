@@ -126,7 +126,8 @@ export function accessLabel(user) {
 // A tab opens when the person holds ANY of its capabilities. Everyone gets
 // Home, Help and My account. A tab nobody listed (e.g. the UI kit) is admin-only.
 
-const ALWAYS_SECTIONS = ['home', 'help', 'account'];
+// history + health: everyone may look (History only lists what that person may see; Undo and the Fix buttons re-check capabilities server-side).
+const ALWAYS_SECTIONS = ['home', 'help', 'account', 'history', 'health'];
 const SECTION_CAPS = Object.freeze({
   slides: ['slides.edit', 'slides.delete'],
   schedule: ['schedule.edit'],

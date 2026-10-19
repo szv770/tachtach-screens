@@ -34,7 +34,7 @@ const NEW_COLORS = ['#38BDF8', '#F472B6', '#84CC16', '#FB7185', '#22D3EE', '#EAB
 export default function ScheduleSection(props) {
   const {
     entries = [], categories = [], scheduleDates: initialDates, settings, caps = [],
-    onUpdateCategories, onRefreshSchedule, onNavigate, onCreateEntry, onUpdateEntry, onDeleteEntry, onFetchTemplates,
+    onUpdateCategories, onRefreshSchedule, onNavigate, onChangeDay, onCreateEntry, onUpdateEntry, onDeleteEntry, onFetchTemplates,
   } = props;
   const isMobile = useIsMobile();
   const canEdit = can(caps, 'schedule.edit');
@@ -49,6 +49,8 @@ export default function ScheduleSection(props) {
   const notify = snack.show;
   const { copy, modal } = useCopy(notify);
 
+  // The sheet on Home (or a save elsewhere) refreshes the app state: follow it.
+  useEffect(() => { if (initialDates) setScheduleDates(initialDates); }, [initialDates]);
   useEffect(() => {
     scheduleApi.getDates().then((d) => d && setScheduleDates(d)).catch(() => {});
     scheduleApi.getBlocks().then((b) => setBlocks(b || [])).catch(() => {});
@@ -118,6 +120,13 @@ export default function ScheduleSection(props) {
       <p style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim, margin: '0 0 14px', lineHeight: 1.5 }}>
         Your base schedule repeats every week. A date you change on its own (Shabbos, Yom Tov, a trip) wins over it.
       </p>
+
+      {canEdit && hasBase && onChangeDay && (
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', margin: '0 0 14px' }}>
+          <button type="button" data-testid="sched-change-tomorrow" onClick={() => onChangeDay('tomorrow')} style={{ ...primaryBtn, flex: isMobile ? '1 1 100%' : '0 0 auto' }}>Change tomorrow</button>
+          <button type="button" data-testid="sched-change-today" onClick={() => onChangeDay('today')} style={{ ...secondaryBtn, flex: isMobile ? '1 1 100%' : '0 0 auto' }}>Change today</button>
+        </div>
+      )}
 
       {!hasBase ? (
         <section id="sched-week" data-testid="first-run" style={{ background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-lg)', padding: isMobile ? '20px 16px' : '28px', boxShadow: 'var(--e1)', marginBottom: '16px' }}>

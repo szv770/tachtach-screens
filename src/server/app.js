@@ -455,7 +455,6 @@ export function createApp() {
   app.use('/api', kiddushLevanaRouter);
   app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
-  app.use('/api', statusRouter); // /screen/status + /health (read-only)
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);

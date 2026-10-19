@@ -47,6 +47,10 @@ export const SETTINGS_INDEX = [
   S('schedule-display', 'Two schedules in one day (Track A / B)', 'dual track switch time morning afternoon', { anchor: 'set-dual-track-schedule' }),
   // Look & Settings > System
   S('security', 'Trusted devices (2-step)', 'security remember device forget totp', { anchor: 'set-security' }),
+  S('health', 'System health (is everything working?)', 'health check status online offline screen connected zmanim fresh stale disk space storage clock time fix errors feeds albums certificate poppler pdf backups uptime', { match: 'System health' }),
+  S('health', 'Is the screen online? (last seen)', 'online offline connected tv last seen reconnect', { match: 'Screen connected' }),
+  S('health', 'Disk space left', 'storage full space uploads size clear cleanup', { match: 'Disk space' }),
+  S('history', 'Recent changes and Undo (who changed what)', 'history undo log activity revert restore mistake who changed deleted edited paused', { match: 'Recent changes' }),
   S('this-screen', 'Screen name', 'site name school title sidebar home', { anchor: 'look-site-name' }),
   S('this-screen', 'Storage cleanup', 'disk space delete old uploads cache', { anchor: 'set-storage' }),
   // Look & Settings > Team
@@ -108,6 +112,10 @@ export const QUICK_ACTIONS = [
   { id: 'qa-quick', title: 'Quick message', keywords: 'post big words fast two taps call home', action: { type: 'quick' }, icon: 'bolt', needs: 'announcements' },
   { id: 'qa-banner', title: 'New banner', keywords: 'ticker strip bottom', action: { type: 'new', kind: 'banner' }, icon: 'banner', needs: 'announcements' },
   { id: 'qa-takeover', title: 'New takeover', keywords: 'full screen urgent emergency', action: { type: 'new', kind: 'takeover' }, icon: 'takeover', needs: 'announcements' },
+  { id: 'qa-change-tomorrow', title: 'Change tomorrow\'s schedule', keywords: 'one day override cancel move time add one-off special schedule tomorrow', action: { type: 'change-day', when: 'tomorrow' }, icon: 'calendar', needs: 'schedule' },
+  { id: 'qa-change-today', title: 'Change today\'s schedule', keywords: 'one day override cancel move time add one-off special schedule today', action: { type: 'change-day', when: 'today' }, icon: 'calendar', needs: 'schedule' },
+  { id: 'qa-history', title: 'Recent changes (Undo)', keywords: 'history undo who changed what revert mistake', action: { type: 'go', section: 'history' }, icon: 'history', needs: 'history' },
+  { id: 'qa-health', title: 'System health check', keywords: 'status working online offline disk zmanim fresh fix problems', action: { type: 'go', section: 'health' }, icon: 'pulse', needs: 'health' },
   { id: 'qa-pause', title: 'Pause the screen', keywords: 'stop rotation hold freeze', action: { type: 'command', name: 'pause' }, icon: 'pause', needs: 'slides' },
   { id: 'qa-resume', title: 'Resume the screen', keywords: 'play continue unpause', action: { type: 'command', name: 'resume' }, icon: 'play', needs: 'slides' },
   { id: 'qa-blank', title: 'Blank the screen', keywords: 'black off hide', action: { type: 'command', name: 'blank' }, icon: 'close', needs: 'slides' },

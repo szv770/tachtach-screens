@@ -19,8 +19,8 @@ import {
 let rowSeq = 0;
 const newKey = () => `r${++rowSeq}`;
 
-const ENTRY_KEYS = ['name', 'nameHe', 'time', 'endTime', 'category', 'alertBefore', 'countdownDisplay', 'enabled', 'icon'];
-function toRow(e, keepId = true) {
+export const ENTRY_KEYS = ['name', 'nameHe', 'time', 'endTime', 'category', 'alertBefore', 'countdownDisplay', 'enabled', 'icon'];
+export function toRow(e, keepId = true) {
   const row = { key: newKey() };
   if (keepId && e.id) row.id = e.id;
   for (const k of ENTRY_KEYS) row[k] = e[k];
@@ -35,7 +35,7 @@ function toRow(e, keepId = true) {
   row.icon = row.icon || '';
   return row;
 }
-const toEntry = (r) => {
+export const toEntry = (r) => {
   const e = {};
   if (r.id) e.id = r.id;
   for (const k of ENTRY_KEYS) e[k] = r[k];
