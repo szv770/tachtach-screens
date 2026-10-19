@@ -24,9 +24,9 @@ export const GLOSSARY = [
 
 /** "Get started" checklist, in a sensible order. */
 export const START_STEPS = [
-  { id: 'settings', title: 'Set your location', go: 'settings', goLabel: 'Open Settings',
+  { id: 'settings', title: 'Set your location', go: 'location', goLabel: 'Open Location',
     text: 'Enter your zip code once. Zmanim, the parsha, candle lighting and the weather all follow it.' },
-  { id: 'style', title: 'Pick a look', go: 'style', goLabel: 'Open Style',
+  { id: 'style', title: 'Pick a look', go: 'themes', goLabel: 'Open Themes',
     text: 'Choose a theme (light, dark, and automatic day/night) and your fonts. Anything you upload can be used for any text.' },
   { id: 'slides', title: 'Choose what rotates', go: 'slides', goLabel: 'Open Slides',
     text: 'Switch slides on or off, set how many seconds each shows, and drag to reorder. + New Slide adds a message, an image, photos, a feed or a web page.' },
@@ -68,11 +68,11 @@ export const TOPICS = [
     body: ['Admins always sign in with a 6-digit code from an authenticator app. Editors can turn it on under My account → 2-step code.', 'If someone loses their phone, an admin opens Team → Manage → Reset 2-step; they set it up again the next time they sign in.', 'You can also use My account → Sign out other devices if a device is lost.'] },
   { id: 'team-activity', title: 'See who changed what', go: 'team',
     body: ['Team → Activity lists what each person did and when, newest first. Use the person box to see just one person.', 'Announcements also show "Posted by" and "edited by" under each message.', 'Remove or sign out someone from Team → Manage. Their access stops straight away.'] },
-  { id: 'phone', title: 'Open the admin from my phone', go: 'settings',
+  { id: 'phone', title: 'Open the admin from my phone', go: 'this-screen',
     body: ['On the same Wi-Fi, go to http://<the Pi\'s address>:3000/admin.', 'At the TV itself: tap the top-left corner 5 times quickly to get the login box.'] },
-  { id: 'tv-wrong', title: 'The TV looks wrong or stuck', go: 'settings',
+  { id: 'tv-wrong', title: 'The TV looks wrong or stuck', go: 'this-screen',
     body: ['Try Refresh Data under the preview first.', 'If the picture itself is broken, the screen restarts itself every few hours and also when it detects a graphics problem. You can force it with: sudo systemctl restart tachtach-kiosk (on the Pi).'] },
-  { id: 'update', title: 'Get the newest version', go: 'settings',
+  { id: 'update', title: 'Get the newest version', go: 'this-screen',
     body: ['On the Pi run: bash ~/tachtach-screens/deploy/update.sh. Your messages, schedule and settings are kept.'] },
   { id: 'password', title: 'I forgot the password or lost my authenticator', go: 'team',
     body: ['If you are an admin and another admin is still signed in, they can use Team → Manage → Sign-in link / Reset 2-step for you. Editors: ask an admin.', 'If nobody can get in, on the Pi run: npm run reset-admin (inside the tachtach-screens folder). It resets the password and 2-step code without erasing anything.', 'Never run setup.js again: it wipes your data.'] },

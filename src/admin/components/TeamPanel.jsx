@@ -13,6 +13,8 @@ import { ConfirmDialog } from './ui.jsx';
 import { useCopy } from './schedule/scheduleShared.jsx';
 import { RoleChip } from './AdminLayout.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
+import PersonAccessSheet from './PersonAccessSheet.jsx';
+import { PRESETS, ASSIGNABLE_PRESETS, DEFAULT_PRESET, accessLabel } from '../../shared/permissions.js';
 
 const card = { background: colors.panel, border: `1px solid ${colors.muted}`, borderRadius: '8px', padding: '16px', marginBottom: '16px' };
 const h2 = { fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold, margin: '0 0 6px' };
@@ -22,7 +24,7 @@ const label = { display: 'flex', flexDirection: 'column', gap: '4px', fontFamily
 const touch = { minHeight: '44px' };
 
 const ROLE_HELP = {
-  editor: 'Editors can post announcements and change slides, the schedule, Daily Word, media and feeds.',
+  editor: 'Editors start as a Full editor (all the day-to-day content) and you can limit them afterwards with Access.',
   admin: 'Admins can do everything, including Settings, Style and the team.',
 };
 
@@ -116,6 +118,7 @@ function AddPersonForm({ onCreated }) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState('editor');
+  const [preset, setPreset] = useState(DEFAULT_PRESET);
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -126,9 +129,9 @@ function AddPersonForm({ onCreated }) {
     setBusy(true);
     setError('');
     try {
-      const r = await apiFetch('/api/team', { method: 'POST', body: JSON.stringify({ name: name.trim(), role, username: username.trim() || undefined }) });
+      const r = await apiFetch('/api/team', { method: 'POST', body: JSON.stringify({ name: name.trim(), role, preset: role === 'editor' ? preset : undefined, username: username.trim() || undefined }) });
       onCreated(r);
-      setName(''); setUsername(''); setRole('editor'); setOpen(false);
+      setName(''); setUsername(''); setRole('editor'); setPreset(DEFAULT_PRESET); setOpen(false);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -152,11 +155,18 @@ function AddPersonForm({ onCreated }) {
             <option value="admin">Admin</option>
           </select>
         </label>
+        {role === 'editor' && (
+          <label style={label}>Access
+            <select value={preset} onChange={(e) => setPreset(e.target.value)} style={{ ...inputStyle, ...touch }}>
+              {ASSIGNABLE_PRESETS.map((id) => <option key={id} value={id}>{PRESETS[id].label}</option>)}
+            </select>
+          </label>
+        )}
         <label style={label}>Username (optional)
           <input value={username} onChange={(e) => setUsername(e.target.value)} style={{ ...inputStyle, ...touch }} maxLength={32} placeholder="made from their name if left empty" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
         </label>
       </div>
-      <p style={{ ...body, fontSize: '13px', marginTop: '10px' }}>{ROLE_HELP[role]}</p>
+      <p style={{ ...body, fontSize: '13px', marginTop: '10px' }}>{role === 'editor' ? PRESETS[preset].blurb : ROLE_HELP[role]}</p>
       {error && <p role="alert" style={{ ...body, color: colors.danger, marginTop: '8px' }}>{error}</p>}
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
         <button type="submit" style={{ ...buttonPrimary, ...touch, opacity: !name.trim() || busy ? 0.5 : 1 }} disabled={!name.trim() || busy}>{busy ? 'Adding…' : 'Add and get link'}</button>
@@ -235,6 +245,7 @@ function EditPerson({ person, isSelf, onSaved, onCancel }) {
 function PersonCard({ person, isSelf, onReload, onLink, askConfirm }) {
   const [manage, setManage] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [access, setAccess] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Run one server action; errors (e.g. "last admin") show as a toast.
@@ -260,6 +271,7 @@ function PersonCard({ person, isSelf, onReload, onLink, askConfirm }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <span style={{ fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 600, color: colors.text, overflowWrap: 'anywhere' }}>{person.name}</span>
             <RoleChip role={person.role} />
+            {person.role === 'editor' && <Chip tone={person.preset === 'full' || !person.preset ? undefined : 'warn'}>{accessLabel(person)}</Chip>}
             {isSelf && <Chip tone="warn">You</Chip>}
             {person.pendingInvite && <Chip tone="warn">Invite pending until {whenText(person.pendingInvite.expiresAt)}</Chip>}
           </div>
@@ -270,6 +282,8 @@ function PersonCard({ person, isSelf, onReload, onLink, askConfirm }) {
             <span>Signed in on {devices} device{devices === 1 ? '' : 's'}</span>
           </div>
         </div>
+        <button type="button" onClick={() => setAccess(true)} data-testid="person-access"
+          style={{ ...buttonSecondary, ...touch, minWidth: '44px', fontFamily: adminFonts.englishBody }}>Access</button>
         <button type="button" onClick={() => { setManage((v) => !v); setEditing(false); }} aria-expanded={manage}
           style={{ ...buttonSecondary, ...touch, minWidth: '44px', fontFamily: adminFonts.englishBody, ...(manage ? { borderColor: colors.gold, color: colors.gold } : {}) }}>
           {manage ? 'Close' : 'Manage …'}
@@ -304,6 +318,7 @@ function PersonCard({ person, isSelf, onReload, onLink, askConfirm }) {
           </p>
         </div>
       )}
+      {access && <PersonAccessSheet person={person} onClose={() => setAccess(false)} onSaved={() => { setAccess(false); onReload(); }} />}
       {manage && editing && <EditPerson person={person} isSelf={isSelf} onCancel={() => setEditing(false)} onSaved={() => { setEditing(false); onReload(); }} />}
     </div>
   );
@@ -316,7 +331,7 @@ function PeopleView({ users, currentUserId, onReload, loadError }) {
     <div>
       <div style={card}>
         <p style={body}>
-          <b style={{ color: colors.text }}>Admins</b> can do everything. <b style={{ color: colors.text }}>Editors</b> can post announcements, edit slides, the schedule, Daily Word, media and feeds — but can’t change Settings, Style or the team.
+          <b style={{ color: colors.text }}>Admins</b> can do everything. <b style={{ color: colors.text }}>Editors</b> start as a Full editor (announcements, slides, schedule, Daily Word, media, feeds, but not Settings, Style or the team). Tap <b style={{ color: colors.text }}>Access</b> on a person to make them Messages only or View only, or to switch single abilities on or off.
         </p>
       </div>
 

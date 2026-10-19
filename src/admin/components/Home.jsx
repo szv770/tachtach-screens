@@ -13,7 +13,7 @@ function plural(n, one, many) { return `${n} ${n === 1 ? one : many}`; }
 
 /** Home: one big tile per area with a live one-line status, plus "On the screen now". */
 export default function Home({ state, me, siteName, onGo, onQuick, onNew, onCommand }) {
-  const role = me?.role;
+  const role = me; // the whole person: tabs come from their capabilities (permissions.js), not just admin/editor
   const now = new Date();
   const tz = state?.settings?.location?.timezone;
   const slides = state?.slides || [];

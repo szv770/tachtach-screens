@@ -5,7 +5,7 @@
 import { Router } from 'express';
 import users, { StoreError, validatePassword } from '../users.js';
 import activity from '../activity.js';
-import { ROLES } from '../../shared/permissions.js';
+import { ROLES, isAssignablePreset, accessLabel } from '../../shared/permissions.js';
 
 const router = Router();
 const TRUSTED_DEVICE_COOKIE = 'tachtach_trusted_device';
@@ -34,6 +34,9 @@ const log = (req, action, detail) => activity.record({ user: req.user, action, d
 
 // ── Team (admin) ────────────────────────────────────────────────────────────
 
+/** Belt and braces: enforceRole already gates these, but people-management is admin-only even if a rule were mislaid. */
+router.use(['/team', '/activity'], (req, res, next) => (req.user?.role === 'admin' ? next() : res.status(403).json({ error: 'Your role can’t do that. Ask an admin.' })));
+
 router.get('/team', async (req, res) => {
   try {
     res.json({ users: await users.listUsers(), currentUserId: req.user.id });
@@ -42,10 +45,10 @@ router.get('/team', async (req, res) => {
 
 router.post('/team', async (req, res) => {
   try {
-    const { name, username, role } = req.body || {};
-    const user = await users.createUser({ name, username: username || undefined, role: role || 'editor', createdBy: req.user.name });
+    const { name, username, role, preset, overrides } = req.body || {};
+    const user = await users.createUser({ name, username: username || undefined, role: role || 'editor', preset: preset || undefined, overrides, createdBy: req.user.name });
     const link = await users.createLink(user.id, 'invite');
-    log(req, `Invited ${user.name}`, `as ${user.role}`);
+    log(req, `Invited ${user.name}`, `as ${accessLabel(user)}`);
     res.status(201).json({ user: await users.getPublicUser(user.id), invite: linkPayload(req, 'invite', link.token, link.expiresAt) });
   } catch (e) { fail(res, e, 'POST /team'); }
 });
@@ -72,13 +75,22 @@ router.post('/team/:id/signin-link', async (req, res) => {
 
 router.patch('/team/:id', async (req, res) => {
   try {
-    const { name, role, username } = req.body || {};
+    const { name, role, username, preset, overrides } = req.body || {};
     if (role !== undefined && !ROLES.includes(role)) return res.status(400).json({ error: 'Unknown role.' });
+    if (preset !== undefined && !isAssignablePreset(preset)) return res.status(400).json({ error: 'Unknown access level.' });
+    if (overrides !== undefined && (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides))) return res.status(400).json({ error: 'Unknown access tweaks.' });
     if (req.params.id === req.user.id && role !== undefined && role !== req.user.role) {
       return res.status(400).json({ error: 'You can’t change your own role. Ask another admin.' });
     }
-    const user = await users.updateUser(req.params.id, { name, role, username });
-    log(req, `Updated ${user.name}`, role !== undefined ? `role: ${user.role}` : '');
+    const before = await users.getPublicUser(req.params.id);
+    const user = await users.updateUser(req.params.id, { name, role, username, preset, overrides });
+    const accessChanged = before && (before.role !== user.role || before.preset !== user.preset || JSON.stringify(before.overrides) !== JSON.stringify(user.overrides));
+    if (accessChanged) {
+      const o = user.overrides || {};
+      const tweaks = [...(o.grant || []).map((c) => `+${c}`), ...(o.deny || []).map((c) => `-${c}`)].join(' ');
+      log(req, `Changed ${user.name}'s permissions`, `${accessLabel(user)}${tweaks ? `: ${tweaks}` : ''}`);
+    }
+    if (name !== undefined || username !== undefined) log(req, `Updated ${user.name}`);
     res.json({ user });
   } catch (e) { fail(res, e, 'PATCH /team/:id'); }
 });

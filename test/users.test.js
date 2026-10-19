@@ -268,3 +268,69 @@ test('public listing never leaks secrets', async () => {
   assert.equal(u.hasPassword, true);
   assert.equal(u.signedInDevices, 1);
 });
+
+// ── access levels (presets + overrides) ─────────────────────────────────────
+
+test('an old user record with no preset migrates: editors become Full editor, admins stay admin', async () => {
+  const { store, box, raw } = mem();
+  box.doc = JSON.stringify({ version: 1, users: [
+    { id: 'a1', username: 'boss', name: 'Boss', role: 'admin', passwordHash: 'h', sessions: [], trustedDevices: [], createdAt: '2026-10-01T00:00:00Z' },
+    { id: 'e1', username: 'ed', name: 'Ed', role: 'editor', passwordHash: 'h', sessions: [], trustedDevices: [], createdAt: '2026-10-01T00:00:00Z' },
+  ], links: [], preauth: [], lockouts: {} });
+  const ed = await store.getPublicUser('e1');
+  assert.equal(ed.preset, 'full');
+  assert.deepEqual(ed.overrides, { grant: [], deny: [] });
+  assert.ok(ed.caps.includes('announcements.takeover') && !ed.caps.includes('settings.change'));
+  assert.equal((await store.getPublicUser('a1')).preset, 'admin');
+  assert.equal(JSON.stringify(raw()).includes('secret'), false);
+  // persisted on the next write
+  await store.updateUser('e1', { name: 'Ed 2' });
+  assert.equal(raw().users.find((u) => u.id === 'e1').preset, 'full');
+});
+
+test('new people default to Full editor; presets and overrides are stored and cleaned', async () => {
+  const { store, raw, admin } = await withAdmin();
+  const a = await store.createUser({ name: 'Anna', createdBy: admin.name });
+  assert.equal(a.preset, 'full');
+  const b = await store.createUser({ name: 'Ben', preset: 'messages', overrides: { grant: ['schedule.edit', 'team.manage', 'bogus'], deny: ['screen.control'] } });
+  assert.equal(b.preset, 'messages');
+  assert.deepEqual(b.overrides, { grant: ['schedule.edit'], deny: ['screen.control'] });
+  assert.deepEqual(b.caps, ['announcements.post', 'schedule.edit']);
+  await assert.rejects(store.createUser({ name: 'Cy', preset: 'god' }), { code: 'bad_preset' });
+  const upd = await store.updateUser(b.id, { preset: 'view' });
+  assert.deepEqual(upd.overrides, { grant: [], deny: [] }, 'a new preset starts with no tweaks');
+  const upd2 = await store.updateUser(b.id, { overrides: { grant: ['slides.edit'], deny: [] } });
+  assert.equal(upd2.preset, 'view');
+  assert.deepEqual(upd2.caps, ['slides.edit']);
+  await assert.rejects(store.updateUser(b.id, { preset: 'admin' }), { code: 'bad_preset' });
+  assert.equal(raw().users.find((u) => u.id === b.id).preset, 'view');
+});
+
+test('permission changes apply to live sessions without signing anyone out; role changes still sign out', async () => {
+  const { store, admin } = await withAdmin();
+  const ed = await store.createUser({ name: 'Eli' });
+  const token = await store.createSession(ed.id);
+  await store.updateUser(ed.id, { preset: 'messages' });
+  const s = await store.getSession(token);
+  assert.ok(s, 'still signed in');
+  assert.equal(s.user.preset, 'messages');
+  await store.updateUser(ed.id, { role: 'admin' });
+  assert.equal(await store.getSession(token), null, 'role change signs out');
+  const back = await store.updateUser(ed.id, { role: 'editor' });
+  assert.equal(back.preset, 'full', 'demoted admin starts as Full editor');
+  assert.ok(admin);
+});
+
+test('admins cannot be limited, and the last admin cannot be demoted', async () => {
+  const { store, admin } = await withAdmin();
+  await assert.rejects(store.updateUser(admin.id, { preset: 'view' }), { code: 'admin_unlimited' });
+  await assert.rejects(store.updateUser(admin.id, { overrides: { deny: ['team.manage'] } }), { code: 'admin_unlimited' });
+  await assert.rejects(store.updateUser(admin.id, { role: 'editor' }), { code: 'last_admin' });
+  const p = await store.getPublicUser(admin.id);
+  assert.equal(p.role, 'admin');
+  assert.ok(p.caps.includes('team.manage'));
+  // with a second admin the first can be demoted, and the second then is protected
+  const two = await store.createUser({ name: 'Two', role: 'admin' });
+  await store.updateUser(admin.id, { role: 'editor' });
+  await assert.rejects(store.updateUser(two.id, { role: 'editor' }), { code: 'last_admin' });
+});

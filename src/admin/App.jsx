@@ -4,7 +4,7 @@ import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
 import { canOpenSection } from '../shared/permissions.js';
 import AdminLayout from './components/AdminLayout.jsx';
-import { SECTION_KEYS } from './nav.js';
+import { SECTION_KEYS, SECTION_ALIASES } from './nav.js';
 import Home from './components/Home.jsx';
 import GlobalSearch from './components/GlobalSearch.jsx';
 import NewSheet from './components/NewSheet.jsx';
@@ -19,8 +19,16 @@ import AnnouncementsPanel from './components/announcements/AnnouncementsPanel.js
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
-import SettingsPanel from './components/SettingsPanel.jsx';
-import StylePanel from './components/StylePanel.jsx';
+import ThemesPage from './components/look/ThemesPage.jsx';
+import FontsPage from './components/look/FontsPage.jsx';
+import LayoutPage from './components/look/LayoutPage.jsx';
+import LogoPage from './components/look/LogoPage.jsx';
+import MotionPage from './components/look/MotionPage.jsx';
+import LocationPage from './components/look/LocationPage.jsx';
+import ShowsPage from './components/look/ShowsPage.jsx';
+import ScheduleDisplayPage from './components/look/ScheduleDisplayPage.jsx';
+import SecurityPage from './components/look/SecurityPage.jsx';
+import ThisScreenPage from './components/look/ThisScreenPage.jsx';
 import ImageUploader from './components/ImageUploader.jsx';
 import GooglePhotosManager from './components/GooglePhotosManager.jsx';
 import RSSManager from './components/RSSManager.jsx';
@@ -36,9 +44,9 @@ import { colors, adminFonts, buttonPrimary } from './styles/admin-tokens.js';
 
 
 export default function App() {
-  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'home');
+  const [routeSection, setRouteSection] = useSectionRoute(SECTION_KEYS, 'home', SECTION_ALIASES);
   const { me, ready: meReady, refreshMe } = useMe();
-  const role = me?.role;
+  const role = me; // the whole person: tabs come from their capabilities (permissions.js), not just admin/editor
   // A section this person's role can't open (e.g. an editor following a /admin/team
   // link) shows Home instead, and the address bar is tidied without a Back-button trap.
   const activeSection = canOpenSection(role, routeSection) ? routeSection : 'home';
@@ -47,7 +55,8 @@ export default function App() {
     window.history.replaceState({ section: activeSection }, '', `/admin/${activeSection}`);
     setRouteSection(activeSection);
   }, [meReady, activeSection, routeSection, setRouteSection]);
-  const setActiveSection = useCallback((key) => {
+  const setActiveSection = useCallback((rawKey) => {
+    const key = SECTION_ALIASES[rawKey] || rawKey;
     if (!canOpenSection(role, key)) { notify('Only an admin can open that part.', 'error'); return; }
     if (key !== routeSection && !confirmLeave()) return;
     setRouteSection(key);
@@ -160,6 +169,7 @@ export default function App() {
     );
   }
 
+  const settings = state?.settings || {};
   const renderSection = () => {
     switch (activeSection) {
       case 'home':
@@ -299,23 +309,26 @@ export default function App() {
             onDeleteSlide={deleteSlide}
           />
         );
+      case 'themes':
+        return <ThemesPage settings={settings} onSave={updateSettings} />;
       case 'style':
-        return (
-          <StylePanel
-            settings={state?.settings || {}}
-            onSave={updateSettings}
-          />
-        );
-      case 'settings':
-        return (
-          <SettingsPanel
-            settings={state?.settings || {}}
-            onSave={updateSettings}
-            slides={state?.slides || []}
-            onUpdateSlides={updateSlides}
-            onCreateSlide={createSlide}
-          />
-        );
+        return <FontsPage settings={settings} onSave={updateSettings} />;
+      case 'layout':
+        return <LayoutPage settings={settings} onSave={updateSettings} onNavigate={setActiveSection} />;
+      case 'logo':
+        return <LogoPage settings={settings} onSave={updateSettings} slides={state?.slides || []} />;
+      case 'motion':
+        return <MotionPage settings={settings} onSave={updateSettings} />;
+      case 'location':
+        return <LocationPage settings={settings} onSave={updateSettings} onNavigate={setActiveSection} />;
+      case 'shows':
+        return <ShowsPage settings={settings} onSave={updateSettings} />;
+      case 'schedule-display':
+        return <ScheduleDisplayPage settings={settings} onSave={updateSettings} />;
+      case 'security':
+        return <SecurityPage onNavigate={setActiveSection} />;
+      case 'this-screen':
+        return <ThisScreenPage settings={settings} onSave={updateSettings} />;
       default:
         return null;
     }

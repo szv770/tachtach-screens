@@ -3,6 +3,7 @@
  * devices. Server: the /api/account/* routes in src/server/routes/team.js.
  * Admins always use the 2-step code; editors may turn it on or off.
  */
+import { accessLabel } from '../../shared/permissions.js';
 import React, { useState } from 'react';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
@@ -64,7 +65,7 @@ function NameSection({ me, onChanged }) {
         <div style={label}>What you can do
           <div style={{ ...touch, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <RoleChip role={me.role} />
-            <span style={{ ...body, fontSize: '13px' }}>{me.role === 'admin' ? 'Everything' : 'Content, but not Settings, Style or Team'}</span>
+            <span style={{ ...body, fontSize: '13px' }}>{me.role === 'admin' ? 'Everything' : `${accessLabel(me)}: only what your admin has switched on`}</span>
           </div>
         </div>
       </div>

@@ -19,7 +19,8 @@ export function useNow(ms = 15000) {
   return now;
 }
 
-/** Place name for page titles ("Zmanim · Miami Beach"). */
+/** Place name for page titles ("Zmanim · Miami Beach"). An admin-typed "Show location as" wins; blank = automatic. */
 export function placeName(cache, settings) {
-  return cache?.weather?.location?.name || settings?.location?.placeName || '';
+  const custom = String(settings?.location?.displayName || '').trim();
+  return custom || cache?.weather?.location?.name || settings?.location?.placeName || '';
 }

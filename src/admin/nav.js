@@ -12,10 +12,19 @@ export const navItems = [
   { key: 'schedule', en: 'Schedule', desc: 'Daily timetable & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
   { key: 'announcements', en: 'Announcements', desc: 'Slides, banners, notes & takeovers', area: 'announce' },
-  { key: 'style', en: 'Style', desc: 'Fonts & typography', area: 'look' },
-  { key: 'settings', en: 'Settings', desc: 'Location, theme & layout', area: 'look' },
-  { key: 'team', en: 'Team', desc: 'People who can sign in', area: 'look' },
-  { key: 'account', en: 'My account', desc: 'Your name, password & 2-step', area: null },
+  // Look & Settings: small sorted pages in three groups (see LOOK_GROUPS).
+  { key: 'themes', en: 'Themes', desc: 'Light, dark & automatic day/night', area: 'look', group: 'look' },
+  { key: 'style', en: 'Fonts', desc: 'Fonts & text size', area: 'look', group: 'look' },
+  { key: 'layout', en: 'Layout', desc: 'Orientation, side rail & page layouts', area: 'look', group: 'look' },
+  { key: 'logo', en: 'Logo & credit', desc: 'Credit line and your logo', area: 'look', group: 'look' },
+  { key: 'motion', en: 'Motion & graphics', desc: 'Animation and drawings', area: 'look', group: 'look' },
+  { key: 'location', en: 'Location & weather', desc: 'Zip, time zone, place name, weather', area: 'look', group: 'setup' },
+  { key: 'shows', en: 'What shows', desc: 'Side-rail items, up-next, study languages', area: 'look', group: 'setup' },
+  { key: 'schedule-display', en: 'Schedule display', desc: 'How the timetable looks; two tracks', area: 'look', group: 'setup' },
+  { key: 'security', en: 'Security', desc: 'Trusted devices', area: 'look', group: 'system' },
+  { key: 'this-screen', en: 'This screen', desc: 'Screen name and storage', area: 'look', group: 'system' },
+  { key: 'team', en: 'Team', desc: 'People who can sign in', area: 'look', group: 'system' },
+  { key: 'account', en: 'My account', desc: 'Your name, password & 2-step', area: 'look', group: 'system' },
   { key: 'help', en: 'Help', desc: 'Learn the basics', area: null },
   { key: 'kit', en: 'UI kit', desc: 'Shared components (admin only)', area: null },
 ];
@@ -29,6 +38,16 @@ export const AREAS = [
   { key: 'look', en: 'Look & Settings', icon: 'gear', tab: false, color: 'var(--area-look)', blurb: 'Themes, fonts, location, team' },
 ];
 
+/** Sub-groups of the Look & Settings area (sidebar headings + the two-row sub-nav on a phone). */
+export const LOOK_GROUPS = [
+  { key: 'look', en: 'Look' },
+  { key: 'setup', en: 'Screen setup' },
+  { key: 'system', en: 'System' },
+];
+
+/** Retired section URLs that still work (bookmarks, old links, help text). */
+export const SECTION_ALIASES = { settings: 'location' };
+
 export const SECTION_KEYS = navItems.map((n) => n.key);
 export const sectionInfo = (key) => navItems.find((n) => n.key === key) || null;
 export const areaInfo = (key) => AREAS.find((a) => a.key === key) || null;
@@ -37,6 +56,11 @@ export const areaOfSection = (key) => sectionInfo(key)?.area ?? null;
 /** Sections of an area this role may open (the server enforces the real rules too). */
 export function sectionsOfArea(area, role) {
   return navItems.filter((n) => n.area === area && canOpenSection(role, n.key));
+}
+
+/** Look & Settings pages of one group this role may open. */
+export function sectionsOfGroup(group, role) {
+  return sectionsOfArea('look', role).filter((n) => n.group === group);
 }
 
 /** Where an area's tab/tile takes you: its first section this role can open. */

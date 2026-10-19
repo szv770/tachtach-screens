@@ -14,7 +14,7 @@ import bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { readJSON, writeJSON } from './storage.js';
-import { ROLES } from '../shared/permissions.js';
+import { ROLES, DEFAULT_PRESET, isAssignablePreset, sanitizeOverrides, effectiveCaps } from '../shared/permissions.js';
 
 const USERS_FILE = 'users.json';
 const LEGACY_FILE = 'auth.json';
@@ -67,6 +67,9 @@ export function publicUser(u, links = []) {
     username: u.username,
     name: u.name,
     role: u.role,
+    preset: u.role === 'admin' ? 'admin' : u.preset,
+    overrides: u.role === 'admin' ? { grant: [], deny: [] } : u.overrides,
+    caps: effectiveCaps(u),
     hasPassword: !!u.passwordHash,
     totpEnabled: !!u.totpEnabled,
     createdAt: u.createdAt,
@@ -105,6 +108,13 @@ export function createUserStore({
     for (const u of d.users) {
       u.sessions = Array.isArray(u.sessions) ? u.sessions : [];
       u.trustedDevices = Array.isArray(u.trustedDevices) ? u.trustedDevices : [];
+      // Access level (see shared/permissions.js). Old records have none: editors become
+      // "Full editor", which is what the old fixed editor role could do.
+      if (u.role === 'admin') { u.preset = 'admin'; u.overrides = { grant: [], deny: [] }; }
+      else {
+        if (u.preset === undefined || u.preset === null || u.preset === '') u.preset = DEFAULT_PRESET;
+        u.overrides = sanitizeOverrides(u.preset, u.overrides);
+      }
     }
     return d;
   }
@@ -222,8 +232,9 @@ export function createUserStore({
     return u ? publicUser(u, d.links) : null;
   }
 
-  async function createUser({ name, username, role = 'editor', createdBy = null }) {
+  async function createUser({ name, username, role = 'editor', preset, overrides, createdBy = null }) {
     if (!ROLES.includes(role)) throw new StoreError('bad_role', 'Unknown role.');
+    if (preset !== undefined && role !== 'admin' && !isAssignablePreset(preset)) throw new StoreError('bad_preset', 'Unknown access level.');
     const cleanName = String(name ?? '').trim().slice(0, 60);
     if (!cleanName) throw new StoreError('bad_name', 'Give this person a name.');
     return tx(async (d) => {
@@ -239,6 +250,8 @@ export function createUserStore({
       }
       const user = {
         id: newId(), username: uname, name: cleanName, role,
+        preset: role === 'admin' ? 'admin' : (preset || DEFAULT_PRESET),
+        overrides: role === 'admin' ? { grant: [], deny: [] } : sanitizeOverrides(preset || DEFAULT_PRESET, overrides),
         passwordHash: null, totpSecret: null, totpEnabled: false, lastTotpStep: 0,
         trustedDevices: [], sessions: [], createdAt: iso(now()), createdBy, lastLoginAt: null,
       };
@@ -247,7 +260,7 @@ export function createUserStore({
     });
   }
 
-  async function updateUser(id, { name, role, username }) {
+  async function updateUser(id, { name, role, username, preset, overrides }) {
     return tx(async (d) => {
       const u = byId(d, id);
       if (!u) throw new StoreError('not_found', 'No such person.');
@@ -266,8 +279,20 @@ export function createUserStore({
         if (!ROLES.includes(role)) throw new StoreError('bad_role', 'Unknown role.');
         if (u.role === 'admin' && adminCount(d) <= 1) throw new StoreError('last_admin', 'There has to be at least one admin.');
         u.role = role;
+        // A new role starts from that role's defaults.
+        u.preset = role === 'admin' ? 'admin' : DEFAULT_PRESET;
+        u.overrides = { grant: [], deny: [] };
         // Different powers: make them sign in again.
         u.sessions = [];
+      }
+      if (preset !== undefined || overrides !== undefined) {
+        // Admins are everything: nothing to limit (and so the last admin can't be limited).
+        if (u.role === 'admin') throw new StoreError('admin_unlimited', 'Admins always have everything. Make them an editor first to limit them.');
+        const nextPreset = preset !== undefined ? preset : u.preset;
+        if (!isAssignablePreset(nextPreset)) throw new StoreError('bad_preset', 'Unknown access level.');
+        u.preset = nextPreset;
+        // Changing the preset without sending overrides keeps none; overrides are relative to the preset.
+        u.overrides = sanitizeOverrides(nextPreset, overrides !== undefined ? overrides : (preset !== undefined ? {} : u.overrides));
       }
       return publicUser(u, d.links);
     });

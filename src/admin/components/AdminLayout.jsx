@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { canOpenSection, ROLE_LABEL } from '../../shared/permissions.js';
-import { navItems, AREAS, areaOfSection, areaInfo, sectionInfo, sectionsOfArea, firstSectionOfArea, areasFor } from '../nav.js';
+import { navItems, AREAS, LOOK_GROUPS, areaOfSection, areaInfo, sectionInfo, sectionsOfArea, sectionsOfGroup, firstSectionOfArea, areasFor } from '../nav.js';
 import Icon from './ui/Icon.jsx';
 import SegmentedControl from './ui/SegmentedControl.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
@@ -118,6 +118,7 @@ function pageTitle(section, area, siteName) {
   if (section === 'home') return siteName;
   const info = sectionInfo(section);
   const a = areaInfo(area);
+  if (a && a.key === 'look') return info?.en || a.en; // Look & Settings: each page is named; the sub-nav shows where you are
   if (a && a.key !== 'home' && a.key !== 'announce') return a.en;
   return info?.en || '';
 }
@@ -129,7 +130,7 @@ export default function AdminLayout({
   const wide = useMedia('(min-width: 900px)');
   const roomForPreview = useMedia('(min-width: 1280px)');
   const [previewOpen, setPreviewOpen] = useState(false);
-  const role = me?.role;
+  const role = me; // the whole person: tabs come from their capabilities (permissions.js), not just admin/editor
   const area = areaOfSection(activeSection);
   const siblings = area ? sectionsOfArea(area, role) : [];
   const areas = areasFor(role);
@@ -158,7 +159,29 @@ export default function AdminLayout({
   // Close the drawer when the layout changes or a section changes.
   useEffect(() => { setPreviewOpen(false); }, [activeSection, wide, roomForPreview]);
 
-  const subNav = siblings.length > 1 ? (
+  // Look & Settings has many small pages: two rows on a phone (group, then page); the sidebar does this on desktop.
+  const lookGroups = area === 'look' ? LOOK_GROUPS.map((g) => ({ ...g, items: sectionsOfGroup(g.key, role) })).filter((g) => g.items.length) : [];
+  const activeGroup = sectionInfo(activeSection)?.group;
+  const groupItems = lookGroups.find((g) => g.key === activeGroup)?.items || [];
+  const subNav = area === 'look' ? (
+    wide ? null : (
+      <div data-testid="look-subnav" style={{ display: 'grid', gap: '8px', marginBottom: '16px', minWidth: 0 }}>
+        {lookGroups.length > 1 && (
+          <SegmentedControl
+            ariaLabel="Look and settings groups" fill value={activeGroup}
+            onChange={(g) => go(lookGroups.find((x) => x.key === g)?.items[0]?.key)}
+            options={lookGroups.map((g) => ({ value: g.key, label: g.en }))}
+          />
+        )}
+        {groupItems.length > 1 && (
+          <SegmentedControl
+            ariaLabel="Pages" value={activeSection} onChange={go}
+            options={groupItems.map((s) => ({ value: s.key, label: s.en }))}
+          />
+        )}
+      </div>
+    )
+  ) : siblings.length > 1 ? (
     <SegmentedControl
       ariaLabel={`${areaInfo(area)?.en || ''} sections`}
       value={activeSection}
@@ -282,9 +305,20 @@ export default function AdminLayout({
                 }}>
                   <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: a.color }} />{a.en}
                 </div>
-                {items.map((it) => (
-                  <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
-                ))}
+                {a.key === 'look'
+                  ? LOOK_GROUPS.map((g) => {
+                    const gi = items.filter((it) => it.group === g.key);
+                    if (!gi.length) return null;
+                    return (
+                      <div key={g.key} style={{ marginTop: '6px' }}>
+                        <div style={{ padding: '6px 10px 2px', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.muted }}>{g.en}</div>
+                        {gi.map((it) => <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />)}
+                      </div>
+                    );
+                  })
+                  : items.map((it) => (
+                    <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
+                  ))}
               </div>
             );
           })}

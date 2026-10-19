@@ -9,8 +9,8 @@ export async function userForRequest(req) {
   if (!token) return null;
   const s = await users.getSession(token);
   if (!s) return null;
-  const { id, username, name, role } = s.user;
-  return { id, username, name, role };
+  const { id, username, name, role, preset, overrides } = s.user;
+  return { id, username, name, role, preset, overrides };
 }
 
 /** Setup is done once somebody can sign in; picks up an old single-owner auth.json on first look. */
@@ -41,12 +41,14 @@ export async function requireAuth(req, res, next) {
 }
 
 /**
- * After requireAuth on /api: an editor may only reach what permissions.js lists.
+ * After requireAuth on /api: a non-admin may only do what their capabilities
+ * (role + preset + overrides, see permissions.js) allow. Body parsing runs first,
+ * so a few rules (takeovers, look-only settings) can look at req.body.
  * Fails closed — a route nobody listed is admin-only for writes.
  */
 export function enforceRole(req, res, next) {
   const path = req.originalUrl.split('?')[0];
-  if (!req.user || !canDo(req.user.role, req.method, path)) {
+  if (!req.user || !canDo(req.user, req.method, path, req.body)) {
     return res.status(403).json({ error: 'Your role can’t do that. Ask an admin.' });
   }
   next();

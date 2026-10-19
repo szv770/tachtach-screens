@@ -24,7 +24,8 @@
 
 export const SETTINGS_KEYS = Object.freeze([
   // Server-read
-  'location',          // { zip, locationId, timezone }
+  'location',          // { zip, locationId, timezone, displayName }
+  'siteName',          // string: this screen's name in the admin (sidebar, Home)
   'scheduler',         // { trackA, trackBTime }
   'announcements',     // { archiveDays }
   'dataSources',       // legacy, unused

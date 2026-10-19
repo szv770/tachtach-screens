@@ -82,10 +82,11 @@ let toastIdCounter = 0;
  * own fetches and don't get addToast as a prop). No-op before the admin mounts.
  * @param {string} message
  * @param {'success'|'error'} [type]
+ * @param {{label: string, onClick: Function}} [action] e.g. an Undo button
  */
 let toastSink = null;
-export function notify(message, type = 'success') {
-  if (toastSink) toastSink(message, type);
+export function notify(message, type = 'success', action = null) {
+  if (toastSink) toastSink(message, type, action);
 }
 
 export default function useAdminState() {
