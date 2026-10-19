@@ -76,6 +76,8 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 
 - **Phase 6B** — Home dashboard (`Home.jsx`), `history` (Recent changes, `ops/HistoryPage.jsx`), `health` (`ops/HealthPage.jsx`), Change tomorrow sheet (`schedule/ChangeDaySheet.jsx`, opened by Home / Schedule / search `qa-change-tomorrow`); nav entries under Look & Settings > System; search index entries for health/history; help topics `undo`, `change-tomorrow`, `health`.
 
+- **Phase 6A** — Freeze / Blank screen: `FreezeControl.jsx` (embedded on Home), `FreezeBanner.jsx` (shell, both layouts), `freezeStore.js`; API `/api/freeze` (+ `/schedule`), capability `screen.control`; storage `data/freeze.json`; no Look & Settings page (the off-hours windows and the emergency switch live inside the card).
+
 ## Mobile (390x844) checks
 
 No horizontal overflow in any section; inputs are 16px; all buttons, selects, summaries and links are at least 44px tall (global rule in `src/admin/index.html`, switches are a fixed 44x26 track with a 44px hit area via `ToggleSwitch` in `ui.jsx`). Settings' sticky Save bar now sits below the sticky admin header (`--tt-header-h`); Style's Save sticks to the bottom while dirty. Feedback goes through toasts (`notify()` from `useAdminState.js` for components that do their own fetches).

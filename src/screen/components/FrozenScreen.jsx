@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bidi, F } from '../design/ui.jsx';
+import { useDesign } from '../design/DesignRoot.jsx';
 import { DEFAULT_MESSAGE } from '../../shared/freeze.js';
 
 /**
@@ -10,8 +11,8 @@ import { DEFAULT_MESSAGE } from '../../shared/freeze.js';
  *   blank    solid black (deliberately not a theme colour: it is the "screen is dark" look)
  *   logo     the credit logo (settings.credit.logo.url) else the bundled TachTach mark, on black
  *   message  plain    big centred text in the display roles, on the theme background
- *            terminal monospace, accent colour on the theme background, `> text` + a static block
- *                     cursor; typed out ONCE (finite steps animation, never loops). The mono stack
+ *            terminal monospace on black in the theme accent (lightened on a light theme so it still
+ *                     reads on black), `> text` + a static block cursor; typed out ONCE (finite steps animation, never loops). The mono stack
  *                     is --f-mono (design/globalCss.js); no glow, blur or scanline filters.
  */
 const HE = /[֐-׿]/;
@@ -35,6 +36,8 @@ function Plain({ text }) {
 }
 
 function Terminal({ text, portrait, still }) {
+  const { light } = useDesign();
+  const ink = light ? 'color-mix(in srgb, var(--accent) 45%, #fff)' : 'var(--accent)';
   const n = [...text].length;
   const heb = HE.test(text);
   const avail = portrait ? 760 : 1400;
@@ -43,13 +46,13 @@ function Terminal({ text, portrait, still }) {
   const px = oneLine ? Math.min(96, Math.floor(fit)) : 48;
   const type = oneLine && !still;
   const cursor = (
-    <span aria-hidden="true" style={{ display: 'inline-block', width: '.55em', height: '1.02em', marginLeft: '.12em', verticalAlign: '-.14em', background: 'var(--accent)' }} />
+    <span aria-hidden="true" style={{ display: 'inline-block', width: '.55em', height: '1.02em', marginLeft: '.12em', verticalAlign: '-.14em', background: ink }} />
   );
   return (
-    <div style={{ position: 'absolute', inset: 0, background: 'var(--bg)', display: 'flex', alignItems: 'center', padding: '0 7%' }}>
+    <div style={{ position: 'absolute', inset: 0, background: BLACK, display: 'flex', alignItems: 'center', padding: '0 7%' }}>
       <style>{KEYFRAMES}</style>
-      <div style={{ fontFamily: 'var(--f-mono)', fontSize: px, lineHeight: 1.3, color: 'var(--accent)', fontWeight: 500, whiteSpace: oneLine ? 'pre' : 'pre-wrap', overflowWrap: 'anywhere', maxWidth: '100%' }}>
-        <span style={{ color: 'var(--accent)' }}>{'> '}</span>
+      <div style={{ fontFamily: 'var(--f-mono)', fontSize: px, lineHeight: 1.3, color: ink, fontWeight: 500, whiteSpace: oneLine ? 'pre' : 'pre-wrap', overflowWrap: 'anywhere', maxWidth: '100%' }}>
+        <span>{'> '}</span>
         {oneLine ? (
           <span style={{
             display: 'inline-block', overflow: 'hidden', verticalAlign: 'bottom', '--tt-chars': `${n}ch`, width: type ? undefined : `${n}ch`,

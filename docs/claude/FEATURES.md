@@ -84,3 +84,10 @@ No manual input. `src/shared/kiddushLevana.js` `kiddushLevanaState(now, location
 - `/admin/history` (`ops/HistoryPage.jsx`): day-grouped rows, Undo / Undone by / Too old / blocked reason; Home link + My account link + search.
 - `/admin/health` (`ops/HealthPage.jsx`): needs-attention list + closed groups with summaries; Fix buttons by capability.
 - Change tomorrow (`schedule/ChangeDaySheet.jsx`, from Home, Schedule, search): Today/Tomorrow/date, change a time, Cancel/Restore, add a one-off, Save for that date only (PUT /api/schedule/dates/:date), Back to normal schedule.
+
+## Freeze / Blank screen (Phase 6A)
+
+- **Admin**: `components/FreezeControl.jsx` (Home card; takes `me`, hides the controls without `screen.control`), `FreezeBanner.jsx` ("Screen is frozen - Resume" bar at the top of every admin page while frozen), `freezeStore.js` (one shared poll of `GET /api/freeze`, 15 s). Mode buttons Blank / Logo only / Freeze / Message, duration chips (Until I resume, 30 min, 1 hour, Tomorrow morning, Until a time), Message text (120 chars) + Plain/Terminal, big Resume with "Resumes at 7:15 AM (in 20 min)", 'Emergency announcements still show' switch, closed **Scheduled off-hours** section (day chips, From/To, mode, message; Save/Discard).
+- **Kiosk**: `components/FrozenScreen.jsx` (blank, logo, plain, terminal); the 'freeze' mode and suppression rules live in `App.jsx`.
+- **Old buttons**: Screen Controls > Pause / Resume / Blank are unchanged (a toggle `_blank`, not the same as Freeze; Freeze is the one that survives a reload, a restart and is timed).
+
