@@ -1,6 +1,5 @@
 import React from 'react';
 import { Bidi, F } from '../design/ui.jsx';
-import { useDesign } from '../design/DesignRoot.jsx';
 import { DEFAULT_MESSAGE } from '../../shared/freeze.js';
 
 /**
@@ -11,7 +10,7 @@ import { DEFAULT_MESSAGE } from '../../shared/freeze.js';
  *   blank    solid black (deliberately not a theme colour: it is the "screen is dark" look)
  *   logo     the credit logo (settings.credit.logo.url) else the bundled TachTach mark, on black
  *   message  plain    big centred text in the display roles, on the theme background
- *            terminal monospace on black in the theme accent (lightened on a light theme so it still
+ *            terminal monospace in phosphor green on black, the same on every theme (so it still
  *                     reads on black), `> text` + a static block cursor; typed out ONCE (finite steps animation, never loops). The mono stack
  *                     is --f-mono (design/globalCss.js); no glow, blur or scanline filters.
  */
