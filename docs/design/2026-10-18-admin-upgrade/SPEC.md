@@ -65,3 +65,12 @@ Banner scrolling (admin chooses), sicha auto-size, quick-time sizing + countdown
 - **Direction A "Seal" chosen, fully** (mockups/direction-a.html, DESIGN-NOTES.md). Tab bar: Home · Screen · + · Schedule · Announce; **Look & Settings behind the header gear** (also a Home tile). Adopt from B only: small area-colour markers (sidebar group headings, Home tiles) and the sideways "kinds" row at the top of the "+" sheet.
 - Live preview under 1280px wide = slide-over panel opened from a button. **Also an "Open live preview in a new tab" button** (`/screen?preview=true`) on desktop and mobile.
 - Fonts bundled via @fontsource (Fraunces, Manrope, Rubik already in package.json), not Google Fonts.
+
+## Auto Kiddush Levana announcement (owner, 2026-10-19; not yet built)
+Automatic, no manual input, recomputed daily from the Hebrew calendar + the school's zip/location (so "what day THIS month it can start" is always current).
+- **Window**: starts 7 days after the molad; ends per **Minhag Chabad** — implemented as the halfway point of the month (molad + 14d 18h 22m 1.67s, chatzi chodesh) with a setting for the alternatives; confirm the exact Chabad cutoff with the owner's rav before shipping. Only at night (from tzeis for the zip code); skip nights where custom delays it (Tisha B'Av nuances, Yom Kippur → Sukkos notes, etc.).
+- **Display**: banner on the nights it can be said (last night marked "LAST NIGHT"); side note in the rail; one-time slide/takeover when the window opens and on the last night; Motzei Shabbos reminder when it falls inside the window. **During the day: no slide, only the rail note.** Show the molad time and the exact cutoff moment for this month.
+- Fits the deferred "schedule-triggered auto-announcements" work (announcements Phase 2c): a computed, non-editable announcement source with admin on/off + the 3-vs-7-day / end-point settings. Pure calc in src/shared with unit tests against known molad dates.
+
+## Security (owner request 2026-10-19)
+White-hat audit of the whole app (report-only first: docs/security/AUDIT-2026-10-19.md), then a fix pass ordered by severity.
