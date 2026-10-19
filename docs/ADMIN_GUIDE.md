@@ -17,7 +17,8 @@ This guide covers everything you need to know to manage your TachTach kiosk disp
 9. [Style (Themes & Fonts)](#style)
 10. [Settings](#settings)
 11. [Team & Logins](#team--logins)
-12. [Troubleshooting](#troubleshooting)
+12. [Updating the screen software](#updating-the-screen-software-admins-only)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -526,6 +527,21 @@ Everyone who edits the screens gets their own login, so you can see who posted w
 **Activity** (Team → Activity): a plain list of who changed what and when. Announcements also show "Posted by …".
 
 If the last admin is locked out, use the command line on the Pi: `npm run reset-admin -- --list` shows everyone, `npm run reset-admin -- --user <username> --reset-password` fixes a password.
+
+---
+
+## Updating the screen software (admins only)
+
+**Home -> System health -> Software update.** It shows the version running on the Pi and whether a newer one is waiting.
+
+1. Press **Check for updates** to look now.
+2. Press **Update now**. A window lists what is coming. Type your password again and, because admins always use 2-step, the current 6-digit code from your authenticator app, then press the big button.
+3. The Pi downloads the new version, rebuilds and restarts. **The screen goes blank for about a minute.** A bar at the top of every admin page and the card show it is running; the page keeps trying to reach the Pi by itself.
+4. When it is done you see **Updated to <version>** and the list of what changed, and your phone gets a "Software updated" alert if alerts are on.
+
+If the new version does not start, the Pi puts the old one back by itself and says so ("Update failed - rolled back"). **Roll back to previous version** (same password check) undoes the last update by hand. Your messages, schedule and photos are never touched.
+
+You can only ask for one update every 5 minutes, and only admins see this card. If the card says **Not set up on this Pi yet**, run `bash ~/tachtach-screens/deploy/update.sh` once on the Pi (the setup guide has the command); after that the button works.
 
 ---
 

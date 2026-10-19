@@ -91,3 +91,7 @@ No manual input. `src/shared/kiddushLevana.js` `kiddushLevanaState(now, location
 - **Kiosk**: `components/FrozenScreen.jsx` (blank, logo, plain, terminal); the 'freeze' mode and suppression rules live in `App.jsx`.
 - **Old buttons**: Screen Controls > Pause / Resume / Blank are unchanged (a toggle `_blank`, not the same as Freeze; Freeze is the one that survives a reload, a restart and is timed).
 
+## Software update from the website (2026-10-19)
+- **Admin**: `components/ops/SoftwareUpdateCard.jsx` at the top of `/admin/health` (admins only, hidden otherwise): running version, Check for updates, Update now / Roll back (a Sheet with what will happen, incoming commit subjects, password and, with 2-step, the code), live progress + closed log tail, "Updated to <short>" with up to 15 subjects, failure text. `components/ops/UpdateBanner.jsx` = bar on every admin page while an update runs. Search ("update", "roll back") and Help ("How do I update the screen?") entries are admin-only. States: not set up on this Pi (units missing: run `deploy/update.sh` once by hand), idle, running (also "screen is restarting" while the page cannot reach the Pi), success, failed (with "earlier version put back").
+- **Server/Pi**: see ARCHITECTURE.md "Software update from the website". Files: `src/server/systemUpdate.js`, `routes/systemUpdate.js`, `src/shared/systemUpdate.js`, `deploy/{run-update.sh,update-helper.mjs,tachtach-update.path,tachtach-update.service}`.
+

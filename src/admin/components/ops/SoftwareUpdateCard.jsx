@@ -113,6 +113,13 @@ export default function SoftwareUpdateCard({ me }) {
 
   useEffect(() => { alive.current = true; if (allowed) load(false); return () => { alive.current = false; }; }, [allowed, load]);
 
+  // First look: the server checks the code host in the background; ask again shortly for the answer.
+  useEffect(() => {
+    if (!allowed || !info?.check?.checking) return undefined;
+    const t = setTimeout(() => load(false), 4000);
+    return () => clearTimeout(t);
+  }, [allowed, info, load]);
+
   const running = !!asked || info?.pending || info?.status?.state === 'running';
 
   // While an update runs: ask the light endpoint every 3 s. Failures are expected during the restart.
@@ -202,6 +209,7 @@ export default function SoftwareUpdateCard({ me }) {
         <div data-testid="update-available" style={{ fontSize: '14px', lineHeight: 1.5 }}>
           {c?.error ? <span style={{ color: colors.warn }}>{c.error}</span>
             : c?.updateAvailable ? <b>{c.commitsBehind} newer {c.commitsBehind === 1 ? 'change is' : 'changes are'} waiting.</b>
+            : c?.checking ? 'Checking for updates...'
             : c?.updateAvailable === false ? 'You are on the newest version.' : 'Not checked yet.'}
           {c?.checkedAt && <span style={{ color: colors.muted }}> Checked {when(c.checkedAt)}.</span>}
         </div>

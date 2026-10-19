@@ -69,6 +69,17 @@ case "$ACTION" in
   *) echo "[run-update] unexpected action"; exit 0 ;;
 esac
 
+# Belt and braces on the Pi's side too: even a valid request is dropped if a run finished moments ago
+# (the web side allows one per 5 minutes; this stops a runaway writer from looping updates).
+MIN_GAP="${TT_MIN_GAP_SECONDS:-120}"
+if [ -e "$STATE_DIR/last-finished" ]; then
+  AGE=$(( $(date +%s) - $(stat -c %Y "$STATE_DIR/last-finished") ))
+  if [ "$AGE" -ge 0 ] && [ "$AGE" -lt "$MIN_GAP" ]; then
+    echo "[run-update] a run finished ${AGE}s ago; ignoring this request"
+    exit 0
+  fi
+fi
+
 # ── helpers ─────────────────────────────────────────────────────────────────
 : > "$RUN_LOG"
 say() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$RUN_LOG"; }
@@ -95,6 +106,7 @@ write_status() { # <state> [message]
 
 FINISHED_OK=0
 on_exit() {
+  touch "$STATE_DIR/last-finished" 2>/dev/null || true
   if [ "$FINISHED_OK" != "1" ]; then
     write_status failed "The update stopped unexpectedly. See the log below."
   fi

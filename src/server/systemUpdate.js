@@ -86,7 +86,7 @@ export function checkRequestAllowed(now = Date.now()) {
   return requestAllowed({ status: readStatus(), pending: requestPending(now), lastRequestAt, now });
 }
 export function noteRequest(now = Date.now()) { lastRequestAt = now; }
-export function _resetForTests() { lastRequestAt = 0; checkMemo = { at: 0, v: null }; }
+export function _resetForTests() { lastRequestAt = 0; checkMemo = { at: 0, v: null, inflight: null }; }
 
 // ── git facts ───────────────────────────────────────────────────────────────
 
@@ -123,10 +123,10 @@ let checkMemo = { at: 0, v: null, inflight: null };
  * Fetch (never pull) and count what is waiting. Cached; `force` still waits CHECK_MIN_GAP_MS between
  * real fetches so "Check for updates" cannot be used to hammer the git host.
  */
-async function checkForUpdates({ force = false, now = Date.now() } = {}) {
+async function checkForUpdates({ force = false, now = Date.now(), wait = true } = {}) {
   const age = now - checkMemo.at;
   if (checkMemo.v && (force ? age < CHECK_MIN_GAP_MS : age < CHECK_TTL_MS)) return checkMemo.v;
-  if (checkMemo.inflight) return checkMemo.inflight;
+  if (checkMemo.inflight) return wait ? checkMemo.inflight : checkMemo.v;
   checkMemo.inflight = (async () => {
     const out = { checkedAt: null, updateAvailable: null, commitsBehind: null, incoming: [], error: null };
     try {
@@ -151,7 +151,8 @@ async function checkForUpdates({ force = false, now = Date.now() } = {}) {
     checkMemo = { at: Date.now(), v: out, inflight: null };
     return out;
   })();
-  return checkMemo.inflight;
+  // Opening the page must not wait on the network: the first ask starts the fetch and answers "checking".
+  return wait ? checkMemo.inflight : (checkMemo.v || null);
 }
 
 function friendlyGitError(e) {
@@ -173,7 +174,7 @@ export async function getUpdateInfo({ refresh = false } = {}) {
   const status = readStatus();
   const pending = requestPending();
   const [current, branch, check, prev, notes] = await Promise.all([
-    commitInfo('HEAD'), currentBranch(), checkForUpdates({ force: refresh }),
+    commitInfo('HEAD'), currentBranch(), checkForUpdates({ force: refresh, wait: refresh }),
     status.previousCommit ? commitInfo(status.previousCommit) : null, changelog(status),
   ]);
   const { full: _f, ...cur } = current || {};
@@ -185,7 +186,7 @@ export async function getUpdateInfo({ refresh = false } = {}) {
     status: { ...status, fromShort: shortHash(status.fromCommit), toShort: shortHash(status.toCommit), fromCommit: undefined, toCommit: undefined, previousCommit: undefined },
     pending,
     changes: notes,
-    check,
+    check: check || { checkedAt: null, updateAvailable: null, commitsBehind: null, incoming: [], error: null, checking: true },
     previous: prev ? pv : null,
     canRollback: !!prev && !!current && prev.full !== current.full,
   };

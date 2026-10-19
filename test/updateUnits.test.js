@@ -69,7 +69,7 @@ function sandbox() {
   fs.mkdirSync(path.join(project, 'deploy'), { recursive: true });
   const env = {
     PATH: process.env.PATH, HOME: root, RUN_UPDATE_DRY_RUN: '1', TT_PROJECT_DIR: project, TT_OWNER: os.userInfo().username, TT_OWNER_HOME: root,
-    TT_STATE_DIR: state, TT_HELPER: path.resolve('deploy/update-helper.mjs'), TT_NODE: process.execPath,
+    TT_STATE_DIR: state, TT_MIN_GAP_SECONDS: '0', TT_HELPER: path.resolve('deploy/update-helper.mjs'), TT_NODE: process.execPath,
   };
   // a tiny real git repo so rev-parse works
   execFileSync('git', ['init', '-q', project]);
@@ -168,4 +168,17 @@ test('wrapper: no request file means nothing happens', { skip: !hasBash }, () =>
   const s = sandbox();
   assert.equal(s.run().status, 0);
   assert.equal(s.status(), null);
+});
+
+test('wrapper: a second request right after a run is dropped by the Pi itself', { skip: !hasBash }, () => {
+  const s = sandbox();
+  writeRequestFile({ action: 'update', by: 'Dina', dir: s.data });
+  assert.equal(s.run({ TT_MIN_GAP_SECONDS: '120' }).status, 0);
+  assert.equal(s.status().state, 'success');
+  fs.rmSync(path.join(s.data, 'update-status.json'));
+  writeRequestFile({ action: 'update', by: 'Dina', dir: s.data });
+  const r = s.run({ TT_MIN_GAP_SECONDS: '120' });
+  assert.match(r.stdout, /ignoring this request/);
+  assert.equal(s.status(), null);
+  assert.ok(!fs.existsSync(path.join(s.data, 'update-request.json')));
 });
