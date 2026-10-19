@@ -5,6 +5,7 @@ import { csrfProtection } from '../middleware.js';
 import { loginPage, invitePage, signinPage, noticePage } from '../authPages.js';
 import { withNonce } from '../csp.js';
 import { sendPush } from '../push.js';
+import { ipKey, userKey } from '../clientIp.js';
 
 const router = Router();
 
@@ -16,8 +17,6 @@ const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 // person+address (tight). Nobody can lock a colleague out from another address.
 const IP_LIMIT = { max: 20, lockMs: 60 * 60 * 1000 };
 const USER_LIMIT = { max: 8, lockMs: 15 * 60 * 1000 };
-const ipKey = (req) => `ip:${req.ip}`;
-const userKey = (req, name) => `user:${name}|${req.ip}`;
 
 /**
  * Cookies are `secure` whenever the request really arrived over HTTPS

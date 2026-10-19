@@ -97,6 +97,7 @@ export function createUserStore({
   const iso = (ms) => new Date(ms).toISOString();
 
   // ── persistence ───────────────────────────────────────────────────────────
+  const MAX_LOCKOUTS = 2000;
   const blank = () => ({ version: 1, users: [], links: [], preauth: [], lockouts: {} });
 
   function normalize(doc) {
@@ -119,6 +120,16 @@ export function createUserStore({
     return d;
   }
 
+  /** Hard cap so rotating addresses/names can never grow users.json: drop the oldest unlocked counters first. */
+  function capLockouts(l) {
+    const keys = Object.keys(l);
+    if (keys.length <= MAX_LOCKOUTS) return;
+    const t = now();
+    const locked = (k) => l[k].lockedUntil && Date.parse(l[k].lockedUntil) > t;
+    const order = keys.filter((k) => !locked(k)).sort((a, b) => Date.parse(l[a].at || 0) - Date.parse(l[b].at || 0));
+    for (const k of order) { if (Object.keys(l).length <= MAX_LOCKOUTS) break; delete l[k]; }
+  }
+
   function prune(d) {
     const t = now();
     const alive = (e) => Date.parse(e.expiresAt) > t;
@@ -132,6 +143,7 @@ export function createUserStore({
     for (const [k, e] of Object.entries(d.lockouts)) {
       if (e.lockedUntil ? Date.parse(e.lockedUntil) <= t : !e.at || Date.parse(e.at) + 2 * 60 * 60 * 1000 <= t) delete d.lockouts[k];
     }
+    capLockouts(d.lockouts);
   }
 
   const load = async () => normalize(await read());

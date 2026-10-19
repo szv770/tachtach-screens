@@ -20,7 +20,7 @@ app.listen(PORT, HOST, () => {
   }
 
   if (!process.env.TRUST_PROXY) {
-    console.warn('[security] If behind a reverse proxy, set TRUST_PROXY=1 and configure "trust proxy" for correct IP detection.');
+    console.warn('[security] If behind a reverse proxy, set TRUST_PROXY=1 and the server then trusts X-Forwarded-For from loopback peers only.');
   }
 });
 

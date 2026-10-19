@@ -4,7 +4,7 @@ Read `CLAUDE.md` first. This is the deeper reference for the server internals.
 
 ## Request pipeline (`src/server/app.js`, in order)
 
-1. `trust proxy` set if `TRUST_PROXY` env var present (required behind Cloudflare Tunnel — see GOTCHAS.md)
+1. `trust proxy` = `'loopback'` if `TRUST_PROXY` env var present (required behind Cloudflare Tunnel; only the loopback hop's `X-Forwarded-For` is believed, so LAN devices cannot choose their rate-limit/lockout address; keys via `src/server/clientIp.js`, lockout table capped at 2000 — see GOTCHAS.md)
 2. Security headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`)
 3. `Cache-Control: no-store` on `/login`, `/admin`, `/api` (prevents a cached auth response looking like a logout)
 4. `express.json({ limit: '16kb' })` — skipped for `/api/schedule/{dates,blocks}*`, which parse their own bodies at 256 kB (`routes/schedule-dates.js`) — then `cookie-parser`

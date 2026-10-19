@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
+import { TRUST_PROXY_SETTING, normalizeIp } from './clientIp.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -174,7 +175,8 @@ export function createApp() {
 
   // ── 0. Trust proxy (if configured) ───────────────────────────────────
   if (process.env.TRUST_PROXY) {
-    app.set('trust proxy', 1);
+    // Only the loopback hop (cloudflared) may supply X-Forwarded-For; LAN peers' headers are ignored (audit N2).
+    app.set('trust proxy', TRUST_PROXY_SETTING);
   }
 
   app.disable('x-powered-by');
@@ -217,7 +219,9 @@ export function createApp() {
   app.use(setupCheck);
 
   // ── 4. Rate limiter on POST /login and the TOTP verification steps ──
+  const limiterKey = (req) => normalizeIp(req.ip);
   const loginLimiter = rateLimit({
+    keyGenerator: limiterKey,
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 40,                   // per IP: a whole school can share one address; real brute-force limits are in routes/auth.js
     standardHeaders: true,
@@ -440,6 +444,7 @@ export function createApp() {
 
   // ── 8. Auth + CSRF on /admin and /api/* ──────────────────────────────
   const apiMutationLimiter = rateLimit({
+    keyGenerator: limiterKey,
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 60,                  // 60 mutating requests per minute per IP
     standardHeaders: true,
