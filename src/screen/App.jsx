@@ -102,7 +102,7 @@ function AppContent() {
 
   // Announcements (slides, banners, side notes, takeovers) — what's live now,
   // re-evaluated every second by the shared isActive() rules.
-  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone);
+  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone, { settings: state?.settings, cache: state?.cache });
 
   // The schedule that applies today (or on ?previewDate=): that date's own
   // schedule from schedule-dates.json, else the weekly one. `clock` ticks
@@ -440,7 +440,13 @@ function AppContent() {
       .sort((a, b) => a.v - b.v)[0];
     if (next) {
       const left = next.v - nowM;
-      upNext = { name: next.e.name, nameHe: next.e.nameHe, startMins: next.v, minsLeft: left, fraction: 1 - left / upNextWindow };
+      const secsLeft = Math.max(0, next.v * 60 - (nowM * 60 + nowDate.getSeconds()));
+      upNext = {
+        name: next.e.name, nameHe: next.e.nameHe, startMins: next.v, minsLeft: left, secsLeft,
+        // live countdown option (rail.upNextCountdown): the ring then follows seconds too
+        fraction: settings.rail?.upNextCountdown ? 1 - secsLeft / (upNextWindow * 60) : 1 - left / upNextWindow,
+        countdown: !!settings.rail?.upNextCountdown,
+      };
     }
   }
 

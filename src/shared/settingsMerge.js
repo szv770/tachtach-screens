@@ -28,6 +28,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'siteName',          // string: this screen's name in the admin (sidebar, Home)
   'scheduler',         // { trackA, trackBTime }
   'announcements',     // { archiveDays }
+  'kiddushLevana',     // { enabled, startAfterDays 3|7, endRule halfway|fifteen, skipCustoms }
   'dataSources',       // legacy, unused
   // Theme / layout (kiosk)
   'theme', 'customTheme', 'themeAuto', 'orientation', 'portraitLayout', 'clockSide',

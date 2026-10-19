@@ -19,6 +19,7 @@ import { ensureDefaultCategories, ensureCategoryDefaultAlerts, readScheduleDates
 import announcementsRouter from './routes/announcements.js';
 import quickTemplatesRouter from './routes/quick-templates.js';
 import savedLettersRouter from './routes/saved-letters.js';
+import { kiddushLevanaRouter, startKiddushLevana, readShown as readKlShown } from './kiddush-levana.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import embedProbeRouter from './routes/embed-probe.js';
@@ -74,6 +75,7 @@ export function createApp() {
       try {
         await ensureBuiltinSlides();
         startDailyWordRecorder();
+        startKiddushLevana();
       } catch (bsErr) {
         console.error('[slides] Built-in slide check failed:', bsErr.message);
       }
@@ -274,6 +276,11 @@ export function createApp() {
     }
   });
 
+  // Kiosk: which one-time Kiddush Levana takeovers were already shown (so a refresh never repeats them).
+  app.get('/api/kiddush-levana/shown', localhostOrAuth, async (_req, res) => {
+    try { res.json(await readKlShown()); } catch { res.json({}); }
+  });
+
   // ── 6d. Localhost-only Google Photos endpoints (kiosk needs photo data without auth) ─
   app.get('/api/google-album/:id/photos', localhostOnly, async (req, res) => {
     try {
@@ -436,6 +443,7 @@ export function createApp() {
   app.use('/api', announcementsRouter);
   app.use('/api', quickTemplatesRouter);
   app.use('/api', savedLettersRouter);
+  app.use('/api', kiddushLevanaRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
