@@ -25,7 +25,7 @@ export default function UiKit() {
   });
   const label = { display: 'block', fontSize: '13px', fontWeight: 700, color: colors.dim, margin: '12px 0 6px', fontFamily: adminFonts.englishBody };
   return (
-    <div data-testid="ui-kit" style={{ display: 'grid', gap: '12px', maxWidth: '640px', fontFamily: adminFonts.englishBody }}>
+    <div data-testid="ui-kit" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '12px', maxWidth: '640px', fontFamily: adminFonts.englishBody }}>
       <p style={{ color: colors.dim, fontSize: '14px', margin: 0 }}>Shared building blocks for the admin. Edit a field below to see the Save bar and the leave-page guard.</p>
 
       <Collapsible id="kit-location" title="Location" summary={`${form.values.city} · ${form.values.zip}`} edited={form.isChanged('city') || form.isChanged('zip')} icon="screen">

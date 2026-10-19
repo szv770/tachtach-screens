@@ -181,7 +181,7 @@ export default function AdminLayout({
       { area: 'home' }, { area: 'screen' }, { fab: true }, { area: 'schedule' }, { area: 'announce' },
     ];
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: colors.bg, overflowX: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: colors.bg }}>
         <div ref={headerRef} style={{
           position: 'sticky', top: 0, zIndex: 100, background: colors.bg, flexShrink: 0,
           padding: 'calc(6px + env(safe-area-inset-top)) 8px 6px 8px', display: 'flex', alignItems: 'center', gap: '2px',
@@ -302,18 +302,18 @@ export default function AdminLayout({
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
         <header style={{
           position: 'sticky', top: 0, zIndex: 100, height: '64px', display: 'flex', alignItems: 'center', gap: '12px',
-          padding: '0 32px', background: colors.bg, borderBottom: `1px solid ${colors.line}`,
+          padding: '0 24px', background: colors.bg, borderBottom: `1px solid ${colors.line}`,
         }}>
           <button type="button" data-testid="open-search" onClick={onOpenSearch} aria-label="Search" style={{
-            flex: 1, maxWidth: '560px', height: '40px', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px',
+            flex: '1 1 160px', minWidth: 0, maxWidth: '560px', height: '40px', display: 'flex', alignItems: 'center', gap: '10px', padding: '0 14px',
             borderRadius: '999px', border: `1px solid ${colors.line}`, background: colors.card, color: colors.muted, cursor: 'pointer',
             fontFamily: adminFonts.englishBody, fontSize: '14px', textAlign: 'left',
           }}>
             <Icon name="search" size={18} />
-            <span style={{ flex: 1 }}>Search settings, messages, help…</span>
+            <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Search settings, messages, help…</span>
             <kbd style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', border: `1px solid ${colors.border}`, borderRadius: '6px', padding: '1px 7px', color: colors.dim }}>/</kbd>
           </button>
-          <span style={{ flex: 1 }} />
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           {canPost && (
             <button type="button" data-testid="new-btn" onClick={onOpenNew} style={{
               display: 'flex', alignItems: 'center', gap: '6px', minHeight: '40px', padding: '0 16px', borderRadius: '999px', border: 'none',
@@ -328,6 +328,7 @@ export default function AdminLayout({
           )}
           <button type="button" aria-label="Help" title="Help" data-testid="help-btn" onClick={() => go('help')} style={{ ...iconBtn, color: activeSection === 'help' ? colors.accent : colors.text }}><Icon name="help" /></button>
           <NameChip me={me} onOpen={() => go('account')} />
+          </div>
         </header>
 
         <main style={{ padding: '24px 32px calc(96px + env(safe-area-inset-bottom))', minWidth: 0 }}>

@@ -43,7 +43,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
   };
 
   return (
-    <div data-testid="home" style={{ display: 'grid', gap: '16px', fontFamily: adminFonts.englishBody, color: colors.text }}>
+    <div data-testid="home" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px', fontFamily: adminFonts.englishBody, color: colors.text }}>
       {me && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: colors.dim, flexWrap: 'wrap' }}>
           <span>Hi {me.name}</span><RoleChip role={me.role} />
@@ -64,7 +64,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
         </button>
       )}
 
-      <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}>
+      <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }}>
         {AREAS.filter((a) => a.key !== 'home' && sectionsOfArea(a.key, role).length).map((a) => (
           <button key={a.key} type="button" data-testid={`tile-${a.key}`} onClick={() => onGo(firstSectionOfArea(a.key, role))} style={{
             ...card, padding: '14px', minHeight: '112px', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit',

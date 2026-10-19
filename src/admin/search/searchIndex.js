@@ -105,7 +105,7 @@ function tokenScore(token, words) {
   for (const w of words) {
     if (w.startsWith(token)) best = Math.max(best, 3);
     else if (w.includes(token)) best = Math.max(best, 2);
-    else if (token.length >= 4 && lev1(token, w.slice(0, token.length))) best = Math.max(best, 1);
+    else if (token.length >= 5 && lev1(token, w.slice(0, token.length))) best = Math.max(best, 1);
   }
   return best;
 }
