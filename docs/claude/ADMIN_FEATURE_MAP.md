@@ -74,6 +74,8 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | Not exposed on purpose | `settings.dataSources` (unused anywhere), `fonts.customFonts` (legacy, kiosk reads `fonts.json`) | none | Dead keys |
 | Reserved for the kiosk rebuild | `rail`, `layout`, `motion`, `graphics`, `weather`, `zmanimLayout`, `scheduleLayout` | none yet (the screen agent adds controls) | Already accepted by PATCH whitelist |
 
+- **Phase 6B** — Home dashboard (`Home.jsx`), `history` (Recent changes, `ops/HistoryPage.jsx`), `health` (`ops/HealthPage.jsx`), Change tomorrow sheet (`schedule/ChangeDaySheet.jsx`, opened by Home / Schedule / search `qa-change-tomorrow`); nav entries under Look & Settings > System; search index entries for health/history; help topics `undo`, `change-tomorrow`, `health`.
+
 ## Mobile (390x844) checks
 
 No horizontal overflow in any section; inputs are 16px; all buttons, selects, summaries and links are at least 44px tall (global rule in `src/admin/index.html`, switches are a fixed 44x26 track with a 44px hit area via `ToggleSwitch` in `ui.jsx`). Settings' sticky Save bar now sits below the sticky admin header (`--tt-header-h`); Style's Save sticks to the bottom while dirty. Feedback goes through toasts (`notify()` from `useAdminState.js` for components that do their own fetches).
