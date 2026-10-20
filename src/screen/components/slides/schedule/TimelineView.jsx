@@ -98,7 +98,11 @@ export default function TimelineView({ items, states, now, light, portrait, moti
                     hidden second line) when the line is too full, so it is never cut */}
                 <div data-optional={portrait ? '' : undefined} style={{ display: 'flex', alignItems: 'center', columnGap: Math.round(metaSize * 0.7), fontFamily: F.en, fontSize: metaSize, fontWeight: 600, color: dim, marginTop: 2, whiteSpace: 'nowrap', minWidth: 0,
                   ...(portrait ? { flexWrap: 'wrap', rowGap: metaSize, height: Math.round(metaSize * 1.45), overflow: 'hidden' } : null) }}>
-                  {s.split ? <SplitTimes split={s.split} now={now} color={dim} onColor={ink} size="1em" style={{ marginTop: 0 }} /> : (
+                  {s.split ? (
+                    <Fit max={metaSize} min={16} style={{ flex: '1 1 auto', height: Math.round(metaSize * 1.3), lineHeight: 1.25 }}>
+                      <SplitTimes split={s.split} now={now} color={dim} onColor={ink} size="1em" style={{ marginTop: 0, whiteSpace: 'nowrap' }} />
+                    </Fit>
+                  ) : (
                     <span className="tt-num">{s.end != null ? rangeText(s.v, s.end) : 'at ' + rangeText(s.v, null)}</span>
                   )}
                   {!s.split && dur > 0 && (

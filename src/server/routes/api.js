@@ -27,6 +27,8 @@ import { normalizeSettings } from '../settings-migrate.js';
 import { deepMerge, validateSettingsPatch } from '../../shared/settingsMerge.js';
 import { getEffectiveSchedule } from '../../shared/scheduleResolution.js';
 import { sanitizeStages, isKind } from '../../shared/scheduleStages.js';
+import { sanitizeGroupFields } from '../../shared/scheduleGroups.js';
+import { scheduleGroupIds } from '../schedule-groups.js';
 import { getStateExtras } from '../announcements-store.js';
 import { fetchWeather } from '../../fetchers/weather.js';
 import { describeWeather } from '../../shared/weatherCodes.js';
@@ -86,13 +88,21 @@ function cleanPdfFields(slide) {
 }
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
-const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages'];
+const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages', 'groupTimes', 'groups'];
 // `alertDisplay` is accepted only as a legacy alias (older admin builds and
 // the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
 // folds it into `countdownDisplay`, which is the only key that gets stored.
 const SCHEDULE_ENTRY_INPUT_FIELDS = [...SCHEDULE_ENTRY_FIELDS, 'alertDisplay'];
-function pickScheduleEntry(e) {
+function pickScheduleEntry(e, groupIds = null) {
   const picked = pick(e, SCHEDULE_ENTRY_INPUT_FIELDS);
+  if ('groupTimes' in picked || 'groups' in picked) {
+    // Groups (src/shared/scheduleGroups.js): unknown ids and bad slots are dropped here; the single-entry
+    // routes refuse bad times outright (groupErrors) before saving.
+    const g = sanitizeGroupFields(picked, groupIds);
+    delete picked.groupTimes; delete picked.groups;
+    if (g.groupTimes) picked.groupTimes = g.groupTimes;
+    if (g.groups) picked.groups = g.groups;
+  }
   if ('alertDisplay' in picked) {
     if (!picked.countdownDisplay) picked.countdownDisplay = picked.alertDisplay;
     delete picked.alertDisplay;
@@ -397,7 +407,8 @@ router.put('/schedule/entries', async (req, res) => {
       return res.status(400).json({ error: 'Invalid entries data — expected an array.' });
     }
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e) }));
+    const gids = await scheduleGroupIds();
+    schedule.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e, gids) }));
     await writeJSON('schedule.json', schedule);
     broadcast('schedule-update', schedule);
     // Re-initialize countdown timers with new schedule
@@ -417,8 +428,11 @@ router.post('/schedule/entries', async (req, res) => {
     if (!req.body?.time) {
       return res.status(400).json({ error: 'Entry time is required.' });
     }
+    const gids = await scheduleGroupIds();
+    const gErr = sanitizeGroupFields(req.body, gids).errors;
+    if (gErr.length) return res.status(400).json({ error: gErr.join(' ') });
     const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    const picked = pickScheduleEntry(req.body);
+    const picked = pickScheduleEntry(req.body, gids);
     if (picked.enabled === undefined) picked.enabled = true;
     const newEntry = { id: uuidv4(), ...picked };
     schedule.entries.push(newEntry);
@@ -439,7 +453,14 @@ router.put('/schedule/entries/:id', async (req, res) => {
     if (idx === -1) {
       return res.status(404).json({ error: 'Schedule entry not found.' });
     }
-    schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body), id: req.params.id };
+    const gids = await scheduleGroupIds();
+    const gErr = sanitizeGroupFields(req.body, gids).errors;
+    if (gErr.length) return res.status(400).json({ error: gErr.join(' ') });
+    schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body, gids), id: req.params.id };
+    // Sending an empty groupTimes / groups clears them (same idea as stages below).
+    const cleanG = sanitizeGroupFields(req.body || {}, gids);
+    if (req.body && 'groupTimes' in req.body && !cleanG.groupTimes) delete schedule.entries[idx].groupTimes;
+    if (req.body && 'groups' in req.body && !cleanG.groups) delete schedule.entries[idx].groups;
     // Sending an empty/invalid `stages` clears the stored override (pickScheduleEntry drops it, so the merge would keep the old one).
     if (req.body && 'stages' in req.body && !sanitizeStages(req.body.stages)) delete schedule.entries[idx].stages;
     await writeJSON('schedule.json', schedule);

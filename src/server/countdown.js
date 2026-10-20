@@ -3,6 +3,7 @@ import { broadcast } from './sse.js';
 import { dayCodeFor, countdownDisplayOf, isScheduleSlideOn } from '../shared/scheduleDays.js';
 import { getEffectiveSchedule, toISODate } from '../shared/scheduleResolution.js';
 import { resolveStages } from '../shared/scheduleStages.js';
+import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 
 /** @type {Map<string, NodeJS.Timeout>} entry id -> alert start timer */
 const alertTimers = new Map();
@@ -102,6 +103,9 @@ function scheduleEntryAlert(entry) {
     time: entry.time,
     endTime: entry.endTime,
     category: entry.category,
+    // groups (src/shared/scheduleGroups.js): a split block counts down once per distinct slot; the
+    // group names are in `name` ("Night Seder · Aleph") and here
+    ...(entry.groupLabel ? { groupLabel: entry.groupLabel, groupIds: entry.groupIds } : null),
     alertBefore: alertMinutes,
     displayMode,
     mode: displayMode,
@@ -160,11 +164,13 @@ export async function initCountdowns() {
   // Clear any existing timers
   clearAllCountdowns();
 
-  const [schedule, scheduleDates, slides] = await Promise.all([
+  const [schedule, scheduleDates, slides, settings] = await Promise.all([
     readJSON('schedule.json'),
     readJSON('schedule-dates.json'),
     readJSON('slides.json'),
+    readJSON('settings.json').catch(() => null),
   ]);
+  const groups = sanitizeGroups(settings?.scheduleGroups);
 
   // Schedule slide switched off → no schedule-driven alerts at all.
   if (!isScheduleSlideOn(slides)) {
@@ -183,7 +189,7 @@ export async function initCountdowns() {
   // 'Sun'…'Shabbos' codes, so no alert ever fired — audit bug 1.)
   const { entries, source } = getEffectiveSchedule(schedule, scheduleDates, todayISO);
 
-  entries.forEach((entry, i) => {
+  expandForTimers(entries, groups).forEach((entry, i) => {
     // Skip entries without alertBefore, and blocks whose category kind is quiet (break/meal)
     // unless the block opted in (src/shared/scheduleStages.js).
     if (!entry.alertBefore || entry.alertBefore <= 0) return;

@@ -14,7 +14,7 @@ import { SplitTimes, rangeText, useRefit } from './parts.jsx';
  */
 
 function Bar({ s, color }) {
-  return <i aria-hidden="true" style={{ flex: 'none', alignSelf: 'center', width: '.18em', height: '.8em', borderRadius: '.09em', background: color || 'var(--catDot)' }} />;
+  return <i aria-hidden="true" style={{ flex: 'none', alignSelf: 'start', marginTop: '.24em', width: '.18em', height: '.8em', borderRadius: '.09em', background: color || 'var(--catDot)' }} />;
 }
 
 function PastRow({ s, k, timeW }) {
@@ -69,7 +69,7 @@ function Hero({ s, role, now, running, portrait }) {
   );
 }
 
-function UpRow({ s, state, size, timeW, now, first, hidden }) {
+function UpRow({ s, state, size, timeW, now, first, hidden, portrait }) {
   const isNext = state === 'next', isNow = state === 'now';
   const tc = isNext || isNow ? 'var(--accentText)' : 'var(--ink)';
   return (
@@ -88,7 +88,7 @@ function UpRow({ s, state, size, timeW, now, first, hidden }) {
         </span>
         {s.end != null && !s.split && <span className="tt-num" style={{ flex: 'none', fontSize: '.72em', fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>to {hm(s.end)}</span>}
         <span style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'baseline', gap: '.7em' }}>
-          {s.secondary && <Bidi text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontWeight: 500, fontSize: 'calc(.8em * var(--he-scale, 1))', color: 'var(--inkDim)', whiteSpace: 'nowrap' }} />}
+          {s.secondary && !(s.split && portrait) && <Bidi text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontWeight: 500, fontSize: 'calc(.8em * var(--he-scale, 1))', color: 'var(--inkDim)', whiteSpace: 'nowrap' }} />}
           {isNext && <span className="tt-num" style={{ fontFamily: F.en, fontSize: '.72em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>in {durationText(s.v - now)}</span>}
           {isNow && <span style={{ fontFamily: F.en, fontSize: '.72em', fontWeight: 650, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>now</span>}
         </span>
@@ -176,7 +176,7 @@ export default function FocusView({ items, states, now, portrait }) {
       <Hero s={items[pick.hero]} role={pick.heroRole} now={now} running={states.running[pick.hero]} portrait={portrait} />
       <div ref={listRef} data-up="" style={{ position: 'relative', flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 14, display: 'flex', flexDirection: 'column' }}>
         {pick.up.map((k, j) => (
-          <UpRow key={items[k].id || k} s={items[k]} state={states.st[k]} size={sizes[j]} timeW={timeW} now={now} first={j === 0} hidden={j >= fitN} />
+          <UpRow key={items[k].id || k} s={items[k]} state={states.st[k]} size={sizes[j]} timeW={timeW} now={now} first={j === 0} hidden={j >= fitN} portrait={portrait} />
         ))}
       </div>
       <LaterStrip rows={rest} />

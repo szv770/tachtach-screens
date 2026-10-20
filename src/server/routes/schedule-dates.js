@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
 import { initCountdowns } from '../countdown.js';
+import { scheduleGroupIds } from '../schedule-groups.js';
 import {
   parseScheduleText, parseScheduleJSON, normalizeEntryInput, storableEntry,
 } from '../../shared/schedulePaste.js';
@@ -47,10 +48,10 @@ function afterDatesChange(dates) {
 }
 
 /** Parse a { text } or { dates } body. */
-function parseBody(body, categories) {
+function parseBody(body, categories, groupIds = null) {
   const today = toISODate(new Date());
   if (typeof body?.text === 'string') return parseScheduleText(body.text, { categories, today });
-  if (body?.dates && typeof body.dates === 'object') return parseScheduleJSON(JSON.stringify(body.dates), { categories, today });
+  if (body?.dates && typeof body.dates === 'object') return parseScheduleJSON(JSON.stringify(body.dates), { categories, today, groupIds });
   return null;
 }
 
@@ -72,8 +73,8 @@ function sizeErrors(parsed) {
 }
 
 /** Validate a list of day-editor/block entries. */
-function normalizeEntries(list, categories) {
-  const ctx = { categories, newCats: new Map() };
+function normalizeEntries(list, categories, groupIds = null) {
+  const ctx = { categories, newCats: new Map(), groupIds };
   const errors = [];
   const warnings = [];
   const entries = [];
@@ -113,7 +114,7 @@ router.get('/dates', async (req, res) => {
 router.post('/dates/preview', async (req, res) => {
   try {
     const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
-    const parsed = parseBody(req.body, schedule.categories || []);
+    const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds());
     if (!parsed) return res.status(400).json({ error: 'Send { text } or { dates }.' });
     const errors = [...parsed.errors, ...sizeErrors(parsed)];
     res.json({
@@ -138,7 +139,7 @@ router.put('/dates', async (req, res) => {
   try {
     const result = await withScheduleLock(async () => {
       const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
-      const parsed = parseBody(req.body, schedule.categories || []);
+      const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds());
       if (!parsed) return { status: 400, body: { error: 'Send { text } or { dates }.' } };
       const errors = [...parsed.errors, ...sizeErrors(parsed)];
       if (errors.length || !parsed.days.length) {
@@ -181,7 +182,7 @@ router.put('/dates/:date', async (req, res) => {
     if (!isISODate(date)) return res.status(400).json({ error: 'Date must be YYYY-MM-DD.' });
     const result = await withScheduleLock(async () => {
       const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
-      const n = normalizeEntries(req.body?.entries, schedule.categories || []);
+      const n = normalizeEntries(req.body?.entries, schedule.categories || [], await scheduleGroupIds());
       if (n.errors.length) return { status: 400, body: { error: n.errors[0].message, errors: n.errors } };
       const createdCategories = addCategories(schedule, n.newCategories);
       if (createdCategories.length) {
@@ -293,7 +294,7 @@ router.put('/weekly', async (req, res) => {
       let parsed;
       if (Array.isArray(req.body?.entries)) {
         // Structured save (schedule wizard / week view): same all-or-nothing + auto-backup rules as a paste.
-        const built = buildWeeklyFromStructured(req.body.entries, schedule.categories || []);
+        const built = buildWeeklyFromStructured(req.body.entries, schedule.categories || [], { groupIds: await scheduleGroupIds() });
         if (built.errors.length) {
           return { status: 400, body: { error: `Nothing was saved — fix ${built.errors.length} error${built.errors.length === 1 ? '' : 's'} first: ${built.errors.slice(0, 3).join(' ')}`, errors: built.errors.map((message) => ({ line: null, message })) } };
         }
@@ -348,7 +349,7 @@ router.post('/blocks', async (req, res) => {
     const result = await withScheduleLock(async () => {
       const [schedule, file] = await Promise.all([readSchedule(), readBlocksFile()]);
       if (file.blocks.length >= MAX_BLOCKS) return { status: 400, body: { error: `You can keep up to ${MAX_BLOCKS} saved blocks.` } };
-      const n = normalizeEntries(req.body?.entries, schedule.categories || []);
+      const n = normalizeEntries(req.body?.entries, schedule.categories || [], await scheduleGroupIds());
       if (n.errors.length) return { status: 400, body: { error: n.errors[0].message, errors: n.errors } };
       const now = new Date().toISOString();
       const block = { id: uuidv4(), name, label: cleanLabel(req.body?.label), entries: n.entries, createdAt: now, updatedAt: now };
@@ -377,7 +378,7 @@ router.put('/blocks/:id', async (req, res) => {
       }
       if ('label' in (req.body || {})) next.label = cleanLabel(req.body.label);
       if ('entries' in (req.body || {})) {
-        const n = normalizeEntries(req.body.entries, schedule.categories || []);
+        const n = normalizeEntries(req.body.entries, schedule.categories || [], await scheduleGroupIds());
         if (n.errors.length) return { status: 400, body: { error: n.errors[0].message, errors: n.errors } };
         next.entries = n.entries;
       }

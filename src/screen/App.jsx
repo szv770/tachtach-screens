@@ -20,6 +20,7 @@ import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { getEffectiveSchedule, toISODate, addDaysISO } from '../shared/scheduleResolution.js';
 import { computeStageNow } from '../shared/stageNow.js';
+import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 import FrozenScreen from './components/FrozenScreen.jsx';
@@ -114,6 +115,11 @@ function AppContent() {
     () => getEffectiveSchedule(state?.schedule, state?.scheduleDates, scheduleDateISO),
     [state?.schedule, state?.scheduleDates, scheduleDateISO]
   );
+  // Groups (src/shared/scheduleGroups.js): the rail's up-next and the attention stages read entry.time,
+  // so a block whose groups run at different times becomes one pseudo-entry per distinct slot.
+  const scheduleGroupsKey = JSON.stringify(state?.settings?.scheduleGroups || null);
+  const scheduleGroups = React.useMemo(() => sanitizeGroups(state?.settings?.scheduleGroups), [scheduleGroupsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const timerEntries = React.useMemo(() => expandForTimers(effectiveSchedule.entries, scheduleGroups), [effectiveSchedule, scheduleGroups]);
 
   // Rotation: slides.json rows (ANNOUNCEMENT refs resolved in place) + active
   // slide announcements without a ref, appended at the end.
@@ -472,7 +478,7 @@ function AppContent() {
   // Owner rule: with the Schedule slide switched off, no schedule-driven updates.
   if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !takeover) {
     const nowM = nowDate.getHours() * 60 + nowDate.getMinutes();
-    const next = (effectiveSchedule.entries || [])
+    const next = (timerEntries || [])
       .filter((e) => e.enabled !== false)
       .map((e) => ({ e, v: toMinutes(e.time) }))
       .filter((o) => o.v != null && o.v > nowM && o.v - nowM <= upNextWindow)
@@ -496,8 +502,8 @@ function AppContent() {
   if (isScheduleSlideOn(state?.slides)) {
     const yISO = addDaysISO(scheduleDateISO, -1);
     stageNow = computeStageNow({
-      today: effectiveSchedule.entries,
-      yesterday: getEffectiveSchedule(state?.schedule, state?.scheduleDates, yISO).entries,
+      today: timerEntries,
+      yesterday: expandForTimers(getEffectiveSchedule(state?.schedule, state?.scheduleDates, yISO).entries, scheduleGroups),
       categories: effectiveSchedule.categories,
       nowMins: nowDate.getHours() * 60 + nowDate.getMinutes() + nowDate.getSeconds() / 60,
     });

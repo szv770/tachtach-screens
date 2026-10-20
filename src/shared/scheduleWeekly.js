@@ -49,12 +49,12 @@ export function pruneAutoBackups(templates, max = MAX_AUTO_BACKUPS) {
  * @param {object[]} categories  the school's categories (names or ids are matched)
  * @returns {{ errors: string[], warnings: string[], entries: object[], newCategories: object[] }}
  */
-export function buildWeeklyFromStructured(input, categories = []) {
+export function buildWeeklyFromStructured(input, categories = [], { groupIds = null } = {}) {
   const errors = [];
   const warnings = [];
   if (!Array.isArray(input) || !input.length) return { errors: ['Add at least one item.'], warnings, entries: [], newCategories: [] };
   if (input.length > MAX_STRUCTURED) return { errors: [`Too many items (${input.length}); the limit is ${MAX_STRUCTURED}.`], warnings, entries: [], newCategories: [] };
-  const ctx = { categories, newCats: new Map() };
+  const ctx = { categories, newCats: new Map(), groupIds };
   const entries = [];
   input.forEach((raw, i) => {
     const r = normalizeEntryInput(raw, ctx);

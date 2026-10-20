@@ -29,6 +29,7 @@ import {
 } from './scheduleResolution.js';
 import { DAY_CODES } from './scheduleDays.js';
 import { sanitizeStages, isKind, kindOf, inferKind, KINDS } from './scheduleStages.js';
+import { sanitizeGroupFields } from './scheduleGroups.js';
 
 export const FORMAT_NAME = 'TachTach schedule v1';
 export const FORMAT_HEADER = `# ${FORMAT_NAME}`;
@@ -641,7 +642,7 @@ export function parseScheduleJSON(text, opts = {}) {
   const errors = [];
   const warnings = [];
   const days = [];
-  const ctx = { categories: opts.categories || [], newCats: new Map() };
+  const ctx = { categories: opts.categories || [], newCats: new Map(), groupIds: opts.groupIds || null };
   let obj;
   try {
     obj = JSON.parse(text);
@@ -712,6 +713,10 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
   const display = (e.countdownDisplay || e.alertDisplay) === 'takeover' ? 'takeover' : 'slide';
   let icon = str(e.icon).toLowerCase();
   if (icon && !ICON_NAMES.includes(icon)) { warnings.push(`Unknown icon "${icon}" — ignored.`); icon = ''; }
+  // Groups (src/shared/scheduleGroups.js): per-group times + "only these groups"; ctx.groupIds = configured ids
+  const gf = sanitizeGroupFields(e, Array.isArray(ctx.groupIds) ? ctx.groupIds : null);
+  errors.push(...gf.errors);
+  warnings.push(...gf.warnings);
   if (errors.length) return { errors, warnings };
   const entry = {
     name, nameHe, time: tr.time, endTime: tr.endTime, category,
@@ -720,6 +725,8 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
   if (typeof e.id === 'string' && e.id.length <= 64) entry.id = e.id;
   const stages = sanitizeStages(e.stages);
   if (stages) entry.stages = stages;
+  if (gf.groupTimes) entry.groupTimes = gf.groupTimes;
+  if (gf.groups) entry.groups = gf.groups;
   if (categoryIsNew) entry.categoryIsNew = true;
   return { entry, errors, warnings };
 }

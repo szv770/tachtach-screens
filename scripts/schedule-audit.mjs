@@ -161,8 +161,8 @@ for (const canvas of ['land', 'port']) {
     }
   }
 }
-// auto: rotates inside one slide
-if (!ONLY) {
+// auto: rotates inside one slide (the grouped day scrolls, so its whole-day view legitimately runs longer)
+if (!ONLY && !GROUPED) {
   const { page, ctx } = await open({ canvas: 'land', time: T(12, 30), layout: 'auto', theme: 'midnight', extra: { scheduleView: { autoSeconds: 8 } } });
   const seen = new Set();
   for (let i = 0; i < 4; i++) { seen.add(await page.evaluate(() => document.querySelector('[data-sched-view]')?.dataset.schedView)); await page.waitForTimeout(8500); }

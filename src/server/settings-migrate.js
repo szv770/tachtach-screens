@@ -1,4 +1,5 @@
 import { readJSON, writeJSON } from './storage.js';
+import { sanitizeGroups } from '../shared/scheduleGroups.js';
 import { migrateThemeSettings } from '../shared/themes.js';
 
 /**
@@ -61,7 +62,13 @@ export function normalizeSettingsKeys(settings) {
 export function normalizeSettings(settings) {
   const a = normalizeSettingsKeys(settings);
   const b = migrateThemeSettings(a.settings);
-  return { settings: b.settings, changed: a.changed || b.changed };
+  // schedule groups (src/shared/scheduleGroups.js): keep only valid rows
+  let s = b.settings, c = false;
+  if (s && typeof s === 'object' && 'scheduleGroups' in s) {
+    const clean = sanitizeGroups(s.scheduleGroups);
+    if (JSON.stringify(clean) !== JSON.stringify(s.scheduleGroups)) { s = { ...s, scheduleGroups: clean }; c = true; }
+  }
+  return { settings: s, changed: a.changed || b.changed || c };
 }
 
 /**

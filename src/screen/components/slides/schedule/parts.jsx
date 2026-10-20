@@ -38,7 +38,7 @@ export function rangeText(v, end) {
  */
 export function SplitTimes({ split, now, color = 'var(--inkDim)', onColor = 'var(--ink)', size = '.6em', style }) {
   return (
-    <span data-split="" style={{ fontFamily: F.en, fontSize: size, fontWeight: 600, color, lineHeight: 1.25, marginTop: '.12em', ...style }}>
+    <span data-split="" style={{ fontFamily: F.en, fontSize: size, fontWeight: 600, color, lineHeight: 1.25, marginTop: '.12em', whiteSpace: 'normal', ...style }}>
       {split.map((x, i) => {
         const on = now != null && slotRunning(x, now);
         return (

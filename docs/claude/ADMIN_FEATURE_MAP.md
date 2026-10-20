@@ -59,6 +59,8 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 | RSS | Edit name/refresh/slide mode/style | `RSSManager` Edit | Fixed. Deleting a feed now also removes its slide |
 | Style | Hebrew body/heading font, English font, scales, upload/delete fonts | `look/FontsPage` (/admin/style) | OK. Saves only `fonts`/scales keys; font upload/delete errors now toast |
 | Settings | Zip, Chabad location id, Track A/B | Look & Settings > Location & weather / Schedule display (`look/LocationPage`, `look/ScheduleDisplayPage`) | OK (nested keys, bug 6) |
+| Settings | Schedule page layout (`scheduleLayout` day/timeline/focus/auto), `scheduleView {autoSeconds, hebrew}` | Look & Settings > Schedule display (`look/ScheduleDisplayPage`, Save bar) and Layout (`look/LayoutPage`, instant) | OK; the old `scheduleDisplayMode`/`scheduleScroll*`/`language` controls were removed (the kiosk never read them; keys still accepted) |
+| Settings | `scheduleGroups` + entry `groupTimes`/`groups` | none yet (next agent) | Data, sanitisers, kiosk done |
 | Settings | `location.timezone` | Look & Settings > Location & weather | Fixed (no UI; announcements use it) |
 | Settings | Theme (8) | Look & Settings > Themes (`look/ThemesPage`; Auto off = one picker, on = Dark + Light pickers) | OK |
 | Settings | `customTheme` + theme `custom` | Themes > Custom accent colour | Fixed (no UI) |

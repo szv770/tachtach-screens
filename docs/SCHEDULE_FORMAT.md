@@ -258,3 +258,25 @@ If I give you an existing schedule in this format and ask for changes, return th
 ## Category kind and stages
 
 **Category kind and stages.** Every category has a *kind* (Seder / Davening / Break / Meal / Other, set in Schedule > Categories) that decides which attention stages are on by default: Seder = countdown + "just started" 3 min + in-session badge; Davening = countdown (badge optional); Break and Meal = quiet (no countdown, no "just started", no badge; they still show as "up next"); Other = classic. In pasted text a line can carry `started N`, `badge` / `nobadge` (these override the kind for that block), and `kind X` for a category the paste creates (otherwise the kind is guessed from the name). An explicit `alert N` on a Break/Meal line opts that block in to its countdown. "Copy as text" includes `started` / `badge` / `nobadge` so a round trip keeps them; the category's kind itself is not in the text (change it in Categories). The in-session badge needs an end time, so give every block one. Pasting a weekly schedule replaces blocks and therefore their stages; the old week is kept as an Auto-backup.
+
+## Groups (several grades watching one screen)
+
+Optional; with no groups set up everything works exactly as before. The groups are a setting, the times live on the blocks (JSON / structured saves only; the paste TEXT format does not carry them yet, so pasting a weekly text replaces blocks and drops their group times, like stages — the old week is kept as an Auto-backup):
+
+```json
+"scheduleGroups": [
+  { "id": "aleph",  "name": "Aleph",  "nameHe": "א׳", "short": "Aleph" },
+  { "id": "beis",   "name": "Beis" },
+  { "id": "gimmel", "name": "Gimmel" }
+]
+```
+
+A block keeps its normal `time` / `endTime`: those are the times for every group that has no override. A group that runs earlier or later gets its own times, and `groups` limits a block to some groups (absent = everyone):
+
+```json
+{ "name": "Night Seder", "nameHe": "סדר לילה", "time": "20:00", "endTime": "22:00", "category": "seder",
+  "groupTimes": { "aleph": { "time": "19:15", "endTime": "21:15" } } }
+{ "name": "Shiur for Gimmel", "time": "16:00", "endTime": "17:00", "groups": ["gimmel"] }
+```
+
+Rules (`src/shared/scheduleGroups.js`): ids are lower-case `a-z 0-9 _ -` (max 32), at most 12 groups; times may be `HH:MM` or `7:15 PM` and are stored as `HH:MM`; an unknown group id is dropped with a warning; a time that is not a time refuses the save. The Schedule page shows such a block once, with its times split by group ("Night Seder — Aleph 7:15–9:15 PM · Beis & Gimmel 8:00–10:00 PM"; the row sorts by the earliest group, and is "now" while any group is in it). The rail's up-next, the "just started" banner, the in-session badge and the countdown run once per distinct time, with the group names in the text ("Night Seder · Aleph").
