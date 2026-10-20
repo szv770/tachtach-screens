@@ -94,7 +94,7 @@ function alertDefaultsText(categories) {
 }
 
 /** Rules shared by every schedule format. */
-function entryRules({ categories }) {
+function entryRules({ categories, groups }) {
   return [
     '- Each item is one line: time | English name | Hebrew name | Category | options',
     '- Use 12-hour times with AM/PM. A range is "6:40 PM - 7:30 PM". The end time is optional.',
@@ -109,12 +109,24 @@ function entryRules({ categories }) {
     '    kind KIND    ONLY for a brand-new category: seder, davening, break, meal or other (seder items get the full countdown/just-started/badge treatment; break and meal stay quiet)',
     '    off          keep the item but hide it',
     '- Give every item an end time when you know it (the "now in session" badge and the schedule need it).',
+    ...groupRules(groups),
     '- Don\'t add commentary, notes or extra columns. If something is unclear, make your best guess and I\'ll fix it.',
   ];
 }
 
+/** Rules for schedule groups (only when the screen has groups, e.g. grades that watch the same screen). */
+export function groupRules(groups) {
+  const list = (groups || []).filter((g) => g && g.name);
+  if (!list.length) return [];
+  const names = list.map((g) => g.name);
+  return [
+    `- Our screen has groups that watch it together: ${names.join(', ')}. Most items are the same for everyone, so write them as usual. The time on the line is for EVERYONE. When an item runs at a different time for some group, add one extra field per different time, after the Category: "<group names> <time range>", e.g. "| ${names[0]} 6:30 PM - 8:30 PM" (several groups with the same time: "| ${names.slice(1, 3).join(' + ') || names[0]} 8:00 PM - 10:00 PM"). That time then replaces the line's time for those groups only. Give it an end time too.`,
+    `- To show an item to some groups only, add a field "only ${names.slice(0, 2).join(', ')}". Use these group names exactly. Don't add group fields unless I say the times differ.`,
+  ];
+}
+
 /** The date-schedule format rules (shared by the day prompt and the Claude Project guide). */
-export function formatRules({ categories } = {}) {
+export function formatRules({ categories, groups } = {}) {
   return [
     'Output ONLY one code block in this exact format, nothing else:',
     '',
@@ -126,7 +138,7 @@ export function formatRules({ categories } = {}) {
     '',
     'Rules:',
     '- One "@" header per calendar date, then that day\'s items in time order. Friday-night items (candle lighting, Kabbalas Shabbos, the Friday-night seuda) go under FRIDAY\'s date.',
-    ...entryRules({ categories }),
+    ...entryRules({ categories, groups }),
     '- "@ YYYY-MM-DD clear" (no items) puts a date back on the regular weekly schedule.',
     '',
     'Example:',
@@ -137,7 +149,7 @@ export function formatRules({ categories } = {}) {
 }
 
 /** The weekly-schedule format rules. */
-export function weeklyFormatRules({ categories } = {}) {
+export function weeklyFormatRules({ categories, groups } = {}) {
   return [
     'Output ONLY one code block in this exact format, nothing else:',
     '',
@@ -151,7 +163,7 @@ export function weeklyFormatRules({ categories } = {}) {
     `- This is the REGULAR WEEK that repeats every week, not a specific date. Each "@" header names the days its items run on: ${WEEKLY_EXAMPLE_HEADERS.join(', ')}. Day names: Sun, Mon, Tue, Wed, Thu, Fri, Shabbos. Ranges like "Sun-Thu" and lists like "Mon, Wed" work.`,
     '- Put items that run on the same days under one header, in time order. A day may appear under several headers (e.g. "@ daily" for Mincha plus "@ Fri" for Friday-only items).',
     '- Don\'t use calendar dates here, and don\'t include candle lighting or other times that change every week.',
-    ...entryRules({ categories }),
+    ...entryRules({ categories, groups }),
     '',
     'Example:',
     '```',
@@ -164,15 +176,15 @@ export function weeklyFormatRules({ categories } = {}) {
  * "Copy format guide for a Claude Project" — rules only, no dates, written as
  * standing instructions.
  */
-export function buildFormatGuide({ categories, schoolName } = {}) {
+export function buildFormatGuide({ categories, schoolName, groups } = {}) {
   return [
     `You format ${schoolName ? `${schoolName}'s` : 'our yeshiva\'s'} schedules for the TV screen in the hallway (the "TachTach" screen). Schedules are one of the things you prepare for that screen. Whenever I ask for a schedule (e.g. "make this Shabbos: …" or "here is our weekly schedule: …"), answer in the matching format below so I can paste it straight in.`,
     '',
     '=== A schedule for specific dates (a day or Shabbos) ===',
-    formatRules({ categories }),
+    formatRules({ categories, groups }),
     '',
     '=== The regular weekly schedule ===',
-    weeklyFormatRules({ categories }),
+    weeklyFormatRules({ categories, groups }),
     '',
     'If I give you an existing schedule in this format and ask for changes, return the whole changed schedule in the same format.',
   ].join('\n');
@@ -189,14 +201,14 @@ export function buildFormatGuide({ categories, schoolName } = {}) {
  *   location?: string,                       e.g. "Miami Beach 33139"
  * }} opts
  */
-export function buildClaudePrompt({ dates = [], zmanimByDate = {}, parsha = '', categories = [], location = '' } = {}) {
+export function buildClaudePrompt({ dates = [], zmanimByDate = {}, parsha = '', categories = [], location = '', groups = [] } = {}) {
   const sorted = [...dates].sort();
   const isShabbos = sorted.some((d) => weekdayOfISO(d) === 5 || weekdayOfISO(d) === 6);
   const dateWords = sorted.map((d) => `${formatDateLong(d)} (@ ${d})`);
   const lines = [
     'You help prepare content for our yeshiva\'s TV screen (the "TachTach" screen). Right now I need a schedule for specific dates, in the format below.',
     '',
-    formatRules({ categories }),
+    formatRules({ categories, groups }),
     '',
     `Make the schedule for: ${dateWords.join(' and ') || '[DATES — please fill in]'}${parsha ? ` (Parshas ${parsha})` : ''}${location ? `, ${location}` : ''}.`,
   ];
@@ -228,11 +240,11 @@ export function buildClaudePrompt({ dates = [], zmanimByDate = {}, parsha = '', 
  * "A weekly schedule" prompt. `currentText` (optional) is the current weekly
  * schedule in the same format, for "change this" requests.
  */
-export function buildWeeklyPrompt({ categories = [], currentText = '' } = {}) {
+export function buildWeeklyPrompt({ categories = [], currentText = '', groups = [] } = {}) {
   const lines = [
     'You help prepare content for our yeshiva\'s TV screen (the "TachTach" screen). Right now I need our regular WEEKLY schedule, in the format below.',
     '',
-    weeklyFormatRules({ categories }),
+    weeklyFormatRules({ categories, groups }),
   ];
   if (currentText.trim()) {
     lines.push('', 'Our current weekly schedule (change only what I ask for, and return the whole schedule):', '', '```', currentText.trim(), '```');

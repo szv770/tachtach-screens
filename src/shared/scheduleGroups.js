@@ -194,3 +194,58 @@ export function expandForTimers(entries, groups) {
   }
   return out;
 }
+
+// ── Text format helpers (paste / AI / "Copy as text") ────────────────────────
+
+const LIST_SEP = /\s*(?:,|&|\+|\band\b)\s*/i;
+const needsId = (name) => /[,&+|]|\band\b/i.test(name);
+
+/** The word the text format uses for a group: its name (its id when the name holds a separator character). */
+export function groupWord(g) { return needsId(g.name) ? g.id : g.name; }
+
+/**
+ * "Bais, Gimmel" / "Bais + Gimmel" / "Bais & Gimmel" / "Bais and Gimmel" -> { ids, unknown }.
+ * A part matches a group's name, short label, Hebrew name or id (case-insensitive).
+ */
+export function matchGroups(text, groups) {
+  const ids = [];
+  const unknown = [];
+  for (const part of String(text || '').split(LIST_SEP).map((x) => x.trim()).filter(Boolean)) {
+    const k = part.toLowerCase();
+    const g = (groups || []).find((x) => [x.id, x.name, x.short, x.nameHe].some((v) => v && String(v).toLowerCase() === k));
+    if (!g) unknown.push(part);
+    else if (!ids.includes(g.id)) ids.push(g.id);
+  }
+  return { ids, unknown };
+}
+
+/** Starting a "<groups> <time range>" field? -> { names, range } else null. Needs at least one known group. */
+export function splitGroupTimeField(field, groups) {
+  if (!groupsOn(groups)) return null;
+  const m = String(field || '').trim().match(/^(.*?)\s*(\d{1,2}:\d{2}.*)$/);
+  if (!m || !m[1].trim()) return null;
+  const { ids } = matchGroups(m[1], groups);
+  return ids.length ? { names: m[1].trim(), range: m[2].trim() } : null;
+}
+
+/** "only Aleph, Bais" -> the list text, or null (needs at least one known group). */
+export function splitOnlyField(field, groups) {
+  if (!groupsOn(groups)) return null;
+  const m = String(field || '').trim().match(/^only\s+(.+)$/i);
+  return m && matchGroups(m[1], groups).ids.length ? m[1].trim() : null;
+}
+
+/** Group fields of an entry as [{ ids, time, endTime }] (groups with identical own times merged, group order). */
+export function ownSlots(entry, groups) {
+  const out = new Map();
+  for (const g of groups || []) {
+    const o = entry?.groupTimes?.[g.id];
+    const time = o && normTime(o.time);
+    if (!time) continue;
+    const endTime = normTime(o.endTime) || '';
+    const k = `${time}|${endTime}`;
+    if (!out.has(k)) out.set(k, { ids: [], time, endTime });
+    out.get(k).ids.push(g.id);
+  }
+  return [...out.values()];
+}

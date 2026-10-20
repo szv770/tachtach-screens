@@ -16,7 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
 import { initCountdowns } from '../countdown.js';
-import { scheduleGroupIds } from '../schedule-groups.js';
+import { scheduleGroupIds, readScheduleGroups } from '../schedule-groups.js';
 import {
   parseScheduleText, parseScheduleJSON, normalizeEntryInput, storableEntry,
 } from '../../shared/schedulePaste.js';
@@ -48,9 +48,9 @@ function afterDatesChange(dates) {
 }
 
 /** Parse a { text } or { dates } body. */
-function parseBody(body, categories, groupIds = null) {
+function parseBody(body, categories, groupIds = null, groups = null) {
   const today = toISODate(new Date());
-  if (typeof body?.text === 'string') return parseScheduleText(body.text, { categories, today });
+  if (typeof body?.text === 'string') return parseScheduleText(body.text, { categories, today, groups });
   if (body?.dates && typeof body.dates === 'object') return parseScheduleJSON(JSON.stringify(body.dates), { categories, today, groupIds });
   return null;
 }
@@ -114,7 +114,7 @@ router.get('/dates', async (req, res) => {
 router.post('/dates/preview', async (req, res) => {
   try {
     const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
-    const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds());
+    const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds(), await readScheduleGroups());
     if (!parsed) return res.status(400).json({ error: 'Send { text } or { dates }.' });
     const errors = [...parsed.errors, ...sizeErrors(parsed)];
     res.json({
@@ -139,7 +139,7 @@ router.put('/dates', async (req, res) => {
   try {
     const result = await withScheduleLock(async () => {
       const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
-      const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds());
+      const parsed = parseBody(req.body, schedule.categories || [], await scheduleGroupIds(), await readScheduleGroups());
       if (!parsed) return { status: 400, body: { error: 'Send { text } or { dates }.' } };
       const errors = [...parsed.errors, ...sizeErrors(parsed)];
       if (errors.length || !parsed.days.length) {
@@ -271,7 +271,7 @@ router.post('/weekly/preview', async (req, res) => {
   try {
     const schedule = await readSchedule();
     if (typeof req.body?.text !== 'string') return res.status(400).json({ error: 'Send { text }.' });
-    const parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today: toISODate(new Date()) });
+    const parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today: toISODate(new Date()), groups: await readScheduleGroups() });
     const errors = weeklyErrors(parsed);
     res.json({
       ...parsed,
@@ -301,7 +301,7 @@ router.put('/weekly', async (req, res) => {
         parsed = { mode: 'weekly', weekly: { entries: built.entries }, newCategories: built.newCategories, warnings: built.warnings };
       } else {
         if (typeof req.body?.text !== 'string') return { status: 400, body: { error: 'Send { text } or { entries }.' } };
-        parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today });
+        parsed = parseScheduleText(req.body.text, { categories: schedule.categories || [], today, groups: await readScheduleGroups() });
         const errors = weeklyErrors(parsed);
         if (errors.length) {
           return { status: 400, body: { error: `Nothing was saved — fix ${errors.length} error${errors.length === 1 ? '' : 's'} first.`, errors } };

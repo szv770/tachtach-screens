@@ -29,7 +29,7 @@ import {
 } from './scheduleResolution.js';
 import { DAY_CODES } from './scheduleDays.js';
 import { sanitizeStages, isKind, kindOf, inferKind, KINDS } from './scheduleStages.js';
-import { sanitizeGroupFields } from './scheduleGroups.js';
+import { sanitizeGroupFields, matchGroups, splitGroupTimeField, splitOnlyField, ownSlots, groupWord, groupsOn } from './scheduleGroups.js';
 
 export const FORMAT_NAME = 'TachTach schedule v1';
 export const FORMAT_HEADER = `# ${FORMAT_NAME}`;
@@ -203,9 +203,11 @@ export function newCategoryId(categories, name) {
 // ── Options ────────────────────────────────────────────────────────────────
 
 const OPTION_STARTERS = new Set(['alert', 'takeover', 'slide', 'icon', 'off', 'disabled', 'hidden', 'started', 'badge', 'nobadge', 'kind']);
-function isOptionField(field) {
+function isOptionField(field, ctx) {
   const first = String(field || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
-  return OPTION_STARTERS.has(first) || /^alert\d+$/.test(first);
+  if (OPTION_STARTERS.has(first) || /^alert\d+$/.test(first)) return true;
+  // Group fields ("Aleph 6:30 PM - 8:30 PM", "only Aleph, Bais") count once groups are configured.
+  return !!(ctx?.groups && (splitGroupTimeField(field, ctx.groups) || splitOnlyField(field, ctx.groups)));
 }
 
 function parseOptions(fields, warn, err) {
@@ -276,8 +278,11 @@ export function parseEntryLine(line, ctx) {
 
   // Options: trailing fields that start with an option word.
   let end = fields.length;
-  while (end > 2 && isOptionField(fields[end - 1])) end--;
-  const optFields = fields.slice(end);
+  while (end > 2 && isOptionField(fields[end - 1], ctx)) end--;
+  const allOpt = fields.slice(end);
+  const isGroupField = (f) => !!(splitGroupTimeField(f, ctx.groups) || splitOnlyField(f, ctx.groups));
+  const groupFields = allOpt.filter(isGroupField);
+  const optFields = allOpt.filter((f) => !isGroupField(f));
   const mid = fields.slice(1, end);
   while (mid.length > 1 && mid[mid.length - 1] === '') mid.pop();
 
@@ -343,6 +348,7 @@ export function parseEntryLine(line, ctx) {
   }
 
   const opts = parseOptions(optFields, (w) => warnings.push(w), (e) => errors.push(e));
+  const gx = parseGroupFields(groupFields, ctx.groups, tr, warnings, errors);
   if (errors.length) return { errors, warnings };
   if (categoryIsNew) {
     // A new category's kind: the line's "kind X", else guessed from its name.
@@ -374,10 +380,53 @@ export function parseEntryLine(line, ctx) {
       enabled: opts.enabled !== false,
       icon: opts.icon || '',
       ...(stages ? { stages } : {}),
+      ...(gx.groupTimes ? { groupTimes: gx.groupTimes } : {}),
+      ...(gx.groups ? { groups: gx.groups } : {}),
       ...(categoryIsNew ? { categoryIsNew: true } : {}),
     },
     errors, warnings,
   };
+}
+
+/**
+ * The group fields of a line: "Aleph 6:30 PM - 8:30 PM" (own times for those groups; the line's own time
+ * stays the base for everyone else) and "only Aleph, Bais" (the block is for those groups only).
+ */
+function parseGroupFields(fields, groups, base, warnings, errors) {
+  const out = {};
+  for (const f of fields) {
+    const only = splitOnlyField(f, groups);
+    if (only) {
+      const { ids, unknown } = matchGroups(only, groups);
+      unknown.forEach((u) => warnings.push(`Unknown group "${u}" in "only ${only}" — ignored.`));
+      out.groups = [...new Set([...(out.groups || []), ...ids])];
+      continue;
+    }
+    const sp = splitGroupTimeField(f, groups);
+    const { ids, unknown } = matchGroups(sp.names, groups);
+    unknown.forEach((u) => warnings.push(`Unknown group "${u}" — ignored. Groups: ${groups.map((g) => g.name).join(', ')}.`));
+    const r = parseTimeRange(sp.range);
+    if (r.error) { errors.push(`${sp.names}: ${r.error}`); continue; }
+    warnings.push(...r.warnings);
+    if (base?.endTime && !r.endTime) warnings.push(`${sp.names} has a start but no end time, while everyone else ends ${formatTime12(base.endTime)}.`);
+    out.groupTimes = out.groupTimes || {};
+    for (const id of ids) out.groupTimes[id] = { time: r.time, endTime: r.endTime || '' };
+  }
+  return out;
+}
+
+/** The group fields of an entry as text ("Bais + Gimmel 8:00 PM - 10:00 PM", "only Aleph"). */
+function formatGroupFields(e, groups) {
+  if (!groupsOn(groups)) return [];
+  const out = ownSlots(e, groups).map((s) => {
+    const names = s.ids.map((id) => groupWord(groups.find((g) => g.id === id))).join(' + ');
+    return `${names} ${formatTime12(s.time)}${s.endTime ? ` - ${formatTime12(s.endTime)}` : ''}`;
+  });
+  if (Array.isArray(e.groups) && e.groups.length) {
+    const ids = e.groups.filter((id) => groups.some((g) => g.id === id));
+    if (ids.length && ids.length < groups.length) out.push(`only ${ids.map((id) => groupWord(groups.find((g) => g.id === id))).join(', ')}`);
+  }
+  return out;
 }
 
 // ── Date headers ───────────────────────────────────────────────────────────
@@ -553,7 +602,7 @@ export function parseScheduleText(text, opts = {}) {
   const src = String(text ?? '');
   if (/^\s*\{/.test(src)) return parseScheduleJSON(src, opts);
 
-  const ctx = { categories: opts.categories || [], newCats: new Map() };
+  const ctx = { categories: opts.categories || [], newCats: new Map(), groups: Array.isArray(opts.groups) && opts.groups.length ? opts.groups : null };
   const days = [];
   const errors = [];
   const warnings = [];
@@ -740,7 +789,7 @@ export function storableEntry(e) {
 // ── Formatter ("Copy as text") ─────────────────────────────────────────────
 
 /** One entry as a text line. */
-export function formatEntryLine(e, categories) {
+export function formatEntryLine(e, categories, groups = null) {
   const time = formatTime12(e.time) + (e.endTime ? ` - ${formatTime12(e.endTime)}` : '');
   const cat = categoryLabel(categories, e.category);
   const opts = [];
@@ -751,7 +800,7 @@ export function formatEntryLine(e, categories) {
   if (st?.justStarted !== undefined) opts.push(`started ${st.justStarted}`);
   if (st?.inSession !== undefined) opts.push(st.inSession ? 'badge' : 'nobadge');
   if (e.enabled === false) opts.push('off');
-  const fields = [time, e.name || '', e.nameHe || '', cat, ...opts];
+  const fields = [time, e.name || '', e.nameHe || '', cat, ...formatGroupFields(e, groups), ...opts];
   while (fields.length > 2 && fields[fields.length - 1] === '') fields.pop();
   return fields.join(' | ');
 }
@@ -761,7 +810,7 @@ export function formatEntryLine(e, categories) {
  * @param {Array<{date: string, label?: string, clear?: boolean, entries?: object[]}>} days
  * @param {{ categories?: object[], header?: boolean }} opts
  */
-export function formatScheduleText(days, { categories = [], header = true } = {}) {
+export function formatScheduleText(days, { categories = [], header = true, groups = null } = {}) {
   const out = [];
   if (header) out.push(FORMAT_HEADER);
   (days || []).forEach((d, i) => {
@@ -769,7 +818,7 @@ export function formatScheduleText(days, { categories = [], header = true } = {}
     const wd = isISODate(d.date) ? DAY_CODES[weekdayOfISO(d.date)] : '';
     if (d.clear) { out.push(`@ ${d.date} ${wd} clear`.replace(/\s+/g, ' ')); return; }
     out.push(`@ ${d.date}${wd ? ` ${wd}` : ''}${d.label ? `  ${d.label}` : ''}`);
-    for (const e of sortEntriesByTime(d.entries || [])) out.push(formatEntryLine(e, categories));
+    for (const e of sortEntriesByTime(d.entries || [])) out.push(formatEntryLine(e, categories, groups));
   });
   return out.join('\n') + '\n';
 }
@@ -779,21 +828,21 @@ export function formatScheduleText(days, { categories = [], header = true } = {}
  * distinct set of days (daily first, then by first day), items in time order.
  * Round-trips through parseScheduleText.
  */
-export function formatWeeklyText(entries, { categories = [], header = true } = {}) {
-  const groups = new Map();
+export function formatWeeklyText(entries, { categories = [], header = true, groups = null } = {}) {
+  const byDays = new Map();
   for (const e of entries || []) {
     const idx = entryDayIdx(e);
     const key = idx.join(',');
-    if (!groups.has(key)) groups.set(key, { idx, entries: [] });
-    groups.get(key).entries.push(e);
+    if (!byDays.has(key)) byDays.set(key, { idx, entries: [] });
+    byDays.get(key).entries.push(e);
   }
-  const ordered = [...groups.values()].sort((a, b) => (b.idx.length === 7) - (a.idx.length === 7) || a.idx[0] - b.idx[0] || b.idx.length - a.idx.length);
+  const ordered = [...byDays.values()].sort((a, b) => (b.idx.length === 7) - (a.idx.length === 7) || a.idx[0] - b.idx[0] || b.idx.length - a.idx.length);
   const out = [];
   if (header) out.push(FORMAT_HEADER);
   ordered.forEach((g, i) => {
     if (i > 0 || header) out.push('');
     out.push(`@ ${weeklyHeaderFor(g.idx)}`);
-    for (const e of sortEntriesByTime(g.entries)) out.push(formatEntryLine(e, categories));
+    for (const e of sortEntriesByTime(g.entries)) out.push(formatEntryLine(e, categories, groups));
   });
   return out.join('\n') + '\n';
 }
