@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import useSectionRoute from './hooks/useSectionRoute.js';
 import useAdminState, { notify } from './hooks/useAdminState.js';
 import useMe from './hooks/useMe.js';
-import { canOpenSection, effectiveCaps } from '../shared/permissions.js';
+import { canOpenSection, effectiveCaps, can } from '../shared/permissions.js';
 import AdminLayout from './components/AdminLayout.jsx';
 import { SECTION_KEYS, SECTION_ALIASES, SECTION_TABS, resolveTarget } from './nav.js';
-import { writeQueryParam } from './hooks/useQueryParam.js';
+import { writeQueryParam, readQueryParam } from './hooks/useQueryParam.js';
 import Home from './components/Home.jsx';
 import GlobalSearch from './components/GlobalSearch.jsx';
 import NewSheet from './components/NewSheet.jsx';
@@ -84,6 +84,16 @@ export default function App() {
   const [newOpen, setNewOpen] = useState(false);
   const [changeDay, setChangeDay] = useState(null); // null | 'today' | 'tomorrow': the one-day schedule sheet (Home and Schedule)
   const [searchOpen, setSearchOpen] = useState(false);
+  // Home-screen icon shortcuts (public/manifest.webmanifest): /admin/?action=post | tomorrow.
+  useEffect(() => {
+    if (!meReady) return;
+    const act = readQueryParam('action');
+    if (!act) return;
+    writeQueryParam('action', null);
+    if (act === 'post' && can(myCaps, 'announcements.post')) setQuickOpen(true);
+    if (act === 'tomorrow' && can(myCaps, 'schedule.edit')) setChangeDay('tomorrow');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meReady]);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };

@@ -89,7 +89,11 @@ export default function QuickAnnounceSheet({ onClose, onPost, onManage, caps = [
       {view === 'custom' && <WriteYourOwn onPost={onPost} onBack={() => setView('list')} onDone={done} />}
       {view === 'list' && (
         <div data-testid="quick-list">
-          <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13.5px', color: colors.dim, margin: '4px 0 12px' }}>Tap one, fill in the blanks, post. It is on the screen in seconds.</p>
+          <p style={{ fontFamily: adminFonts.englishBody, fontSize: '13.5px', color: colors.dim, margin: '4px 0 12px' }}>Tap a saved message, fill in the blanks, post. Or write your own.</p>
+          <Row style={{ margin: '0 0 14px' }}>
+            <Btn onClick={() => setView('custom')} data-testid="quick-own" style={{ flex: 1 }}>Write your own</Btn>
+            {onManage && <Btn onClick={onManage} style={{ flex: 1 }} data-testid="quick-manage">Edit my templates</Btn>}
+          </Row>
           {qt.loading && <div style={{ color: colors.dim, fontFamily: adminFonts.englishBody, padding: '16px 0' }}>Loading…</div>}
           <ErrorLine>{qt.error}</ErrorLine>
           {mine.length > 0 && (
@@ -105,10 +109,6 @@ export default function QuickAnnounceSheet({ onClose, onPost, onManage, caps = [
             </section>
           )}
           {!qt.loading && !qt.templates.length && !qt.error && <div style={{ color: colors.dim, fontFamily: adminFonts.englishBody, padding: '8px 0 16px' }}>No quick messages yet. Add one under Announce.</div>}
-          <Row style={{ marginTop: '8px' }}>
-            <Btn onClick={() => setView('custom')} data-testid="quick-own" style={{ flex: 1 }}>Write your own</Btn>
-            {onManage && <Btn onClick={onManage} style={{ flex: 1 }} data-testid="quick-manage">Edit my templates</Btn>}
-          </Row>
         </div>
       )}
     </Sheet>
