@@ -12,20 +12,24 @@ import { ConfirmDialog, ToggleSwitch } from '../ui.jsx';
 import { IconPicker } from './IconPicker.jsx';
 import { TimeField } from './scheduleShared.jsx';
 import AttentionStages from './AttentionStages.jsx';
+import GroupTimesEditor from './GroupTimesEditor.jsx';
 import { Field, textInput, primaryBtn, secondaryBtn, subtleBtn, CategoryChips, DayChips } from './scheduleFields.jsx';
 import { entryDayIdx, daysLabel } from '../../../shared/scheduleWizard.js';
 import { DAY_CODES } from '../../../shared/scheduleDays.js';
 import { sanitizeStages } from '../../../shared/scheduleStages.js';
+import { groupIssues } from '../../../shared/scheduleGroupsEdit.js';
+import { groupsOn } from '../../../shared/scheduleGroups.js';
 
 const toForm = (entry, dayIdx, defaultDays) => ({
   name: entry?.name || '', nameHe: entry?.nameHe || '', time: entry?.time || '', endTime: entry?.endTime || '',
   category: entry?.category || '', days: entry ? entryDayIdx(entry) : (defaultDays || [0, 1, 2, 3, 4]),
   alertBefore: Number(entry?.alertBefore) || 0, countdownDisplay: entry?.countdownDisplay === 'takeover' ? 'takeover' : 'slide',
   enabled: entry ? entry.enabled !== false : true, icon: entry?.icon || '', stages: sanitizeStages(entry?.stages),
+  groupTimes: entry?.groupTimes ? JSON.parse(JSON.stringify(entry.groupTimes)) : {}, groups: Array.isArray(entry?.groups) ? [...entry.groups] : [],
   scope: 'all', dayIdx,
 });
 
-export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false }) {
+export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false, groups = [], otherEntries = [] }) {
   const isNew = !entry;
   const initial = useMemo(() => toForm(entry, dayIdx, dayIdx != null ? [dayIdx] : undefined), [entry, dayIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   const [f, setF] = useState(initial);
@@ -35,7 +39,10 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
   const entryDays = entry ? entryDayIdx(entry) : [];
   const multi = !isNew && dayIdx != null && entryDays.length > 1;
   const timeBad = f.endTime && f.time && f.endTime <= f.time;
-  const valid = (f.name.trim() || f.nameHe.trim()) && f.time && f.days.length > 0 && !timeBad;
+  const hasGroups = groupsOn(groups);
+  const issues = hasGroups ? groupIssues({ ...f, id: entry?.id }, groups, otherEntries, entryDayIdx) : [];
+  const groupBlocking = issues.some((i) => i.type === 'bad-time' || i.type === 'bad-range');
+  const valid = (f.name.trim() || f.nameHe.trim()) && f.time && f.days.length > 0 && !timeBad && !groupBlocking;
 
   const submit = () => {
     if (!valid || readOnly) return;
@@ -43,6 +50,7 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
       name: f.name.trim(), nameHe: f.nameHe.trim(), time: f.time, endTime: f.endTime || '', category: f.category || '',
       days: f.days.map((i) => DAY_CODES[i]), alertBefore: f.alertBefore, countdownDisplay: f.countdownDisplay,
       enabled: f.enabled, icon: f.icon || '', stages: f.stages || {},
+      ...(hasGroups || entry?.groupTimes || entry?.groups ? { groupTimes: hasGroups ? f.groupTimes : {}, groups: hasGroups ? f.groups : [] } : {}),
     }, { onlyDay: multi && f.scope === 'this' ? dayIdx : null });
   };
 
@@ -55,10 +63,13 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
           <Field label="Hebrew name (optional)"><input aria-label="Hebrew name" dir="rtl" value={f.nameHe} maxLength={200} onChange={(e) => set({ nameHe: e.target.value })} placeholder="optional" style={{ ...textInput, fontFamily: adminFonts.hebrewPrimary }} /></Field>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
-          <Field label="Starts"><TimeField value={f.time} onCommit={(t) => set({ time: t })} ariaLabel="Start time" style={{ minHeight: '44px', fontSize: '16px' }} /></Field>
+          <Field label={hasGroups && Object.keys(f.groupTimes).length ? 'Starts (everyone else)' : 'Starts'}><TimeField value={f.time} onCommit={(t) => set({ time: t })} ariaLabel="Start time" style={{ minHeight: '44px', fontSize: '16px' }} /></Field>
           <Field label="Ends (optional)"><TimeField value={f.endTime} onCommit={(t) => set({ endTime: t })} allowEmpty placeholder="optional" ariaLabel="End time" style={{ minHeight: '44px', fontSize: '16px' }} /></Field>
         </div>
         {timeBad && <div role="alert" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.danger, margin: '-6px 0 12px' }}>It ends before it starts - check AM/PM.</div>}
+        {hasGroups && (
+          <GroupTimesEditor groups={groups} value={f} readOnly={readOnly} issues={issues} onChange={(patch) => set(patch)} />
+        )}
         <Field label="Category">
           <CategoryChips value={f.category} categories={categories} onChange={(id) => set({ category: id })} onCreate={onCreateCategory} />
         </Field>

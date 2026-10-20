@@ -12,6 +12,10 @@ import {
   formatScheduleText, parseScheduleText, formatTime12, addMinutesToTime, storableEntry, ALERT_CHOICES,
 } from '../../../shared/schedulePaste.js';
 import { formatDateLong, formatDateShort, sortEntriesByTime, minutesOf, toISODate } from '../../../shared/scheduleResolution.js';
+import GroupTimesEditor from './GroupTimesEditor.jsx';
+import { splitSummary, groupIssues } from '../../../shared/scheduleGroupsEdit.js';
+import { groupsOn } from '../../../shared/scheduleGroups.js';
+import { entryDayIdx } from '../../../shared/scheduleWizard.js';
 import {
   scheduleApi, TimeField, CategoryPicker, CategoryDot, smallButton, chipButton, sectionLabel, monoStyle,
 } from './scheduleShared.jsx';
@@ -19,7 +23,7 @@ import {
 let rowSeq = 0;
 const newKey = () => `r${++rowSeq}`;
 
-export const ENTRY_KEYS = ['name', 'nameHe', 'time', 'endTime', 'category', 'alertBefore', 'countdownDisplay', 'enabled', 'icon'];
+export const ENTRY_KEYS = ['name', 'nameHe', 'time', 'endTime', 'category', 'alertBefore', 'countdownDisplay', 'enabled', 'icon', 'groupTimes', 'groups'];
 export function toRow(e, keepId = true) {
   const row = { key: newKey() };
   if (keepId && e.id) row.id = e.id;
@@ -45,7 +49,7 @@ const snapshot = (rows, label) => JSON.stringify({ label: label || '', rows: (ro
 const isBlankRow = (r) => !r.name.trim() && !r.nameHe.trim();
 
 export default function DayEditor({
-  date, override, weeklyEntries, categories, blocks, scheduleDates,
+  date, override, weeklyEntries, categories, blocks, scheduleDates, groups = [],
   onCreateCategory, onSaved, onBlocksChanged, onDirtyChange, notify, copy, isMobile,
 }) {
   const base = useMemo(() => (override ? sortEntriesByTime(override.entries || []).map((e) => toRow(e)) : null), [override]);
@@ -128,12 +132,12 @@ export default function DayEditor({
   const currentEntries = () => (rows || []).filter((r) => !isBlankRow(r)).map(toEntry);
   const enterText = () => {
     const entries = rows ? currentEntries() : weeklyEntries;
-    setText(formatScheduleText([{ date, label, entries }], { categories }));
+    setText(formatScheduleText([{ date, label, entries }], { categories, groups }));
     setTextIssues(null);
     setMode('text');
   };
   const applyText = async () => {
-    const r = parseScheduleText(text, { categories, today });
+    const r = parseScheduleText(text, { categories, today, groups });
     const errors = [...r.errors];
     const days = r.days;
     if (!errors.length && days.length !== 1) errors.push({ line: null, message: 'Text mode edits one day — keep exactly one "@ date" header.' });
@@ -199,7 +203,7 @@ export default function DayEditor({
   };
   const copyAsText = () => {
     const entries = rows ? currentEntries() : weeklyEntries;
-    copy(formatScheduleText([{ date, label, entries }], { categories }), `${formatDateShort(date)} copied as text`);
+    copy(formatScheduleText([{ date, label, entries }], { categories, groups }), `${formatDateShort(date)} copied as text`);
   };
 
   // ── Render ──
@@ -350,6 +354,7 @@ export default function DayEditor({
                     key={r.key}
                     row={r}
                     categories={categories}
+                    groups={groups}
                     isMobile={isMobile}
                     showDetails={showDetails || isMobile}
                     autoFocus={focusKey === r.key}
@@ -458,8 +463,12 @@ export function IssueList({ issues }) {
 
 const issueStyle = { fontFamily: adminFonts.englishBody, fontSize: '13px', padding: '6px 10px', borderRadius: '6px', border: '1px solid', lineHeight: 1.45 };
 
-function RowEditor({ row, categories, isMobile, showDetails, autoFocus, onChange, onTime, onDuplicate, onDelete, onCreateCategory }) {
+function RowEditor({ row, categories, groups = [], isMobile, showDetails, autoFocus, onChange, onTime, onDuplicate, onDelete, onCreateCategory }) {
   const endBeforeStart = row.endTime && row.time && minutesOf(row.endTime) < minutesOf(row.time);
+  const [gOpen, setGOpen] = useState(false);
+  const hasGroups = groupsOn(groups);
+  const summary = hasGroups ? splitSummary({ ...row, groupTimes: row.groupTimes || {} }, groups, formatTime12) : '';
+  const gIssues = hasGroups ? groupIssues({ ...row, groupTimes: row.groupTimes || {}, groups: row.groups || [] }, groups) : [];
   const iconBtn = {
     background: 'transparent', border: `1px solid ${colors.border}`, borderRadius: '6px', color: colors.dim,
     minWidth: '38px', minHeight: '38px', cursor: 'pointer', fontSize: '15px', display: 'inline-flex',
@@ -513,6 +522,15 @@ function RowEditor({ row, categories, isMobile, showDetails, autoFocus, onChange
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
           {nameInput}
           {heInput}
+        </div>
+      )}
+      {hasGroups && (
+        <div style={{ marginTop: '6px' }}>
+          <button type="button" aria-expanded={gOpen} data-testid="row-groups" onClick={() => setGOpen((o) => !o)}
+            style={{ ...chipButton(!!summary || (row.groups || []).length > 0), minHeight: '44px', padding: '3px 12px', fontSize: '13px', maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}>
+            {summary ? `Groups: ${summary}` : (row.groups || []).length ? 'Groups: only some' : 'Groups: same for everyone'} {gOpen ? '▴' : '▾'}
+          </button>
+          {gOpen && <div style={{ marginTop: '8px' }}><GroupTimesEditor groups={groups} value={{ time: row.time, endTime: row.endTime, groupTimes: row.groupTimes || {}, groups: row.groups || [] }} issues={gIssues} compact idPrefix={row.key} onChange={(patch) => onChange(patch)} /></div>}
         </div>
       )}
       {endBeforeStart && (

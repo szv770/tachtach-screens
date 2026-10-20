@@ -86,3 +86,38 @@ test('Claude prompts mention the groups only when there are some', () => {
   assert.match(buildFormatGuide({ categories: cats, groups: g }), /Aleph 6:30 PM/);
   assert.doesNotMatch(buildWeeklyPrompt({ categories: cats }), /groups that watch/);
 });
+
+// ── admin helpers ───────────────────────────────────────────────────────────
+import { PRESET_ABG, newGroupId, cleanGroupRows, blocksUsingGroups, setOwn, copyShifted, splitSummary, groupIssues } from '../src/shared/scheduleGroupsEdit.js';
+
+test('groups editor: preset, ids, clean rows', () => {
+  assert.deepEqual(PRESET_ABG.map((g) => g.name), ['Aleph', 'Bais', 'Gimmel']);
+  assert.equal(newGroupId([{ id: 'grade-9' }], 'Grade 9'), 'grade-9-2');
+  const rows = cleanGroupRows([{ name: ' Grade 9 ' }, { name: '' }, { id: 'x', name: 'Ten', short: ' 10 ', nameHe: ' י ' }]);
+  assert.deepEqual(rows, [{ id: 'grade-9', name: 'Grade 9' }, { id: 'x', name: 'Ten', nameHe: 'י', short: '10' }]);
+  assert.deepEqual(blocksUsingGroups([{ name: 'A', groupTimes: { aleph: { time: '19:00' } } }, { name: 'B' }, { name: 'C', groups: ['beis'] }], ['aleph']), ['A']);
+});
+
+test('copyShifted: Aleph +45 to Bais and Gimmel; setOwn clears', () => {
+  const base = { time: '20:00', endTime: '22:00' };
+  const gt = { aleph: { time: '19:15', endTime: '21:15' } };
+  const out = copyShifted(gt, base, 'aleph', ['beis', 'gimmel'], 45);
+  assert.deepEqual(out.beis, { time: '20:00', endTime: '22:00' });
+  assert.deepEqual(out.gimmel, out.beis);
+  assert.deepEqual(setOwn(out, 'beis', null).beis, undefined);
+  // a source with no own time uses the base
+  assert.equal(copyShifted({}, base, 'aleph', ['beis'], 30).beis.time, '20:30');
+});
+
+test('splitSummary and groupIssues', () => {
+  const e = { time: '20:00', endTime: '22:00', groupTimes: { aleph: { time: '19:15', endTime: '21:15' } } };
+  assert.equal(splitSummary(e, GROUPS, (t) => t), 'Aleph 19:15 - 21:15 · Beis & Gimmel 20:00 - 22:00');
+  assert.equal(splitSummary({ time: '20:00' }, GROUPS), '');
+  const noEnd = groupIssues({ time: '20:00', endTime: '22:00', groupTimes: { aleph: { time: '19:15', endTime: '' } } }, GROUPS);
+  assert.equal(noEnd[0].type, 'no-end');
+  assert.equal(groupIssues({ time: '20:00', groupTimes: { aleph: { time: '19:15', endTime: '19:00' } } }, GROUPS)[0].type, 'bad-range');
+  const other = { id: 'o', name: 'Maariv', time: '20:30', endTime: '21:00', days: ['Sun'] };
+  const ov = groupIssues({ id: 'n', time: '20:00', endTime: '22:00', days: [0], groupTimes: { aleph: { time: '19:15', endTime: '21:15' } } }, GROUPS, [other], () => [0]);
+  assert.deepEqual(ov.map((i) => i.type), ['overlap']);
+  assert.deepEqual(groupIssues({ id: 'n', time: '20:00', endTime: '22:00', days: [1], groupTimes: { aleph: { time: '19:15', endTime: '21:15' } } }, GROUPS, [other], () => [0]), []);
+});

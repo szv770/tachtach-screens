@@ -22,6 +22,7 @@ import WeekView from './schedule/WeekView.jsx';
 import BlockSheet from './schedule/BlockSheet.jsx';
 import CategoriesPanel from './schedule/CategoriesPanel.jsx';
 import SavedSchedules from './schedule/SavedSchedules.jsx';
+import GroupsPanel, { groupsSummary } from './schedule/GroupsPanel.jsx';
 import { primaryBtn, secondaryBtn, subtleBtn } from './schedule/scheduleFields.jsx';
 import { scheduleApi, useCopy, useSnackbar } from './schedule/scheduleShared.jsx';
 import { toISODate } from '../../shared/scheduleResolution.js';
@@ -29,6 +30,7 @@ import { findCategory, newCategoryId, formatWeeklyText } from '../../shared/sche
 import { copyDay, splitForDay } from '../../shared/scheduleWeek.js';
 import { can } from '../../shared/permissions.js';
 import { jumpTo } from '../search/jump.js';
+import { sanitizeGroups } from '../../shared/scheduleGroups.js';
 
 const NEW_COLORS = ['#38BDF8', '#F472B6', '#84CC16', '#FB7185', '#22D3EE', '#EAB308', '#C084FC', '#F59E0B'];
 
@@ -39,6 +41,7 @@ export default function ScheduleSection(props) {
   } = props;
   const isMobile = useIsMobile();
   const canEdit = can(caps, 'schedule.edit');
+  const groups = React.useMemo(() => sanitizeGroups(settings?.scheduleGroups), [settings?.scheduleGroups]);
   const [scheduleDates, setScheduleDates] = useState(initialDates || {});
   const [blocks, setBlocks] = useState([]);
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
@@ -147,7 +150,7 @@ export default function ScheduleSection(props) {
             <h3 style={{ fontFamily: 'var(--f-display)', fontSize: '21px', fontWeight: 600, margin: 0, flex: '1 1 auto' }}>
               Your weekly schedule <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, fontWeight: 600 }}>{entries.length} block{entries.length === 1 ? '' : 's'}</span>
             </h3>
-            <button type="button" onClick={() => copy(formatWeeklyText(entries, { categories }), 'Weekly schedule copied as text')} style={subtleBtn}>Copy as text</button>
+            <button type="button" onClick={() => copy(formatWeeklyText(entries, { categories, groups }), 'Weekly schedule copied as text')} style={subtleBtn}>Copy as text</button>
             {canEdit && <button type="button" data-testid="rebuild" onClick={() => setWizard(true)} style={secondaryBtn}>Rebuild with wizard</button>}
           </div>
           <WeekView entries={entries} categories={categories} canEdit={canEdit}
@@ -163,7 +166,7 @@ export default function ScheduleSection(props) {
             summary={`${Object.keys(scheduleDates || {}).length} date${Object.keys(scheduleDates || {}).length === 1 ? '' : 's'} changed - tomorrow, Shabbos, Yom Tov, trips`}>
             <div style={{ paddingTop: '12px' }}>
               <ScheduleByDate schedule={schedule} scheduleDates={scheduleDates} blocks={blocks} selectedDate={selectedDate} onSelectDate={setSelectedDate}
-                onDatesChanged={(d) => datesChanged(d, true)} onBlocksChanged={setBlocks} onCreateCategory={createCategory} notify={notify} copy={copy} isMobile={isMobile} />
+                onDatesChanged={(d) => datesChanged(d, true)} onBlocksChanged={setBlocks} onCreateCategory={createCategory} notify={notify} copy={copy} isMobile={isMobile} groups={groups} />
             </div>
           </Collapsible>
         )}
@@ -173,10 +176,10 @@ export default function ScheduleSection(props) {
               <SegmentedControl fill ariaLabel="What are you pasting" value={importKind} onChange={setImportKind} style={{ marginBottom: '14px' }}
                 options={[{ value: 'week', label: 'A whole week' }, { value: 'dates', label: 'Specific dates' }]} />
               {importKind === 'week' ? (
-                <ScheduleImport mode="weekly" schedule={schedule} scheduleDates={scheduleDates} selectedDate={selectedDate} settings={settings}
+                <ScheduleImport mode="weekly" schedule={schedule} scheduleDates={scheduleDates} selectedDate={selectedDate} settings={settings} groups={groups}
                   onApplied={() => {}} onWeeklyApplied={refreshAll} onEditDate={() => {}} notify={notify} copy={copy} isMobile={isMobile} />
               ) : (
-                <ScheduleImport schedule={schedule} scheduleDates={scheduleDates} selectedDate={selectedDate} settings={settings}
+                <ScheduleImport schedule={schedule} scheduleDates={scheduleDates} selectedDate={selectedDate} settings={settings} groups={groups}
                   onApplied={datesChanged} onEditDate={(d) => { setSelectedDate(d); jumpTo({ anchor: 'sched-by-date' }); }} notify={notify} copy={copy} isMobile={isMobile} />
               )}
             </div>
@@ -184,7 +187,7 @@ export default function ScheduleSection(props) {
         )}
         <Collapsible id="sched-saved" title="Saved schedules" icon="list" summary="Switch between whole weeks (Regular, Summer...) and Auto-backups">
           <div style={{ paddingTop: '12px' }}>
-            <SavedSchedules entries={entries} categories={categories} savedTemplates={props.savedTemplates} onFetchTemplates={onFetchTemplates}
+            <SavedSchedules groups={groups} entries={entries} categories={categories} savedTemplates={props.savedTemplates} onFetchTemplates={onFetchTemplates}
               onSaveTemplate={props.onSaveTemplate} onUpdateTemplate={props.onUpdateTemplate} onDeleteTemplate={props.onDeleteTemplate}
               onLoadTemplate={props.onLoadTemplate} canEdit={canEdit} copy={copy} />
           </div>
@@ -194,6 +197,9 @@ export default function ScheduleSection(props) {
           <div style={{ paddingTop: '12px' }}>
             <CategoriesPanel categories={categories} entries={entries} onUpdate={onUpdateCategories} canEdit={canEdit} />
           </div>
+        </Collapsible>
+        <Collapsible id="sched-groups" title="Groups" icon="users" summary={groupsSummary(groups)}>
+          <GroupsPanel settings={settings} onSave={props.onSaveSettings} canEdit={canEdit} entries={entries} />
         </Collapsible>
         <button type="button" id="sched-custom-days" onClick={() => onNavigate?.('custom-days')}
           style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', minHeight: '64px', padding: '10px 16px', textAlign: 'left', cursor: 'pointer',
@@ -207,12 +213,12 @@ export default function ScheduleSection(props) {
       </div>
 
       {wizard && (
-        <ScheduleWizard entries={entries} categories={categories} scheduleDates={scheduleDates} settings={settings}
+        <ScheduleWizard groups={groups} entries={entries} categories={categories} scheduleDates={scheduleDates} settings={settings}
           onClose={() => setWizard(false)} onSaved={async () => { setWizard(false); await refreshAll(); }}
           onSaveTemplate={props.onSaveTemplate} onCreateCategory={createCategory} notify={notify} copy={copy} />
       )}
       {sheet && (
-        <BlockSheet key={sheet.key} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving}
+        <BlockSheet key={sheet.key} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving} groups={groups} otherEntries={entries}
           onClose={() => setSheet(null)} onSave={saveBlock} onDelete={deleteBlock} onCreateCategory={createCategory} />
       )}
       {modal}

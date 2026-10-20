@@ -212,6 +212,9 @@ export const LOOK_SETTING_KEYS = Object.freeze([
   'banner', 'credit', 'rail', 'layout', 'motion', 'graphics', 'zmanimLayout', 'scheduleLayout', 'scheduleView',
 ]);
 
+/** Settings keys that are part of the SCHEDULE (a patch made only of these needs schedule.edit, not settings.change). */
+export const SCHEDULE_SETTING_KEYS = Object.freeze(['scheduleGroups']);
+
 /** Normalise a request path so odd spellings cannot dodge the table. */
 export function normalizeApiPath(p) {
   let s = String(p || '').split('?')[0].split('#')[0];
@@ -260,6 +263,7 @@ export function canDo(who, method, path, body) {
   if (PREVIEW.test(p)) return ['slides.edit', 'screen.control', 'announcements.post', 'look.change'].some((c) => caps.has(c));
 
   if (/^\/api\/settings$/.test(p) && isLookOnlySettingsPatch(m, body) && caps.has('look.change')) return true;
+  if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => SCHEDULE_SETTING_KEYS.includes(k)) && caps.has('schedule.edit')) return true;
 
   // Undo of your own fresh post: a poster may DELETE an announcement; the route itself then checks it is
   // theirs and recent unless they also hold announcements.delete (see routes/announcements.js).

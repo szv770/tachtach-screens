@@ -199,3 +199,11 @@ test('Messages only may undo (DELETE) an announcement route-wise; View only may 
   no(P('messages'), 'DELETE', '/api/announcements/abc/extra', {});
   no(P('messages'), 'DELETE', '/api/slides/abc', {});
 });
+
+test('a settings patch of only scheduleGroups needs schedule.edit (not settings.change)', () => {
+  const sched = { role: 'editor', preset: 'full', overrides: {} };
+  const viewOnly = { role: 'editor', preset: 'view', overrides: {} };
+  assert.equal(canDo(sched, 'PATCH', '/api/settings', { scheduleGroups: [] }), true);
+  assert.equal(canDo(viewOnly, 'PATCH', '/api/settings', { scheduleGroups: [] }), false);
+  assert.equal(canDo(sched, 'PATCH', '/api/settings', { scheduleGroups: [], location: {} }), false);
+});

@@ -19,7 +19,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 export default function ScheduleByDate({
   schedule, scheduleDates, blocks, selectedDate, onSelectDate, onDatesChanged, onBlocksChanged,
-  onCreateCategory, notify, copy, isMobile,
+  onCreateCategory, notify, copy, isMobile, groups = [],
 }) {
   const today = toISODate(new Date());
   const firstSunday = addDaysISO(today, -weekdayOfISO(today));
@@ -140,6 +140,7 @@ export default function ScheduleByDate({
         categories={schedule?.categories || []}
         blocks={blocks}
         scheduleDates={scheduleDates}
+        groups={groups}
         onCreateCategory={onCreateCategory}
         onSaved={(dates) => { dirtyRef.current = false; onDatesChanged(dates); }}
         onBlocksChanged={onBlocksChanged}
@@ -184,7 +185,7 @@ export default function ScheduleByDate({
                 <button type="button" style={{ ...smallButton, color: colors.gold, borderColor: colors.goldBd }} onClick={() => (hasDateOverride(scheduleDates, selectedDate) || dirtyRef.current ? setConfirmBlock({ block: b, action: 'apply' }) : applyBlock(b))}>
                   Apply to {formatDateShort(selectedDate)}
                 </button>
-                <button type="button" style={smallButton} onClick={() => copy(formatScheduleText([{ date: selectedDate, label: b.label, entries: b.entries }], { categories: schedule?.categories || [] }), `"${b.name}" copied as text`)}>
+                <button type="button" style={smallButton} onClick={() => copy(formatScheduleText([{ date: selectedDate, label: b.label, entries: b.entries }], { categories: schedule?.categories || [], groups }), `"${b.name}" copied as text`)}>
                   Copy as text
                 </button>
                 <button type="button" aria-label={`Delete block ${b.name}`} style={{ ...smallButton, color: colors.danger }} onClick={() => setConfirmBlock({ block: b, action: 'delete' })}>

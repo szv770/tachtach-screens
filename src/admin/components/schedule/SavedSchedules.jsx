@@ -68,7 +68,7 @@ export default function SavedSchedules({
               {canEdit && <button type="button" disabled={busy} onClick={() => setConfirm({ kind: 'load', tmpl: t })} style={{ ...subtleBtn, color: colors.gold, borderColor: colors.gold }}>Use this</button>}
               {!t.builtIn && canEdit && <button type="button" onClick={() => setRename({ id: t.id, value: t.name })} style={subtleBtn}>Rename</button>}
               {!t.builtIn && canEdit && <button type="button" disabled={!entries.length} onClick={() => setConfirm({ kind: 'update', tmpl: t })} style={subtleBtn} title="Overwrite this with the current weekly schedule">Update</button>}
-              {copy && (t.entries || []).length > 0 && <button type="button" onClick={() => copy(formatWeeklyText(t.entries, { categories: t.categories?.length ? t.categories : categories }), 'Copied as text')} style={subtleBtn}>Copy as text</button>}
+              {copy && (t.entries || []).length > 0 && <button type="button" onClick={() => copy(formatWeeklyText(t.entries, { categories: t.categories?.length ? t.categories : categories, groups }), 'Copied as text')} style={subtleBtn}>Copy as text</button>}
               {!t.builtIn && canEdit && <button type="button" onClick={() => setConfirm({ kind: 'delete', tmpl: t })} style={{ ...subtleBtn, color: colors.danger }}>Delete</button>}
             </div>
           </div>
