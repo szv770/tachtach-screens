@@ -2,6 +2,12 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
+## Polish queue (owner 2026-10-20: "go over a section at a time, a small area, see what can be fixed, cleaned up, better features/design, smoother — slowly")
+
+Process per slice: (1) seed realistic sample data on a throwaway copy, (2) screenshot the slice on 390 px and 1440 px, light + dark, in empty / normal / busy states, (3) write a short critique + proposed fixes/features, (4) owner picks (multi-choice), (5) one small agent implements, (6) tests + build, fast-forward `main`, tell the owner what changed. One slice at a time; skip a slice the owner says is fine.
+Suggested order (most-used first): 1 Home (dashboard cards, quick actions) · 2 ＋ sheet / Quick message flow · 3 Announcements list + composer · 4 Schedule week view + block sheet + wizard polish · 5 Slides list + New slide · 6 Media Library · 7 Freeze card · 8 Live Preview + TV status · 9 Daily Word · 10 Look > Themes / Fonts / Layout · 11 Team + permissions sheet · 12 History + Health + update card · 13 Search results · 14 empty states + microcopy everywhere (Help text, toasts) · 15 kiosk pages one by one (Zmanim, Limudim, Weather, Daily Word, Photos, announcements styles) with photos of the real TV.
+Also: collect the owner's real-use annoyances in `docs/BACKLOG.md` as they come.
+
 ## DONE 2026-10-20 — Live Preview that really follows the TV (shipped; see CLAUDE.md changelog)
 
 - **Follow the TV (default on)**: the kiosk already reports slide changes (`/api/screen/report`: slideIndex, slideId, isPaused); extend with `startedAt` + the ordered enabled slide list with durations; the server rebroadcasts a `screen-slide` SSE event to preview clients; the preview jumps to that slide at the right elapsed offset and re-syncs on every report (no drift). Toggle 'Follow the TV' off = today's free-running preview (Prev/Pause/Next/jump).
