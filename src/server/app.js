@@ -34,7 +34,8 @@ import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
-import { getScreenState, setScreenState, getScreenDisplay } from './screenState.js';
+import { broadcastToPreview } from './sse.js';
+import { getScreenState, setScreenState, getScreenDisplay, followPayload } from './screenState.js';
 import { initGooglePhotosSync } from './google-photos.js';
 import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
@@ -339,8 +340,10 @@ export function createApp() {
 
   // ── 6f. Localhost-only screen state endpoints (kiosk reports slide changes; preview reads on connect) ─
   app.post('/api/screen/report', localhostOnly, (req, res) => {
-    const { slideIndex, slideId, isPaused, display } = req.body || {};
-    setScreenState({ slideIndex, slideId, isPaused, display });
+    const { slideIndex, slideId, isPaused, display, durationMs, slides, held, heldBy, overlay, elapsedMs } = req.body || {};
+    setScreenState({ slideIndex, slideId, isPaused, display, durationMs, slides, held, heldBy, overlay, elapsedMs });
+    // A slide report (not a display-size one) is what the admin Live Preview follows.
+    if (typeof slideIndex === 'number' || slideId !== undefined) broadcastToPreview('screen-slide', followPayload());
     res.json({ success: true });
   });
 

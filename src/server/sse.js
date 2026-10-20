@@ -88,6 +88,16 @@ export function broadcastToAll(type, data) {
 }
 
 /**
+ * Broadcast an event to the admin Live Preview clients only (never the real screens).
+ */
+export function broadcastToPreview(type, data) {
+  const payload = `data: ${JSON.stringify({ type, data })}\n\n`;
+  for (const [, client] of clients) {
+    if (client.isPreview) client.res.write(payload);
+  }
+}
+
+/**
  * Send an event to a single client by id.
  */
 export function sendToClient(clientId, type, data) {

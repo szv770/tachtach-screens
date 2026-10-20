@@ -14,6 +14,9 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
   const timerRef = useRef(null);
   const progressRef = useRef(null);
   const startTimeRef = useRef(null);
+  // Follow-the-TV: a seek says 'this slide is already elapsedMs in', so the timer only runs the remainder.
+  const offsetRef = useRef(0);
+  const [syncTick, setSyncTick] = useState(0);
 
   // Filter to enabled slides; hide PIRKEI_AVOS except on Shabbos
   // Shabbos = Friday sunset through Saturday sunset (simplified: Saturday by day-of-week)
@@ -47,6 +50,22 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
     startTimeRef.current = Date.now();
   }, [enabledSlides.length]);
 
+  const previous = useCallback(() => {
+    if (enabledSlides.length === 0) return;
+    setCurrentIndex(prev => (prev - 1 + enabledSlides.length) % enabledSlides.length);
+    setProgress(0);
+    startTimeRef.current = Date.now();
+  }, [enabledSlides.length]);
+
+  // Jump to a slide as if it had started elapsedMs ago and re-arm the timer for what is left of it.
+  const seekTo = useCallback((index, elapsedMs = 0) => {
+    if (index < 0 || index >= enabledSlides.length) return;
+    offsetRef.current = Math.max(0, elapsedMs || 0);
+    setCurrentIndex(index);
+    setProgress(0);
+    setSyncTick(t => t + 1);
+  }, [enabledSlides.length]);
+
   const goToSlide = useCallback((index) => {
     if (index < 0 || index >= enabledSlides.length) return;
     setCurrentIndex(index);
@@ -59,18 +78,21 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
     if (isPaused || activeTakeover || enabledSlides.length === 0 || isVideoNoTimer) {
       clearInterval(timerRef.current);
       cancelAnimationFrame(progressRef.current);
+      offsetRef.current = 0; // a stopped timer restarts from zero when it resumes
       return;
     }
 
-    startTimeRef.current = Date.now();
+    const offset = Math.min(offsetRef.current, Math.max(0, duration - 50));
+    offsetRef.current = 0;
+    startTimeRef.current = Date.now() - offset;
 
-    timerRef.current = setTimeout(advance, duration);
+    timerRef.current = setTimeout(advance, duration - offset);
 
     return () => {
       clearTimeout(timerRef.current);
       cancelAnimationFrame(progressRef.current);
     };
-  }, [currentIndex, isPaused, activeTakeover, duration, advance, enabledSlides.length, isVideoNoTimer]);
+  }, [currentIndex, isPaused, activeTakeover, duration, advance, enabledSlides.length, isVideoNoTimer, syncTick]);
 
   // Reset index if it's out of bounds
   useEffect(() => {
@@ -87,6 +109,9 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
     isPaused,
     setIsPaused,
     advance,
+    previous,
+    seekTo,
+    duration,
     goToSlide,
     setOverrideDuration,
   };

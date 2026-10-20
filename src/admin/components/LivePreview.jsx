@@ -1,6 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { colors, adminFonts, buttonSecondary, inputStyle } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
+import TvStatusLine from './TvStatusLine.jsx';
+
+const FOLLOW_KEY = 'tt.preview.follow';
+const readFollow = () => { try { return window.localStorage.getItem(FOLLOW_KEY) !== 'off'; } catch { return true; } };
 
 const KIOSK_W = 1920;
 const KIOSK_H = 1080;
@@ -26,17 +30,30 @@ function slideName(s) {
  * The buttons under it only move THIS preview, through postMessage: the TV is
  * never touched (use Screen Controls for that).
  */
-export default function LivePreview() {
+export default function LivePreview({ state }) {
   const containerRef = useRef(null);
   const frameRef = useRef(null);
   const isMobile = useIsMobile();
   const [scale, setScale] = useState(0.18);
   const [info, setInfo] = useState({ index: 0, paused: false, slides: [] });
+  const [follow, setFollow] = useState(readFollow);
+  const [tvTick, setTvTick] = useState(0);
+
+  // Tell the preview frame which mode it is in (also when it finishes loading).
+  const sendFollow = (on) => frameRef.current?.contentWindow?.postMessage({ tachtach: 'preview-control', action: 'follow', on }, window.location.origin);
+  const toggleFollow = () => {
+    const next = !follow;
+    setFollow(next);
+    try { window.localStorage.setItem(FOLLOW_KEY, next ? 'on' : 'off'); } catch { /* private window: just this visit */ }
+    sendFollow(next);
+  };
 
   useEffect(() => {
     const onMessage = (e) => {
       const m = e.data;
-      if (e.origin !== window.location.origin || e.source !== frameRef.current?.contentWindow || m?.tachtach !== 'preview-state') return;
+      if (e.origin !== window.location.origin || e.source !== frameRef.current?.contentWindow) return;
+      if (m?.tachtach === 'tv-slide') { setTvTick((n) => n + 1); return; }
+      if (m?.tachtach !== 'preview-state') return;
       setInfo({ index: m.index || 0, paused: !!m.paused, slides: Array.isArray(m.slides) ? m.slides : [] });
     };
     window.addEventListener('message', onMessage);
@@ -71,6 +88,20 @@ export default function LivePreview() {
       }}>
         Live Preview
       </div>
+      <TvStatusLine state={state} reloadSignal={tvTick} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px', flexWrap: 'wrap' }}>
+        <button type="button" role="switch" aria-checked={follow} data-testid="follow-toggle" onClick={toggleFollow} style={{
+          ...buttonSecondary, display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '44px', padding: '0 12px', fontSize: '13px',
+        }}>
+          <span aria-hidden style={{ width: 34, height: 20, borderRadius: 999, background: follow ? colors.success : colors.border, position: 'relative', flex: '0 0 auto' }}>
+            <span style={{ position: 'absolute', top: 2, left: follow ? 16 : 2, width: 16, height: 16, borderRadius: '50%', background: colors.surface }} />
+          </span>
+          Follow the TV
+        </button>
+        <span data-testid="preview-mode" style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: follow ? colors.success : colors.warn }}>
+          {follow ? 'Following the TV' : 'Preview — not the TV'}
+        </span>
+      </div>
       {/* 16:9 aspect ratio container */}
       <div
         ref={containerRef}
@@ -88,6 +119,7 @@ export default function LivePreview() {
           ref={frameRef}
           src="/screen?preview=true"
           title="Screen Preview"
+          onLoad={() => sendFollow(follow)}
           style={{
             position: 'absolute',
             top: 0,
@@ -102,7 +134,7 @@ export default function LivePreview() {
       </div>
 
       {/* Preview-only controls: jump through slides without waiting for the timer */}
-      {info.slides.length > 0 && (() => {
+      {!follow && info.slides.length > 0 && (() => {
         const btn = isMobile
           ? { ...buttonSecondary, padding: '8px 12px', fontSize: '14px', minHeight: '44px' }
           : { ...buttonSecondary, padding: '5px 10px', fontSize: '12px' };
@@ -125,7 +157,7 @@ export default function LivePreview() {
               {info.slides.map((s, i) => <option key={s.id || i} value={i}>{i + 1}. {slideName(s)}</option>)}
             </select>
             <div style={{ fontFamily: adminFonts.englishBody, fontSize: '10px', color: colors.muted, marginTop: '4px' }}>
-              Preview only — the real screen isn’t affected.
+              Preview only — the real screen isn’t affected. Turn on Follow the TV to see what it is showing.
             </div>
           </div>
         );

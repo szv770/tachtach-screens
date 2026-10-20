@@ -335,7 +335,7 @@ export default function App() {
 
   const previewSlot = (
     <>
-      <LivePreview />
+      <LivePreview state={state} />
       <ScreenControls onCommand={screenCommand} onRefresh={refresh} />
     </>
   );

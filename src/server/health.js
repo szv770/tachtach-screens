@@ -33,6 +33,16 @@ export function screenStatus() {
     slideId: s.slideId ?? null,
     slideIndex: s.slideIndex ?? 0,
     paused: !!s.isPaused,
+    // Follow-the-TV / status line: epoch ms (server clock) + the ordered enabled list the TV reported.
+    serverNow: Date.now(),
+    lastSeenMs: getKioskLastSeenAt() || null,
+    reportedAtMs: s.reportedAt || null,
+    startedAtMs: s.startedAt || null,
+    durationMs: s.durationMs ?? null,
+    slides: s.slides || [],
+    held: !!s.held,
+    heldBy: s.heldBy || null,
+    overlay: s.overlay || null,
     display: s.display ? { width: s.display.width, height: s.display.height, orientation: s.display.orientation } : null,
   };
 }

@@ -8,6 +8,7 @@ import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
 import { broadcast, broadcastToAll } from '../sse.js';
+import { SCREEN_COMMANDS } from '../../shared/screenCommands.js';
 import { getScreenState, setScreenState, getScreenDisplay } from '../screenState.js';
 import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
 import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia, listMedia, UPLOAD_DIR } from '../upload.js';
@@ -675,27 +676,15 @@ router.post('/security/forget-devices', async (req, res) => {
 
 // ── Screen commands ────────────────────────────────────────────────────────
 
-router.post('/screen/pause', (_req, res) => {
-  broadcastToAll('screen-command', { action: 'pause' });
-  setScreenState({ isPaused: true });
-  res.json({ success: true });
-});
-
-router.post('/screen/resume', (_req, res) => {
-  broadcastToAll('screen-command', { action: 'resume' });
-  setScreenState({ isPaused: false });
-  res.json({ success: true });
-});
-
-router.post('/screen/blank', (_req, res) => {
-  broadcastToAll('screen-command', { action: 'blank' });
-  res.json({ success: true });
-});
-
-router.post('/screen/advance', (_req, res) => {
-  broadcastToAll('screen-command', { action: 'advance' });
-  res.json({ success: true });
-});
+// One route per allow-listed command (src/shared/screenCommands.js); anything else is a 404.
+for (const action of SCREEN_COMMANDS) {
+  router.post(`/screen/${action}`, (_req, res) => {
+    broadcastToAll('screen-command', { action });
+    if (action === 'pause') setScreenState({ isPaused: true });
+    if (action === 'resume') setScreenState({ isPaused: false });
+    res.json({ success: true });
+  });
+}
 
 // Authenticated version of screen/state (for admin panel access from remote machines)
 router.get('/screen/state', (_req, res) => {

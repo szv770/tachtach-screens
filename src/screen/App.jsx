@@ -24,6 +24,7 @@ import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 import FrozenScreen from './components/FrozenScreen.jsx';
+import { toList, followTarget } from '../shared/rotationPosition.js';
 import { freezeInForce, coversScreen, isEmergencyTakeover } from '../shared/freeze.js';
 
 /**
@@ -84,6 +85,10 @@ function parseScheduleTime(timeStr) {
 
 const _searchParams = new URLSearchParams(window.location.search);
 const _isPreview = _searchParams.get('preview') === 'true';
+// Live Preview 'Follow the TV' choice, remembered per browser (the admin writes it; default ON).
+function readFollowSetting() {
+  try { return window.localStorage.getItem('tt.preview.follow') !== 'off'; } catch { return true; }
+}
 const _previewDate = _searchParams.get('previewDate');
 const _isDatePreview = Boolean(_previewDate);
 const _isErrorPage = window.location.pathname === '/error';
@@ -145,6 +150,20 @@ function AppContent() {
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
   slideRotationRef.current = slideRotation;
+
+  // Live Preview 'Follow the TV' (default ON, remembered per browser; the admin toggles it by postMessage).
+  const followRef = useRef({ on: _isPreview ? readFollowSetting() : false, payload: null, at: 0, seeded: false });
+  const applyFollowRef = useRef(() => {});
+  applyFollowRef.current = () => {
+    const f = followRef.current;
+    if (!_isPreview || !f.payload) return;
+    const sr = slideRotationRef.current;
+    const t = followTarget({ ...f.payload, elapsedMs: (f.payload.elapsedMs || 0) + (Date.now() - f.at) }, sr.enabledSlides.map((x) => x.id));
+    if (!t) return;
+    f.seeded = true;
+    sr.seekTo(t.index, t.elapsedMs);
+    sr.setIsPaused(t.paused);
+  };
 
   // A slide that throws while rendering is caught by SlideErrorBoundary
   // (renders nothing); skip to the next slide after a short pause. The delay
@@ -273,6 +292,9 @@ function AppContent() {
         setCountdown(null);
         break;
       case 'screen-command': {
+        // Commands are for the REAL screen. The Live Preview is its own copy: it follows the TV through
+        // `screen-slide` reports (or runs free), so it ignores them, except Blank while it follows.
+        if (_isPreview && !(data?.action === 'blank' && followRef.current.on)) break;
         const sr = slideRotationRef.current;
         switch (data?.action) {
           case 'pause':
@@ -284,12 +306,23 @@ function AppContent() {
           case 'advance':
             sr.advance();
             break;
+          case 'previous':
+            sr.previous();
+            break;
           case 'blank':
             setState(prev => prev ? { ...prev, _blank: !prev._blank } : prev);
             break;
         }
         break;
       }
+      case 'screen-slide':
+        // Live Preview only (the server never sends this to the real screen): where the TV is right now.
+        if (!_isPreview) break;
+        followRef.current.payload = data;
+        followRef.current.at = Date.now();
+        if (followRef.current.on || !followRef.current.seeded) applyFollowRef.current();
+        try { window.parent.postMessage({ tachtach: 'tv-slide' }, window.location.origin); } catch { /* not framed */ }
+        break;
       case 'connected':
         break;
       default:
@@ -309,7 +342,13 @@ function AppContent() {
 
   const { status: sseStatus } = useSSE(handleSSE, handleFullState, { enabled: !_isDatePreview });
 
-  // Report slide state to server on every slide change (real screen only, not preview or date preview)
+  // Report slide state to server on every slide change (real screen only, not preview or date preview).
+  // The server stamps its own clock and rebroadcasts it to the admin Live Preview as `screen-slide`.
+  // Anything that restarts the slide timer (new slide, pause/resume, a takeover or freeze ending, a slide asking
+  // for a longer duration, the slide list changing) is a new report, so the preview re-syncs and never drifts.
+  const heldBy = freezeOn ? 'freeze' : takeover ? 'takeover' : holdSlide ? 'hold' : null;
+  const overlay = countdown ? 'countdown' : null;
+  const rotationListKey = slideRotation.enabledSlides.map((s) => s.id).join('|');
   useEffect(() => {
     if (_isPreview || _isDatePreview) return;
     fetch('/api/screen/report', {
@@ -319,9 +358,14 @@ function AppContent() {
         slideIndex: slideRotation.currentIndex,
         slideId: slideRotation.currentSlide?.id ?? null,
         isPaused: slideRotation.isPaused,
+        durationMs: slideRotation.duration,
+        slides: toList(slideRotation.enabledSlides),
+        held: !!heldBy,
+        heldBy,
+        overlay,
       }),
     }).catch(() => {});
-  }, [slideRotation.currentIndex, slideRotation.isPaused]);
+  }, [slideRotation.currentIndex, slideRotation.isPaused, slideRotation.duration, rotationListKey, heldBy, overlay]);
 
   // Tell the server the real screen size (device pixels, dpr, orientation, canvas) so the admin's
   // Media page can say "best size for this screen". Real screen only; on load, on resize (settled)
@@ -356,18 +400,6 @@ function AppContent() {
     return () => { clearTimeout(timer); clearInterval(every); window.removeEventListener('resize', onResize); };
   }, []);
 
-  // Preview sync — on mount, jump to the slide the real screen is currently on
-  useEffect(() => {
-    if (!_isPreview) return;
-    fetch('/api/screen/state')
-      .then(r => r.json())
-      .then(({ slideIndex, isPaused }) => {
-        if (typeof slideIndex === 'number') slideRotation.goToSlide(slideIndex);
-        if (typeof isPaused === 'boolean') slideRotation.setIsPaused(isPaused);
-      })
-      .catch(() => {});
-  }, []); // mount only
-
   // Admin Live Preview remote control. The admin page (same origin) drives only THIS
   // preview iframe — it never touches the real TV — and gets the slide list back to
   // show "Slide 3 of 9". Commands: next / prev / pause / resume / goto(index).
@@ -376,6 +408,11 @@ function AppContent() {
     const onMessage = (e) => {
       const m = e.data;
       if (e.origin !== window.location.origin || e.source !== window.parent || m?.tachtach !== 'preview-control') return;
+      if (m.action === 'follow') {
+        followRef.current.on = m.on !== false;
+        if (followRef.current.on) applyFollowRef.current();
+        return;
+      }
       const sr = slideRotationRef.current;
       const n = sr.enabledSlides.length;
       if (!n) return;
@@ -399,9 +436,13 @@ function AppContent() {
       tachtach: 'preview-state',
       index: slideRotation.currentIndex,
       paused: slideRotation.isPaused,
+      follow: followRef.current.on,
       slides: slideRotation.enabledSlides.map((s) => ({ id: s.id, type: s.type, label: s.label || '', url: s.embedUrl || '' })),
     }, window.location.origin);
   }, [slideRotation.currentIndex, slideRotation.isPaused, previewSlideKey]);
+
+  // The preview's own slide list changed (or loaded after the first TV report): line up with the TV again.
+  useEffect(() => { if (_isPreview && followRef.current.payload && (followRef.current.on || !followRef.current.seeded)) applyFollowRef.current(); }, [previewSlideKey]);
 
   // ── Design: theme (manual, or zmanim day/night), fonts, rail, layout ──────
   const settings = state?.settings || {};

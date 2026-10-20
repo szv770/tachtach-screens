@@ -41,9 +41,10 @@ export default function ScreenControls({ onCommand, onRefresh }) {
         Real screen (the TV)
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '8px' : '6px', marginBottom: '12px' }}>
-        <button style={{ ...btnStyle, opacity: busy === 'pause' ? 0.5 : 1 }} onClick={() => handleCommand('pause')} disabled={busy !== null}>Pause</button>
-        <button style={{ ...btnStyle, opacity: busy === 'resume' ? 0.5 : 1 }} onClick={() => handleCommand('resume')} disabled={busy !== null}>Resume</button>
-        <button style={{ ...btnStyle, opacity: busy === 'advance' ? 0.5 : 1 }} onClick={() => handleCommand('advance')} disabled={busy !== null}>Next</button>
+        <button data-testid="tv-previous" style={{ ...btnStyle, opacity: busy === 'previous' ? 0.5 : 1 }} onClick={() => handleCommand('previous')} disabled={busy !== null} aria-label="Previous slide on the TV">‹ Previous</button>
+        <button data-testid="tv-pause" style={{ ...btnStyle, opacity: busy === 'pause' ? 0.5 : 1 }} onClick={() => handleCommand('pause')} disabled={busy !== null}>Pause</button>
+        <button style={{ ...btnStyle, opacity: busy === 'resume' ? 0.5 : 1 }} data-testid="tv-resume" onClick={() => handleCommand('resume')} disabled={busy !== null}>Resume</button>
+        <button style={{ ...btnStyle, opacity: busy === 'advance' ? 0.5 : 1 }} data-testid="tv-next" onClick={() => handleCommand('advance')} disabled={busy !== null} aria-label="Next slide on the TV">Next ›</button>
         <button style={{ ...btnStyle, opacity: busy === 'blank' ? 0.5 : 1 }} onClick={() => handleCommand('blank')} disabled={busy !== null}>Blank</button>
         <button
           style={{ ...btnStyle, color: colors.gold, borderColor: colors.goldBd, opacity: refreshing ? 0.5 : 1 }}

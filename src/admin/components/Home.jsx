@@ -10,6 +10,7 @@ import { opsApi } from '../api/ops.js';
 import usePolled from '../hooks/usePolled.js';
 import Icon from './ui/Icon.jsx';
 import StatusChip from './ops/StatusChip.jsx';
+import TvStatusLine from './TvStatusLine.jsx';
 import { RoleChip } from './AdminLayout.jsx';
 import FreezeControl from './FreezeControl.jsx';
 
@@ -155,6 +156,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
                 ? <StatusChip tone="live" label="Screen connected" />
                 : <StatusChip tone="off" label={lastSeen != null ? `Offline · seen ${ago(lastSeen)}` : 'Offline'} />)}
             </div>
+ <div style={{ marginBottom: '4px' }}><TvStatusLine state={state} compact /></div>
             {!st && screen.error && <Row icon="screen" label="Screen" text="Could not check the screen right now." />}
             {frozen && <Row icon="pause" label="Screen is" text={`Frozen (${frozen.mode})`} />}
             {st && (

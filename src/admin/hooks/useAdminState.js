@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { SCREEN_COMMAND_DONE } from '../../shared/screenCommands.js';
 import { deepMerge } from '../../shared/settingsMerge.js';
 
 function getCsrfToken() {
@@ -521,7 +522,7 @@ export default function useAdminState() {
   const screenCommand = useCallback(async (command) => {
     return withErrorHandling(`Screen ${command}`, async () => {
       await apiFetch(`/api/screen/${command}`, { method: 'POST' });
-    });
+    }, SCREEN_COMMAND_DONE[command] || `Screen ${command}`);
   }, [withErrorHandling]);
 
   return {
