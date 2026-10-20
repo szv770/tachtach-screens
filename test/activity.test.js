@@ -47,3 +47,10 @@ test('describe gives plain English, and a fallback for unknown areas', () => {
   assert.equal(describe('DELETE', '/api/slides/x'), 'Deleted slide');
   assert.equal(describe('PUT', '/api/brand-new-thing/1'), 'Changed brand-new-thing');
 });
+
+test('screen commands read in plain English in the log', async () => {
+  const { describe: d } = await import('../src/server/activity.js');
+  assert.equal(d('POST', '/api/screen/previous'), 'Moved the TV to the previous slide');
+  assert.equal(d('POST', '/api/screen/advance'), 'Moved the TV to the next slide');
+  assert.equal(d('POST', '/api/screen/pause'), 'Paused the TV');
+});

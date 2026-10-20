@@ -40,6 +40,11 @@ export function describe(method, rawPath) {
   if (method === 'POST' && /^freeze\/?$/.test(path)) return 'Froze the screen';
   if (method === 'DELETE' && /^freeze\/?$/.test(path)) return 'Resumed the screen';
   if (method === 'PUT' && /^freeze\/schedule\/?$/.test(path)) return 'Changed the screen off-hours schedule';
+  if (method === 'POST') {
+    const sc = path.match(/^screen\/(pause|resume|advance|previous|blank|refresh)\/?$/);
+    if (sc) return { pause: 'Paused the TV', resume: 'Resumed the TV', advance: 'Moved the TV to the next slide', previous: 'Moved the TV to the previous slide', blank: 'Blanked the TV', refresh: 'Refreshed the TV' }[sc[1]];
+    if (/^refresh\/?$/.test(path)) return 'Refreshed the screen data';
+  }
   if (method === 'POST' && /^announcements\/?$/.test(path)) return 'Posted an announcement';
   if (method === 'DELETE' && /^announcements/.test(path)) return 'Deleted an announcement';
   if ((method === 'PUT' || method === 'PATCH') && /^announcements/.test(path)) return 'Edited an announcement';
