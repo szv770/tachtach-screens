@@ -414,8 +414,8 @@ function labelsFor(st, tz) {
     lastNight: { en: dayEn(st.lastNight.start, tz), he: dayHe(st.lastNight.start, tz) },
     lastNightEnds: { en: endEn, he: endHe },
     banner: {
-      en: last ? `LAST NIGHT for Kiddush Levana · until ${closeEn}${mzEn}` : `Kiddush Levana tonight · until ${untilEn}${mzEn}`,
-      he: last ? `הלילה האחרון לקידוש לבנה · עד ${closeHe}${mzHe}` : `קידוש לבנה הלילה · עד ${untilHe}${mzHe}`,
+      en: last ? `LAST NIGHT for Kiddush Levana · until ${closeEn}${mzEn}` : `Kiddush Levana tonight · until ${untilEn} · last night ${dayEn(st.lastNight.start, tz)}${mzEn}`,
+      he: last ? `הלילה האחרון לקידוש לבנה · עד ${closeHe}${mzHe}` : `קידוש לבנה הלילה · עד ${untilHe} · הלילה האחרון ${dayHe(st.lastNight.start, tz)}${mzHe}`,
     },
     note: st.phase === 'upcoming'
       ? { en: `Kiddush Levana from tonight, ${timeEn(st.firstEvening.start, tz)}`, he: `קידוש לבנה מהלילה, ${timeHe(st.firstEvening.start, tz)}` }
@@ -478,8 +478,10 @@ export function kiddushLevanaItems(state, shown = {}, now = new Date()) {
   const H = state.settings?.hebrew === true;
   const he = (t) => (H ? t : '');   // Hebrew is an optional extra line; English is always there
   const items = [];
-  // Rail note: all day while the window is open or about to open (no slide, no banner by day).
-  items.push(baseItem('note', state, {
+  // Owner rule (2026-10-20): never both at once. By day (and before the first night) the rail note shows,
+  // no banner; after dark, while the moon can be blessed, the banner shows and the rail note steps aside.
+  const dark = !!(state.nightOpen && state.night);
+  if (!dark) items.push(baseItem('note', state, {
     display: 'note',
     content: { headlineEn: L.note.en, headlineHe: he(L.note.he) },
     note: { icon: 'moon', order: -1 },
@@ -487,7 +489,7 @@ export function kiddushLevanaItems(state, shown = {}, now = new Date()) {
     when: { startsAt: iso(state.firstDayStart), expiresAt: iso(state.lastNight.end), recurrence: null },
     updatedAt: `${state.phase}:${L.note.en}:${H}`,
   }));
-  if (state.nightOpen && state.night) {
+  if (dark) {
     items.push(baseItem('banner', state, {
       display: 'banner',
       content: { headlineEn: L.banner.en, headlineHe: he(L.banner.he) },

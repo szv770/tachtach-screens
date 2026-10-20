@@ -149,12 +149,14 @@ test('daytime inside the window: rail note only (no banner, no takeover)', () =>
   assert.deepEqual(items.map((i) => i.display), ['note']);
 });
 
-test('at night: banner + note; takeover only once the server recorded the occasion', () => {
+test('at night: banner only (the rail note steps aside); takeover only once the server recorded the occasion', () => {
   const now = new Date('2026-10-20T23:30:00Z');
   const st = at(now);
   assert.equal(st.nightOpen, true);
   const none = kiddushLevanaItems(st, {}, now).map((i) => i.display).sort();
-  assert.deepEqual(none, ['banner', 'note']);
+  assert.deepEqual(none, ['banner']);
+  const day = new Date('2026-10-20T16:00:00Z'); // 12:00 pm, window open
+  assert.deepEqual(kiddushLevanaItems(at(day), {}, day).map((i) => i.display), ['note']);
   assert.equal(currentOccasion(st), null);   // Tue night is neither first nor last
 });
 
@@ -244,7 +246,7 @@ test('virtual items go through selectActive like real announcements', () => {
   const st = kiddushLevanaState(now, MIAMI, S);
   const sel = selectActive(kiddushLevanaItems(st, {}, now), now, { tz: 'America/New_York' });
   assert.equal(sel.banners.length, 1);
-  assert.equal(sel.notes.length, 1);
+  assert.equal(sel.notes.length, 0); // never both at once
   assert.equal(sel.takeover, null);
 });
 
@@ -253,7 +255,7 @@ test('autoItemsFor: off switch and no data', () => {
   const cache = { weather: { location: MIAMI } };
   const settings = { location: { timezone: 'America/New_York' }, kiddushLevana: { enabled: false } };
   assert.deepEqual(autoItemsFor({ settings, cache }, now), []);
-  assert.equal(autoItemsFor({ settings: { ...settings, kiddushLevana: {} }, cache }, now).length, 2);
+  assert.equal(autoItemsFor({ settings: { ...settings, kiddushLevana: {} }, cache }, now).length, 1);
 });
 
 test('fresh zmanim cache overrides the computed tzeis', () => {
