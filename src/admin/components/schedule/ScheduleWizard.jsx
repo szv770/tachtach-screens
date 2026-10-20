@@ -24,9 +24,12 @@ import {
 } from '../../../shared/scheduleWizard.js';
 import { minutesOf } from '../../../shared/scheduleResolution.js';
 import { formatTime12 } from '../../../shared/schedulePaste.js';
+import GroupTimesEditor from './GroupTimesEditor.jsx';
+import { groupChip, groupIssues, splitSummary } from '../../../shared/scheduleGroupsEdit.js';
 import { toISODate } from '../../../shared/scheduleResolution.js';
 
-const STEPS = ['Days', 'Blocks', 'Review', 'Save'];
+const STEPS_BASE = ['Days', 'Blocks', 'Review', 'Save'];
+const STEPS_GROUPS = ['Days', 'Blocks', 'Groups', 'Review', 'Save'];
 const sameDays = (a, b) => a.length === b.length && a.every((d, i) => d === b[i]);
 const sortedBlocks = (blocks) => [...blocks].sort((a, b) => (minutesOf(a.time) ?? 9999) - (minutesOf(b.time) ?? 9999));
 
@@ -206,6 +209,53 @@ function ReviewStep({ checked, categories, goFix }) {
   );
 }
 
+// ── Groups step (only when the screen has groups) ────────────────────────
+
+function GroupsStep({ patterns, setPatterns, groups }) {
+  const [open, setOpen] = useState(null);
+  const label = (x) => x.label || daysLabel(x.days);
+  const patchBlock = (pid, bid, ch) => setPatterns(patterns.map((p) => (p.id !== pid ? p : { ...p, blocks: p.blocks.map((b) => (b.id !== bid ? b : { ...b, extra: { ...(b.extra || {}), ...ch } })) })));
+  const asEntry = (b) => ({ time: b.time, endTime: b.endTime, groupTimes: b.extra?.groupTimes || {}, groups: b.extra?.groups || [] });
+  return (
+    <div data-testid="wizard-groups">
+      <p style={lead}><b>Does everyone share these times?</b> Most blocks are the same for every group ({groups.map((g) => g.name).join(', ')}). Open only the few that differ, like night seder, dorm attendance or lights out, and give the group its own time.</p>
+      {patterns.map((p) => {
+        const blocks = sortedBlocks(p.blocks.filter(isUsableBlock));
+        if (!blocks.length) return null;
+        return (
+          <section key={p.id} style={{ ...card(false), marginBottom: '12px' }}>
+            <div style={{ fontFamily: 'var(--f-display)', fontSize: '18px', fontWeight: 600, marginBottom: '8px' }}>{label(p)}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {blocks.map((b) => {
+                const e = asEntry(b);
+                const chipText = groupChip(e, groups);
+                const key = `${p.id}:${b.id}`;
+                const isOpen = open === key;
+                return (
+                  <div key={b.id} data-testid="wizard-group-block" style={{ border: `1px solid ${colors.line}`, borderRadius: 'var(--r-sm)', padding: '8px 10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 700, fontSize: '13px', color: colors.dim, minWidth: '86px' }}>{formatTime12(b.time)}{b.endTime ? ` - ${formatTime12(b.endTime)}` : ''}</span>
+                      <span style={{ flex: '1 1 120px', fontWeight: 600, overflowWrap: 'anywhere' }}>{b.name || b.nameHe}</span>
+                      {chipText && <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}` }}>{chipText}</span>}
+                      <button type="button" aria-expanded={isOpen} data-testid="wizard-group-toggle" onClick={() => setOpen(isOpen ? null : key)} style={{ ...chip(isOpen || !!chipText) }}>{chipText ? 'Edit group times' : 'Different for groups'}</button>
+                    </div>
+                    {chipText && !isOpen && splitSummary(e, groups, formatTime12) && <div style={{ fontSize: '12px', color: colors.dim, marginTop: '4px' }}>{splitSummary(e, groups, formatTime12)}</div>}
+                    {isOpen && (
+                      <div style={{ marginTop: '10px' }}>
+                        <GroupTimesEditor defaultOn compact groups={groups} value={e} issues={groupIssues(e, groups)} onChange={(patch) => patchBlock(p.id, b.id, patch)} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Step 4 ────────────────────────────────────────────────────────────────
 
 function SaveStep({ name, setName, keepTemplate, setKeepTemplate, existing, count, error }) {
@@ -231,8 +281,10 @@ function SaveStep({ name, setName, keepTemplate, setKeepTemplate, existing, coun
 // ── Shell ─────────────────────────────────────────────────────────────────
 
 export default function ScheduleWizard({
-  entries, categories, scheduleDates, settings, onClose, onSaved, onSaveTemplate, onCreateCategory, notify, copy,
+  entries, categories, scheduleDates, settings, onClose, onSaved, onSaveTemplate, onCreateCategory, notify, copy, groups = [],
 }) {
+  const STEPS = groups.length ? STEPS_GROUPS : STEPS_BASE;
+  const LAST = STEPS.length - 1;
   const [patterns, setPatterns] = useState(() => initialPatterns(entries));
   const [step, setStep] = useState(0);
   const [sel, setSel] = useState(0);
@@ -259,20 +311,22 @@ export default function ScheduleWizard({
   const blocking = hasBlockingIssues(checked);
   const touched = patterns.some((p) => p.blocks.length);
 
-  const canNext = [
-    patterns.length > 0 && patterns.every((p) => p.days.length > 0),
-    true,
-    !blocking && newEntries.length > 0,
-    false,
-  ][step];
-  const nextHint = [
-    patterns.length === 0 ? 'Tick at least one group of days.' : 'Every group needs at least one day.',
-    '',
-    newEntries.length === 0 ? 'Add at least one block with a name and a start time.' : 'Fix the red items first.',
-    '',
-  ][step];
+  const stepKey = STEPS[step];
+  const groupBlocking = groups.length > 0 && newEntries.some((e) => groupIssues(e, groups).some((i) => i.type === 'bad-time' || i.type === 'bad-range'));
+  const canNext = {
+    Days: patterns.length > 0 && patterns.every((p) => p.days.length > 0),
+    Blocks: true,
+    Groups: !groupBlocking,
+    Review: !blocking && newEntries.length > 0,
+    Save: false,
+  }[stepKey];
+  const nextHint = {
+    Days: patterns.length === 0 ? 'Tick at least one group of days.' : 'Every group needs at least one day.',
+    Groups: 'A group time is missing a start or ends before it starts.',
+    Review: newEntries.length === 0 ? 'Add at least one block with a name and a start time.' : 'Fix the red items first.',
+  }[stepKey] || '';
 
-  const requestClose = () => (touched && step < 4 && mode === 'wizard' ? setConfirmClose(true) : onClose());
+  const requestClose = () => (touched && step < LAST && mode === 'wizard' ? setConfirmClose(true) : onClose());
 
   const save = async () => {
     setSaving(true); setError('');
@@ -292,12 +346,13 @@ export default function ScheduleWizard({
       <ScheduleImport mode="weekly" schedule={{ entries, categories }} scheduleDates={scheduleDates} selectedDate={toISODate(new Date())} settings={settings}
         onApplied={() => {}} onWeeklyApplied={(r) => onSaved?.(r)} onEditDate={() => {}} notify={notify} copy={copy} isMobile={!wide} />
     </div>
-  ) : [
-    <DaysStep key="d" patterns={patterns} setPatterns={setPatterns} />,
-    <BlocksStep key="b" patterns={patterns} setPatterns={setPatterns} categories={categories} onCreateCategory={onCreateCategory} sel={sel} setSel={setSel} checked={checked} />,
-    <ReviewStep key="r" checked={checked} categories={categories} goFix={(i) => { setSel(i); setStep(1); }} />,
-    <SaveStep key="s" name={name} setName={setName} keepTemplate={keepTemplate} setKeepTemplate={setKeepTemplate} existing={entries.length} count={newEntries.length} error={error} />,
-  ][step];
+  ) : {
+    Days: <DaysStep key="d" patterns={patterns} setPatterns={setPatterns} />,
+    Blocks: <BlocksStep key="b" patterns={patterns} setPatterns={setPatterns} categories={categories} onCreateCategory={onCreateCategory} sel={sel} setSel={setSel} checked={checked} />,
+    Groups: <GroupsStep key="g" patterns={patterns} setPatterns={setPatterns} groups={groups} />,
+    Review: <ReviewStep key="r" checked={checked} categories={categories} goFix={(i) => { setSel(i); setStep(1); }} />,
+    Save: <SaveStep key="s" name={name} setName={setName} keepTemplate={keepTemplate} setKeepTemplate={setKeepTemplate} existing={entries.length} count={newEntries.length} error={error} />,
+  }[stepKey];
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Build my year schedule" data-testid="schedule-wizard"
@@ -328,12 +383,12 @@ export default function ScheduleWizard({
             <button type="button" onClick={() => setMode('wizard')} style={secondaryBtn}>Back to the step-by-step builder</button>
           ) : (
             <>
-              {!canNext && nextHint && step < 3 && <div style={{ fontSize: '12px', color: colors.dim, marginBottom: '6px' }}>{nextHint}</div>}
+              {!canNext && nextHint && step < LAST && <div style={{ fontSize: '12px', color: colors.dim, marginBottom: '6px' }}>{nextHint}</div>}
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 {step > 0 ? <button type="button" data-testid="wizard-back" onClick={() => setStep(step - 1)} style={secondaryBtn}>Back</button>
                   : <button type="button" data-testid="wizard-paste" onClick={() => setMode('paste')} style={{ ...subtleBtn, border: 'none', color: colors.gold }}>Paste from Claude / AI instead</button>}
                 <span style={{ flex: 1 }} />
-                {step < 3
+                {step < LAST
                   ? <button type="button" data-testid="wizard-next" disabled={!canNext} onClick={() => { setSel(0); setStep(step + 1); }} style={{ ...primaryBtn, opacity: canNext ? 1 : 0.5 }}>Next</button>
                   : <button type="button" data-testid="wizard-save" disabled={saving || !newEntries.length} onClick={save} style={{ ...primaryBtn, opacity: saving ? 0.6 : 1 }}>{saving ? 'Saving...' : 'Save as my weekly schedule'}</button>}
               </div>

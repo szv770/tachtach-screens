@@ -50,6 +50,8 @@ export const TOPICS = [
     body: ['Announcements → Live → Edit.', 'Change anything and Save changes. The TV updates right away; you do not need to repost.'] },
   { id: 'repeat', title: 'Make a message repeat every week', go: 'announcements',
     body: ['In the composer, open When → Repeat. Pick the days of the week (and a time window), and optionally a start and end date.', 'It shows during those windows and sits under Scheduled the rest of the time.'] },
+  { id: 'schedule-groups', title: 'Different times for different groups (grades)', go: 'schedule',
+    body: ['Schedule → Groups → add your groups (or tap the Aleph / Bais / Gimmel preset), then Save.', 'On any block tap the three dots → Set group times. Turn on "Different times for different groups" and give just that group its own start and end. Everyone else follows the main time.', 'The screen shows one row with each group\'s time. "Only for these groups" hides a block from the others. The wizard has a "Does everyone share these times?" step, and pasted text can say "| Aleph 6:30 PM - 8:30 PM".'] },
   { id: 'schedule-claude', title: 'Make the Shabbos schedule with Claude', go: 'schedule',
     body: ['Schedule → Paste / AI import → copy the request for Claude.', 'Give Claude your times, then paste its answer back. You see a preview before anything is saved.', 'There is a second request for a whole week at once.'] },
   { id: 'other-day', title: 'See what the screen will show on another day', go: 'slides',

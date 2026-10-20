@@ -95,6 +95,8 @@ export const SETTINGS_INDEX = [
   S('schedule', 'Change one day (tomorrow, Shabbos, Yom Tov, a trip)', 'by date override one date special schedule tomorrow', { anchor: 'sched-by-date' }),
   S('schedule', 'Paste / import a schedule (with Claude or AI)', 'ai prompt import paste copy claude weekly dates text upload', { anchor: 'sched-import' }),
   S('schedule', 'Saved schedules (switch week, Auto-backup)', 'templates saved week regular summer backup undo load switch', { anchor: 'sched-saved' }),
+  S('schedule', 'Groups (grades with different times, e.g. Aleph / Bais / Gimmel)', 'groups grades classes aleph bais beis gimmel shiur different times earlier later night seder dorm lights out preset', { anchor: 'sched-groups' }),
+  S('schedule', 'Set group times on a block (three dots menu)', 'group times different earlier later only for these groups block menu dots more options aleph bais gimmel', { anchor: 'sched-week' }),
   S('schedule', 'Schedule categories (colour, icon, default reminder)', 'category davening learning meals colour color icon default alert reminder', { anchor: 'sched-categories' }),
   S('schedule', 'Attention stages (get moving, just started, in session)', 'seder countdown takeover just started in session badge before start minutes alert', { anchor: 'sched-categories', match: 'Attention stages' }),
   S('schedule', 'Countdown before a block starts (alert minutes)', 'alert before countdown takeover slide reminder minutes get moving', { anchor: 'sched-week' }),
