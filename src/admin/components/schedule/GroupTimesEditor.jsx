@@ -33,7 +33,7 @@ export function SlotChips({ value, groups }) {
   );
 }
 
-export default function GroupTimesEditor({ value, groups, onChange, issues = [], readOnly = false, compact = false, showRestrict = true, idPrefix = 'gt', defaultOn = false }) {
+export default function GroupTimesEditor({ value, groups, onChange, issues = [], readOnly = false, compact = false, showRestrict = true, idPrefix = 'gt', defaultOn = false, label = 'Different times for different groups' }) {
   const own = value.groupTimes || {};
   const hasOwn = Object.keys(own).length > 0;
   const [forced, setForced] = useState(defaultOn);
@@ -61,7 +61,7 @@ export default function GroupTimesEditor({ value, groups, onChange, issues = [],
   return (
     <div data-testid="group-times" style={{ background: colors.sunken, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-sm)', padding: '12px', marginBottom: '14px' }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: '10px', minHeight: '44px', fontFamily: adminFonts.englishBody, fontSize: '15px', fontWeight: 700, color: colors.text }}>
-        <ToggleSwitch on={on} onChange={toggle} label="Different times for different groups" /> Different times for different groups
+        <ToggleSwitch on={on} onChange={toggle} label={label} /> {label}
       </label>
       {!on && !compact && <div style={small}>Everyone ({groups.map((g) => g.short || g.name).join(', ')}) follows the times above.</div>}
       {on && (

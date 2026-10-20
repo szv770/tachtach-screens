@@ -1,10 +1,15 @@
 /**
  * "Build my year schedule": a guided, one-question-per-screen wizard that makes the BASE (weekly)
  * schedule. Full screen on a phone, a centred card on a wide screen.
- *   1 Days    which days have the same day (Sun-Thu / Friday / Shabbos / your own groups)
- *   2 Blocks  quick rows per group (category chips, clock times, "next block starts when this ends")
- *   3 Review  a timeline per group with warnings (overlaps, gaps, missing times)
- *   4 Save    name it and save it as the active weekly schedule (auto-backup of the old one)
+ *   1 Days    which days have the same day (Sun-Thu / Friday / Shabbos / your own sets of days)
+ *   2 Groups  (skippable) the grades/shiurim that watch this screen: add / rename / reorder / delete, or the
+ *             Aleph-Bais-Gimmel preset. Held as a DRAFT and saved (settings.scheduleGroups) only when the wizard saves.
+ *   3 Blocks  quick rows per set of days (category chips, clock times, "next block starts when this ends"); with groups
+ *             every block also says who it is for (Everyone / only some groups) and can have different times per group
+ *   4 Group times (only with groups) review + quick edits of the group choices, Copy +N min
+ *   5 Review  a timeline per set of days with warnings (overlaps, gaps, missing times, groups with nothing)
+ *   6 Save    name it and save it as the active weekly schedule (auto-backup of the old one)
+ * An 'Edit groups' link on every step after Groups opens the same editor in a Sheet.
  * Or "paste from Claude/AI instead" (reuses ScheduleImport in weekly mode).
  * Pure logic (conversion, checks) lives in src/shared/scheduleWizard.js; the data tables
  * (day groups, quick block chips) in src/shared/scheduleWizardPresets.js.
@@ -15,6 +20,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { colors, adminFonts, alpha } from '../../styles/admin-tokens.js';
 import Icon from '../ui/Icon.jsx';
 import { ConfirmDialog } from '../ui.jsx';
+import Sheet from '../ui/Sheet.jsx';
+import GroupsEditor from './GroupsEditor.jsx';
 import ScheduleImport from './ScheduleImport.jsx';
 import { TimeField, scheduleApi } from './scheduleShared.jsx';
 import { Field, textInput, primaryBtn, secondaryBtn, subtleBtn, chip, Dot, DayChips, CategoryChips } from './scheduleFields.jsx';
@@ -22,15 +29,17 @@ import { DAY_PATTERN_PRESETS, BLOCK_PRESETS } from '../../../shared/scheduleWiza
 import {
   makeBlock, makePattern, patternsFromEntries, cloneBlocks, nextStartAfter, wizardToEntries, checkPatterns,
   hasBlockingIssues, daysLabel, categoryFor, isUsableBlock,
+  blockGroupFields, withBlockGroups, removeGroupsFromPatterns, groupCoverage,
 } from '../../../shared/scheduleWizard.js';
 import { minutesOf } from '../../../shared/scheduleResolution.js';
 import { formatTime12 } from '../../../shared/schedulePaste.js';
 import GroupTimesEditor from './GroupTimesEditor.jsx';
-import { groupChip, groupIssues, splitSummary } from '../../../shared/scheduleGroupsEdit.js';
+import { groupChip, groupIssues, splitSummary, cleanGroupRows, blocksUsingGroups } from '../../../shared/scheduleGroupsEdit.js';
+import { sanitizeGroups } from '../../../shared/scheduleGroups.js';
 import { toISODate } from '../../../shared/scheduleResolution.js';
 
-const STEPS_BASE = ['Days', 'Blocks', 'Review', 'Save'];
-const STEPS_GROUPS = ['Days', 'Blocks', 'Groups', 'Review', 'Save'];
+const stepsFor = (hasGroups) => ['Days', 'Groups', 'Blocks', ...(hasGroups ? ['Group times'] : []), 'Review', 'Save'];
+const blockEntry = (b) => ({ time: b.time, endTime: b.endTime, ...blockGroupFields(b) });
 const sameDays = (a, b) => a.length === b.length && a.every((d, i) => d === b[i]);
 const sortedBlocks = (blocks) => [...blocks].sort((a, b) => (minutesOf(a.time) ?? 9999) - (minutesOf(b.time) ?? 9999));
 
@@ -84,7 +93,31 @@ function DaysStep({ patterns, setPatterns }) {
 
 // ── Step 2 ────────────────────────────────────────────────────────────────
 
-function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCategory, issues, index }) {
+/** Who the block is for (Everyone / only some groups) + different times per group, while building the block. */
+function BlockGroups({ block, groups, onGroups, index }) {
+  const e = blockEntry(block);
+  const only = e.groups.filter((id) => groups.some((g) => g.id === id));
+  const toggle = (id) => {
+    const next = only.includes(id) ? only.filter((x) => x !== id) : [...only, id];
+    onGroups({ groups: next.length === groups.length ? [] : next });
+  };
+  const names = groups.filter((g) => only.includes(g.id)).map((g) => g.short || g.name);
+  return (
+    <div data-testid="block-groups" style={{ marginTop: '10px' }}>
+      <span style={mini}>Who is it for?{only.length ? ` Only ${names.join(' + ')}` : ''}</span>
+      <div role="group" aria-label={`Block ${index + 1} is for`} style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+        <button type="button" aria-pressed={only.length === 0} data-testid="block-for-all" onClick={() => onGroups({ groups: [] })} style={chip(only.length === 0)}>Everyone</button>
+        {groups.map((g) => (
+          <button key={g.id} type="button" aria-pressed={only.includes(g.id)} data-testid={`block-for-${g.id}`} onClick={() => toggle(g.id)} style={chip(only.includes(g.id))}>{g.name}</button>
+        ))}
+      </div>
+      <GroupTimesEditor compact showRestrict={false} defaultOn={Object.keys(e.groupTimes).length > 0} label="Different times per group"
+        groups={groups} value={e} issues={groupIssues(e, groups)} onChange={onGroups} />
+    </div>
+  );
+}
+
+function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCategory, issues, index, groups = [], onGroups }) {
   const [catOpen, setCatOpen] = useState(false);
   const [heOpen, setHeOpen] = useState(!!block.nameHe);
   const cat = categories.find((c) => c.id === block.category);
@@ -109,6 +142,7 @@ function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCa
           <button type="button" data-testid="add-next" onClick={onAddNext} style={{ ...chip(false), color: colors.gold }}>+ Next block at {formatTime12(nextStartAfter(block))}</button>
         )}
       </div>
+      {groups.length > 0 && <BlockGroups block={block} groups={groups} onGroups={onGroups} index={index} />}
       {catOpen && <div style={{ marginTop: '8px' }}><CategoryChips value={block.category} categories={categories} onCreate={onCreateCategory} onChange={(id) => { onChange({ category: id }); setCatOpen(false); }} /></div>}
       {heOpen && <input aria-label={`Block ${index + 1} Hebrew name`} dir="rtl" value={block.nameHe} maxLength={200} placeholder="Hebrew name (optional)"
         onChange={(e) => onChange({ nameHe: e.target.value })} style={{ ...textInput, fontFamily: adminFonts.hebrewPrimary, marginTop: '8px' }} />}
@@ -118,7 +152,7 @@ function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCa
   );
 }
 
-function BlocksStep({ patterns, setPatterns, categories, onCreateCategory, sel, setSel, checked }) {
+function BlocksStep({ patterns, setPatterns, categories, onCreateCategory, sel, setSel, checked, groups = [] }) {
   const p = patterns[sel] || patterns[0];
   if (!p) return <p style={lead}>Go back and tick at least one group of days.</p>;
   const update = (blocks) => setPatterns(patterns.map((x) => (x.id === p.id ? { ...x, blocks } : x)));
@@ -147,7 +181,7 @@ function BlocksStep({ patterns, setPatterns, categories, onCreateCategory, sel, 
           ))}
         </div>
       )}
-      <p style={{ ...lead, marginBottom: '10px' }}>What happens on <b>{label(p)}</b>{p.days.length ? ` (${daysLabel(p.days)})` : ''}? Tap a quick block, or add your own. Times are clock times, like 7:30 AM.</p>
+      <p style={{ ...lead, marginBottom: '10px' }}>What happens on <b>{label(p)}</b>{p.days.length ? ` (${daysLabel(p.days)})` : ''}? Tap a quick block, or add your own. Times are clock times, like 7:30 AM.{groups.length ? ' Under each block, choose who it is for.' : ''}</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }} aria-label="Quick blocks">
         {BLOCK_PRESETS.map((pr) => {
           const cat = categoryFor(categories, pr.category);
@@ -167,7 +201,8 @@ function BlocksStep({ patterns, setPatterns, categories, onCreateCategory, sel, 
         {p.blocks.map((b, i) => (
           <BlockRow key={b.id} index={i} block={b} categories={categories} issues={issuesFor(b.id)}
             onChange={(ch) => patch(b.id, ch)} onRemove={() => update(p.blocks.filter((x) => x.id !== b.id))}
-            onAddNext={() => addNext(b)} onCreateCategory={onCreateCategory} />
+            onAddNext={() => addNext(b)} onCreateCategory={onCreateCategory}
+            groups={groups} onGroups={(gp) => update(p.blocks.map((x) => (x.id === b.id ? withBlockGroups(x, gp) : x)))} />
         ))}
         {!p.blocks.length && <div style={{ fontSize: '14px', color: colors.muted, padding: '8px 2px' }}>No blocks yet.</div>}
       </div>
@@ -177,7 +212,9 @@ function BlocksStep({ patterns, setPatterns, categories, onCreateCategory, sel, 
 
 // ── Step 3 ────────────────────────────────────────────────────────────────
 
-function ReviewStep({ checked, categories, goFix }) {
+const noEnd = (pattern) => pattern.blocks.filter((b) => isUsableBlock(b) && missingEndTime(b)).map((b) => b.name || b.nameHe);
+
+function ReviewStep({ checked, categories, goFix, groups = [], coverage = [] }) {
   const total = checked.reduce((n, c) => n + c.pattern.blocks.filter(isUsableBlock).length, 0);
   return (
     <div data-testid="wizard-review">
@@ -193,10 +230,15 @@ function ReviewStep({ checked, categories, goFix }) {
                 <li key={b.id} style={{ display: 'flex', gap: '10px', alignItems: 'baseline', borderLeft: `4px solid ${cat?.color || colors.muted}`, background: alpha(cat?.color || colors.muted, 10), borderRadius: 'var(--r-xs)', padding: '8px 10px' }}>
                   <span style={{ fontWeight: 700, fontSize: '13px', color: colors.dim, minWidth: '86px', flexShrink: 0 }}>{formatTime12(b.time)}{b.endTime ? ` - ${formatTime12(b.endTime)}` : ''}</span>
                   <span style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{b.name || b.nameHe}</span>
+                  {groups.length > 0 && groupChip(blockEntry(b), groups) && <span data-testid="review-group-chip" style={groupPill}>{groupChip(blockEntry(b), groups)}</span>}
                 </li>
               );
             })}
           </ol>
+          {noEnd(pattern).length > 0 && <div data-testid="review-no-end" style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '13px', color: colors.warn, lineHeight: 1.4 }}><span aria-hidden="true">⚠</span><span>No end time: {noEnd(pattern).join(', ')}. Add one so the screen can show "now in session".</span></div>}
+          {coverage.filter((c) => c.patternId === pattern.id).map((c) => (
+            <div key={c.groupId} data-testid="review-coverage" style={{ display: 'flex', gap: '8px', marginTop: '8px', fontSize: '13px', color: colors.warn, lineHeight: 1.4 }}><span aria-hidden="true">⚠</span><span>{c.message}</span></div>
+          ))}
           {issues.map((i, k) => (
             <div key={k} role="alert" style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginTop: '8px', fontSize: '13px', color: ['missing-time', 'missing-name', 'bad-range'].includes(i.type) ? colors.danger : colors.warn, lineHeight: 1.4 }}>
               <span aria-hidden="true">⚠</span><span>{i.message}</span>
@@ -210,16 +252,16 @@ function ReviewStep({ checked, categories, goFix }) {
   );
 }
 
-// ── Groups step (only when the screen has groups) ────────────────────────
+// ── Group times step (only when the screen has groups): review + quick edits ─────────
 
-function GroupsStep({ patterns, setPatterns, groups }) {
+function GroupTimesStep({ patterns, setPatterns, groups }) {
   const [open, setOpen] = useState(null);
   const label = (x) => x.label || daysLabel(x.days);
-  const patchBlock = (pid, bid, ch) => setPatterns(patterns.map((p) => (p.id !== pid ? p : { ...p, blocks: p.blocks.map((b) => (b.id !== bid ? b : { ...b, extra: { ...(b.extra || {}), ...ch } })) })));
-  const asEntry = (b) => ({ time: b.time, endTime: b.endTime, groupTimes: b.extra?.groupTimes || {}, groups: b.extra?.groups || [] });
+  const patchBlock = (pid, bid, ch) => setPatterns(patterns.map((p) => (p.id !== pid ? p : { ...p, blocks: p.blocks.map((b) => (b.id !== bid ? b : withBlockGroups(b, ch))) })));
+  const asEntry = blockEntry;
   return (
     <div data-testid="wizard-groups">
-      <p style={lead}><b>Does everyone share these times?</b> Most blocks are the same for every group ({groups.map((g) => g.name).join(', ')}). Open only the few that differ, like night seder, dorm attendance or lights out, and give the group its own time.</p>
+      <p style={lead}><b>Does everyone share these times?</b> You already chose who each block is for while building them. Check it here: a tag shows where a group differs. Tap a block to adjust it, or use Copy +N min to give a later group the same times, shifted.</p>
       {patterns.map((p) => {
         const blocks = sortedBlocks(p.blocks.filter(isUsableBlock));
         if (!blocks.length) return null;
@@ -243,7 +285,7 @@ function GroupsStep({ patterns, setPatterns, groups }) {
                     {chipText && !isOpen && splitSummary(e, groups, formatTime12) && <div style={{ fontSize: '12px', color: colors.dim, marginTop: '4px' }}>{splitSummary(e, groups, formatTime12)}</div>}
                     {isOpen && (
                       <div style={{ marginTop: '10px' }}>
-                        <GroupTimesEditor defaultOn compact groups={groups} value={e} issues={groupIssues(e, groups)} onChange={(patch) => patchBlock(p.id, b.id, patch)} />
+                        <GroupTimesEditor defaultOn={!!chipText} compact groups={groups} value={e} issues={groupIssues(e, groups)} onChange={(patch) => patchBlock(p.id, b.id, patch)} />
                       </div>
                     )}
                   </div>
@@ -253,6 +295,19 @@ function GroupsStep({ patterns, setPatterns, groups }) {
           </section>
         );
       })}
+    </div>
+  );
+}
+
+// ── Groups step (skippable): add / rename / reorder / delete the groups ───────────────
+
+function GroupsStep({ rows, onChange, usedBy, undoNode, onNone }) {
+  return (
+    <div data-testid="wizard-groups-manage">
+      <p style={lead}><b>Do different grades or classes watch this screen?</b> If they run some things at different times (a night seder that is earlier for one grade, dorm attendance), add a group for each. You will choose who each block is for in the next step. If everyone follows the same day, skip this.</p>
+      {undoNode}
+      <GroupsEditor mode="wizard" rows={rows} onChange={onChange} usedBy={usedBy} />
+      <button type="button" data-testid="wizard-no-groups" onClick={onNone} style={{ ...subtleBtn, marginTop: '14px', width: '100%' }}>No groups - everyone is the same</button>
     </div>
   );
 }
@@ -282,12 +337,21 @@ function SaveStep({ name, setName, keepTemplate, setKeepTemplate, existing, coun
 // ── Shell ─────────────────────────────────────────────────────────────────
 
 export default function ScheduleWizard({
-  entries, categories, scheduleDates, settings, onClose, onSaved, onSaveTemplate, onCreateCategory, notify, copy, groups = [],
+  entries, categories, scheduleDates, settings, onClose, onSaved, onSaveTemplate, onCreateCategory, notify, copy, groups = [], onSaveGroups,
 }) {
-  const STEPS = groups.length ? STEPS_GROUPS : STEPS_BASE;
-  const LAST = STEPS.length - 1;
+  const savedGroups = useMemo(() => sanitizeGroups(groups), [groups]);
+  // DRAFT groups: edited here, saved (settings.scheduleGroups) only when the wizard saves; Cancel discards them.
+  const [rows, setRows] = useState(() => savedGroups.map((g) => ({ ...g })));
+  const draftGroups = useMemo(() => cleanGroupRows(rows), [rows]);
+  const draftIds = useMemo(() => draftGroups.map((g) => g.id), [draftGroups]);
+  const hasGroups = draftGroups.length > 0;
+  const STEPS = stepsFor(hasGroups);
   const [patterns, setPatterns] = useState(() => initialPatterns(entries));
-  const [step, setStep] = useState(0);
+  const [wantedStep, setStepKey] = useState('Days');
+  const stepKey = STEPS.includes(wantedStep) ? wantedStep : 'Review'; // 'Group times' disappears if the last group is deleted
+  const step = STEPS.indexOf(stepKey);
+  const LAST = STEPS.length - 1;
+  const setStep = (i) => setStepKey(STEPS[Math.max(0, Math.min(LAST, i))]);
   const [sel, setSel] = useState(0);
   const [name, setName] = useState('Regular year schedule');
   const [keepTemplate, setKeepTemplate] = useState(true);
@@ -295,6 +359,8 @@ export default function ScheduleWizard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
+  const [groupsSheet, setGroupsSheet] = useState(false);
+  const [undo, setUndo] = useState(null); // { rows, patterns, stripped, text } after a group was deleted
   const [wide, setWide] = useState(typeof window !== 'undefined' && window.innerWidth >= 900);
   useEffect(() => {
     const on = () => setWide(window.innerWidth >= 900);
@@ -305,51 +371,91 @@ export default function ScheduleWizard({
     return lockScroll();
   }, []);
 
-  const checked = useMemo(() => checkPatterns(patterns), [patterns]);
-  const newEntries = useMemo(() => wizardToEntries(patterns, categories), [patterns, categories]);
-  const blocking = hasBlockingIssues(checked);
-  const touched = patterns.some((p) => p.blocks.length);
+  const rawEntries = useMemo(() => wizardToEntries(patterns, categories), [patterns, categories]);
+  const usedBy = (id) => blocksUsingGroups(rawEntries, [id]);
+  /** Every group edit goes through here: a deleted group is also removed from the blocks (Undo while this is open). */
+  const groupsChange = (next) => {
+    const gone = rows.filter((g) => (g.name || g.nameHe) && !next.some((n) => n.id === g.id));
+    if (gone.length) {
+      const stripped = removeGroupsFromPatterns(patterns, gone.map((g) => g.id));
+      setUndo({ rows, patterns, stripped, text: `Removed ${gone.map((g) => g.name || g.nameHe).join(', ')} from the groups and from every block.` });
+      setPatterns(stripped);
+    }
+    setRows(next);
+  };
+  const doUndo = () => { if (!undo) return; setRows(undo.rows); setPatterns(undo.patterns); setUndo(null); };
+  // The bar disappears once the blocks were edited again (the snapshot would be stale).
+  const undoNode = undo && patterns === undo.stripped ? (
+    <div role="status" data-testid="groups-undo" style={{ display: 'flex', alignItems: 'center', gap: '10px', background: colors.sunken, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-sm)', padding: '4px 4px 4px 12px', margin: '0 0 12px', fontSize: '13px', color: colors.text }}>
+      <span style={{ flex: 1 }}>{undo.text}</span>
+      <button type="button" data-testid="groups-undo-btn" onClick={doUndo} style={{ ...subtleBtn, minHeight: '44px', color: colors.gold }}>Undo</button>
+    </div>
+  ) : null;
+  const noGroups = () => { if (rows.length) groupsChange([]); setStepKey('Blocks'); setSel(0); };
 
-  const stepKey = STEPS[step];
-  const groupBlocking = groups.length > 0 && newEntries.some((e) => groupIssues(e, groups).some((i) => i.type === 'bad-time' || i.type === 'bad-range'));
+  const checked = useMemo(() => checkPatterns(patterns), [patterns]);
+  const newEntries = useMemo(() => wizardToEntries(patterns, categories, draftIds), [patterns, categories, draftIds]);
+  const coverage = useMemo(() => groupCoverage(patterns, draftGroups), [patterns, draftGroups]);
+  const blocking = hasBlockingIssues(checked);
+  const groupsDirty = JSON.stringify(draftGroups) !== JSON.stringify(savedGroups);
+  const touched = patterns.some((p) => p.blocks.length) || groupsDirty;
+
+  const groupBlocking = hasGroups && newEntries.some((e) => groupIssues(e, draftGroups).some((i) => i.type === 'bad-time' || i.type === 'bad-range'));
   const canNext = {
     Days: patterns.length > 0 && patterns.every((p) => p.days.length > 0),
+    Groups: true,
     Blocks: true,
-    Groups: !groupBlocking,
-    Review: !blocking && newEntries.length > 0,
+    'Group times': !groupBlocking,
+    Review: !blocking && !groupBlocking && newEntries.length > 0,
     Save: false,
   }[stepKey];
   const nextHint = {
     Days: patterns.length === 0 ? 'Tick at least one group of days.' : 'Every group needs at least one day.',
-    Groups: 'A group time is missing a start or ends before it starts.',
-    Review: newEntries.length === 0 ? 'Add at least one block with a name and a start time.' : 'Fix the red items first.',
+    'Group times': 'A group time is missing a start or ends before it starts.',
+    Review: newEntries.length === 0 ? 'Add at least one block with a name and a start time.' : (groupBlocking ? 'A group time is missing a start or ends before it starts.' : 'Fix the red items first.'),
   }[stepKey] || '';
 
   const requestClose = () => (touched && step < LAST && mode === 'wizard' ? setConfirmClose(true) : onClose());
 
   const save = async () => {
     setSaving(true); setError('');
+    let wroteGroups = false;
     try {
+      // Groups first: the server only keeps group ids that exist in settings.scheduleGroups.
+      if (groupsDirty) {
+        const ok = await onSaveGroups?.({ scheduleGroups: draftGroups }, 'Groups saved');
+        if (ok === false || !onSaveGroups) throw new Error('Could not save the groups. Nothing was changed.');
+        wroteGroups = true;
+      }
       const r = await scheduleApi.weeklySave(newEntries);
       if (keepTemplate && name.trim()) await onSaveTemplate?.(name.trim(), r.schedule.entries, r.schedule.categories);
       notify?.(`Saved ${r.count} block${r.count === 1 ? '' : 's'} as your weekly schedule.${r.backupName ? ` The old one is saved as "${r.backupName}".` : ''}`, 'success');
       onSaved?.(r);
     } catch (e) {
+      if (wroteGroups) { try { await onSaveGroups({ scheduleGroups: savedGroups }, 'Groups put back'); } catch { /* keep the original error */ } }
       setError(e?.message || 'Could not save. Nothing was changed.');
     } finally { setSaving(false); }
   };
+
+  const groupsBar = mode === 'wizard' && stepKey !== 'Groups' && stepKey !== 'Days' && (
+    <div data-testid="groups-bar" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', margin: '0 0 12px', fontSize: '13px', color: colors.dim }}>
+      <span style={{ flex: '1 1 160px', minWidth: 0, overflowWrap: 'anywhere' }}>{hasGroups ? `Groups: ${draftGroups.map((g) => g.name).join(', ')}` : 'No groups - everyone is the same.'}</span>
+      <button type="button" data-testid="edit-groups" onClick={() => setGroupsSheet(true)} style={{ ...subtleBtn, minHeight: '44px', color: colors.gold }}>{hasGroups ? 'Edit groups' : 'Add groups'}</button>
+    </div>
+  );
 
   const body = mode === 'paste' ? (
     <div>
       <p style={lead}>Paste the weekly schedule you got from Claude or another AI. Use "Copy Claude prompt" to get the right wording first.</p>
       <ScheduleImport mode="weekly" schedule={{ entries, categories }} scheduleDates={scheduleDates} selectedDate={toISODate(new Date())} settings={settings}
-        onApplied={() => {}} onWeeklyApplied={(r) => onSaved?.(r)} onEditDate={() => {}} notify={notify} copy={copy} isMobile={!wide} />
+        groups={savedGroups} onApplied={() => {}} onWeeklyApplied={(r) => onSaved?.(r)} onEditDate={() => {}} notify={notify} copy={copy} isMobile={!wide} />
     </div>
   ) : {
     Days: <DaysStep key="d" patterns={patterns} setPatterns={setPatterns} />,
-    Blocks: <BlocksStep key="b" patterns={patterns} setPatterns={setPatterns} categories={categories} onCreateCategory={onCreateCategory} sel={sel} setSel={setSel} checked={checked} />,
-    Groups: <GroupsStep key="g" patterns={patterns} setPatterns={setPatterns} groups={groups} />,
-    Review: <ReviewStep key="r" checked={checked} categories={categories} goFix={(i) => { setSel(i); setStep(1); }} />,
+    Groups: <GroupsStep key="g" rows={rows} onChange={groupsChange} usedBy={usedBy} undoNode={undoNode} onNone={noGroups} />,
+    Blocks: <BlocksStep key="b" patterns={patterns} setPatterns={setPatterns} categories={categories} onCreateCategory={onCreateCategory} sel={sel} setSel={setSel} checked={checked} groups={draftGroups} />,
+    'Group times': <GroupTimesStep key="gt" patterns={patterns} setPatterns={setPatterns} groups={draftGroups} />,
+    Review: <ReviewStep key="r" checked={checked} categories={categories} groups={draftGroups} coverage={coverage} goFix={(i) => { setSel(i); setStepKey('Blocks'); }} />,
     Save: <SaveStep key="s" name={name} setName={setName} keepTemplate={keepTemplate} setKeepTemplate={setKeepTemplate} existing={entries.length} count={newEntries.length} error={error} />,
   }[stepKey];
 
@@ -375,7 +481,7 @@ export default function ScheduleWizard({
           <button type="button" aria-label="Close" data-testid="wizard-close" onClick={requestClose} style={{ ...iconBtn, background: colors.sunken, borderRadius: '50%' }}><Icon name="close" size={18} /></button>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch' }}>{body}</div>
+        <div data-testid="wizard-body" style={{ flex: 1, overflowY: 'auto', padding: '16px', WebkitOverflowScrolling: 'touch' }}>{groupsBar}{stepKey !== 'Groups' && !groupsSheet && undoNode}{body}</div>
 
         <footer style={{ borderTop: `1px solid ${colors.line}`, padding: '10px 16px calc(10px + env(safe-area-inset-bottom))', background: colors.card }}>
           {mode === 'paste' ? (
@@ -395,6 +501,12 @@ export default function ScheduleWizard({
           )}
         </footer>
       </div>
+      <Sheet open={groupsSheet} onClose={() => setGroupsSheet(false)} title="Groups" maxWidth={620} zIndex={1200}>
+        <p style={{ ...note, margin: '0 0 12px' }}>Changes here are part of this builder: they are saved with your schedule, and Cancel throws them away. Deleting a group also removes it from the blocks you built.</p>
+        {undoNode}
+        <GroupsEditor mode="wizard" rows={rows} onChange={groupsChange} usedBy={usedBy} />
+        <button type="button" data-testid="groups-sheet-done" onClick={() => setGroupsSheet(false)} style={{ ...primaryBtn, width: '100%', marginTop: '16px' }}>Done</button>
+      </Sheet>
       {confirmClose && (
         <ConfirmDialog title="Leave without saving?" message="What you typed in this builder will be lost. Your current schedule is not changed." confirmLabel="Leave"
           onConfirm={() => { setConfirmClose(false); onClose(); }} onCancel={() => setConfirmClose(false)} />
@@ -408,4 +520,5 @@ const note = { fontSize: '13px', lineHeight: 1.5, color: colors.dim, margin: '12
 const mini = { display: 'block', fontSize: '12px', fontWeight: 700, color: colors.dim, marginBottom: '4px' };
 const card = (on) => ({ background: colors.card, border: `1.5px solid ${on ? colors.gold : colors.line}`, borderRadius: 'var(--r-md)', padding: '14px', boxShadow: 'var(--e1)', color: colors.text, fontFamily: adminFonts.englishBody });
 const tick = (on) => ({ width: 26, height: 26, borderRadius: 8, border: `2px solid ${on ? colors.gold : colors.border}`, background: on ? colors.gold : 'transparent', color: colors.accentInk, display: 'grid', placeItems: 'center', flexShrink: 0 });
+const groupPill = { fontSize: '11px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}`, color: colors.text, whiteSpace: 'nowrap' };
 const iconBtn = { width: 44, height: 44, minWidth: 44, border: 'none', background: 'transparent', color: colors.dim, cursor: 'pointer', display: 'grid', placeItems: 'center', borderRadius: '50%', flexShrink: 0 };

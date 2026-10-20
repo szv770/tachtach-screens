@@ -181,3 +181,70 @@ test('withoutDay / splitForDay: change only one day', () => {
   assert.equal(out.filter((e) => e.name === 'Seder').length, 2);
   assert.equal(out.find((e) => e.name === 'Seder' && e.time === '10:00').id, undefined);
 });
+
+// ── Groups in the wizard ───────────────────────────────────────────────────
+import {
+  withBlockGroups, blockGroupFields, removeGroupsFromPatterns, groupCoverage, cleanBlockGroups,
+} from '../src/shared/scheduleWizard.js';
+
+const GROUPS = [{ id: 'aleph', name: 'Aleph' }, { id: 'bais', name: 'Bais' }, { id: 'gimmel', name: 'Gimmel' }];
+
+function groupPatterns() {
+  let night = makeBlock({ name: 'Night Seder', time: '19:30', endTime: '21:30', category: 'seder' });
+  night = withBlockGroups(night, { groupTimes: { aleph: { time: '19:15', endTime: '21:15' } } });
+  let shiur = makeBlock({ name: 'Shiur', time: '16:00', endTime: '17:00' });
+  shiur = withBlockGroups(shiur, { groups: ['gimmel'] });
+  return [makePattern({ label: 'Sun-Thu', days: [0, 1, 2, 3, 4], blocks: [night, shiur, makeBlock({ name: 'Lunch', time: '12:30', endTime: '13:15' })] })];
+}
+
+test('wizardToEntries carries groups / groupTimes and omits empty ones', () => {
+  const out = wizardToEntries(groupPatterns(), cats);
+  const by = (n) => out.find((e) => e.name === n);
+  assert.deepEqual(by('Night Seder').groupTimes, { aleph: { time: '19:15', endTime: '21:15' } });
+  assert.equal(by('Night Seder').groups, undefined);
+  assert.deepEqual(by('Shiur').groups, ['gimmel']);
+  assert.equal('groupTimes' in by('Lunch'), false);
+  assert.equal('groups' in by('Lunch'), false);
+});
+
+test('wizardToEntries(groupIds) drops unknown groups; no groups at all drops everything', () => {
+  const only = wizardToEntries(groupPatterns(), cats, ['aleph']);
+  assert.ok(only.find((e) => e.name === 'Night Seder').groupTimes.aleph);
+  assert.equal(only.find((e) => e.name === 'Shiur').groups, undefined); // gimmel is gone
+  const none = wizardToEntries(groupPatterns(), cats, []);
+  assert.ok(none.every((e) => !('groupTimes' in e) && !('groups' in e)));
+  // restricted to every group = everyone
+  assert.equal(cleanBlockGroups({ groups: ['aleph', 'bais'] }, ['aleph', 'bais']).groups, undefined);
+});
+
+test('removeGroupsFromPatterns removes a deleted group from every block', () => {
+  const ps = groupPatterns();
+  const next = removeGroupsFromPatterns(ps, ['aleph', 'gimmel']);
+  const [night, shiur] = next[0].blocks;
+  assert.deepEqual(blockGroupFields(night), { groupTimes: {}, groups: [] });
+  assert.deepEqual(blockGroupFields(shiur), { groupTimes: {}, groups: [] });
+  // originals untouched (Undo restores the old snapshot)
+  assert.deepEqual(ps[0].blocks[1].extra.groups, ['gimmel']);
+});
+
+test('Rebuild: entries with groups -> patterns -> entries keep groups and groupTimes', () => {
+  const entries = wizardToEntries(groupPatterns(), cats);
+  const back = wizardToEntries(patternsFromEntries(entries), cats, GROUPS.map((g) => g.id));
+  assert.deepEqual(back.map((e) => [e.name, e.groups, e.groupTimes]), entries.map((e) => [e.name, e.groups, e.groupTimes]));
+});
+
+test('structured weekly save keeps wizard group fields for known groups only', () => {
+  const entries = wizardToEntries(groupPatterns(), cats);
+  const ok = buildWeeklyFromStructured(entries, cats, { groupIds: ['aleph', 'bais', 'gimmel'] });
+  assert.equal(ok.errors.length, 0);
+  assert.deepEqual(ok.entries.find((e) => e.name === 'Night Seder').groupTimes.aleph, { time: '19:15', endTime: '21:15' });
+  assert.deepEqual(ok.entries.find((e) => e.name === 'Shiur').groups, ['gimmel']);
+});
+
+test('groupCoverage warns when a group sees nothing on a set of days', () => {
+  const only = [makePattern({ label: 'Fri', days: [5], blocks: [withBlockGroups(makeBlock({ name: 'Aleph shiur', time: '10:00', endTime: '11:00' }), { groups: ['aleph'] })] })];
+  const w = groupCoverage(only, GROUPS);
+  assert.deepEqual(w.map((x) => x.groupId), ['bais', 'gimmel']);
+  assert.deepEqual(groupCoverage(groupPatterns(), GROUPS), []); // Lunch is for everyone
+  assert.deepEqual(groupCoverage(only, []), []);
+});

@@ -214,7 +214,7 @@ export default function ScheduleSection(props) {
       </div>
 
       {wizard && (
-        <ScheduleWizard groups={groups} entries={entries} categories={categories} scheduleDates={scheduleDates} settings={settings}
+        <ScheduleWizard groups={groups} onSaveGroups={props.onSaveSettings} entries={entries} categories={categories} scheduleDates={scheduleDates} settings={settings}
           onClose={() => setWizard(false)} onSaved={async () => { setWizard(false); await refreshAll(); }}
           onSaveTemplate={props.onSaveTemplate} onCreateCategory={createCategory} notify={notify} copy={copy} />
       )}

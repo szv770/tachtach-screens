@@ -90,7 +90,7 @@ export const isUsableBlock = (b) => !!(b && (b.name || b.nameHe) && minutesOf(b.
  * Wizard patterns -> weekly entries (the shape stored in schedule.json, minus ids).
  * Blocks without a name or a valid start time are skipped (the review step warns about them).
  */
-export function wizardToEntries(patterns, categories = []) {
+export function wizardToEntries(patterns, categories = [], groupIds = undefined) {
   const out = [];
   let order = 0;
   for (const p of patterns || []) {
@@ -109,7 +109,72 @@ export function wizardToEntries(patterns, categories = []) {
         countdownDisplay: extra.countdownDisplay || 'slide',
         order: order++,
       };
+      // Groups: empty fields are not stored; with `groupIds` (the groups the wizard will save) unknown ids are dropped.
+      const gf = cleanBlockGroups(extra, groupIds);
+      delete entry.groupTimes; delete entry.groups;
+      Object.assign(entry, gf);
       out.push(entry);
+    }
+  }
+  return out;
+}
+
+// ── Groups (settings.scheduleGroups) on wizard blocks ─────────────────────
+// A block keeps its group choices in `extra.groups` (only for these groups; absent = everyone) and
+// `extra.groupTimes` ({ groupId: { time, endTime } }), so Rebuild pre-fills them from the saved entries.
+
+/** { groupTimes?, groups? } with empty values removed and (when `groupIds` is an array) unknown ids dropped. */
+export function cleanBlockGroups(src, groupIds) {
+  const known = Array.isArray(groupIds) ? new Set(groupIds) : null;
+  const out = {};
+  const gt = {};
+  for (const [id, v] of Object.entries(src?.groupTimes || {})) if (v && (!known || known.has(id))) gt[id] = { time: v.time || '', endTime: v.endTime || '' };
+  if (Object.keys(gt).length) out.groupTimes = gt;
+  const gs = (Array.isArray(src?.groups) ? src.groups : []).filter((id) => !known || known.has(id));
+  if (gs.length && !(known && gs.length >= known.size)) out.groups = gs;
+  return out;
+}
+
+/** The group fields of a wizard block, in the shape GroupTimesEditor / groupIssues expect. */
+export function blockGroupFields(b) {
+  return { groupTimes: b?.extra?.groupTimes || {}, groups: b?.extra?.groups || [] };
+}
+
+/** A copy of the block with `patch` ({ groupTimes?, groups? }) applied to its group fields (empty ones removed). */
+export function withBlockGroups(b, patch) {
+  const extra = { ...(b.extra || {}), ...patch };
+  if (!Object.keys(extra.groupTimes || {}).length) delete extra.groupTimes;
+  if (!(extra.groups || []).length) delete extra.groups;
+  return { ...b, extra };
+}
+
+/** Delete groups from every block's choices (a group deleted while the wizard is open). */
+export function removeGroupsFromPatterns(patterns, ids) {
+  const gone = new Set(ids);
+  return (patterns || []).map((p) => ({
+    ...p,
+    blocks: p.blocks.map((b) => {
+      const { groupTimes = {}, groups = [] } = b.extra || {};
+      if (!Object.keys(groupTimes).some((id) => gone.has(id)) && !groups.some((id) => gone.has(id))) return b;
+      return withBlockGroups(b, {
+        groupTimes: Object.fromEntries(Object.entries(groupTimes).filter(([id]) => !gone.has(id))),
+        groups: groups.filter((id) => !gone.has(id)),
+      });
+    }),
+  }));
+}
+
+/** Per pattern, groups that would see NO block there because every block is limited to other groups. */
+export function groupCoverage(patterns, groups) {
+  const out = [];
+  if (!groups?.length) return out;
+  for (const p of patterns || []) {
+    const usable = (p.blocks || []).filter(isUsableBlock);
+    if (!usable.some((b) => (b.extra?.groups || []).length)) continue;
+    for (const g of groups) {
+      if (!usable.some((b) => !(b.extra?.groups || []).length || b.extra.groups.includes(g.id))) {
+        out.push({ patternId: p.id, groupId: g.id, message: `${g.name} has nothing on ${p.label || daysLabel(p.days)} - every block there is only for other groups.` });
+      }
     }
   }
   return out;
