@@ -2,7 +2,7 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
-## Added 2026-10-19 (owner) — Live Preview that really follows the TV (approved, build after the schedule slide work)
+## DONE 2026-10-20 — Live Preview that really follows the TV (shipped; see CLAUDE.md changelog)
 
 - **Follow the TV (default on)**: the kiosk already reports slide changes (`/api/screen/report`: slideIndex, slideId, isPaused); extend with `startedAt` + the ordered enabled slide list with durations; the server rebroadcasts a `screen-slide` SSE event to preview clients; the preview jumps to that slide at the right elapsed offset and re-syncs on every report (no drift). Toggle 'Follow the TV' off = today's free-running preview (Prev/Pause/Next/jump).
 - **TV status line** ('TV is on: Zmanim, slide 4 of 11 · online / offline since 10:42'). When the TV is OFFLINE/unreachable: **estimate where it is holding** — pure function in src/shared simulating the rotation from the last report + durations (marked 'estimated'); also show freeze/takeover/hold state.
