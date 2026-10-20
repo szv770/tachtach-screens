@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { AREAS, firstSectionOfArea, sectionsOfArea } from '../nav.js';
 import { canOpenSection, can, effectiveCaps } from '../../shared/permissions.js';
@@ -14,6 +14,8 @@ import TvStatusLine from './TvStatusLine.jsx';
 import { timesFor, groupLabel, sanitizeGroups } from '../../shared/scheduleGroups.js';
 import { RoleChip } from './AdminLayout.jsx';
 import FreezeControl from './FreezeControl.jsx';
+import useIsMobile from '../hooks/useIsMobile.js';
+import { saveLastKnown } from '../lastKnown.js';
 
 const card = { background: colors.card, borderRadius: 'var(--r-lg)', boxShadow: 'var(--e1)', border: `1px solid ${colors.line}` };
 const HOUR = 3600 * 1000;
@@ -48,6 +50,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
   const screen = usePolled(opsApi.screenStatus, 10000);
   const health = usePolled(opsApi.health, 120000);
   const st = screen.data;
+  const isMobile = useIsMobile();
   const now = new Date();
 
   const info = useMemo(() => {
@@ -82,6 +85,16 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
     }
     return slideLabel(s);
   }, [st?.slideId, slides, anns]);
+
+  // The box-unreachable page (public/sw.js) shows this when the Pi or the tunnel is down.
+  useEffect(() => {
+    if (!st || screen.error) return;
+    saveLastKnown({
+      nowPlaying: nowSlide || '',
+      next: info.next ? `${info.next.entry.name || info.next.entry.nameHe} ${formatTime12(info.next.entry.time)}` : '',
+      live: info.live.map(announcementTitle).slice(0, 3).join(', '),
+    });
+  }, [st, screen.error, nowSlide, info]);
 
   const frozen = state?.freeze?.active || null;
   const zmAt = state?.cache?.zmanim?.fetchedAt ? Date.parse(state.cache.zmanim.fetchedAt) : null;
@@ -124,6 +137,35 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
         </div>
       )}
 
+      {screen.error && (
+        <div role="alert" data-testid="home-unreachable" style={{ ...card, padding: '14px 16px', borderColor: colors.danger, display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+            <div style={{ fontWeight: 800, fontSize: '15px', color: colors.danger }}>Can't reach the screen box</div>
+            <div style={{ fontSize: '13px', color: colors.dim, lineHeight: 1.4 }}>Showing what was true when it last answered. Changes won't go through until it's back.</div>
+          </div>
+          <button type="button" onClick={() => { screen.reload(); health.reload(); }} style={{ minHeight: '44px', padding: '0 18px', borderRadius: '999px', border: `1px solid ${colors.border}`, background: 'transparent', color: colors.text, fontFamily: 'inherit', fontWeight: 700, cursor: 'pointer' }}>Try again</button>
+        </div>
+      )}
+
+      {isMobile && st && (
+        <section data-testid="home-hero" style={{ ...card, padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+            {online ? <StatusChip tone="live" label="Screen connected" /> : <StatusChip tone="off" label={lastSeen != null ? `Screen offline · seen ${ago(lastSeen)}` : 'Screen offline'} />}
+            {frozen && <StatusChip tone="warn" label={`Frozen (${frozen.mode})`} />}
+          </div>
+          <div style={{ fontFamily: 'var(--f-display)', fontSize: '24px', fontWeight: 600, margin: '10px 0 2px', overflowWrap: 'anywhere' }}>
+            {online ? (nowSlide ? `${nowSlide}${st.paused ? ' (paused)' : ''}` : st.paused ? 'Paused' : 'Starting up…') : 'The TV isn’t reporting'}
+          </div>
+          <div style={{ fontSize: '13px', color: colors.dim }}><TvStatusLine state={state} compact /></div>
+          {canControl && online && (
+            <button type="button" data-testid="hero-pause" onClick={() => { onCommand?.(st.paused ? 'resume' : 'pause'); setTimeout(screen.reload, 600); }} style={{
+              marginTop: '12px', width: '100%', minHeight: '52px', borderRadius: 'var(--r-md)', border: `1px solid ${colors.border}`, background: colors.sunken,
+              color: colors.text, fontFamily: 'inherit', fontWeight: 800, fontSize: '16px', cursor: 'pointer',
+            }}>{st.paused ? 'Resume the screen' : 'Pause the screen'}</button>
+          )}
+        </section>
+      )}
+
       {/* Two columns on a wide screen, one on a phone. */}
       <div style={{ display: 'grid', gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', alignItems: 'start', minWidth: 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px', minWidth: 0 }}>
@@ -142,7 +184,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
 
           {!readOnly && (
             <div data-testid="home-actions" style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
-              {canControl && actionTile('home-pause', st?.paused ? 'play' : 'pause', st?.paused ? 'Resume the screen' : 'Pause the screen', () => { onCommand?.(st?.paused ? 'resume' : 'pause'); setTimeout(screen.reload, 600); })}
+              {canControl && !isMobile && actionTile('home-pause', st?.paused ? 'play' : 'pause', st?.paused ? 'Resume the screen' : 'Pause the screen', () => { onCommand?.(st?.paused ? 'resume' : 'pause'); setTimeout(screen.reload, 600); })}
               {canControl && actionTile('home-refresh', 'refresh', 'Refresh data now', () => onRefreshData?.())}
             </div>
           )}
@@ -150,7 +192,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
             <p data-testid="home-readonly" style={{ margin: 0, fontSize: '13px', color: colors.dim, lineHeight: 1.5 }}>You can look at everything here. To change something, ask an admin for editor access.</p>
           )}
 
-          <section data-testid="on-screen-now" style={{ ...card, padding: '16px' }}>
+          <section data-testid="on-screen-now" style={{ ...card, padding: '16px', display: isMobile && st ? 'none' : undefined }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px', gap: '8px', flexWrap: 'wrap' }}>
               <h2 style={{ fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: '20px', margin: 0 }}>On the screen now</h2>
               {st && (online
@@ -233,13 +275,13 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', minWidth: 0 }}>
+      {!isMobile && <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', minWidth: 0 }}>
         {AREAS.filter((a) => a.key !== 'home' && sectionsOfArea(a.key, role).length).map((a) => (
           <Tile key={a.key} testid={`tile-${a.key}`} icon={a.icon} color={a.color} title={a.en} text={status[a.key]} onClick={() => onGo(firstSectionOfArea(a.key, role))} />
         ))}
         {canOpenSection(role, 'history') && <Tile testid="tile-history" icon="history" title="Recent changes" text="Who changed what, and Undo" onClick={() => onGo('history')} />}
         {canOpenSection(role, 'health') && <Tile testid="tile-health" icon="pulse" title="System health" text={health.data ? healthHeadline(health.data) : 'Is everything working?'} onClick={() => onGo('health')} />}
-      </div>
+      </div>}
     </div>
   );
 }
