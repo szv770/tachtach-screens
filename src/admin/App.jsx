@@ -230,6 +230,7 @@ export default function App() {
           <ScheduleSection
             scheduleDates={state?.scheduleDates || {}}
             settings={state?.settings || {}}
+            onSaveSettings={updateSettings}
             onRefreshSchedule={fetchSchedule}
             onNavigate={goSection}
             onChangeDay={setChangeDay}

@@ -261,7 +261,7 @@ If I give you an existing schedule in this format and ask for changes, return th
 
 ## Groups (several grades watching one screen)
 
-Optional; with no groups set up everything works exactly as before. The groups are a setting, the times live on the blocks (JSON / structured saves only; the paste TEXT format does not carry them yet, so pasting a weekly text replaces blocks and drops their group times, like stages — the old week is kept as an Auto-backup):
+Optional; with no groups set up everything works exactly as before. The groups are a setting, the times live on the blocks (set in Schedule > Groups and on each block's three-dots menu > Set group times; JSON, structured saves and the paste TEXT format all carry them):
 
 ```json
 "scheduleGroups": [
@@ -280,3 +280,18 @@ A block keeps its normal `time` / `endTime`: those are the times for every group
 ```
 
 Rules (`src/shared/scheduleGroups.js`): ids are lower-case `a-z 0-9 _ -` (max 32), at most 12 groups; times may be `HH:MM` or `7:15 PM` and are stored as `HH:MM`; an unknown group id is dropped with a warning; a time that is not a time refuses the save. The Schedule page shows such a block once, with its times split by group ("Night Seder — Aleph 7:15–9:15 PM · Beis & Gimmel 8:00–10:00 PM"; the row sorts by the earliest group, and is "now" while any group is in it). The rail's up-next, the "just started" banner, the in-session badge and the countdown run once per distinct time, with the group names in the text ("Night Seder · Aleph").
+
+### Groups in the text format
+
+Groups are known by the names set in Schedule > Groups (case-insensitive; the short label, Hebrew name or id work too). The line's own time is the time for **everyone else**; each different time is one extra field after the Category, before the options:
+
+```
+@ every Sun-Thu
+8:00 PM - 10:00 PM | Night Seder | | Seder | Aleph 7:15 PM - 9:15 PM | alert 5
+10:30 PM | Dorm attendance | | | Bais + Gimmel 11:00 PM | only Bais, Gimmel
+4:00 PM - 5:00 PM | Shiur | | Learning | only Gimmel
+```
+
+- `<groups> <time range>`: those groups run at that time instead (separate several groups with `+`, `&`, `,` or `and`). Give an end time when the line has one (a warning appears if not). A group not named keeps the line's time.
+- `only <groups>`: the block is for those groups only (its own field).
+- A field is read as a group field only when the screen has groups and the names match, so old text and screens without groups behave exactly as before. Unknown names give a warning and are ignored. "Copy as text" writes these fields (groups with identical times merged), and the Claude prompts / format guide explain them when groups exist. Code: `parseGroupFields` / `formatGroupFields` in `src/shared/schedulePaste.js`, tests `test/scheduleGroupsText.test.js`.
