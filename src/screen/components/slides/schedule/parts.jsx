@@ -43,7 +43,7 @@ export function SplitTimes({ split, now, color = 'var(--inkDim)', onColor = 'var
         const on = now != null && slotRunning(x, now);
         return (
           <React.Fragment key={i}>
-            {i > 0 && <span style={{ margin: '0 .45em' }}>·</span>}
+            {i > 0 && <span style={{ margin: '0 .2em' }}>{' · '}</span>}{/* spaces = the line may break between groups */}
             <span style={{ whiteSpace: 'nowrap', color: on ? onColor : undefined }}>
               <span>{x.label}</span>{' '}<span className="tt-num">{rangeText(x.v, x.end)}</span>
             </span>
