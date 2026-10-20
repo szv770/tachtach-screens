@@ -154,7 +154,8 @@ export default function ScheduleSection(props) {
             {canEdit && <button type="button" data-testid="rebuild" onClick={() => setWizard(true)} style={secondaryBtn}>Rebuild with wizard</button>}
           </div>
           <WeekView entries={entries} categories={categories} canEdit={canEdit}
-            onOpenBlock={(entry, dayIdx) => setSheet({ entry, dayIdx, key: `${entry.id}-${dayIdx}` })}
+            groups={groups} onDeleteBlock={deleteBlock}
+            onOpenBlock={(entry, dayIdx, opts) => setSheet({ entry, dayIdx, focus: opts?.focus, key: `${entry.id}-${dayIdx}-${opts?.focus || ''}` })}
             onAddBlock={(dayIdx) => setSheet({ entry: null, dayIdx, key: `new-${dayIdx}-${Date.now()}` })}
             onCopyDay={async (from, targets) => { await saveWeek(copyDay(entries, from, targets), 'Day copied.'); }} />
         </section>
@@ -218,7 +219,7 @@ export default function ScheduleSection(props) {
           onSaveTemplate={props.onSaveTemplate} onCreateCategory={createCategory} notify={notify} copy={copy} />
       )}
       {sheet && (
-        <BlockSheet key={sheet.key} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving} groups={groups} otherEntries={entries}
+        <BlockSheet key={sheet.key} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving} groups={groups} otherEntries={entries} focus={sheet.focus}
           onClose={() => setSheet(null)} onSave={saveBlock} onDelete={deleteBlock} onCreateCategory={createCategory} />
       )}
       {modal}

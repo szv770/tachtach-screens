@@ -27,7 +27,7 @@ const STARTER = {
 };
 
 export default function SavedSchedules({
-  entries, categories, savedTemplates = [], onFetchTemplates, onSaveTemplate, onUpdateTemplate, onDeleteTemplate, onLoadTemplate, canEdit, copy,
+  entries, categories, savedTemplates = [], onFetchTemplates, onSaveTemplate, onUpdateTemplate, onDeleteTemplate, onLoadTemplate, canEdit, copy, groups = [],
 }) {
   const [saveName, setSaveName] = useState('');
   const [rename, setRename] = useState(null);

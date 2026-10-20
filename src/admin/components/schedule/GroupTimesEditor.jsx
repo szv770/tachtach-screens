@@ -33,10 +33,10 @@ export function SlotChips({ value, groups }) {
   );
 }
 
-export default function GroupTimesEditor({ value, groups, onChange, issues = [], readOnly = false, compact = false, showRestrict = true, idPrefix = 'gt' }) {
+export default function GroupTimesEditor({ value, groups, onChange, issues = [], readOnly = false, compact = false, showRestrict = true, idPrefix = 'gt', defaultOn = false }) {
   const own = value.groupTimes || {};
   const hasOwn = Object.keys(own).length > 0;
-  const [forced, setForced] = useState(false);
+  const [forced, setForced] = useState(defaultOn);
   const on = hasOwn || forced;
   const [shift, setShift] = useState(45);
   if (!groups?.length) return null;

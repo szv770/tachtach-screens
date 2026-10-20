@@ -9,6 +9,9 @@ import { formatTime12 } from '../../../shared/schedulePaste.js';
 import { DAY_CODES } from '../../../shared/scheduleDays.js';
 import { blocksOnDay } from '../../../shared/scheduleWeek.js';
 import { resolveStages, missingEndTime } from '../../../shared/scheduleStages.js';
+import BlockMenu from './BlockMenu.jsx';
+import { ConfirmDialog } from '../ui.jsx';
+import { groupChip } from '../../../shared/scheduleGroupsEdit.js';
 import { chip, DayChips, primaryBtn, secondaryBtn, subtleBtn } from './scheduleFields.jsx';
 
 // The 7-column grid only when the page area itself is wide enough (the sidebar and live-preview panel eat space),
@@ -33,16 +36,18 @@ function useWideBox() {
 const DAY_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Shabbos'];
 const dayShort = (i) => (i === 6 ? 'Shab' : DAY_CODES[i]);
 
-function BlockCard({ entry, categories, onOpen, compact }) {
+function BlockCard({ entry, categories, onOpen, compact, groups, menuItems }) {
   const cat = categories.find((c) => c.id === entry.category);
   const r = resolveStages(entry, cat);
   const off = entry.enabled === false;
   const time = `${formatTime12(entry.time)}${entry.endTime ? ` - ${formatTime12(entry.endTime)}` : ''}`;
+  const gchip = groupChip(entry, groups);
   return (
+    <div style={{ display: 'flex', gap: '6px', alignItems: 'stretch', minWidth: 0 }}>
     <button type="button" data-testid="week-block" data-entry-id={entry.id} onClick={() => onOpen(entry)}
       aria-label={`${entry.name || entry.nameHe}, ${time}. Edit`}
       style={{
-        display: 'block', width: '100%', textAlign: 'left', minHeight: '44px', cursor: 'pointer', color: colors.text,
+        display: 'block', flex: '1 1 0', width: '100%', textAlign: 'left', minHeight: '44px', cursor: 'pointer', color: colors.text,
         padding: compact ? '8px 10px' : '10px 14px', borderRadius: 'var(--r-sm)', background: off ? 'transparent' : alpha(cat?.color || colors.muted, 12),
         border: `1px ${off ? 'dashed' : 'solid'} ${colors.line}`, borderLeft: `4px solid ${cat?.color || colors.muted}`,
         opacity: off ? 0.6 : 1, fontFamily: adminFonts.englishBody, minWidth: 0,
@@ -50,6 +55,7 @@ function BlockCard({ entry, categories, onOpen, compact }) {
       <span style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: colors.dim }}>{time}</span>
       <span style={{ display: 'block', fontSize: compact ? '14px' : '16px', fontWeight: 700, overflowWrap: 'anywhere', lineHeight: 1.25 }}>{entry.name || entry.nameHe}</span>
       {entry.name && entry.nameHe && <span dir="rtl" style={{ display: 'block', fontSize: '13px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>{entry.nameHe}</span>}
+      {gchip && <span data-testid="group-chip" style={{ display: 'inline-block', marginTop: '4px', marginRight: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '11px', fontWeight: 700, color: colors.text, background: alpha(colors.gold, 18), border: `1px solid ${alpha(colors.gold, 50)}` }}>{gchip}</span>}
       {missingEndTime(entry) && !off && (
         <span data-testid="no-end-chip" style={{ display: 'inline-block', marginTop: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '11px', fontWeight: 700, color: colors.warn, border: `1px solid ${colors.warn}` }}>No end time</span>
       )}
@@ -59,6 +65,8 @@ function BlockCard({ entry, categories, onOpen, compact }) {
         </span>
       )}
     </button>
+    <BlockMenu name={entry.name || entry.nameHe} items={menuItems} style={{ alignSelf: 'flex-start' }} />
+    </div>
   );
 }
 
@@ -83,11 +91,19 @@ function CopyDaySheet({ open, from, onClose, onCopy }) {
   );
 }
 
-export default function WeekView({ entries, categories, canEdit, onOpenBlock, onAddBlock, onCopyDay, startDay }) {
+export default function WeekView({ entries, categories, canEdit, onOpenBlock, onAddBlock, onCopyDay, onDeleteBlock, startDay, groups = [] }) {
   const [boxRef, wide] = useWideBox();
   const today = new Date().getDay();
   const [day, setDay] = useState(startDay ?? today);
   const [copyFrom, setCopyFrom] = useState(null);
+  const [delAsk, setDelAsk] = useState(null);
+  const menuFor = (e, i) => canEdit && [
+    { key: 'edit', label: 'Edit', onClick: () => onOpenBlock(e, i) },
+    groups.length > 0 && { key: 'groups', label: 'Set group times...', hint: 'A different time for some groups, or show it to some groups only', onClick: () => onOpenBlock(e, i, { focus: 'groups' }) },
+    { key: 'copy', label: `Copy ${DAY_LONG[i]} to...`, onClick: () => setCopyFrom(i) },
+    (e.days || []).length > 1 && { key: 'onlyday', label: `Change only ${DAY_LONG[i]}`, hint: 'Leaves the other days as they are', onClick: () => onOpenBlock(e, i, { focus: 'onlyday' }) },
+    onDeleteBlock && { key: 'delete', label: 'Delete', danger: true, onClick: () => setDelAsk(e) },
+  ];
   const count = (i) => blocksOnDay(entries, i).length;
   const addLabel = (i) => `Add a block${i != null ? ` on ${DAY_LONG[i]}` : ''}`;
 
@@ -105,7 +121,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
                 {name}{i === today && <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.gold, marginLeft: '6px' }}>today</span>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {blocksOnDay(entries, i).map((e) => <BlockCard key={e.id} entry={e} categories={categories} compact onOpen={(en) => onOpenBlock(en, i)} />)}
+                {blocksOnDay(entries, i).map((e) => <BlockCard key={e.id} entry={e} categories={categories} groups={groups} menuItems={menuFor(e, i)} compact onOpen={(en) => onOpenBlock(en, i)} />)}
                 {count(i) === 0 && <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.muted, padding: '6px 2px' }}>Nothing scheduled</div>}
               </div>
               {canEdit && (
@@ -131,7 +147,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
           </div>
           <div style={{ fontFamily: 'var(--f-display)', fontSize: '20px', fontWeight: 600, marginBottom: '8px' }}>{DAY_LONG[day]}{day === today ? ' (today)' : ''}</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: '8px' }}>
-            {blocksOnDay(entries, day).map((e) => <BlockCard key={e.id} entry={e} categories={categories} onOpen={(en) => onOpenBlock(en, day)} />)}
+            {blocksOnDay(entries, day).map((e) => <BlockCard key={e.id} entry={e} categories={categories} groups={groups} menuItems={menuFor(e, day)} onOpen={(en) => onOpenBlock(en, day)} />)}
             {count(day) === 0 && <div style={{ fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.muted, padding: '10px 2px' }}>Nothing scheduled on {DAY_LONG[day]}.</div>}
           </div>
           {canEdit && (
@@ -142,6 +158,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
           )}
         </div>
       )}
+      {delAsk && <ConfirmDialog title="Delete this block?" message={`"${delAsk.name || delAsk.nameHe}" will be removed from every day it runs on. Use "Change only ${DAY_LONG[day]}" to keep the other days.`} onConfirm={() => { const e = delAsk; setDelAsk(null); onDeleteBlock(e); }} onCancel={() => setDelAsk(null)} />}
       <CopyDaySheet open={copyFrom != null} from={copyFrom ?? 0} onClose={() => setCopyFrom(null)}
         onCopy={async (from, targets) => { await onCopyDay(from, targets); setCopyFrom(null); }} />
     </div>

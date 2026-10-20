@@ -28,7 +28,7 @@ function targetDates(target, today, selectedDate) {
 }
 
 export default function ScheduleImport({
-  schedule, scheduleDates, selectedDate, settings, onApplied, onEditDate, notify, copy, isMobile, mode = 'dates', onWeeklyApplied,
+  schedule, scheduleDates, selectedDate, settings, onApplied, onEditDate, notify, copy, isMobile, mode = 'dates', onWeeklyApplied, groups = [],
 }) {
   const weekly = mode === 'weekly';
   const today = toISODate(new Date());
@@ -59,10 +59,10 @@ export default function ScheduleImport({
 
   const zip = settings?.location?.zip || zinfo.location || '';
   const promptCtx = () => ({
-    dates, zmanimByDate: zinfo.zmanim, parsha: zinfo.parsha, categories, location: zip ? `zip code ${zip}` : '',
-    currentText: (schedule?.entries || []).length ? formatWeeklyText(schedule.entries, { categories, header: false }) : '',
+    dates, zmanimByDate: zinfo.zmanim, parsha: zinfo.parsha, categories, groups, location: zip ? `zip code ${zip}` : '',
+    currentText: (schedule?.entries || []).length ? formatWeeklyText(schedule.entries, { categories, groups, header: false }) : '',
   });
-  const guide = buildFormatGuide({ categories });
+  const guide = buildFormatGuide({ categories, groups });
 
   const runPreview = async (value = text) => {
     if (!value.trim()) { setPreview(null); return; }
@@ -124,14 +124,14 @@ export default function ScheduleImport({
     reader.readAsText(file);
   };
 
-  const copyWeeklyAsText = () => copy(formatWeeklyText(schedule?.entries || [], { categories }), 'Weekly schedule copied as text');
+  const copyWeeklyAsText = () => copy(formatWeeklyText(schedule?.entries || [], { categories, groups }), 'Weekly schedule copied as text');
 
   const copyAsText = () => {
     const days = dates.map((d) => {
       const eff = getEffectiveSchedule(schedule, scheduleDates, d);
       return { date: d, label: eff.label, entries: eff.entries };
     });
-    copy(formatScheduleText(days, { categories }), `${dates.map((d) => formatDateShort(d)).join(' + ')} copied as text`);
+    copy(formatScheduleText(days, { categories, groups }), `${dates.map((d) => formatDateShort(d)).join(' + ')} copied as text`);
   };
 
   const allCats = [...categories, ...(preview?.newCategories || []).map((c) => ({ ...c, color: colors.muted, isNew: true }))];

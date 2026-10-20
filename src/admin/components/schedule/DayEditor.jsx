@@ -13,6 +13,8 @@ import {
 } from '../../../shared/schedulePaste.js';
 import { formatDateLong, formatDateShort, sortEntriesByTime, minutesOf, toISODate } from '../../../shared/scheduleResolution.js';
 import GroupTimesEditor from './GroupTimesEditor.jsx';
+import BlockMenu from './BlockMenu.jsx';
+import { groupChip } from '../../../shared/scheduleGroupsEdit.js';
 import { splitSummary, groupIssues } from '../../../shared/scheduleGroupsEdit.js';
 import { groupsOn } from '../../../shared/scheduleGroups.js';
 import { entryDayIdx } from '../../../shared/scheduleWizard.js';
@@ -474,6 +476,13 @@ function RowEditor({ row, categories, groups = [], isMobile, showDetails, autoFo
     minWidth: '38px', minHeight: '38px', cursor: 'pointer', fontSize: '15px', display: 'inline-flex',
     alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: adminFonts.englishBody,
   };
+  const menu = (
+    <BlockMenu name={row.name || row.nameHe || 'this row'} items={[
+      hasGroups && { key: 'groups', label: 'Set group times...', hint: 'A different time for some groups, or show it to some groups only', onClick: () => setGOpen(true) },
+      { key: 'duplicate', label: 'Duplicate', onClick: onDuplicate },
+      { key: 'delete', label: 'Delete', danger: true, onClick: onDelete },
+    ]} />
+  );
   const nameInput = (
     <input
       value={row.name}
@@ -504,17 +513,13 @@ function RowEditor({ row, categories, groups = [], isMobile, showDetails, autoFo
         <span style={{ color: colors.muted, fontSize: '12px' }}>–</span>
         <TimeField value={row.endTime} onCommit={(t) => onChange({ endTime: t })} allowEmpty placeholder="end" ariaLabel="End time" style={{ width: isMobile ? '78px' : '88px', flexShrink: 0, borderColor: endBeforeStart ? colors.copper : undefined }} />
         {isMobile ? (
-          <span style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
-            <button type="button" title="Duplicate row" aria-label="Duplicate row" style={iconBtn} onClick={onDuplicate}>⧉</button>
-            <button type="button" title="Delete row" aria-label="Delete row" style={{ ...iconBtn, color: colors.danger }} onClick={onDelete}>✕</button>
-          </span>
+          <span style={{ marginLeft: 'auto', display: 'flex' }}>{menu}</span>
         ) : (
           <>
             {nameInput}
             {heInput}
             <CategoryPicker value={row.category} categories={categories} onChange={(category) => onChange({ category })} onCreate={onCreateCategory} />
-            <button type="button" title="Duplicate row" aria-label="Duplicate row" style={iconBtn} onClick={onDuplicate}>⧉</button>
-            <button type="button" title="Delete row" aria-label="Delete row" style={{ ...iconBtn, color: colors.danger }} onClick={onDelete}>✕</button>
+            {menu}
           </>
         )}
       </div>
@@ -524,13 +529,15 @@ function RowEditor({ row, categories, groups = [], isMobile, showDetails, autoFo
           {heInput}
         </div>
       )}
-      {hasGroups && (
+      {hasGroups && (gOpen || groupChip(row, groups)) && (
         <div style={{ marginTop: '6px' }}>
-          <button type="button" aria-expanded={gOpen} data-testid="row-groups" onClick={() => setGOpen((o) => !o)}
-            style={{ ...chipButton(!!summary || (row.groups || []).length > 0), minHeight: '44px', padding: '3px 12px', fontSize: '13px', maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}>
-            {summary ? `Groups: ${summary}` : (row.groups || []).length ? 'Groups: only some' : 'Groups: same for everyone'} {gOpen ? '▴' : '▾'}
-          </button>
-          {gOpen && <div style={{ marginTop: '8px' }}><GroupTimesEditor groups={groups} value={{ time: row.time, endTime: row.endTime, groupTimes: row.groupTimes || {}, groups: row.groups || [] }} issues={gIssues} compact idPrefix={row.key} onChange={(patch) => onChange(patch)} /></div>}
+          {groupChip(row, groups) && (
+            <button type="button" aria-expanded={gOpen} data-testid="row-groups" onClick={() => setGOpen((o) => !o)}
+              style={{ ...chipButton(true), minHeight: '44px', padding: '3px 12px', fontSize: '13px', maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left' }}>
+              {groupChip(row, groups)}{summary ? ` · ${summary}` : ''} {gOpen ? '\u25B4' : '\u25BE'}
+            </button>
+          )}
+          {gOpen && <div style={{ marginTop: '8px' }}><GroupTimesEditor defaultOn groups={groups} value={{ time: row.time, endTime: row.endTime, groupTimes: row.groupTimes || {}, groups: row.groups || [] }} issues={gIssues} compact idPrefix={row.key} onChange={(patch) => onChange(patch)} /></div>}
         </div>
       )}
       {endBeforeStart && (

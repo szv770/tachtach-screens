@@ -4,7 +4,7 @@
  * `dayIdx` = the day it was opened from in the week view; when the block runs on several
  * days the person chooses "all its days" or "only <day>".
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { colors, adminFonts } from '../../styles/admin-tokens.js';
 import Sheet from '../ui/Sheet.jsx';
 import SegmentedControl from '../ui/SegmentedControl.jsx';
@@ -29,10 +29,12 @@ const toForm = (entry, dayIdx, defaultDays) => ({
   scope: 'all', dayIdx,
 });
 
-export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false, groups = [], otherEntries = [] }) {
+export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false, groups = [], otherEntries = [], focus = '' }) {
   const isNew = !entry;
   const initial = useMemo(() => toForm(entry, dayIdx, dayIdx != null ? [dayIdx] : undefined), [entry, dayIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [f, setF] = useState(initial);
+  const [f, setF] = useState(focus === 'onlyday' ? { ...initial, scope: 'this' } : initial);
+  const gRef = useRef(null);
+  useEffect(() => { if (focus === 'groups') setTimeout(() => gRef.current?.scrollIntoView?.({ block: 'center' }), 80); }, [focus]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const set = (patch) => setF((p) => ({ ...p, ...patch }));
   const cat = categories.find((c) => c.id === f.category);
@@ -68,7 +70,7 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
         </div>
         {timeBad && <div role="alert" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.danger, margin: '-6px 0 12px' }}>It ends before it starts - check AM/PM.</div>}
         {hasGroups && (
-          <GroupTimesEditor groups={groups} value={f} readOnly={readOnly} issues={issues} onChange={(patch) => set(patch)} />
+          <div ref={gRef}><GroupTimesEditor defaultOn={focus === 'groups'} groups={groups} value={f} readOnly={readOnly} issues={issues} onChange={(patch) => set(patch)} /></div>
         )}
         <Field label="Category">
           <CategoryChips value={f.category} categories={categories} onChange={(id) => set({ category: id })} onCreate={onCreateCategory} />

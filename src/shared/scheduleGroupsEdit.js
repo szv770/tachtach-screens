@@ -114,3 +114,15 @@ export function groupIssues(form, groups, others = [], daysOf = () => []) {
   }
   return issues;
 }
+
+/** The small chip on a block row: "Aleph ≠" (own times differ), "Aleph only" (restricted), or '' . */
+export function groupChip(entry, groups) {
+  if (!groups?.length) return '';
+  const base = `${normTime(entry?.time) || ''}|${normTime(entry?.endTime) || ''}`;
+  const diff = groups.filter((g) => { const e = effective(entry?.groupTimes, g.id, entry); return entry?.groupTimes?.[g.id] && `${e.time}|${e.endTime}` !== base; });
+  const name = (list) => (list.length > 2 ? `${list.length} groups` : list.map((g) => g.short || g.name).join(' + '));
+  if (diff.length) return `${name(diff)} ≠`;
+  const only = Array.isArray(entry?.groups) ? groups.filter((g) => entry.groups.includes(g.id)) : [];
+  if (only.length && only.length < groups.length) return `${name(only)} only`;
+  return '';
+}
