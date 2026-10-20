@@ -129,3 +129,10 @@ Remote code execution by design, so the web process is kept out of it. Flow: **a
 - **Phone alert**: `startUpdateMonitor` (app.js) pushes "Software updated to <short>" / "Update failed - rolled back" once per `runId` (`data/update-notified.json`), also across the restart the update causes.
 - Tests: `systemUpdatePerms`, `systemUpdate`, `updateHelper`, `systemUpdateRoute`, `updateUnits` (incl. wrapper dry runs).
 
+
+## Roster + Birthdays (2026-10-20)
+
+- `data/roster.json` = `{ people: [{ id, first, last, month, day, he? }], birthdays: { fridayIsWeekend, lookAhead, names, rail } }`, written only by `src/server/routes/roster.js` (whole-list PUT, settings PUT, import with dryRun; all through the shared normaliser, one write lock). **Gitignored** (real student names + birthdays). Body limit 256 kB for `/api/roster` (exempted from the 16 kB parser in `app.js`). Activity area 'bochurim list'; shared in History for every editor.
+- `month` is Intl's English Hebrew-month name; only the Hebrew birthday is stored. `isBirthdayOn` handles Adar / Adar I / Adar II across leap years and a 30th that the month lacks (-> the 1st of the next month). The kiosk computes everything from `state.roster` + its own date (`birthdaysFor`), so midnight and previewDate just work; the server only stores and broadcasts SSE `roster-update` (people trimmed by `forKiosk` + settings).
+- Weekend rule: a Shabbos birthday B is shown on Thursday (B-2, 'early') and Sunday (B+1, 'late'); the strips use the birthday date itself. `BIRTHDAYS` slide is dropped from the rotation by `App.jsx` when `birthdaysFor(...).today` is empty.
+- The chazan chart (not built yet) should read `roster.people` rather than keep its own list.

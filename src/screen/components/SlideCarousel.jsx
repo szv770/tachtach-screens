@@ -9,6 +9,7 @@ import ImageSlide from './slides/ImageSlide.jsx';
 import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
+import BirthdaysSlide from './slides/BirthdaysSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
@@ -57,7 +58,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dateISO,
+  dailyWords, dateISO, roster,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -80,6 +81,7 @@ export default function SlideCarousel({
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
+      case 'BIRTHDAYS': return <BirthdaysSlide roster={roster} dateISO={dateISO} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'PDF_SLIDE': return <PdfSlide slide={slide} tokens={tokens} onRequestDuration={onRequestDuration} />;

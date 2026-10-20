@@ -11,6 +11,8 @@ import { readJSON, writeJSON } from './storage.js';
 export const LATE_BUILTINS = [
   { id: 'weather', type: 'WEATHER', label: 'Weather', duration: 12, enabled: false, order: 101 },
   { id: 'daily-word', type: 'DAILY_WORD', label: 'Daily Word', duration: 15, enabled: false, order: 102 },
+  // On by default: it only ever shows on a day somebody on the roster has a Hebrew birthday.
+  { id: 'birthdays', type: 'BIRTHDAYS', label: 'Birthdays', duration: 15, enabled: true, order: 103 },
 ];
 
 export function addMissingBuiltins(slides) {

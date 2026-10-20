@@ -22,6 +22,8 @@ data/legacy/
 # Local kiosk https key + certificate, generated on the Pi (src/server/localTls.js)
 data/tls/
 data/users.json
+# the roster holds real names + birthdays of students: never committed
+data/roster.json
 # Web-push VAPID private key + phone subscriptions (src/server/push.js)
 data/push.json
 data/activity.json

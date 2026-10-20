@@ -48,6 +48,7 @@ export const SLIDE_TYPES = [
   { id: 'PIRKEI_AVOS', label: 'Pirkei Avos', group: 'builtin', icon: 'word', desc: 'This week\'s chapter. Seasonal.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 13 } },
   { id: 'WEATHER', label: 'Weather', group: 'builtin', icon: 'sun', desc: 'Current conditions and forecast.', create: { kind: 'builtin' }, edit: ['weather'], defaults: { duration: 15 } },
   { id: 'DAILY_WORD', label: 'Daily Word', group: 'builtin', icon: 'word', desc: 'A new word every day.', create: { kind: 'builtin' }, edit: ['dailyWord'], editGo: { section: 'daily-word' }, defaults: { duration: 20 } },
+  { id: 'BIRTHDAYS', label: 'Birthdays', group: 'builtin', icon: 'star', desc: 'Happy birthday to the bochurim whose Hebrew birthday it is. Only shows on those days.', create: { kind: 'builtin' }, edit: [], editGo: { section: 'roster' }, defaults: { duration: 15 } },
   { id: 'SCHEDULE', label: 'Schedule / Seder', group: 'builtin', icon: 'calendar', desc: 'The day\'s timetable.', create: { kind: 'builtin' }, edit: ['schedule'], editGo: { section: 'schedule' }, defaults: { duration: 20 } },
   { id: 'DAILY_QUOTE', label: 'Daily Quote', group: 'builtin', icon: 'message', desc: 'A daily vort or quote.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 12 } },
   { id: 'PARSHA_TIDBITS', label: 'Parsha Tidbits', group: 'builtin', icon: 'list', desc: 'Short points on the weekly parsha.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 25 } },

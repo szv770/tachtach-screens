@@ -29,7 +29,7 @@ export const UNDO_KINDS = Object.freeze({
 export const isUndoKind = (k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(UNDO_KINDS, k);
 
 /** Activity areas whose changes every signed-in editor can see in History (alongside their own). */
-export const SHARED_AREAS = Object.freeze(['announcement', 'message', 'pinned note', 'slide', 'custom day', 'Daily Word list', 'schedule', 'photos / media', 'news feed']);
+export const SHARED_AREAS = Object.freeze(['announcement', 'message', 'pinned note', 'slide', 'custom day', 'Daily Word list', 'bochurim list', 'schedule', 'photos / media', 'news feed']);
 
 /** Setting keys that must never be snapshotted, whatever a future whitelist says. */
 const SECRETISH = /secret|token|password|passwd|credential|apikey|api_key|private/i;
@@ -72,7 +72,7 @@ export function visibleTo(entry, user) {
 
 const TYPE_NAMES = {
   ZMANIM: 'Zmanim', LIMUDIM: 'Daily study', HAYOM_YOM: 'Hayom Yom', PIRKEI_AVOS: 'Pirkei Avos', DAILY_QUOTE: 'Daily quote',
-  DAILY_WORD: 'Daily Word', PARSHA_TIDBITS: 'Parsha tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'News feed',
+  DAILY_WORD: 'Daily Word', BIRTHDAYS: 'Birthdays', PARSHA_TIDBITS: 'Parsha tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'News feed',
   MIVTZAH_LEADERBOARD: 'Mivtzah leaderboard', MIVTZAH_LIVE_EMBED: 'Mivtzah live', VIDEO_SLIDE: 'Video', PDF_SLIDE: 'PDF',
   IMAGE_SLIDE: 'Image', GOOGLE_PHOTOS_SLIDE: 'Google Photos', ANNOUNCEMENT: 'Message', WEB_PAGE: 'Web page',
 };

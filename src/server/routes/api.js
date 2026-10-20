@@ -7,6 +7,8 @@ import { mkdir, unlink, readdir } from 'fs/promises';
 import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
+import { readRoster } from './roster.js';
+import { forKiosk as rosterForKiosk } from '../../shared/roster.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { SCREEN_COMMANDS } from '../../shared/screenCommands.js';
 import { getScreenState, setScreenState, getScreenDisplay } from '../screenState.js';
@@ -1423,6 +1425,7 @@ router.get('/preview-state', async (req, res) => {
       schedule: getEffectiveSchedule(schedule, scheduleDates, dateStr),
       scheduleDates: scheduleDates ?? {},
       rssFeeds: rssFeeds ?? [],
+      roster: rosterForKiosk(await readRoster()),
       dailyWords: await readDailyWords(), // full history, so a past date previews the word that really showed
       _previewDate: dateStr,
     });

@@ -8,6 +8,7 @@ export const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen' },
   { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
+  { key: 'roster', en: 'Bochurim', desc: 'The list of names, and the birthday slide', area: 'screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Weekly timetable, one-day changes & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
   { key: 'announcements', en: 'Announcements', desc: 'Posts, quick messages, banners & letters', area: 'announce' },
@@ -33,7 +34,7 @@ export const navItems = [
 /** The five areas (order = sidebar order). `tab` = shown in the mobile bottom bar. */
 export const AREAS = [
   { key: 'home', en: 'Home', icon: 'home', tab: true, color: null, blurb: 'What is on the screen now' },
-  { key: 'screen', en: 'Screen', icon: 'screen', tab: true, color: 'var(--area-screen)', blurb: 'Slides, media, feeds, daily word' },
+  { key: 'screen', en: 'Screen', icon: 'screen', tab: true, color: 'var(--area-screen)', blurb: 'Slides, media, feeds, daily word, birthdays' },
   { key: 'schedule', en: 'Schedule', icon: 'calendar', tab: true, color: 'var(--area-schedule)', blurb: 'Timetable and special days' },
   { key: 'announce', en: 'Announce', icon: 'megaphone', tab: true, color: 'var(--area-announce)', blurb: 'Messages, banners, takeovers' },
   { key: 'look', en: 'Look & Settings', icon: 'gear', tab: false, color: 'var(--area-look)', blurb: 'Themes, fonts, location, team' },

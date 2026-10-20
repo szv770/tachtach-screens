@@ -86,6 +86,9 @@ export const SETTINGS_INDEX = [
   S('images', 'Web page reload and zoom', 'refresh reload seconds page size zoom', { tab: 'web', match: 'Your web pages' }),
   S('images', 'News feeds (RSS)', 'rss news feed refresh add feed preview mapping sync', { tab: 'feeds', anchor: 'media-feed-add' }),
   S('daily-word', 'Daily Word', 'yiddish word archive coming up import', { match: 'Daily Word' }),
+  S('roster', 'Bochurim list (names and Hebrew birthdays)', 'roster students boys people names list add remove edit chazan', { match: 'Bochurim' }),
+  S('roster', 'Birthdays (Hebrew birthday slide)', 'birthday bday mazel tov happy hebrew date shabbos thursday sunday', { match: 'Birthdays right now' }),
+  S('roster', 'Import bochurim from Excel / CSV', 'spreadsheet excel xlsx csv paste import upload names birthdays', { match: 'Import from a spreadsheet' }),
   // Schedule
   S('schedule', 'Weekly schedule (the base week that repeats)', 'timetable base year week sunday monday blocks entries times', { anchor: 'sched-week' }),
   S('schedule', 'Build my year schedule (step-by-step wizard)', 'wizard guided first create make new base weekly year rebuild start setup', { anchor: 'sched-week' }),

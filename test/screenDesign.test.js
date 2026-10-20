@@ -112,15 +112,16 @@ test('weather: Open-Meteo fixture normalizes; geocoders parse', () => {
   assert.match(openMeteoUrl(1, 2, 'C', 'America/New_York'), /temperature_unit=celsius/);
 });
 
-test('late built-in slides (WEATHER, DAILY_WORD) are added once, disabled, at the end', () => {
+test('late built-in slides (WEATHER, DAILY_WORD, BIRTHDAYS) are added once, at the end; only BIRTHDAYS starts on', () => {
   const rows = [{ id: 'zmanim', type: 'ZMANIM' }];
   const a = addMissingBuiltins(rows);
-  assert.deepEqual(a.added.map((x) => x.type).sort(), ['DAILY_WORD', 'WEATHER']);
-  assert.ok(a.slides.slice(1).every((x) => x.enabled === false), 'added rows start disabled');
+  assert.deepEqual(a.added.map((x) => x.type).sort(), ['BIRTHDAYS', 'DAILY_WORD', 'WEATHER']);
+  assert.ok(a.slides.slice(1).filter((x) => x.type !== 'BIRTHDAYS').every((x) => x.enabled === false), 'added rows start disabled');
+  assert.equal(a.slides.find((x) => x.type === 'BIRTHDAYS').enabled, true, 'birthdays only ever shows on a birthday, so it starts on');
   assert.equal(a.slides[0].type, 'ZMANIM', 'existing rows keep their place');
   assert.equal(addMissingBuiltins(a.slides).added.length, 0, 'idempotent');
   // a row the owner already has (any id) is never duplicated
-  assert.equal(addMissingBuiltins([...rows, { id: 'x', type: 'DAILY_WORD' }, { id: 'y', type: 'WEATHER' }]).added.length, 0);
+  assert.equal(addMissingBuiltins([...rows, { id: 'x', type: 'DAILY_WORD' }, { id: 'y', type: 'WEATHER' }, { id: 'z', type: 'BIRTHDAYS' }]).added.length, 0);
 });
 
 test('isScheduleSlideOn: schedule slide disabled/removed turns schedule updates off', async () => {

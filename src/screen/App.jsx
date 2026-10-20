@@ -19,6 +19,8 @@ import ScreenScaler from './components/ScreenScaler.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { getEffectiveSchedule, toISODate, addDaysISO } from '../shared/scheduleResolution.js';
+import { birthdaysFor } from '../shared/roster.js';
+import { railNote } from '../shared/birthdayCopy.js';
 import { computeStageNow } from '../shared/stageNow.js';
 import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
@@ -128,9 +130,18 @@ function AppContent() {
 
   // Rotation: slides.json rows (ANNOUNCEMENT refs resolved in place) + active
   // slide announcements without a ref, appended at the end.
+  // Birthdays (roster, Hebrew dates): the page is in the rotation only on a day somebody has one, and a small rail card says who.
+  const birthdaysToday = React.useMemo(
+    () => birthdaysFor(state?.roster?.people, scheduleDateISO, state?.roster?.birthdays).today,
+    [state?.roster, scheduleDateISO],
+  );
   const allSlides = React.useMemo(
-    () => buildRotation(state?.slides || [], ann.slides),
-    [state?.slides, ann],
+    () => buildRotation(state?.slides || [], ann.slides).filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0),
+    [state?.slides, ann, birthdaysToday],
+  );
+  const birthdayNote = React.useMemo(
+    () => (state?.roster?.birthdays?.rail === false ? null : railNote(birthdaysToday, state?.roster?.birthdays?.names)),
+    [state?.roster, birthdaysToday],
   );
   // Freeze / Blank screen (src/shared/freeze.js): while one is in force it wins over takeovers, holds
   // and countdown overlays. The one exception is the admin's 'Emergency announcements still show'
@@ -273,6 +284,9 @@ function AppContent() {
         break;
       case 'daily-words-update':
         setState(prev => prev ? { ...prev, dailyWords: data } : prev);
+        break;
+      case 'roster-update':
+        setState(prev => prev ? { ...prev, roster: data } : prev);
         break;
       case 'rss-update':
         if (data?.feedId) {
@@ -556,7 +570,7 @@ function AppContent() {
       cache={state?.cache || {}}
       settings={settings}
       customDays={state?.customDays}
-      notes={ann.notes.map(toNoteRow)}
+      notes={[...(birthdayNote ? [birthdayNote] : []), ...ann.notes.map(toNoteRow)]}
       upNext={upNext}
       session={stageNow.session}
       weather={state?.cache?.weather}
@@ -593,6 +607,7 @@ function AppContent() {
         rssCache={rssCache}
         rssFeeds={state?.rssFeeds || []}
         dailyWords={state?.dailyWords}
+        roster={state?.roster}
         dateISO={scheduleDateISO}
         portrait={isPortrait}
         portraitLayout={settings.portraitLayout || 'compact'}

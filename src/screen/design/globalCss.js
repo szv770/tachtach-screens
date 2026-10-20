@@ -46,13 +46,18 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-lively .tt-page.tt-exit   { animation: ttLiOut 300ms ease-in both; }
 .m-smooth .tt-tick, .m-lively .tt-tick { animation: ttFadeIn 280ms ease-out; }
 .tt-fadein { animation: ttFadeIn 400ms ease-out both; }
+/* Birthday slide: confetti drops in once, each name pops in once (finite, transform + opacity only; Minimal motion leaves it all still). */
+.m-smooth .tt-bd-c, .m-lively .tt-bd-c { animation: ttBdDrop 1200ms cubic-bezier(.2,.8,.3,1) both; animation-delay: var(--d, 0ms); }
+.m-smooth .tt-bd-n, .m-lively .tt-bd-n { animation: ttBdPop 700ms cubic-bezier(.2,.9,.25,1.25) both; animation-delay: calc(350ms + var(--i, 0) * 140ms); }
 @keyframes ttSmIn   { from { opacity: 0; transform: translateY(14px); } }
 @keyframes ttFadeIn { from { opacity: 0; } }
 @keyframes ttFadeOut{ to   { opacity: 0; } }
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
+@keyframes ttBdDrop { from { opacity: 0; transform: translate3d(0, -60px, 0) rotate(-40deg); } }
+@keyframes ttBdPop  { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.82); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-c, .tt-bd-n { animation: none !important; }
   .tt-root { transition: none !important; }
 }
 `;
