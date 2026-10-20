@@ -12,6 +12,7 @@ import {
   emptyItem, withDefaults, LAYOUT_LABEL,
 } from './helpers.js';
 import { findTakeoverConflicts, hasText, formatWhen, recurrenceLabel, describeTiming } from '../../../shared/announcements.js';
+import { lockScroll } from '../ui/scrollLock.js';
 
 // ── Small building blocks ───────────────────────────────────────────────────
 
@@ -243,11 +244,10 @@ export default function AnnouncementComposer({
 
   // Lock background scroll + Escape closes.
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockScroll();
     const onKey = (e) => { if (e.key === 'Escape' && !conflicts) onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+    return () => { unlock(); window.removeEventListener('keydown', onKey); };
   }, [onClose, conflicts]);
 
   const set = useCallback((path, value) => {

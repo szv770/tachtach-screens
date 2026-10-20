@@ -10,6 +10,7 @@
  * (day groups, quick block chips) in src/shared/scheduleWizardPresets.js.
  */
 import { missingEndTime } from '../../../shared/scheduleStages.js';
+import { lockScroll } from '../ui/scrollLock.js';
 import React, { useState, useMemo, useEffect } from 'react';
 import { colors, adminFonts, alpha } from '../../styles/admin-tokens.js';
 import Icon from '../ui/Icon.jsx';
@@ -301,9 +302,7 @@ export default function ScheduleWizard({
     return () => window.removeEventListener('resize', on);
   }, []);
   useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    return lockScroll();
   }, []);
 
   const checked = useMemo(() => checkPatterns(patterns), [patterns]);

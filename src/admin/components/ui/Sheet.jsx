@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { colors, adminFonts } from '../../styles/admin-tokens.js';
 import Icon from './Icon.jsx';
+import { lockScroll } from './scrollLock.js';
 
 /**
  * Bottom sheet (28px top radius, grabber, serif title). Closes on scrim tap, Escape, the X,
@@ -13,11 +14,10 @@ export default function Sheet({ open, onClose, title, children, zIndex = 1100, m
 
   useEffect(() => {
     if (!open) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockScroll();
     const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
     window.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+    return () => { unlock(); window.removeEventListener('keydown', onKey); };
   }, [open, onClose]);
 
   if (!open) return null;

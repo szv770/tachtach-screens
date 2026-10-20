@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, inputStyle, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import useIsMobile from '../hooks/useIsMobile.js';
+import { lockScroll } from './ui/scrollLock.js';
 
 /**
  * NumberField — a number input that doesn't fight the user.
@@ -137,11 +138,10 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Delete', cancelL
     const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
     document.addEventListener('keydown', onKey);
     // lock background scroll while open
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockScroll();
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
+      unlock();
     };
   }, [onCancel]);
 

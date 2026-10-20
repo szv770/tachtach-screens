@@ -7,6 +7,7 @@ import SegmentedControl from './ui/SegmentedControl.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
 import FreezeBanner from './FreezeBanner.jsx';
 import UpdateBanner from './ops/UpdateBanner.jsx';
+import { lockScroll } from './ui/scrollLock.js';
 
 export { navItems };
 
@@ -86,11 +87,10 @@ export function NewTabPreviewLink({ style, children }) {
 function PreviewDrawer({ open, onClose, children, side }) {
   useEffect(() => {
     if (!open) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    const unlock = lockScroll();
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+    return () => { unlock(); window.removeEventListener('keydown', onKey); };
   }, [open, onClose]);
   if (!open) return null;
   return (

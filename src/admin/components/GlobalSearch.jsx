@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { search, tokenize, highlight } from '../search/searchIndex.js';
 import Icon from './ui/Icon.jsx';
+import { lockScroll } from './ui/scrollLock.js';
 
 function Marked({ text, tokens }) {
   return highlight(text, tokens).map((p, i) => (p.hit
@@ -26,9 +27,7 @@ export default function GlobalSearch({ open, onClose, state, role, onRun }) {
   useEffect(() => { setCursor(0); }, [q]);
   useEffect(() => {
     if (!open) return undefined;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    return lockScroll();
   }, [open]);
   useEffect(() => {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
