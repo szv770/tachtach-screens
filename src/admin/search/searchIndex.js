@@ -43,8 +43,8 @@ export const SETTINGS_INDEX = [
   S('shows', 'Up-next card minutes', 'upcoming next schedule reminder rail', { anchor: 'look-up-next' }),
   S('shows', 'Daily study slide language and items', 'limudim chitas rambam chumash tehillim tanya hebrew english both', { anchor: 'set-daily-study-slide' }),
   S('shows', 'Hayom Yom language', 'hebrew english both', { anchor: 'set-hayom-yom-language' }),
-  S('schedule-display', 'Schedule display (full day / scroll / two columns)', 'scroll speed start timetable mode', { anchor: 'set-schedule-display' }),
-  S('schedule-display', 'Schedule language (Hebrew / English names first)', 'hebrew english language of the screen', { anchor: 'set-schedule-display', match: 'Language' }),
+  S('schedule-display', 'Schedule layout (whole day / timeline / focus / auto-rotate)', 'full day two columns scroll timeline focus rotate timetable mode', { anchor: 'set-schedule-display', match: 'Layout' }),
+  S('schedule-display', 'Schedule Hebrew names (show / English only)', 'hebrew english language names', { anchor: 'set-schedule-display', match: 'Hebrew names' }),
   S('schedule-display', 'Two schedules in one day (Track A / B)', 'dual track switch time morning afternoon', { anchor: 'set-dual-track-schedule' }),
   // Look & Settings > System
   S('security', 'Trusted devices (2-step)', 'security remember device forget totp', { anchor: 'set-security' }),

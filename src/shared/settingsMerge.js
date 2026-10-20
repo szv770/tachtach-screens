@@ -27,6 +27,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'location',          // { zip, locationId, timezone, displayName }
   'siteName',          // string: this screen's name in the admin (sidebar, Home)
   'scheduler',         // { trackA, trackBTime }
+  'scheduleGroups',    // [{ id, name, nameHe?, short? }] groups watching one screen (src/shared/scheduleGroups.js); [] = off
   'announcements',     // { archiveDays }
   'kiddushLevana',     // { enabled, startAfterDays 3|7, endRule halfway|fifteen, skipCustoms, hebrew, overrides }
   'dataSources',       // legacy, unused

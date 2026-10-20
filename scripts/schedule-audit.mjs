@@ -97,7 +97,7 @@ const probe = (page) => page.evaluate(() => {
 });
 
 const views = (ONLY || ['day', 'timeline', 'focus']);
-const times = QUICK ? [[19, 10]] : [[6, 40], [12, 30], [19, 10], [22, 50]];
+const times = QUICK ? [[6, 40], [19, 10]] : [[6, 40], [12, 30], [19, 10], [22, 50]];
 const shots = [];
 for (const canvas of ['land', 'port']) {
   for (const layout of views) {
@@ -147,7 +147,7 @@ for (const canvas of ['land', 'port']) {
           const by = Object.fromEntries(r.rows.map((x) => [x.id, x]));
           const moved = r2.rows.filter((x) => by[x.id] && (layout === 'timeline'
             ? (by[x.id].h !== x.h || by[x.id].w !== x.w)
-            : (Math.abs(by[x.id].x - x.x) > 1 || Math.abs(by[x.id].w - x.w) > 1 || (layout === 'day' && Math.abs(by[x.id].y - x.y) > 1))));
+            : (Math.abs(by[x.id].x - x.x) > 1 || Math.abs(by[x.id].w - x.w) > 1 || (layout === 'day' && !r.fit.startsWith('scroll') && Math.abs(by[x.id].y - x.y) > 1))));
           check(`${tag} no layout jump after the minute/now change`, layout === 'focus' ? true : moved.length === 0, moved.slice(0, 3).map((x) => x.id).join(','));
           const st2 = r2.rows.find((x) => x.st === 'now');
           check(`${tag} now row moved on to Maariv`, !!st2 && (layout === 'focus' || st2.id === 'f22'), JSON.stringify(st2?.id));

@@ -120,6 +120,9 @@ test('pickDayFit: bigger wins, columns and dropping Hebrew cost a little', () =>
   assert.deepEqual(pickDayFit([{ cols: 2, hebrew: true, size: 30 }, { cols: 2, hebrew: false, size: 33 }]), { cols: 2, hebrew: true, size: 30 });
   assert.deepEqual(pickDayFit([{ cols: 2, hebrew: true, size: 27 }, { cols: 2, hebrew: false, size: 34 }]), { cols: 2, hebrew: false, size: 34 });
   assert.equal(pickDayFit([{ cols: 1, size: null }]), null);
+  // ragged: more than a quarter of the rows wrap -> refused; a few wraps cost a little
+  assert.equal(pickDayFit([{ cols: 2, hebrew: false, size: 30, wraps: 12, count: 33 }]), null);
+  assert.deepEqual(pickDayFit([{ cols: 2, hebrew: false, size: 30, wraps: 8, count: 33 }, { cols: 2, hebrew: false, size: 29, wraps: 0, count: 33 }]).size, 29);
 });
 
 test('whole day: column / size selection for 12, 24, 33, 45, 60 rows (landscape panel ~990x690, portrait ~760x1120)', () => {

@@ -39,7 +39,7 @@ export function DayRow({ s, state, now, showAp, hasEnd, light, hebrew }) {
       <i aria-hidden="true" style={{ alignSelf: 'start', marginTop: '.16em', justifySelf: 'center', width: '.2em', height: '.86em', borderRadius: '.1em', background: bar }} />
       <span data-cell="name" style={{ display: 'flex', alignItems: 'baseline', gap: '.55em', minWidth: 0 }}>
         <span style={{ flex: '0 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <Bidi text={s.primary} fallback={s.primaryHe ? 'rtl' : 'ltr'} style={{ fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 600, overflowWrap: 'anywhere', letterSpacing: s.primaryHe ? 0 : '-.01em' }} />
+          <Bidi text={s.primary} fallback={s.primaryHe ? 'rtl' : 'ltr'} style={{ fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 600, letterSpacing: s.primaryHe ? 0 : '-.01em' }} />
           {s.split && <SplitTimes split={s.split} now={now} color={dim} onColor={isNow ? 'var(--fillInk)' : isPast ? 'var(--past)' : 'var(--ink)'} size=".6em" />}
         </span>
         {hebrew && s.secondary && (
@@ -69,14 +69,26 @@ export default function DayView({ items, states, now, light, portrait, hebrewMod
     const fits = () => {
       if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) return false;
       const all = el.querySelectorAll('[data-row]'); const last = all[all.length - 1];
-      return !last || last.offsetLeft + last.offsetWidth <= el.clientWidth + 1;
+      if (last && last.offsetLeft + last.offsetWidth > el.clientWidth + 1) return false;
+      // a word too long for its column must not be broken or poke out: refuse the size instead
+      for (const c of el.querySelectorAll('[data-cell=name]')) if (c.scrollWidth > c.clientWidth + 1) return false;
+      return true;
+    };
+    // rows whose name had to wrap onto a second line (ragged when there are many)
+    const wrapped = (s) => {
+      let k = 0;
+      for (const r of el.querySelectorAll('[data-row]')) if (r.offsetHeight > s * 1.13 * 1.55 + s * 0.2) k++;
+      return k;
     };
     const apply = (c, h, s) => { el.style.columnCount = String(c); el.style.setProperty('--he-on', h ? 'inline' : 'none'); el.style.fontSize = `${s}px`; };
     const tryAll = (floor) => {
       const results = [];
       for (const cols of dayColumnCandidates(n, portrait)) {
         for (const hebrew of hasHe ? [true, false] : [false]) {
-          results.push({ cols, hebrew, size: searchLargest(floor, DAY_FIT.max, (s) => { apply(cols, hebrew, s); return fits(); }) });
+          const size = searchLargest(floor, DAY_FIT.max, (s) => { apply(cols, hebrew, s); return fits(); });
+          let wraps = 0;
+          if (size != null) { apply(cols, hebrew, size); wraps = wrapped(size); }
+          results.push({ cols, hebrew, size, wraps, count: n });
         }
       }
       return pickDayFit(results);

@@ -106,11 +106,12 @@ function LaterStrip({ rows }) {
     const el = boxRef.current; if (!el) return;
     const chips = [...el.querySelectorAll('[data-chip]')];
     const more = el.querySelector('[data-more]');
+    const moreW = more ? more.offsetWidth : 300;
     if (more) more.style.display = 'none';
     chips.forEach((c) => { c.style.display = 'inline-flex'; });
     const count = (limit) => { let k = 0; for (const c of chips) { if (c.offsetLeft + c.offsetWidth <= limit + 1) k++; else break; } return k; };
     let k = count(el.clientWidth);
-    if (k < chips.length) k = count(el.clientWidth - 300); // room for "+ N more · until 11:30 PM"
+    if (k < chips.length) k = count(el.clientWidth - moreW - 40); // room for "+ N more · until 11:30 PM"
     // hand the DOM back in the state React believes it is in (it does not re-apply unchanged styles)
     chips.forEach((c, i) => { c.style.display = i < shownRef.current ? 'inline-flex' : 'none'; });
     if (more) more.style.display = '';

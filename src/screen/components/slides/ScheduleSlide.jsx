@@ -7,6 +7,7 @@ import { longTextSettings } from '../../../shared/longText.js';
 import { prefersReducedMotion } from '../../design/reader.js';
 import { SCHEDULE_VIEWS, scheduleViewSettings, rowStates, autoSlideSeconds } from '../../../shared/scheduleLayout.js';
 import { useScheduleItems } from './schedule/model.js';
+import { rowsForDisplay, sanitizeGroups, groupsOn } from '../../../shared/scheduleGroups.js';
 import DayView from './schedule/DayView.jsx';
 import TimelineView from './schedule/TimelineView.jsx';
 import FocusView from './schedule/FocusView.jsx';
@@ -28,7 +29,13 @@ export default function ScheduleSlide({ schedule, settings, slide, onRequestDura
   const { light, portrait, motion } = useDesign();
   const nowD = useNow(15000);
   const now = nowMinutes(nowD);
-  const items = useScheduleItems(schedule);
+  // groups (settings.scheduleGroups): one row per block, split times inside it; off = the entries as they are
+  const groupsKey = JSON.stringify(settings?.scheduleGroups || null);
+  const rowsFor = useMemo(() => {
+    const groups = sanitizeGroups(settings?.scheduleGroups);
+    return groupsOn(groups) ? (entries) => rowsForDisplay(entries, groups) : null;
+  }, [groupsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const items = useScheduleItems(schedule, rowsFor);
   const states = useMemo(() => rowStates(items, now), [items, now]);
   const sv = scheduleViewSettings(settings);
   const lt = longTextSettings(settings);

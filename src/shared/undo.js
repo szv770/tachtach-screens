@@ -118,7 +118,7 @@ const SETTING_NAMES = {
   theme: 'theme', customTheme: 'custom colours', themeAuto: 'automatic day/night', orientation: 'screen orientation', portraitLayout: 'portrait layout',
   clockSide: 'side rail position', visibility: 'what shows', fonts: 'fonts', fontRoles: 'fonts', announceFonts: 'message fonts', hebrewFontScale: 'text size',
   hebrewHeadingScale: 'text size', banner: 'banner', credit: 'credit line', rail: 'side rail', layout: 'layout', motion: 'motion', graphics: 'graphics',
-  zmanimLayout: 'zmanim layout', scheduleLayout: 'schedule layout', scheduleView: 'schedule view', location: 'location', siteName: 'screen name', scheduler: 'refresh times',
+  zmanimLayout: 'zmanim layout', scheduleLayout: 'schedule layout', scheduleView: 'schedule view', scheduleGroups: 'schedule groups', location: 'location', siteName: 'screen name', scheduler: 'refresh times',
   announcements: 'announcement archive', kiddushLevana: 'Kiddush Levana', language: 'language', weather: 'weather', limudimLang: 'study language',
   limudimItems: 'study items', hayomYomLang: 'Hayom Yom language', zmanimVisible: 'zmanim shown', scheduleDisplayMode: 'schedule display',
   scheduleScrollSpeed: 'schedule scrolling', scheduleScrollStart: 'schedule scrolling',

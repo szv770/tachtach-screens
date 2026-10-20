@@ -191,15 +191,21 @@ export function searchLargest(lo, hi, fits) {
   return lo;
 }
 
+/** More than this share of rows wrapping onto a second line reads as ragged: the candidate is refused. */
+export const MAX_WRAP_FRAC = 0.25;
+
 /**
- * Pick among fitted candidates [{ cols, hebrew, size }] (size null = did not fit). Bigger type wins, but
- * every extra column costs 8% (one column reads best) and dropping the Hebrew names costs 12%.
+ * Pick among fitted candidates [{ cols, hebrew, size, wraps?, count? }] (size null = did not fit). Bigger
+ * type wins, but every extra column costs 8% (one column reads best), dropping the Hebrew names costs 12%
+ * and every wrapped (two-line) row 1.2%; a candidate where over MAX_WRAP_FRAC of the rows wrap is refused.
  */
 export function pickDayFit(results) {
   let best = null, bestScore = -1;
   for (const r of results) {
     if (r.size == null) continue;
-    const score = r.size * (1 - 0.08 * (r.cols - 1)) * (r.hebrew ? 1 : 0.88);
+    const wraps = r.wraps || 0;
+    if (r.count && wraps / r.count > MAX_WRAP_FRAC) continue;
+    const score = r.size * (1 - 0.08 * (r.cols - 1)) * (r.hebrew ? 1 : 0.88) * (1 - 0.012 * wraps);
     if (score > bestScore + 1e-9) { best = r; bestScore = score; }
   }
   return best;
