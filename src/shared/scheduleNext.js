@@ -23,19 +23,25 @@ export function zonedNow(now = new Date(), tz) {
  * @returns {null | { entry, date, isToday, minutesAway, source: 'date'|'weekly', label: string }}
  *   `label` = the day's own label for a by-date schedule ("Erev Yom Kippur"), else ''.
  */
-export function nextScheduleItem(schedule, scheduleDates, now = new Date(), tz) {
+export function nextScheduleItems(schedule, scheduleDates, now = new Date(), tz, limit = 3) {
   const z = zonedNow(now, tz);
-  for (let add = 0; add < 2; add++) {
+  const out = [];
+  for (let add = 0; add < 2 && out.length < limit; add++) {
     const date = add === 0 ? z.date : addDaysISO(z.date, 1);
     const eff = getEffectiveSchedule(schedule, scheduleDates, date);
     for (const entry of eff.entries) {
       const t = minutesOf(entry.time);
       if (t == null) continue;
       if (add === 0 && t < z.minutes) continue;
-      return { entry, date, isToday: add === 0, minutesAway: add === 0 ? t - z.minutes : 1440 - z.minutes + t, source: eff.source, label: eff.label || '' };
+      out.push({ entry, date, isToday: add === 0, minutesAway: add === 0 ? t - z.minutes : 1440 - z.minutes + t, source: eff.source, label: eff.label || '' });
+      if (out.length >= limit) break;
     }
   }
-  return null;
+  return out;
+}
+
+export function nextScheduleItem(schedule, scheduleDates, now = new Date(), tz) {
+  return nextScheduleItems(schedule, scheduleDates, now, tz, 1)[0] || null;
 }
 
 /** "starting now", "in 12 min", "in 2 h 5 min", "tomorrow". */

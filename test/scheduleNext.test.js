@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { nextScheduleItem, awayLabel, zonedNow } from '../src/shared/scheduleNext.js';
+import { nextScheduleItems, nextScheduleItem, awayLabel, zonedNow } from '../src/shared/scheduleNext.js';
 
 const E = (id, time, over = {}) => ({ id, name: id, time, enabled: true, ...over });
 // 2026-10-19 is a Monday. 15:30 UTC = 11:30 in New York (EDT).
@@ -49,4 +49,10 @@ test('an item at this very minute counts as starting now; empty schedule gives n
   assert.equal(awayLabel(n), 'starting now');
   assert.equal(nextScheduleItem({ entries: [], categories: [] }, {}, NOW, TZ), null);
   assert.equal(awayLabel(null), '');
+});
+
+test('nextScheduleItems lists the next few, rolling into tomorrow', () => {
+  const l = nextScheduleItems(week, {}, NOW, TZ, 3);
+  assert.deepEqual(l.map((x) => x.entry.id), ['Mincha', 'Maariv', 'Early']);
+  assert.deepEqual(l.map((x) => x.isToday), [true, true, false]);
 });

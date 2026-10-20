@@ -3,7 +3,7 @@ import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { AREAS, firstSectionOfArea, sectionsOfArea } from '../nav.js';
 import { canOpenSection, can, effectiveCaps } from '../../shared/permissions.js';
 import { status as announcementStatus, nextChange } from '../../shared/announcements.js';
-import { nextScheduleItem, awayLabel, zonedNow } from '../../shared/scheduleNext.js';
+import { nextScheduleItems, awayLabel, zonedNow } from '../../shared/scheduleNext.js';
 import { healthHeadline, ago } from '../../shared/health.js';
 import { slideLabel, announcementTitle, formatTime12 } from '../search/labels.js';
 import { opsApi } from '../api/ops.js';
@@ -11,6 +11,7 @@ import usePolled from '../hooks/usePolled.js';
 import Icon from './ui/Icon.jsx';
 import StatusChip from './ops/StatusChip.jsx';
 import TvStatusLine from './TvStatusLine.jsx';
+import { timesFor, groupLabel, sanitizeGroups } from '../../shared/scheduleGroups.js';
 import { RoleChip } from './AdminLayout.jsx';
 import FreezeControl from './FreezeControl.jsx';
 
@@ -41,6 +42,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
   const slides = state?.slides || [];
   const anns = state?.announcements || [];
   const entries = state?.scheduleEntries || [];
+  const groups = useMemo(() => sanitizeGroups(state?.settings?.scheduleGroups), [state?.settings?.scheduleGroups]);
   const scheduleDates = state?.scheduleDates || {};
 
   const screen = usePolled(opsApi.screenStatus, 10000);
@@ -54,13 +56,14 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
     const stat = (a) => announcementStatus(a, t, { tz });
     const live = anns.filter((a) => stat(a) === 'live');
     const scheduled = anns.filter((a) => stat(a) === 'scheduled');
-    const next = nextScheduleItem({ entries, categories: state?.scheduleCategories || [] }, scheduleDates, t, tz);
+    const upcoming = nextScheduleItems({ entries, categories: state?.scheduleCategories || [] }, scheduleDates, t, tz, 3);
+    const next = upcoming[0] || null;
     // Live ones that end, and scheduled ones that start, within the next 24 hours.
     const coming = [...live, ...scheduled].map((a) => {
       const ch = nextChange(a, t, { tz });
       return ch && ch.getTime() - t.getTime() <= 24 * HOUR ? { a, at: ch, live: stat(a) === 'live' } : null;
     }).filter(Boolean).sort((x, y) => x.at - y.at).slice(0, 4);
-    return { on, live, scheduled, next, coming };
+    return { on, live, scheduled, next, upcoming, coming };
   }, [slides, anns, entries, scheduleDates, tz, state?.scheduleCategories]);
 
   const liveBy = (d) => info.live.filter((a) => a.display === d);
@@ -139,8 +142,6 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
 
           {!readOnly && (
             <div data-testid="home-actions" style={{ display: 'grid', gap: '10px', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))' }}>
-              {canPost && actionTile('home-new', 'message', 'New announcement', () => (onNew ? onNew('slide') : onGo('announcements')))}
-              {canSchedule && actionTile('home-change-tomorrow', 'calendar', 'Change tomorrow', () => onChangeDay?.('tomorrow'))}
               {canControl && actionTile('home-pause', st?.paused ? 'play' : 'pause', st?.paused ? 'Resume the screen' : 'Pause the screen', () => { onCommand?.(st?.paused ? 'resume' : 'pause'); setTimeout(screen.reload, 600); })}
               {canControl && actionTile('home-refresh', 'refresh', 'Refresh data now', () => onRefreshData?.())}
             </div>
@@ -156,7 +157,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
                 ? <StatusChip tone="live" label="Screen connected" />
                 : <StatusChip tone="off" label={lastSeen != null ? `Offline · seen ${ago(lastSeen)}` : 'Offline'} />)}
             </div>
- <div style={{ marginBottom: '4px' }}><TvStatusLine state={state} compact /></div>
+            <div style={{ marginBottom: '4px' }}><TvStatusLine state={state} compact /></div>
             {!st && screen.error && <Row icon="screen" label="Screen" text="Could not check the screen right now." />}
             {frozen && <Row icon="pause" label="Screen is" text={`Frozen (${frozen.mode})`} />}
             {st && (
@@ -172,37 +173,42 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
             <Row icon="screen" label="Rotation" text={`${info.on.slice(0, 4).map(slideLabel).join(' · ') || 'No slides on'}${info.on.length > 4 ? ` +${info.on.length - 4} more` : ''}${totalSec ? ` · about ${Math.round(totalSec / 60)} min per round` : ''}`} onClick={() => onGo('slides')} last />
           </section>
 
-          <FreezeControl me={me} />
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px', minWidth: 0 }}>
           <section data-testid="next-schedule" style={{ ...card, padding: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
               <h2 style={{ fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: '20px', margin: 0 }}>Next on the schedule</h2>
               {info.next?.source === 'date' && <StatusChip tone="warn" label={info.next.label ? `One-day: ${info.next.label}` : 'One-day schedule'} />}
             </div>
-            {info.next ? (
-              <button type="button" onClick={() => onGo('schedule')} data-testid="next-item" style={{
-                display: 'flex', alignItems: 'baseline', gap: '12px', width: '100%', minHeight: '64px', padding: '10px 0 4px', background: 'transparent', border: 'none',
-                textAlign: 'left', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', flexWrap: 'wrap',
-              }}>
-                <span style={{ fontFamily: 'var(--f-display)', fontSize: '30px', fontWeight: 600, letterSpacing: '-.01em' }}>{formatTime12(info.next.entry.time)}</span>
-                <span style={{ flex: '1 1 140px', minWidth: 0 }}>
-                  <span style={{ display: 'block', fontSize: '16px', fontWeight: 700, overflowWrap: 'anywhere' }}>{info.next.entry.name || info.next.entry.nameHe}</span>
-                  <span style={{ display: 'block', fontSize: '13px', color: colors.dim }}>{awayLabel(info.next)}{info.next.isToday ? '' : ' (nothing more today)'}</span>
-                </span>
-              </button>
-            ) : (
+            {info.upcoming.length ? info.upcoming.map((u, i) => {
+              const slots = timesFor(u.entry, groups);
+              const split = slots.length > 1 ? slots.map((x) => `${groupLabel(x.groups, groups)} ${formatTime12(x.time)}`).join(' · ') : '';
+              const big = i === 0;
+              return (
+                <button key={`${u.date}-${u.entry.id || i}`} type="button" onClick={() => onGo('schedule')} data-testid={big ? 'next-item' : 'next-item-more'} style={{
+                  display: 'flex', alignItems: 'baseline', gap: '12px', width: '100%', minHeight: big ? '64px' : '48px', padding: big ? '10px 0 8px' : '8px 0',
+                  background: 'transparent', border: 'none', borderTop: big ? 'none' : `1px solid ${colors.line}`,
+                  textAlign: 'left', color: 'inherit', cursor: 'pointer', fontFamily: 'inherit', flexWrap: 'wrap',
+                }}>
+                  <span style={{ fontFamily: 'var(--f-display)', fontSize: big ? '30px' : '18px', fontWeight: 600, letterSpacing: '-.01em', minWidth: big ? 0 : '84px' }}>{formatTime12(u.entry.time)}</span>
+                  <span style={{ flex: '1 1 140px', minWidth: 0 }}>
+                    <span style={{ display: 'block', fontSize: big ? '16px' : '15px', fontWeight: 700, overflowWrap: 'anywhere' }}>{u.entry.name || u.entry.nameHe}</span>
+                    <span style={{ display: 'block', fontSize: '13px', color: colors.dim }}>{awayLabel(u)}{u.isToday ? '' : big ? ' (nothing more today)' : ''}{split ? ` · ${split}` : ''}</span>
+                  </span>
+                </button>
+              );
+            }) : (
               <p style={{ margin: '10px 0 0', fontSize: '14px', color: colors.dim }}>Nothing more is scheduled today or tomorrow.</p>
             )}
             {canSchedule && (
               <button type="button" data-testid="next-change" onClick={() => onChangeDay?.('tomorrow')} style={{
                 marginTop: '8px', minHeight: '44px', padding: '0 16px', borderRadius: '999px', border: `1px solid ${colors.border}`, background: 'transparent',
                 color: colors.text, fontFamily: 'inherit', fontWeight: 700, fontSize: '14px', cursor: 'pointer',
-              }}>Change a day</button>
+              }}>Change tomorrow</button>
             )}
           </section>
 
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '16px', minWidth: 0 }}>
           <section data-testid="coming-up" style={{ ...card, padding: '16px' }}>
             <h2 style={{ fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: '20px', margin: '0 0 6px' }}>Coming up</h2>
             {info.coming.length === 0 && <Row icon="check" label="Next 24 hours" text="No messages start or end soon" last />}
@@ -212,6 +218,9 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
             ))}
           </section>
 
+          <FreezeControl me={me} />
+
+          {(health.data && health.data.overall !== 'ok') || (zmAge != null && zmAge > 36 * HOUR) || zmAge == null ? (
           <section data-testid="home-health" style={{ ...card, padding: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
               <h2 style={{ fontFamily: 'var(--f-display)', fontWeight: 600, fontSize: '20px', margin: 0 }}>System health</h2>
@@ -220,6 +229,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
             <Row icon="pulse" label="Overall" testid="health-line" text={health.data ? healthHeadline(health.data) : health.error ? 'Could not check' : 'Checking...'} onClick={() => onGo('health')} />
             <Row icon="clock" label="Zmanim" text={zmAge == null ? 'Never refreshed' : `Refreshed ${ago(zmAge)}`} onClick={() => onGo('health')} last />
           </section>
+          ) : null}
         </div>
       </div>
 
