@@ -34,3 +34,5 @@ data/update-status.json
 data/update-installed.json
 data/update-notified.json
 data/update-cache.git/
+data/chazan.json
+data/chazan.json.bak
