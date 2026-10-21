@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { withCacheBust } from '../../../shared/embedCheck.js';
+import QrBadge from '../QrBadge.jsx';
 
 /**
  * Web page slide: shows any website (e.g. a live fundraiser display page) in an
@@ -74,6 +75,7 @@ export default function WebPageSlide({ slide }) {
           {slow && <div style={{ fontSize: 18, maxWidth: 640 }}>It will keep trying, and loads fresh the next time this slide comes up.</div>}
         </div>
       )}
+      {slide?.qrOn && slide?.qrUrl ? <QrBadge url={slide.qrUrl} corner={slide.qrCorner} size={slide.qrSize} caption={slide.qrCaption} /> : null}
     </div>
   );
 }
