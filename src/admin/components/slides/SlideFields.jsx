@@ -6,7 +6,7 @@ import { apiFetch } from '../../hooks/useAdminState.js';
 import Collapsible from '../ui/Collapsible.jsx';
 import { Field, Choices, SwitchRow, Hint, LinkButton, fieldStyle } from '../look/kit.jsx';
 import {
-  typeInfo, LANGS, LIMUDIM_ITEMS, IMAGE_FIT, IMAGE_EDGE, PHOTO_LAYOUTS, PHOTO_ORDER, RSS_MODES, RSS_STYLES, WEB_RELOAD, WEB_ZOOM,
+  typeInfo, popupSpec, SECONDS_PRESETS, LANGS, LIMUDIM_ITEMS, IMAGE_FIT, IMAGE_EDGE, PHOTO_LAYOUTS, PHOTO_ORDER, RSS_MODES, RSS_STYLES, WEB_RELOAD, WEB_ZOOM,
 } from './slideTypes.js';
 
 const check = (on, label, onChange, testId) => (
@@ -168,19 +168,6 @@ export function TypeFields({ slide, form, go, settings }) {
       </Field>,
     );
   }
-  if (sections.includes('dailyWord')) {
-    out.push(<Hint key="dw">The words themselves live on their own page. <LinkButton onClick={() => go?.('daily-word')}>Open Daily Word</LinkButton></Hint>);
-  }
-  if (sections.includes('schedule')) {
-    out.push(
-      <div key="sc" style={{ marginTop: '16px' }}>
-        <button type="button" onClick={() => go?.('schedule')} data-testid="open-schedule" style={{ minHeight: '48px', padding: '0 18px', borderRadius: 'var(--r-sm)', border: 'none', background: colors.accent, color: '#fff', fontWeight: 800, fontFamily: adminFonts.englishBody, fontSize: '15px', cursor: 'pointer' }}>
-          Open Schedule
-        </button>
-        <Hint>The timetable, alerts and countdowns are edited on the Schedule page.</Hint>
-      </div>,
-    );
-  }
   return <>{out}</>;
 }
 
@@ -190,7 +177,7 @@ export function AdvancedFields({ slide, form }) {
   const v = form.values;
   const set = form.set;
   const items = [];
-  if (sections.includes('fullscreen') && slide.type !== 'GOOGLE_PHOTOS_SLIDE') {
+  if (popupSpec(slide.type).fullscreen) {
     items.push(<SwitchRow key="fs" on={!!v.fullscreen} onChange={() => set('fullscreen', !v.fullscreen)} label="Fullscreen" note="Hides the side rail and clock and shows this edge to edge." testId="f-fullscreen" />);
   }
   if (sections.includes('web')) {
@@ -232,18 +219,53 @@ export function AdvancedFields({ slide, form }) {
   );
 }
 
-/** Name and seconds: every slide has these. */
+const presetBtn = (on) => ({
+  minHeight: '44px', minWidth: '48px', padding: '0 12px', borderRadius: 'var(--r-sm)', fontFamily: adminFonts.englishBody, fontSize: '15px', fontWeight: 700, cursor: 'pointer',
+  border: `1.5px solid ${on ? colors.accent : colors.border}`, background: on ? colors.accent : colors.card, color: on ? '#fff' : colors.text,
+});
+const stepBtn = { ...presetBtn(false), width: '44px', padding: 0, fontSize: '20px' };
+
+/** Name, seconds and On/Off: every slide has these (messages have their own editor). */
 export function BasicFields({ slide, form }) {
   const info = typeInfo(slide.type);
+  const spec = popupSpec(slide.type);
   const v = form.values;
+  const secs = Number(v.duration);
+  const bump = (d) => form.set('duration', String(Math.min(spec.secondsMax, Math.max(spec.secondsMin, (Number.isFinite(secs) ? secs : 0) + d))));
   return (
     <>
       <Field label="Name on the slide list" htmlFor="slide-label" hint="Leave blank to use the standard name.">
-        <input id="slide-label" value={v.label} placeholder={info?.label || 'Name'} onChange={(e) => form.set('label', e.target.value)} style={fieldStyle} maxLength={80} />
+        <input id="slide-label" value={v.label} placeholder={info?.label || 'Name'} onChange={(e) => form.set('label', e.target.value)} style={fieldStyle} maxLength={80} data-testid="f-label" />
       </Field>
-      {slide.type !== 'PDF_SLIDE' && <Field label="Seconds on screen" htmlFor="slide-seconds">
-        <input id="slide-seconds" inputMode="numeric" value={v.duration} onChange={(e) => /^\d*$/.test(e.target.value) && form.set('duration', e.target.value)} style={{ ...fieldStyle, maxWidth: '120px' }} data-testid="f-duration" />
-      </Field>}
+      {spec.seconds && (
+        <Field label="Seconds on screen" htmlFor="slide-seconds" hint={spec.secondsNote}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button type="button" aria-label="Fewer seconds" onClick={() => bump(-5)} style={stepBtn} data-testid="f-duration-minus">{'\u2212'}</button>
+            <input id="slide-seconds" inputMode="numeric" value={v.duration} onChange={(e) => /^\d*$/.test(e.target.value) && form.set('duration', e.target.value)} style={{ ...fieldStyle, maxWidth: '84px', textAlign: 'center' }} data-testid="f-duration" />
+            <button type="button" aria-label="More seconds" onClick={() => bump(5)} style={stepBtn} data-testid="f-duration-plus">+</button>
+          </div>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }} role="group" aria-label="Common lengths">
+            {SECONDS_PRESETS.map((n) => <button key={n} type="button" onClick={() => form.set('duration', String(n))} style={presetBtn(secs === n)} aria-pressed={secs === n}>{n}</button>)}
+          </div>
+        </Field>
+      )}
+      <div style={{ marginTop: '12px' }}>
+        <SwitchRow on={!!v.enabled} onChange={() => form.set('enabled', !v.enabled)} label="Show this slide on the screen" note="Off keeps it in the list but skips it." testId="f-enabled" />
+      </div>
     </>
+  );
+}
+
+/** The 'More settings…' button for types that have a richer page. */
+export function MoreSettings({ slide, go }) {
+  const m = popupSpec(slide.type).moreSettings;
+  if (!m) return null;
+  return (
+    <div style={{ marginTop: '16px' }}>
+      <button type="button" onClick={() => go?.(m.section, m.tab ? { tab: m.tab } : undefined)} data-testid="slide-more"
+        style={{ minHeight: '48px', padding: '0 18px', borderRadius: 'var(--r-sm)', border: `1.5px solid ${colors.accent}`, background: colors.card, color: colors.accent, fontWeight: 800, fontFamily: adminFonts.englishBody, fontSize: '15px', cursor: 'pointer' }}>
+        More settings{'\u2026'} <span style={{ fontWeight: 600 }}>({m.label})</span>
+      </button>
+    </div>
   );
 }

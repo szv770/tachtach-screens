@@ -3,11 +3,11 @@
 // Pure, so the popup and the New-slide step 2 share it.
 import { ZMANIM_DISPLAY } from '../../../shared/constants.js';
 import { normalizeWebUrl } from '../../../shared/embedCheck.js';
-import { LIMUDIM_ITEMS, typeInfo } from './slideTypes.js';
+import { LIMUDIM_ITEMS, typeInfo, popupSpec } from './slideTypes.js';
 import { clampPageSeconds, pdfTotalSeconds, PAGE_SECONDS_MIN, PAGE_SECONDS_MAX } from '../../../shared/pdfPages.js';
 
 /** Slide fields this form may write (all are in the server's SLIDE_FIELDS whitelist). */
-export const SLIDE_KEYS = ['label', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom'];
+export const SLIDE_KEYS = ['label', 'enabled', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom'];
 
 const ALL_ZMANIM = ZMANIM_DISPLAY.map((z) => z.k);
 
@@ -18,6 +18,7 @@ export function initialValues(slide, settings = {}) {
     label: slide.label || '',
     duration: String(slide.duration || typeInfo(t)?.defaults?.duration || 15),
     fullscreen: !!slide.fullscreen,
+    enabled: slide.enabled !== false,
   };
   if (sections.includes('zmanim')) {
     const vis = settings.zmanimVisible;
@@ -63,7 +64,8 @@ export function splitValues(values, changed, slide) {
   for (const k of changed) {
     const val = values[k];
     if (k === 'label') slidePatch.label = String(val || '').trim() || undefined;
-    else if (k === 'duration') { if (slide.type !== 'PDF_SLIDE') slidePatch.duration = clampInt(val, 1, 600, 'Seconds on screen'); }
+    else if (k === 'duration') { if (slide.type !== 'PDF_SLIDE') { const sp = popupSpec(slide.type); slidePatch.duration = clampInt(val, sp.secondsMin, sp.secondsMax, 'Seconds on screen'); } }
+    else if (k === 'enabled') slidePatch.enabled = !!val;
     else if (k === 'pageSeconds') {
       const n = Math.round(Number(val));
       if (!Number.isFinite(n) || n < PAGE_SECONDS_MIN || n > PAGE_SECONDS_MAX) throw new Error(`Seconds on each page must be a number from ${PAGE_SECONDS_MIN} to ${PAGE_SECONDS_MAX}.`);

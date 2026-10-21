@@ -12,7 +12,7 @@ Look & Settings is split into small pages under `src/admin/components/look/` (Th
 
 | Area | Feature | Admin control | Status |
 |---|---|---|---|
-| Slides | Enable/disable (instant + Undo toast), reorder, label, seconds | `SlideManager` row + pencil popup (`slides/SlideEditSheet`) | OK (Phase 3A) |
+| Slides | Enable/disable (instant + Undo toast), reorder, label, seconds | `SlideManager` row + pencil popup on every slide (`slides/SlideEditSheet`, 'More settings…' to the richer page) | OK (Phase 3A; popup on every type 2026-10-21) |
 | Slides | New slide: 2 steps, cards by type | `slides/NewSlideFlow` over registry `slides/slideTypes.js` | OK (Phase 3A) |
 | Slides | Fullscreen (image/video/photos/embed/web) | Popup > Advanced | OK |
 | Slides | Zmanim visible list | Popup on Zmanim (`zmanimVisible`) | OK (PATCH) |

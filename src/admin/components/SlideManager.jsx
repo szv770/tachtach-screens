@@ -74,11 +74,8 @@ export default function SlideManager({
     if (from !== null && to !== null) move(from, to);
   };
 
-  // The pencil: most slides open their popup; Photos, News feed, Web page, Schedule and Daily Word live on their own page.
-  const openEdit = (slide) => {
-    const g = typeInfo(slide.type)?.editGo;
-    if (g) go(g.section, g.tab ? { tab: g.tab } : undefined); else setEditId(slide.id);
-  };
+  // The pencil opens the same basic popup on EVERY slide; types with a richer page get a 'More settings…' button in it.
+  const openEdit = (slide) => setEditId(slide.id);
 
   // Requests from search: open "New slide" or one slide's popup (the first slide of that type).
   useEffect(() => {
@@ -86,8 +83,6 @@ export default function SlideManager({
       if (!req || !canEdit) return;
       if (req.kind === 'new') setNewOpen(true);
       else if (req.kind === 'edit') {
-        const g = typeInfo(req.type)?.editGo;
-        if (g) { go(g.section, g.tab ? { tab: g.tab } : undefined); return; }
         const s = slidesRef.current.find((x) => x.type === req.type);
         if (s) openEdit(s); else notify('That slide is not in your list yet. Use New slide to add it.', 'error');
       }
@@ -197,7 +192,7 @@ export default function SlideManager({
                 : !canEdit && canDelete && isDeletable(slide)
                   ? <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmDelete(slide)} aria-label={`Delete ${title(slide)}`} title="Delete this slide" data-testid="slide-delete-inline">{'\u00D7'}</button>
                   : (canEdit && (
-                  <button type="button" style={iconBtn} onClick={() => openEdit(slide)} aria-label={`Edit ${title(slide)}`} title={typeInfo(slide.type)?.editGo ? 'Open its page' : "This slide's options"} data-testid="slide-pencil"><Pencil /></button>
+                  <button type="button" style={iconBtn} onClick={() => openEdit(slide)} aria-label={`Edit ${title(slide)}`} title={"This slide's options"} data-testid="slide-pencil"><Pencil /></button>
                 ))}
               {isAnn && ann && canDeleteAnn && (
                 <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(ann)} aria-label={`Delete message: ${title(slide)}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>

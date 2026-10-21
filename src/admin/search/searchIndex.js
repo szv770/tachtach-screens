@@ -67,6 +67,7 @@ export const SETTINGS_INDEX = [
   S('slides', 'Slides: turn on / off, reorder, duration', 'rotation slideshow seconds enable disable drag order', { match: 'Slides' }),
   S('slides', 'New slide (pick a type, then its options)', 'add create web page image photos album video feed message weather built-in zmanim', { slide: { kind: 'new' } }),
   // Each slide's own options: the pencil popup on its row.
+  S('slides', 'Slide name and seconds on screen (any slide, pencil)', 'rename seconds duration how long stay time on screen pencil edit slide more settings', { match: 'Slides' }),
   S('slides', 'Zmanim slide: which times to show', 'zmanim visible list hide times pencil edit slide', { slide: { kind: 'edit', type: 'ZMANIM' } }),
   S('slides', 'Study slide: language and which studies', 'limudim chitas rambam tanya hebrew english both pencil edit slide', { slide: { kind: 'edit', type: 'LIMUDIM' } }),
   S('slides', 'Hayom Yom slide: language', 'hebrew english both pencil edit slide', { slide: { kind: 'edit', type: 'HAYOM_YOM' } }),
@@ -77,6 +78,8 @@ export const SETTINGS_INDEX = [
   S('slides', 'News feed slide: item and look', 'rss classic grand sleek pencil edit slide', { slide: { kind: 'edit', type: 'RSS_SLIDE' } }),
   S('slides', 'PDF slide: seconds per page and fit', 'pdf pages document flyer upload pencil edit slide', { slide: { kind: 'edit', type: 'PDF_SLIDE' } }),
   S('slides', 'Mivtzah live screen address', 'embed mivtzah url pencil edit slide', { slide: { kind: 'edit', type: 'MIVTZAH_LIVE_EMBED' } }),
+  S('slides', 'Schedule slide: seconds on screen and name', 'timetable seder seconds duration pencil edit slide more settings', { slide: { kind: 'edit', type: 'SCHEDULE' } }),
+  S('slides', 'Daily Word slide: seconds on screen and name', 'yiddish word seconds duration pencil edit slide more settings', { slide: { kind: 'edit', type: 'DAILY_WORD' } }),
   S('images', 'Upload an image, GIF or video', 'photo picture gif media library upload file', { tab: 'library', anchor: 'media-upload' }),
   S('images', 'Best picture size for this screen (recommended resolution)', 'resolution size pixels 4k 1080p 3840 1920 portrait landscape aspect ratio safe edges', { tab: 'library', anchor: 'media-size' }),
   S('images', 'Media library: add to screen, delete an upload', 'uploaded pictures videos remove delete add slide grid', { tab: 'library', match: 'Your uploads' }),

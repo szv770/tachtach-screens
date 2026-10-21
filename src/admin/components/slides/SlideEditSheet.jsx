@@ -5,7 +5,7 @@ import useDirtyForm from '../ui/useDirtyForm.js';
 import { isAnyDirty } from '../ui/dirty.js';
 import { notify } from '../../hooks/useAdminState.js';
 import { initialValues, splitValues } from './slideForm.js';
-import { BasicFields, TypeFields, AdvancedFields } from './SlideFields.jsx';
+import { BasicFields, TypeFields, AdvancedFields, MoreSettings } from './SlideFields.jsx';
 import { typeInfo, slideTitle } from './slideTypes.js';
 
 const btn = (primary) => ({
@@ -38,6 +38,7 @@ function Body({ slide, settings, getSlides, onUpdate, onSaveSettings, onClose, o
       <p style={{ margin: '0 0 4px', fontSize: '13px', color: colors.dim, fontFamily: adminFonts.englishBody }}>{info?.desc}</p>
       <BasicFields slide={slide} form={form} />
       <TypeFields slide={slide} form={form} go={go} settings={settings} />
+      <MoreSettings slide={slide} go={go} />
       <AdvancedFields slide={slide} form={form} />
       {form.error && <div role="alert" style={{ marginTop: '12px', color: colors.danger, fontSize: '14px', fontFamily: adminFonts.englishBody }}>{form.error}</div>}
       <div style={{
