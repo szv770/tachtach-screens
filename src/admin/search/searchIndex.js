@@ -52,6 +52,7 @@ export const SETTINGS_INDEX = [
   S('health', 'Is the screen online? (last seen)', 'online offline connected tv last seen reconnect', { match: 'Screen connected' }),
   // admin-only: `needs` = the section whose access decides who sees this result (Team is admin-only)
   S('health', 'Update the screen software (Software update)', 'update upgrade new version latest code pi raspberry run update.sh roll back rollback previous version restart', { anchor: 'update-card', match: 'Software update', needs: 'team' }),
+  S('health', 'Live link (share a view-only copy of the screen)', 'live live link share screen watch view public link phone word', { anchor: 'live-card', match: 'Live link', needs: 'team' }),
   S('health', 'Disk space left', 'storage full space uploads size clear cleanup', { match: 'Disk space' }),
   S('history', 'Recent changes and Undo (who changed what)', 'history undo log activity revert restore mistake who changed deleted edited paused', { match: 'Recent changes' }),
   S('this-screen', 'Screen name', 'site name school title sidebar home', { anchor: 'look-site-name' }),
