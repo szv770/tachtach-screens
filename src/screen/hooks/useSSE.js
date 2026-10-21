@@ -55,7 +55,7 @@ export function useSSE(onEvent, onFullState, { enabled = true } = {}) {
         reconnectTimer.current = null;
       }
 
-      const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true';
+      const isPreview = new URLSearchParams(window.location.search).get('preview') === 'true' || /^\/live(\/|$)/.test(window.location.pathname);
       const streamUrl = isPreview ? '/stream?preview=true' : '/stream';
       const es = new EventSource(streamUrl);
       esRef.current = es;

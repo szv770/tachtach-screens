@@ -17,6 +17,8 @@ import { startUpdateMonitor } from './systemUpdate.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
+import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState } from './live.js';
+import { homePage, HOME_CSP } from './homePage.js';
 import { cspMiddleware } from './csp.js';
 import { publicErrorMessage } from './safeError.js';
 import scheduleDatesRouter from './routes/schedule-dates.js';
@@ -251,7 +253,8 @@ export function createApp() {
 
   // ── 6. Guard on kiosk routes — kiosk (localhost) or a logged-in admin ─
   app.use('/screen', localhostOrAuth);
-  app.use('/stream', localhostOrAuth);
+  app.use('/stream', stateGate); // kiosk, a logged-in admin, or a live-view watcher (src/server/live.js)
+  app.use(liveRouter); // public /live (type the word) and /live/:word (read-only copy of the screen)
 
   // ── 6b. SSE stream route (before static serving) ────────────────────
   app.use('/stream', screenRouter);
@@ -262,7 +265,7 @@ export function createApp() {
   // the first mutating request after opening the admin panel always failed
   // with 403 "CSRF validation failed" (the cookie was only issued by that
   // failing response), and the change appeared to silently revert.
-  app.get('/api/state', localhostOrAuth, csrfProtection, async (_req, res) => {
+  app.get('/api/state', stateGate, csrfProtection, async (req, res) => {
     try {
       const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster] = await Promise.all([
         readJSON('cache.json'),
@@ -278,7 +281,7 @@ export function createApp() {
         readDailyWords(),
         readRoster(),
       ]);
-      res.json({
+      const body = {
         cache: cache ?? {},
         settings: settings ?? {},
         slides: slides ?? [],
@@ -303,19 +306,20 @@ export function createApp() {
         screenDisplay: getScreenDisplay(),
         // Freeze / Blank screen: { active: null | { mode, message, style, until, source }, emergency }.
         freeze: freeze.getKioskView(),
-      });
+      };
+      res.json(req.liveViewer ? viewerState(body) : body); // live viewers never get student names or anything credential-like
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });
     }
   });
 
   // Kiosk: which one-time Kiddush Levana takeovers were already shown (so a refresh never repeats them).
-  app.get('/api/kiddush-levana/shown', localhostOrAuth, async (_req, res) => {
+  app.get('/api/kiddush-levana/shown', stateGate, async (_req, res) => {
     try { res.json(await readKlShown()); } catch { res.json({}); }
   });
 
   // ── 6d. Localhost-only Google Photos endpoints (kiosk needs photo data without auth) ─
-  app.get('/api/google-album/:id/photos', localhostOnly, async (req, res) => {
+  app.get('/api/google-album/:id/photos', kioskGate, async (req, res) => {
     try {
       const { getAlbumPhotos } = await import('./google-photos.js');
       const albums = (await readJSON('google-albums.json')) ?? [];
@@ -329,7 +333,7 @@ export function createApp() {
   });
 
   // ── 6e. Localhost-only RSS cache endpoint (kiosk needs RSS data without auth) ─
-  app.get('/api/rss/cache/:feedId', localhostOnly, async (req, res) => {
+  app.get('/api/rss/cache/:feedId', kioskGate, async (req, res) => {
     try {
       const { readFile: rf } = await import('fs/promises');
       // Feed ids are plain tokens; anything with a dot or slash (..%2Fusers) is refused.
@@ -474,6 +478,7 @@ export function createApp() {
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
+  app.use('/api/system/live', liveAdminRouter); // admin-only (the /api/system area): public live view on/off + its word
   app.use('/api', teamRouter);
   app.use('/api', systemUpdateRouter); // admin-only software update (writes one request file; a root unit does the work)
   app.use('/api', pushRouter);
@@ -489,6 +494,11 @@ export function createApp() {
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
+
+  // ── 9b. Public homepage: what a visitor sees at the bare address (static text, sign-in + live links only)
+  app.get('/', (_req, res) => {
+    res.set({ 'Content-Type': 'text/html; charset=utf-8', 'Content-Security-Policy': HOME_CSP, 'Cache-Control': 'no-cache', 'X-Robots-Tag': 'noindex' }).send(homePage());
+  });
 
   // ── 10. 404 handler ──────────────────────────────────────────────────
   app.use((_req, res) => {

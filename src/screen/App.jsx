@@ -86,7 +86,8 @@ function parseScheduleTime(timeStr) {
 }
 
 const _searchParams = new URLSearchParams(window.location.search);
-const _isPreview = _searchParams.get('preview') === 'true';
+// /live/<word> is the public view-only copy: it behaves exactly like the admin Live Preview (follows the TV, never reports or controls it).
+const _isPreview = _searchParams.get('preview') === 'true' || /^\/live(\/|$)/.test(window.location.pathname);
 // Live Preview 'Follow the TV' choice, remembered per browser (the admin writes it; default ON).
 function readFollowSetting() {
   try { return window.localStorage.getItem('tt.preview.follow') !== 'off'; } catch { return true; }
