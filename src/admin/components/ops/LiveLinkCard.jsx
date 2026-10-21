@@ -103,7 +103,7 @@ export default function LiveLinkCard({ me }) {
       <h2 style={{ fontFamily: 'var(--f-display)', fontSize: '20px', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Icon name="external" size={22} style={{ color: colors.dim }} />Live link
       </h2>
-      <p style={{ ...small, margin: 0, fontSize: '14px' }}>A view-only copy of the screen that anyone with the link can open on their phone or computer. Student birthdays are never shown there.</p>
+      <p style={{ ...small, margin: 0, fontSize: '14px' }}>A view-only copy of the screen that anyone with the link can open on their phone or computer. It shows exactly what the screen shows, birthday names included, so share the link with care. Changing the word cuts everyone off.</p>
 
       {!info ? (
         <div style={{ color: error ? colors.danger : colors.dim, fontSize: '14px' }} role={error ? 'alert' : undefined}>{error || 'Loading...'}</div>

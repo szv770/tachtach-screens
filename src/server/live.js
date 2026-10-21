@@ -19,7 +19,7 @@ import { buildCsp } from './csp.js';
  *  - Holding the word sets an httpOnly cookie (HMAC of the word under a server secret in
  *    data/live.json); only that cookie opens the viewer GET allow-list wired in app.js
  *    (/stream, /api/state, kiddush shown, google-album photos, rss cache). Never a write route.
- *  - /api/state is scrubbed for viewers (no roster names, no token/secret-looking keys).
+ *  - /api/state for viewers is the screen's own state minus token/secret-looking keys (birthday names ARE shown, by owner choice).
  *  - Changing the word or switching off kills every viewer's cookie at once.
  *  - Wrong words are rate-limited per IP; the word is compared in constant time.
  * Admin config: GET/PUT /api/system/live, POST /api/system/live/new-word (admins only: /api/system).
@@ -93,10 +93,12 @@ function scrub(v) {
   }
   return v;
 }
-/** What a live viewer may see of /api/state: no student names, nothing that looks like a credential. */
+/**
+ * What a live viewer gets of /api/state: exactly what the real screen gets (owner decision 2026-10-21:
+ * the live view is the same as the Pi, birthday names included), minus anything that looks like a credential.
+ */
 export function viewerState(state) {
-  const s = scrub(state);
-  return { ...s, roster: { ...(s.roster || {}), people: [] } };
+  return scrub(state);
 }
 
 // ── Pages ────────────────────────────────────────────────────────────────────

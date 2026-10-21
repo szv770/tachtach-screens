@@ -20,13 +20,13 @@ test('random live word passes its own rules and varies', () => {
   assert.ok(seen.size > 20);
 });
 
-test('viewer state never carries student names or credential-looking keys', () => {
+test('viewer state matches the screen (names included) but drops credential-looking keys', () => {
   const out = viewerState({
     roster: { people: [{ id: 'a', first: 'Dovid', last: 'Cohen' }], birthdays: { on: true } },
     settings: { banner: { mode: 'still' }, pushApiKey: 'k', nested: { webhookUrl: 'u', ok: 1 }, authToken: 't' },
     slides: [{ id: 's1', embedUrl: 'https://charidy.com/miami+' }],
   });
-  assert.deepEqual(out.roster.people, []);
+  assert.equal(out.roster.people[0].first, 'Dovid');
   assert.deepEqual(out.roster.birthdays, { on: true });
   assert.equal(out.settings.pushApiKey, undefined);
   assert.equal(out.settings.authToken, undefined);
