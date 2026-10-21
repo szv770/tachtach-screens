@@ -17,7 +17,7 @@ import { startUpdateMonitor } from './systemUpdate.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
-import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState } from './live.js';
+import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState, getTouchFlags } from './live.js';
 import { homePage, HOME_CSP } from './homePage.js';
 import { cspMiddleware } from './csp.js';
 import { publicErrorMessage } from './safeError.js';
@@ -306,6 +306,8 @@ export function createApp() {
         screenDisplay: getScreenDisplay(),
         // Freeze / Blank screen: { active: null | { mode, message, style, until, source }, emergency }.
         freeze: freeze.getKioskView(),
+        // Touch switches (admin > Health > Live link): the TV can ignore touch, live viewers can swipe/tap their own copy.
+        touch: await getTouchFlags(),
       };
       res.json(req.liveViewer ? viewerState(body) : body); // live viewers never get student names or anything credential-like
     } catch (err) {

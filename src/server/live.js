@@ -48,6 +48,9 @@ async function readConfig() {
   const raw = (await readJSON(FILE)) || {};
   const cfg = {
     enabled: raw.enabled === true,
+    // Touch: may people poke the main screen (e.g. scroll/tap the Charidy page on the TV), and may live viewers swipe/tap their own copy?
+    touchScreen: raw.touchScreen !== false,
+    touchLive: raw.touchLive !== false,
     word: typeof raw.word === 'string' ? raw.word : '',
     secret: typeof raw.secret === 'string' && raw.secret.length >= 32 ? raw.secret : '',
   };
@@ -59,7 +62,12 @@ async function readConfig() {
   return cfg;
 }
 const saveConfig = (cfg) => writeJSON(FILE, cfg);
-const view = (cfg) => ({ enabled: cfg.enabled, word: cfg.word, viewers: getViewerClientCount() });
+const view = (cfg) => ({ enabled: cfg.enabled, word: cfg.word, touchScreen: cfg.touchScreen, touchLive: cfg.touchLive, viewers: getViewerClientCount() });
+
+/** Touch switches as the screen and live viewers see them (part of /api/state as `touch`). */
+export async function getTouchFlags() {
+  try { const cfg = await readConfig(); return { screen: cfg.touchScreen, live: cfg.touchLive }; } catch { return { screen: true, live: true }; }
+}
 
 const tokenFor = (cfg) => crypto.createHmac('sha256', cfg.secret).update(`live:${cfg.word}`).digest('hex');
 function safeEq(a, b) {
@@ -155,6 +163,8 @@ liveAdminRouter.put('/', async (req, res) => {
     cfg.word = v.word;
   }
   if (body.enabled !== undefined) cfg.enabled = body.enabled === true;
+  if (body.touchScreen !== undefined) cfg.touchScreen = body.touchScreen === true;
+  if (body.touchLive !== undefined) cfg.touchLive = body.touchLive === true;
   await saveConfig(cfg);
   res.json(view(cfg));
 });

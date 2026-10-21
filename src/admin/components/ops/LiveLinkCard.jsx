@@ -147,6 +147,25 @@ export default function LiveLinkCard({ me }) {
             <button type="button" data-testid="live-new-word" disabled={busy} style={{ ...btn, opacity: busy ? 0.5 : 1 }} onClick={() => setConfirmNew(true)}>Make a new random word</button>
           </div>
           {error && <div role="alert" style={{ color: colors.danger, fontSize: '13px' }}>{error}</div>}
+          <div style={{ display: 'grid', gap: '10px', paddingTop: '12px', borderTop: `1px solid ${colors.line}` }}>
+            <div style={{ fontWeight: 800, fontSize: '15px' }}>Touch</div>
+            {[
+              ['touchLive', 'Touch on live links', 'Viewers can swipe, tap the edges, pause, jump to a slide and pinch to zoom their own copy. The real screen is never affected.'],
+              ['touchScreen', 'Touch on the main screen', 'Turn off so nobody can poke the web page (such as Charidy) on the TV itself. The five-tap staff corner still works.'],
+            ].map(([key, title, note]) => (
+              <div key={key} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <ToggleSwitch
+                  on={info[key] !== false}
+                  onChange={busy ? undefined : async () => {
+                    try { await send(API, 'PUT', { [key]: info[key] === false }); notify(`${title} is ${info[key] === false ? 'on' : 'off'}.`, 'success'); }
+                    catch (e) { notify(e.message, 'error'); }
+                  }}
+                  label={title}
+                />
+                <div><div style={{ fontWeight: 700, fontSize: '15px' }}>{title}</div><div style={small}>{note}</div></div>
+              </div>
+            ))}
+          </div>
         </>
       )}
 

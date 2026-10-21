@@ -61,6 +61,7 @@ export default function WebPageSlide({ slide }) {
         referrerPolicy="no-referrer"
         style={{
           position: 'absolute', top: 0, left: 0, border: 'none', background: '#fff',
+          pointerEvents: 'var(--tt-pe, auto)', // 'none' on the TV when "Touch on the main screen" is off (App.jsx)
           width: `${100 / scale}%`, height: `${100 / scale}%`,
           transform: scale === 1 ? undefined : `scale(${scale})`, transformOrigin: '0 0',
           opacity: loaded ? 1 : 0, transition: 'opacity .35s ease',

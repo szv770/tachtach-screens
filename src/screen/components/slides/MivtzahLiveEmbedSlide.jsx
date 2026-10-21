@@ -97,6 +97,7 @@ export default function MivtzahLiveEmbedSlide({ slide, tokens }) {
           inset: 0,
           width: '100%',
           height: '100%',
+          pointerEvents: 'var(--tt-pe, auto)',
           border: 'none',
           background: tokens.bg,
           visibility: failed ? 'hidden' : 'visible',
