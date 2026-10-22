@@ -8,6 +8,7 @@ import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
 import { readRoster } from './roster.js';
+import { normalizeTefilaTag } from '../../shared/chazan.js';
 import { readForKiosk as readChazanForKiosk } from '../chazanStore.js';
 import { forKiosk as rosterForKiosk } from '../../shared/roster.js';
 import { broadcast, broadcastToAll } from '../sse.js';
@@ -92,7 +93,7 @@ function cleanPdfFields(slide) {
 }
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'noChazan', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
-const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages', 'groupTimes', 'groups'];
+const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages', 'groupTimes', 'groups', 'tefila'];
 // `alertDisplay` is accepted only as a legacy alias (older admin builds and
 // the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
 // folds it into `countdownDisplay`, which is the only key that gets stored.
@@ -113,6 +114,11 @@ function pickScheduleEntry(e, groupIds = null) {
   }
   if ('countdownDisplay' in picked) {
     picked.countdownDisplay = picked.countdownDisplay === 'takeover' ? 'takeover' : 'slide';
+  }
+  if ('tefila' in picked) {
+    // Which davening this row is ('Shacharis' | 'Mincha' | 'Maariv' | 'other'): the chazan's name shows on it. Anything else is dropped.
+    const tf = normalizeTefilaTag(picked.tefila);
+    if (tf) picked.tefila = tf; else delete picked.tefila;
   }
   if ('stages' in picked) {
     // Attention stages (src/shared/scheduleStages.js): { justStarted, inSession }; invalid/empty is dropped.
@@ -465,6 +471,7 @@ router.put('/schedule/entries/:id', async (req, res) => {
     const cleanG = sanitizeGroupFields(req.body || {}, gids);
     if (req.body && 'groupTimes' in req.body && !cleanG.groupTimes) delete schedule.entries[idx].groupTimes;
     if (req.body && 'groups' in req.body && !cleanG.groups) delete schedule.entries[idx].groups;
+    if (req.body && 'tefila' in req.body && !normalizeTefilaTag(req.body.tefila)) delete schedule.entries[idx].tefila; // '' = back to automatic
     // Sending an empty/invalid `stages` clears the stored override (pickScheduleEntry drops it, so the merge would keep the old one).
     if (req.body && 'stages' in req.body && !sanitizeStages(req.body.stages)) delete schedule.entries[idx].stages;
     await writeJSON('schedule.json', schedule);

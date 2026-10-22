@@ -1,3 +1,4 @@
+import { fitsOnRow } from '../../../../shared/chazanView.js';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { F, Bidi } from '../../../design/ui.jsx';
 import { Fit } from '../../../design/fit.jsx';
@@ -92,6 +93,7 @@ export default function TimelineView({ items, states, now, light, portrait, moti
                   <Fit max={nameSize} min={Math.max(20, Math.round(nameSize * 0.62))} dir={s.primaryHe ? 'rtl' : 'ltr'} style={{ flex: '1 1 auto', fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 600, lineHeight: 1.2, letterSpacing: s.primaryHe ? 0 : '-.012em', textAlign: 'left', height: Math.round(nameSize * 1.25) }}>
                     {s.primary}
                   </Fit>
+                  {s.chazan && fitsOnRow(s.primary, s.chazan, portrait) && <span data-ch="" style={{ flex: 'none', fontFamily: F.en, fontSize: Math.round(nameSize * 0.62), fontWeight: 600, color: dim, whiteSpace: 'nowrap' }}>· {s.chazan}</span>}
                   {!portrait && s.secondary && <Bidi text={s.secondary} fallback="rtl" style={{ flex: 'none', fontFamily: F.heD, fontSize: `calc(${Math.round(nameSize * 0.78)}px * var(--he-scale, 1))`, fontWeight: 500, color: dim, whiteSpace: 'nowrap' }} />}
                 </div>
                 {/* portrait: the Hebrew name rides at the end of this line and simply drops out (wraps into the

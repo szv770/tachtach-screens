@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { toMinutes, fmt12, isHebrew } from '../../../design/time.js';
 import { isEntryActiveOn } from '../../../../shared/scheduleDays.js';
+import { tefilaOfEntry } from '../../../../shared/chazan.js';
 
 /**
  * Schedule rows for the three views (Whole day / Timeline / Focus), built once per schedule change.
@@ -11,7 +12,7 @@ import { isEntryActiveOn } from '../../../../shared/scheduleDays.js';
 
 export const DEFAULT_HUE = '#9AA3AE';
 
-export function useScheduleItems(schedule, rowsFor) {
+export function useScheduleItems(schedule, rowsFor, chazanNames = null) {
   return useMemo(() => {
     const cats = Object.fromEntries((schedule?.categories || []).map((c) => [c.id, c]));
     const today = new Date();
@@ -34,12 +35,13 @@ export function useScheduleItems(schedule, rowsFor) {
           secondary: en && heName ? heName : '',
           v: first.v, end: first.end, slots: sl, split: split && split.length > 1 ? split : null,
           hue: cat?.color || DEFAULT_HUE, icon: e.icon || null, catIcon: cat?.icon || null, kind: cat?.kind || 'other',
+          chazan: (chazanNames && chazanNames[tefilaOfEntry(e, schedule?.categories)]) || null, // today's chazan for a davening row
           candle: /candle|הדלקת נרות/i.test(`${e.name} ${e.nameHe}`),
         };
       })
       .filter(Boolean)
       .sort((a, b) => a.v - b.v || (a.end ?? a.v) - (b.end ?? b.v));
-  }, [schedule?.entries, schedule?.categories, schedule?.resolvedFor, rowsFor]);
+  }, [schedule?.entries, schedule?.categories, schedule?.resolvedFor, rowsFor, chazanNames]);
 }
 
 /** "7:15" (no am/pm) — the row's own column carries am/pm. */
@@ -56,7 +58,7 @@ export function catVars(s, light) {
 
 /** Stable key of the content that decides a fit (not the time of day: states never change sizes). */
 export function contentKey(items) {
-  return items.map((s) => `${s.id}|${s.primary}|${s.secondary}|${s.v}|${s.end ?? ''}|${(s.split || []).map((x) => `${x.label}${x.v}${x.end ?? ''}`).join(',')}`).join('§');
+  return items.map((s) => `${s.id}|${s.chazan || ''}|${s.primary}|${s.secondary}|${s.v}|${s.end ?? ''}|${(s.split || []).map((x) => `${x.label}${x.v}${x.end ?? ''}`).join(',')}`).join('§');
 }
 
 /** Ink strength (0-100) as a colour role: `color-mix(ink X%, transparent)`. Fading by colour, never opacity (GOTCHAS). */

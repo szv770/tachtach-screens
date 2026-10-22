@@ -7,6 +7,7 @@ import { longTextSettings } from '../../../shared/longText.js';
 import { prefersReducedMotion } from '../../design/reader.js';
 import { SCHEDULE_VIEWS, scheduleViewSettings, rowStates, autoSlideSeconds } from '../../../shared/scheduleLayout.js';
 import { useScheduleItems } from './schedule/model.js';
+import { namesByTefila } from '../../../shared/chazanView.js';
 import { rowsForDisplay, sanitizeGroups, groupsOn } from '../../../shared/scheduleGroups.js';
 import DayView from './schedule/DayView.jsx';
 import TimelineView from './schedule/TimelineView.jsx';
@@ -25,7 +26,7 @@ import FocusView from './schedule/FocusView.jsx';
 
 const VIEW_CSS = '@keyframes ttSchedIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}';
 
-export default function ScheduleSlide({ schedule, settings, slide, onRequestDuration }) {
+export default function ScheduleSlide({ schedule, settings, slide, onRequestDuration, chazan, customDays, dateISO }) {
   const { light, portrait, motion } = useDesign();
   const nowD = useNow(15000);
   const now = nowMinutes(nowD);
@@ -35,7 +36,9 @@ export default function ScheduleSlide({ schedule, settings, slide, onRequestDura
     const groups = sanitizeGroups(settings?.scheduleGroups);
     return groupsOn(groups) ? (entries) => rowsForDisplay(entries, groups) : null;
   }, [groupsKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const items = useScheduleItems(schedule, rowsFor);
+  // the chazan's name on each davening row (Settings > Chazan > 'Show chazan names on the schedule')
+  const chazanNames = useMemo(() => namesByTefila(chazan, dateISO, customDays), [chazan, dateISO, customDays]);
+  const items = useScheduleItems(schedule, rowsFor, chazanNames);
   const states = useMemo(() => rowStates(items, now), [items, now]);
   const sv = scheduleViewSettings(settings);
   const lt = longTextSettings(settings);

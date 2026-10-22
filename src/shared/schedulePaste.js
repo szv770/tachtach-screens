@@ -24,6 +24,7 @@
  *   { "2026-10-17": { "label": "", "entries": [ { "time": "09:30", ... } ] },
  *     "2026-10-24": null }          ← null / {"clear": true} = clear
  */
+import { normalizeTefilaTag } from './chazan.js';
 import {
   isISODate, weekdayOfISO, upcomingWeekdayISO, addDaysISO, minutesOf, sortEntriesByTime, WEEKDAY_LONG,
 } from './scheduleResolution.js';
@@ -202,7 +203,7 @@ export function newCategoryId(categories, name) {
 
 // ── Options ────────────────────────────────────────────────────────────────
 
-const OPTION_STARTERS = new Set(['alert', 'takeover', 'slide', 'icon', 'off', 'disabled', 'hidden', 'started', 'badge', 'nobadge', 'kind']);
+const OPTION_STARTERS = new Set(['alert', 'takeover', 'slide', 'icon', 'off', 'disabled', 'hidden', 'started', 'badge', 'nobadge', 'kind', 'tefila']);
 function isOptionField(field, ctx) {
   const first = String(field || '').trim().split(/\s+/)[0]?.toLowerCase() || '';
   if (OPTION_STARTERS.has(first) || /^alert\d+$/.test(first)) return true;
@@ -253,6 +254,13 @@ function parseOptions(fields, warn, err) {
       i++;
       if (isKind(k)) opts.kind = k;
       else warn(`Unknown kind "${tokens[i] ?? ''}" — ignored. Kinds: ${KINDS.join(', ')}.`);
+    } else if (t === 'tefila') {
+      // "tefila Mincha" = this row is the Mincha davening (shows the chazan's name); "tefila other" = not a davening
+      const v = String(tokens[i + 1] || '').toLowerCase().replace(/[,;]+$/, '');
+      i++;
+      const tag = normalizeTefilaTag(v === 'other' ? 'other' : v.charAt(0).toUpperCase() + v.slice(1));
+      if (tag) opts.tefila = tag;
+      else warn(`Unknown tefila "${tokens[i] ?? ''}" — ignored. Use Shacharis, Mincha, Maariv or other.`);
     } else if (t === 'off' || t === 'disabled' || t === 'hidden') {
       opts.enabled = false;
     } else {
@@ -379,6 +387,7 @@ export function parseEntryLine(line, ctx) {
       countdownDisplay: opts.countdownDisplay || 'slide',
       enabled: opts.enabled !== false,
       icon: opts.icon || '',
+      ...(opts.tefila ? { tefila: opts.tefila } : {}),
       ...(stages ? { stages } : {}),
       ...(gx.groupTimes ? { groupTimes: gx.groupTimes } : {}),
       ...(gx.groups ? { groups: gx.groups } : {}),
@@ -772,6 +781,8 @@ export function normalizeEntryInput(e, ctx = { categories: [], newCats: new Map(
     alertBefore: alert, countdownDisplay: display, enabled: e.enabled !== false, icon,
   };
   if (typeof e.id === 'string' && e.id.length <= 64) entry.id = e.id;
+  const tefilaTag = normalizeTefilaTag(e.tefila);
+  if (tefilaTag) entry.tefila = tefilaTag;
   const stages = sanitizeStages(e.stages);
   if (stages) entry.stages = stages;
   if (gf.groupTimes) entry.groupTimes = gf.groupTimes;
@@ -796,6 +807,7 @@ export function formatEntryLine(e, categories, groups = null) {
   if (e.alertBefore > 0) opts.push(`alert ${e.alertBefore}${(e.countdownDisplay || e.alertDisplay) === 'takeover' ? ' takeover' : ''}`);
   else if (Number(findCategory(categories, e.category)?.defaultAlert) > 0) opts.push('alert 0'); // keep an explicit "no alert" through a round trip
   if (e.icon) opts.push(`icon ${e.icon}`);
+  if (normalizeTefilaTag(e.tefila)) opts.push(`tefila ${e.tefila}`);
   const st = sanitizeStages(e.stages);
   if (st?.justStarted !== undefined) opts.push(`started ${st.justStarted}`);
   if (st?.inSession !== undefined) opts.push(st.inSession ? 'badge' : 'nobadge');

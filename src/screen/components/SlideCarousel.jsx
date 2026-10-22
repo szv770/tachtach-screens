@@ -10,6 +10,7 @@ import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import BirthdaysSlide from './slides/BirthdaysSlide.jsx';
+import ChazanSlide from './slides/ChazanSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
 import VideoSlide from './slides/VideoSlide.jsx';
 import GooglePhotosSlide from './slides/GooglePhotosSlide.jsx';
@@ -58,7 +59,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dateISO, roster,
+  dailyWords, dateISO, roster, chazan, customDays,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -82,6 +83,7 @@ export default function SlideCarousel({
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'BIRTHDAYS': return <BirthdaysSlide roster={roster} dateISO={dateISO} />;
+      case 'CHAZAN': return <ChazanSlide chazan={chazan} dateISO={dateISO} customDays={customDays} schedule={schedule} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'PDF_SLIDE': return <PdfSlide slide={slide} tokens={tokens} onRequestDuration={onRequestDuration} />;
@@ -96,7 +98,7 @@ export default function SlideCarousel({
       case 'MIVTZAH_LEADERBOARD': return <MivtzahLeaderboardSlide cache={cache} tokens={tokens} />;
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
       case 'WEB_PAGE': return <WebPageSlide slide={slide} />;
-      case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} slide={slide} onRequestDuration={onRequestDuration} />;
+      case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} slide={slide} onRequestDuration={onRequestDuration} chazan={chazan} customDays={customDays} dateISO={dateISO} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
       case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} onRequestDuration={onRequestDuration} />;
       default: return null;

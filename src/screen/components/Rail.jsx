@@ -109,6 +109,7 @@ export function UpNextCard({ item, align = 'left' }) {
         <div style={{ fontFamily: F.en, fontSize: 23, opacity: 0.8, marginTop: 2 }}>
           {nameHe && nameEn ? <><Bidi text={nameEn} />{' at '}</> : 'at '}<span className="tt-num">{t.t}</span>
         </div>
+        {item.chazan && item.chazan.length <= 20 && <div data-upnext-chazan="" style={{ fontFamily: F.en, fontSize: 22, fontWeight: 600, opacity: 0.85, marginTop: 2, overflowWrap: 'anywhere' }}>Chazan: {item.chazan}</div>}
       </div>
       {align !== 'right' && eta}
     </div>

@@ -137,6 +137,12 @@ function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCa
         <button type="button" aria-expanded={catOpen} onClick={() => setCatOpen((o) => !o)} style={chip(!!cat, cat?.color)}>
           <Dot color={cat?.color} /> {cat ? cat.name : 'Category'} <span aria-hidden="true" style={{ fontSize: '10px' }}>{catOpen ? '▴' : '▾'}</span>
         </button>
+        {cat?.kind === 'davening' && (
+          <select aria-label={`Block ${index + 1} is which davening`} value={block.extra?.tefila || ''} style={{ ...chip(false), minHeight: '44px' }}
+            onChange={(e) => { const extra = { ...(block.extra || {}) }; if (e.target.value) extra.tefila = e.target.value; else delete extra.tefila; onChange({ extra }); }}>
+            <option value="">This is: automatic</option><option value="Shacharis">This is: Shacharis</option><option value="Mincha">This is: Mincha</option><option value="Maariv">This is: Maariv</option><option value="other">This is: not a davening</option>
+          </select>
+        )}
         {!heOpen && <button type="button" onClick={() => setHeOpen(true)} style={{ ...chip(false), color: colors.dim }}>+ Hebrew name</button>}
         {(block.endTime || block.time) && (
           <button type="button" data-testid="add-next" onClick={onAddNext} style={{ ...chip(false), color: colors.gold }}>+ Next block at {formatTime12(nextStartAfter(block))}</button>

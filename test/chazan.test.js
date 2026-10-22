@@ -335,3 +335,70 @@ test('cover prefers somebody who has not already led earlier the same day', () =
   const a = assignments(st, SUN, SUN)[0].slots.map((s) => s.id);
   assert.deepEqual(a, ['p001', 'p005', 'p003']);
 });
+
+import { daysModel, focusTefila, tefilaTimes, railNote as chazanRailNote, namesByTefila, fitsOnRow } from '../src/shared/chazanView.js';
+import { toMinutes } from '../src/screen/design/time.js';
+
+const kview = (st, extra = {}) => ({ ...st, names: Object.fromEntries(ids(5).map((id, i) => [id, { first: `Fake${i + 1}`, last: `Name${i + 1}` }])), ...extra });
+
+test('view model: three days, titles, off days, names from the roster at read time', () => {
+  const st = kview(mk(5));
+  const d = daysModel(st, '2026-11-05', [], 3); // Thu, Fri, Shabbos
+  assert.deepEqual(d.map((x) => x.title), ['Today', 'Tomorrow', 'Shabbos']);
+  assert.equal(d[0].slots.length, 3);
+  assert.equal(d[1].slots.length, 1);          // Friday: Shacharis only
+  assert.equal(d[2].slots.length, 0);
+  assert.equal(d[2].off, 'Shabbos');
+  assert.match(d[0].slots[0].name, /^Fake\d Name\d$/);
+  const short = daysModel({ ...st, settings: { ...st.settings, names: 'short' } }, SUN, [], 1);
+  assert.match(short[0].slots[0].name, /^Fake\d N\.$/);
+});
+
+test('focus: the running davening, else the next; none when all are over', () => {
+  const slots = [{ tefila: 'Shacharis' }, { tefila: 'Mincha' }, { tefila: 'Maariv' }];
+  const times = { Shacharis: { start: 450, end: 510 }, Mincha: { start: 14 * 60 + 15, end: null }, Maariv: { start: 20 * 60, end: 20 * 60 + 20 } };
+  assert.equal(focusTefila(slots, times, 8 * 60), 'Shacharis');
+  assert.equal(focusTefila(slots, times, 9 * 60), 'Mincha');
+  assert.equal(focusTefila(slots, times, 14 * 60 + 30), 'Mincha');   // no end: 45 min
+  assert.equal(focusTefila(slots, times, 15 * 60), 'Maariv');
+  assert.equal(focusTefila(slots, times, 20 * 60 + 30), null);
+  assert.equal(focusTefila([{ tefila: 'Mincha' }], {}, 13 * 60), 'Mincha'); // no schedule times: clock fallback
+});
+
+test('rail card appears railMinutes before the davening and goes when it starts', () => {
+  const st = kview(mk(5));
+  const entries = [{ name: 'Mincha', time: '2:15 PM', category: 'c1' }, { name: 'Shacharis', time: '7:30 AM', category: 'c1' }];
+  const times = tefilaTimes(entries, [{ id: 'c1', kind: 'davening' }], toMinutes);
+  assert.deepEqual(times.Mincha, { start: 14 * 60 + 15, end: null });
+  const at = (m) => chazanRailNote(st, SUN, m, times, []);
+  assert.equal(at(14 * 60 + 15 - 46), null);
+  assert.match(at(14 * 60 + 15 - 45).textEn, /^Mincha chazan: Fake\d Name\d$/);
+  assert.match(at(14 * 60).textEn, /^Mincha chazan/);
+  assert.equal(at(14 * 60 + 15), null);
+  assert.equal(chazanRailNote({ ...st, settings: { ...st.settings, rail: false } }, SUN, 14 * 60, times, []), null);
+  // a day with no chazan, or a swapped-out name: no card for the wrong person
+  assert.equal(chazanRailNote(st, '2026-11-07', 14 * 60, times, []), null);
+});
+
+test('schedule names honour the setting and fit budget', () => {
+  const st = kview(mk(5));
+  assert.ok(namesByTefila(st, SUN, []).Mincha);
+  assert.equal(namesByTefila({ ...st, settings: { ...st.settings, showOnSchedule: false } }, SUN, []), null);
+  assert.equal(fitsOnRow('Mincha', 'Moshe C.', false), true);
+  assert.equal(fitsOnRow('Mincha with a very long title indeed', 'Moshe Cohen-Goldberg', false), false);
+});
+
+import { parseScheduleText, formatEntryLine, normalizeEntryInput } from '../src/shared/schedulePaste.js';
+test('schedule paste format: "| tefila Mincha" round-trips, junk is ignored with a warning', () => {
+  const cats = [{ id: 'davening', name: 'Davening', kind: 'davening' }];
+  const r = parseScheduleText('# TachTach schedule v1\n@ 2026-10-16 Fri\n2:15 PM | Hodu session | | Davening | tefila Mincha\n3:00 PM | Study | | Davening | tefila other\n4:00 PM | X | | Davening | tefila banana', { categories: cats, today: '2026-10-14' });
+  const e = r.days?.[0]?.entries || r.entries || [];
+  assert.equal(e[0].tefila, 'Mincha');
+  assert.equal(e[1].tefila, 'other');
+  assert.equal(e[2].tefila, undefined);
+  assert.ok(JSON.stringify(r).includes('Unknown tefila'));
+  assert.match(formatEntryLine({ name: 'Hodu session', time: '14:15', category: 'davening', tefila: 'Mincha' }, cats), /\| tefila Mincha$/);
+  const n = normalizeEntryInput({ name: 'A', time: '14:15', category: 'davening', tefila: 'Mincha' }, { categories: cats });
+  assert.equal(n.entry.tefila, 'Mincha');
+  assert.equal(normalizeEntryInput({ name: 'A', time: '14:15', category: 'davening', tefila: 'zzz' }, { categories: cats }).entry.tefila, undefined);
+});

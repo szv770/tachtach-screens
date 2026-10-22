@@ -1,3 +1,4 @@
+import { fitsOnRow } from '../../../../shared/chazanView.js';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { F, Bidi, he as heSize } from '../../../design/ui.jsx';
 import { Fit } from '../../../design/fit.jsx';
@@ -53,6 +54,7 @@ function Hero({ s, role, now, running, portrait }) {
       <Fit max={nameMax} min={34} dir={s.primaryHe ? 'rtl' : 'ltr'} style={{ height: Math.round(nameMax * 1.22), marginTop: 4, fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 650, letterSpacing: s.primaryHe ? 0 : '-.02em', lineHeight: 1.18, textAlign: 'left' }}>
         {s.primary}
       </Fit>
+      {s.chazan && <div data-ch="" style={{ fontFamily: F.en, fontSize: 32, fontWeight: 650, color: dim, lineHeight: 1.25, overflowWrap: 'anywhere' }}>Chazan: {s.chazan}</div>}
       {s.secondary && <Bidi as="div" text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontSize: heSize(34), fontWeight: 500, color: dim, textAlign: 'left', lineHeight: 1.25 }} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 12 }}>
         <span className="tt-num" style={{ fontSize: portrait ? 38 : 42, fontWeight: 650, letterSpacing: '-.03em', whiteSpace: 'nowrap', lineHeight: 1 }}>
@@ -86,6 +88,7 @@ function UpRow({ s, state, size, timeW, now, first, hidden, portrait }) {
           <Bidi text={s.primary} fallback={s.primaryHe ? 'rtl' : 'ltr'} style={{ fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 600, letterSpacing: s.primaryHe ? 0 : '-.012em', overflowWrap: 'anywhere' }} />
           {s.split && <SplitTimes split={s.split} now={now} size=".72em" />}
         </span>
+        {s.chazan && fitsOnRow(s.primary, s.chazan, false) && <span data-ch="" style={{ flex: 'none', fontSize: '.72em', fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>· {s.chazan}</span>}
         {s.end != null && !s.split && <span className="tt-num" style={{ flex: 'none', fontSize: '.72em', fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>to {hm(s.end)}</span>}
         <span style={{ marginLeft: 'auto', flex: 'none', display: 'flex', alignItems: 'baseline', gap: '.7em' }}>
           {s.secondary && !(s.split && portrait) && <Bidi text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontWeight: 500, fontSize: 'calc(.8em * var(--he-scale, 1))', color: 'var(--inkDim)', whiteSpace: 'nowrap' }} />}

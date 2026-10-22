@@ -22,6 +22,8 @@ import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
 import { getEffectiveSchedule, toISODate, addDaysISO } from '../shared/scheduleResolution.js';
 import { birthdaysFor } from '../shared/roster.js';
 import { railNote } from '../shared/birthdayCopy.js';
+import { tefilaOfEntry } from '../shared/chazan.js';
+import { daysModel as chazanDays, tefilaTimes as chazanTimes, railNote as chazanRailNote, namesByTefila as chazanNamesFor } from '../shared/chazanView.js';
 import { computeStageNow } from '../shared/stageNow.js';
 import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
@@ -137,9 +139,16 @@ function AppContent() {
     () => birthdaysFor(state?.roster?.people, scheduleDateISO, state?.roster?.birthdays).today,
     [state?.roster, scheduleDateISO],
   );
+  // Chazan rotation: the page is in the rotation only while today or the next 2 days have a davening with a chazan.
+  const chazanHasSomething = React.useMemo(
+    () => chazanDays(state?.chazan, scheduleDateISO, state?.customDays, 3).some((d) => d.slots.length > 0),
+    [state?.chazan, state?.customDays, scheduleDateISO],
+  );
   const allSlides = React.useMemo(
-    () => buildRotation(state?.slides || [], ann.slides).filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0),
-    [state?.slides, ann, birthdaysToday],
+    () => buildRotation(state?.slides || [], ann.slides)
+      .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
+      .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething],
   );
   const birthdayNote = React.useMemo(
     () => (state?.roster?.birthdays?.rail === false ? null : railNote(birthdaysToday, state?.roster?.birthdays?.names)),
@@ -300,6 +309,9 @@ function AppContent() {
         break;
       case 'daily-words-update':
         setState(prev => prev ? { ...prev, dailyWords: data } : prev);
+        break;
+      case 'chazan-update':
+        setState(prev => prev ? { ...prev, chazan: data } : prev);
         break;
       case 'roster-update':
         setState(prev => prev ? { ...prev, roster: data } : prev);
@@ -558,7 +570,8 @@ function AppContent() {
       const left = next.v - nowM;
       const secsLeft = Math.max(0, next.v * 60 - (nowM * 60 + nowDate.getSeconds()));
       upNext = {
-        name: next.e.name, nameHe: next.e.nameHe, startMins: next.v, minsLeft: left, secsLeft,
+        name: next.e.name, nameHe: next.e.nameHe, startMins: next.v,
+        chazan: chazanNamesFor(state?.chazan, scheduleDateISO, state?.customDays)?.[tefilaOfEntry(next.e, effectiveSchedule.categories)] || null, minsLeft: left, secsLeft,
         // live countdown option (rail.upNextCountdown): the ring then follows seconds too
         fraction: settings.rail?.upNextCountdown ? 1 - secsLeft / (upNextWindow * 60) : 1 - left / upNextWindow,
         countdown: !!settings.rail?.upNextCountdown,
@@ -580,13 +593,20 @@ function AppContent() {
     });
   }
 
+  // Rail card 'Mincha chazan: Moshe' from railMinutes before that davening until it starts. Only when the rail has room
+  // (no up-next card, and at most one other side note); never on a takeover.
+  const chazanTimesToday = chazanTimes(effectiveSchedule.entries, effectiveSchedule.categories, toMinutes); // cheap: no hook after the freeze early return
+  const chazanNote = (!upNext && !takeover && ann.notes.length + (birthdayNote ? 1 : 0) < 2)
+    ? chazanRailNote(state?.chazan, scheduleDateISO, nowDate.getHours() * 60 + nowDate.getMinutes(), chazanTimesToday, state?.customDays)
+    : null;
+
   const rail = (
     <Rail
       clock={clock}
       cache={state?.cache || {}}
       settings={settings}
       customDays={state?.customDays}
-      notes={[...(birthdayNote ? [birthdayNote] : []), ...ann.notes.map(toNoteRow)]}
+      notes={[...(birthdayNote ? [birthdayNote] : []), ...(chazanNote ? [chazanNote] : []), ...ann.notes.map(toNoteRow)]}
       upNext={upNext}
       session={stageNow.session}
       weather={state?.cache?.weather}
@@ -624,6 +644,8 @@ function AppContent() {
         rssFeeds={state?.rssFeeds || []}
         dailyWords={state?.dailyWords}
         roster={state?.roster}
+        chazan={state?.chazan}
+        customDays={state?.customDays}
         dateISO={scheduleDateISO}
         portrait={isPortrait}
         portraitLayout={settings.portraitLayout || 'compact'}

@@ -24,7 +24,7 @@ const toForm = (entry, dayIdx, defaultDays) => ({
   name: entry?.name || '', nameHe: entry?.nameHe || '', time: entry?.time || '', endTime: entry?.endTime || '',
   category: entry?.category || '', days: entry ? entryDayIdx(entry) : (defaultDays || [0, 1, 2, 3, 4]),
   alertBefore: Number(entry?.alertBefore) || 0, countdownDisplay: entry?.countdownDisplay === 'takeover' ? 'takeover' : 'slide',
-  enabled: entry ? entry.enabled !== false : true, icon: entry?.icon || '', stages: sanitizeStages(entry?.stages),
+  enabled: entry ? entry.enabled !== false : true, icon: entry?.icon || '', tefila: entry?.tefila || '', stages: sanitizeStages(entry?.stages),
   groupTimes: entry?.groupTimes ? JSON.parse(JSON.stringify(entry.groupTimes)) : {}, groups: Array.isArray(entry?.groups) ? [...entry.groups] : [],
   scope: 'all', dayIdx,
 });
@@ -51,7 +51,7 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
     onSave({
       name: f.name.trim(), nameHe: f.nameHe.trim(), time: f.time, endTime: f.endTime || '', category: f.category || '',
       days: f.days.map((i) => DAY_CODES[i]), alertBefore: f.alertBefore, countdownDisplay: f.countdownDisplay,
-      enabled: f.enabled, icon: f.icon || '', stages: f.stages || {},
+      enabled: f.enabled, icon: f.icon || '', tefila: f.tefila || '', stages: f.stages || {},
       ...(hasGroups || entry?.groupTimes || entry?.groups ? { groupTimes: hasGroups ? f.groupTimes : {}, groups: hasGroups ? f.groups : [] } : {}),
     }, { onlyDay: multi && f.scope === 'this' ? dayIdx : null });
   };
@@ -90,6 +90,10 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
           </label>
           <IconPicker value={f.icon} onChange={(icon) => set({ icon })} label="Icon (optional)" />
         </div>
+        <Field label="This is (so the chazan's name can show on it)">
+          <SegmentedControl fill ariaLabel="Which davening" value={f.tefila || 'auto'} onChange={(v) => set({ tefila: v === 'auto' ? '' : v })}
+            options={[{ value: 'auto', label: 'Automatic' }, { value: 'Shacharis', label: 'Shacharis' }, { value: 'Mincha', label: 'Mincha' }, { value: 'Maariv', label: 'Maariv' }, { value: 'other', label: 'Other' }]} />
+        </Field>
         <AttentionStages id="block-attention-stages" mode="entry" entry={{ ...entry, endTime: f.endTime }} category={cat}
           stages={f.stages} onStages={(stages) => set({ stages })}
           lead={f.alertBefore} onLead={(n) => set({ alertBefore: n })}
