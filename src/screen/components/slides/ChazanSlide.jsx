@@ -32,12 +32,12 @@ function TodayCard({ tefila, slot, focus, hebrew, portrait }) {
       boxShadow: focus ? '0 10px 30px color-mix(in srgb, var(--fill) 28%, transparent)' : 'none',
       flex: portrait ? '1 1 0' : '1 1 0',
     }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 16, flex: 'none', color: focus ? 'color-mix(in srgb, var(--fillInk) 78%, transparent)' : 'var(--inkDim)' }}>
-        <span style={{ fontFamily: F.en, fontSize: portrait ? 28 : 30, fontWeight: 750, letterSpacing: '.12em', textTransform: 'uppercase' }}>{tefila}</span>
-        {hebrew && <span dir="rtl" className="tt-he" style={{ fontFamily: F.he, fontSize: heSize(portrait ? 30 : 32), fontWeight: 600 }}>{TEFILA_HE[tefila]}</span>}
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', columnGap: 14, flex: 'none', minWidth: 0, color: focus ? 'color-mix(in srgb, var(--fillInk) 78%, transparent)' : 'var(--inkDim)' }}>
+        <span style={{ fontFamily: F.en, fontSize: portrait ? 28 : 24, fontWeight: 750, letterSpacing: '.05em', textTransform: 'uppercase' }}>{tefila}</span>
+        {hebrew && <span dir="rtl" className="tt-he" style={{ fontFamily: F.he, fontSize: heSize(portrait ? 30 : 26), fontWeight: 600 }}>{TEFILA_HE[tefila]}</span>}
       </div>
       {on && name ? (
-        <Fit wrap vcenter max={portrait ? 120 : 132} min={28} dir={textDir(name, 'ltr')} style={{ flex: 1, minHeight: 0, width: '100%', lineHeight: 1.1, fontFamily: nameFont(name), fontWeight: 800, letterSpacing: '-.015em', textAlign: 'left', overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>
+        <Fit wrap vcenter max={portrait ? 112 : 104} min={26} dir={textDir(name, 'ltr')} style={{ flex: 1, minHeight: 0, width: '100%', lineHeight: 1.1, fontFamily: nameFont(name), fontWeight: 800, letterSpacing: '-.015em', textAlign: 'left', unicodeBidi: 'isolate' }}>
           {name}
         </Fit>
       ) : (
@@ -63,7 +63,7 @@ function DayRows({ day, hebrew, portrait }) {
               <span style={{ fontFamily: F.en, fontSize: '.62em', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--inkDim)', whiteSpace: 'nowrap' }}>
                 {s.tefila}{hebrew && <span dir="rtl" className="tt-he" style={{ fontFamily: F.he, fontSize: '1.05em', letterSpacing: 0, textTransform: 'none', marginLeft: '.5em' }}>{TEFILA_HE[s.tefila]}</span>}
               </span>
-              <span dir={textDir(s.name || '', 'ltr')} style={{ fontFamily: nameFont(s.name || ''), fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>
+              <span dir={textDir(s.name || '', 'ltr')} style={{ fontFamily: nameFont(s.name || ''), fontWeight: 700, color: 'var(--ink)', unicodeBidi: 'isolate' }}>
                 {s.name ? bidiNodes(s.name) : <span style={{ color: 'var(--inkDim)', fontWeight: 600 }}>to be picked</span>}
               </span>
             </React.Fragment>
