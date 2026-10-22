@@ -49,7 +49,18 @@ export default function ChazanSettings({ settings: s, canEdit, onChange }) {
       <label style={sw}><span>Yom Tov days<span style={{ ...small, display: 'block' }}>Off: no chazan from the list on Yom Tov. A day marked “No chazan” in Custom days is always skipped.</span></span>
         <ToggleSwitch on={s.yomTov} onChange={() => canEdit && onChange({ yomTov: !s.yomTov })} label="Yom Tov days" /></label>
       <div>
-        <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>When someone is swapped out (or away on his turn)</div>
+        <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>Names already on the screen stay put</div>
+        <SegmentedControl ariaLabel="Protected days" value={s.lockDays} onChange={(v) => canEdit && onChange({ lockDays: v })}
+          options={[{ value: 0, label: 'Off' }, ...[1, 2, 3, 5, 7].map((v) => ({ value: v, label: `${v} day${v === 1 ? '' : 's'}` }))]} />
+        <div style={{ ...small, marginTop: '6px' }} data-testid="lock-explain">
+          {s.lockDays > 0
+            ? `Once a name has been on the screen for the next ${s.lockDays} day${s.lockDays === 1 ? '' : 's'}, it won’t move. If someone is away or you swap a davening in those days, only that one davening changes (the person furthest from his turn covers) and nobody else is moved.`
+            : 'Off: any change (the order, away dates, a swap) can move the names on the screen right away.'}
+        </div>
+      </div>
+      <div>
+        <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>When someone is swapped out or away (days not on the screen yet)</div>
+        <div style={{ ...small, marginBottom: '6px' }}>These choices only apply to days after the protected ones, where nobody has seen a name yet and shifting is harmless.</div>
         {FILL_RULES.map((r) => (
           <label key={r} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '8px 0', minHeight: '44px', cursor: canEdit ? 'pointer' : 'default' }}>
             <input type="radio" name="fill" checked={s.fill === r} onChange={() => canEdit && onChange({ fill: r })} style={{ width: 22, height: 22, marginTop: 2 }} />

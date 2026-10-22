@@ -20,6 +20,9 @@
  *   - swapped by the owner:  P leads, goes to the back; D is "displaced" (see the fill rule).
  *   - D is here:             D leads, goes to the back.
  *   - D is away:             the fill rule decides (below).
+ * PUBLISHED slots (today + the next `lockDays` days, frozen the first time they are worked out) never move; an absence or swap
+ * there changes ONLY that slot, covered by the furthest person (rule a), whatever the fill rule is. The fill rule below
+ * only works on days not published yet, where shifting is harmless.
  * Fill rule ("When someone is swapped out" and when an away person was due):
  *   furthest     (a) the person furthest from his turn (back of the queue) covers; D's turn counts as taken (D to the
  *                    back), so nobody who saw he is next is moved.
@@ -34,10 +37,10 @@ export const TEFILOS = Object.freeze(['Shacharis', 'Mincha', 'Maariv']);
 export const TEFILA_HE = Object.freeze({ Shacharis: 'שחרית', Mincha: 'מנחה', Maariv: 'מעריב' });
 export const FILL_RULES = Object.freeze(['furthest', 'manual', 'displacedNext', 'skip']);
 export const FILL_RULE_INFO = Object.freeze({
-  furthest: { label: 'Fill with the person furthest from his turn', hint: 'The person who went most recently covers. Nobody who knows he is next gets moved.' },
-  manual: { label: 'I pick someone every time', hint: 'The davening shows "Pick someone" until you choose.' },
-  displacedNext: { label: 'He goes at the next davening', hint: 'The person swapped out keeps his turn and goes next; everyone after him shifts one later.' },
-  skip: { label: 'Just skip him', hint: 'He waits for the next round and everyone after him shifts up.' },
+  furthest: { label: 'The person furthest from his turn covers', hint: 'Example: Dovid is out, so Moshe, who went most recently, covers. Everyone else keeps their turn.' },
+  manual: { label: 'I pick someone every time', hint: 'Nobody is filled in for you: the davening shows "Pick someone" until you choose.' },
+  displacedNext: { label: 'He does the next davening that is not on the screen yet', hint: 'Example: Dovid is out, so the next person steps in for now and Dovid goes at the very next davening not shown yet; everyone after him shifts one later.' },
+  skip: { label: 'Skip him for this turn', hint: 'Example: Dovid is out, so he goes to the back of the line and everyone after him moves up one.' },
 });
 export const LIMITS = Object.freeze({ order: 300, ranges: 20, overrideDays: 500, historyDays: 400, maxSkipDays: 800 });
 export const DAY_NAMES = Object.freeze(['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Shabbos']);
@@ -69,6 +72,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   roshChodesh: true,     // run on Rosh Chodesh days
   yomTov: false,         // run on Yom Tov days
   fill: 'furthest',
+  lockDays: 2,           // today + the next N days are published and never move (0 = off)
   names: 'full',         // 'full' | 'short' (first + last initial), same as the birthday setting
   hebrewLabels: true,    // show שחרית / מנחה / מעריב beside the English
   showOnSchedule: true,  // chazan name on the davening rows of the schedule
@@ -84,12 +88,14 @@ export function normalizeSettings(s) {
     return Object.fromEntries(TEFILOS.map((t) => [t, row[t] === true]));
   });
   const rm = parseInt(o.railMinutes, 10);
+  const ld = parseInt(o.lockDays, 10);
   return {
     grid,
     shabbos: o.shabbos === true,
     roshChodesh: o.roshChodesh !== false,
     yomTov: o.yomTov === true,
     fill: FILL_RULES.includes(o.fill) ? o.fill : DEFAULT_SETTINGS.fill,
+    lockDays: Number.isFinite(ld) ? Math.min(7, Math.max(0, ld)) : DEFAULT_SETTINGS.lockDays,
     names: o.names === 'short' ? 'short' : 'full',
     hebrewLabels: o.hebrewLabels !== false,
     showOnSchedule: o.showOnSchedule !== false,
@@ -230,8 +236,28 @@ function normalizeHistory(h, todayISO) {
   return out;
 }
 
+const HOWS = ['rotation', 'swap', 'cover', 'pick', 'none'];
+/** Published slots: { date: { tefila: { id|null, how, displacedId? } } }. Ids may be of people who have since left (their slot gets a cover). */
+function normalizePublished(p, fromISO) {
+  const out = {};
+  if (!p || typeof p !== 'object') return out;
+  for (const date of Object.keys(p).slice(0, 40)) {
+    if (!isISO(date) || (fromISO && date < fromISO) || !p[date] || typeof p[date] !== 'object') continue;
+    for (const t of TEFILOS) {
+      const r = p[date][t];
+      if (!r || typeof r !== 'object') continue;
+      const id = typeof r.id === 'string' && ID.test(r.id) ? r.id : null;
+      const how = HOWS.includes(r.how) ? r.how : 'rotation';
+      const rec = { id, how };
+      if (typeof r.displacedId === 'string' && ID.test(r.displacedId)) rec.displacedId = r.displacedId;
+      (out[date] ||= {})[t] = rec;
+    }
+  }
+  return out;
+}
+
 export const emptyState = (todayISO) => ({
-  version: 1, settings: normalizeSettings(), order: [], queue: [], cursor: todayISO || '', away: {}, can: {}, overrides: {}, history: {},
+  version: 1, settings: normalizeSettings(), order: [], queue: [], cursor: todayISO || '', away: {}, can: {}, overrides: {}, published: {}, history: {},
 });
 
 /** Any stored value → a clean state. `todayISO` is used to give a never-started rotation its cursor. */
@@ -248,6 +274,7 @@ export function normalizeState(file, todayISO) {
     away: normalizeAway(f.away, order),
     can: normalizeCan(f.can, order),
     overrides: normalizeOverrides(f.overrides, order, cursor || undefined),
+    published: normalizePublished(f.published, cursor || undefined),
     history: normalizeHistory(f.history, todayISO || cursor),
   };
 }
@@ -301,15 +328,11 @@ export function swapSuggestion(state, queue, due, iso, tefila, led = new Set()) 
 }
 
 /**
- * One davening. Mutates `queue`. Returns { id, how, displacedId?, due? }.
+ * One davening that is NOT published yet (nobody has seen it): the fill rule applies, shifting is harmless.
+ * Mutates `queue`. Returns { id, how, displacedId? }.
  * how: 'rotation' | 'swap' | 'cover' (an away person's place filled by the rule) | 'pick' (nobody yet, owner must pick) | 'none'.
  */
-function walkSlot(state, queue, iso, tefila, led = new Set()) {
-  const r = walkSlotInner(state, queue, iso, tefila, led);
-  if (r.id) led.add(r.id);
-  return r;
-}
-function walkSlotInner(state, queue, iso, tefila, led) {
+function walkFree(state, queue, iso, tefila, led) {
   const rule = state.settings.fill;
   const D = queue.find((id) => canLead(state, id, tefila));
   if (!D) return { id: null, how: 'none' };
@@ -331,45 +354,98 @@ function walkSlotInner(state, queue, iso, tefila, led) {
   return { id: cover, how: 'cover', displacedId: D };
 }
 
+/**
+ * One davening that is already PUBLISHED (shown on the screen): it never moves because the order, settings or other
+ * people changed. Only when ITS person can no longer lead (marked away, left the roster) is THIS ONE slot covered by the
+ * person furthest from his turn, whatever the fill rule says. Mutates `queue`.
+ */
+function walkLocked(state, queue, iso, tefila, led, pub) {
+  let rec = { ...pub };
+  // a swap picked by hand is a conscious override: it stands even if that person is marked away (only someone who LEFT is covered)
+  const bad = rec.id && (!queue.includes(rec.id) || (rec.how !== 'swap' && (isAway(state, rec.id, iso) || !canLead(state, rec.id, tefila))));
+  if (bad) {
+    const R = coverBy(state, queue, rec.id, iso, tefila, 'furthest', led);
+    rec = R ? { id: R, how: 'cover', displacedId: rec.id } : { id: null, how: 'none', displacedId: rec.id };
+  }
+  if (rec.id && queue.includes(rec.id)) toBack(queue, rec.id);
+  if (rec.displacedId && rec.how !== 'rotation' && queue.includes(rec.displacedId)) toBack(queue, rec.displacedId);
+  return rec;
+}
+
+function walkSlot(state, queue, iso, tefila, led = new Set()) {
+  const pub = state.published?.[iso]?.[tefila];
+  const r = pub ? { ...walkLocked(state, queue, iso, tefila, led, pub), locked: true } : walkFree(state, queue, iso, tefila, led);
+  if (r.id) led.add(r.id);
+  return r;
+}
+
+/** The davenings of a day: a published day keeps the davenings it was published with; otherwise the grid decides. */
+function dayTefilas(state, iso, customDays) {
+  const grid = tefilosOn(state.settings, iso, customDays);
+  const pubDay = state.published?.[iso];
+  if (!pubDay) return grid;
+  const list = TEFILOS.filter((t) => grid.list.includes(t) || t in pubDay);
+  return { list, why: list.length ? '' : grid.why };
+}
+
 function walkDay(state, queue, iso, customDays) {
-  const { list, why } = tefilosOn(state.settings, iso, customDays);
+  const { list, why } = dayTefilas(state, iso, customDays);
   const slots = {};
   const led = new Set();
   for (const t of list) slots[t] = walkSlot(state, queue, iso, t, led);
   return { slots, off: why };
 }
 
+const recOf = (s) => ({ id: s.id, how: s.how, ...(s.displacedId ? { displacedId: s.displacedId } : {}) });
+
 /**
- * Move the cursor to `todayISO`, freezing every day in between into history. Returns a new state (same object when
- * nothing to do). Settings changes made later never touch what is frozen here.
+ * Bring the state up to `todayISO`: finished days are frozen into `history`; today and the next `lockDays` days are
+ * PUBLISHED (frozen the first time they are worked out, so what the screen showed never moves again); a published
+ * slot whose person is away / gone is covered (that slot only). Returns a new state (same object when nothing changed).
+ * lockDays 0 = no protection: nothing is published and every day from today on is worked out afresh.
+ * The store calls this on EVERY read and before AND after every change.
  */
-export function rollover(state, todayISO, customDays = []) {
+export function settle(state, todayISO, customDays = []) {
   if (!isISO(todayISO)) return state;
-  if (!state.cursor) return { ...state, cursor: todayISO };
-  if (state.cursor >= todayISO) return state;
-  const queue = [...state.queue];
+  const T = state.cursor && state.cursor > todayISO ? state.cursor : todayISO;
+  const lock = state.settings.lockDays || 0;
+  const cursor = state.cursor || T;
+  const published = lock > 0 ? JSON.parse(JSON.stringify(state.published || {})) : {};
+  const overrides = JSON.parse(JSON.stringify(state.overrides || {}));
   const history = { ...state.history };
-  let d = state.cursor;
-  const gap = daysBetween(d, todayISO);
-  // A very long gap (box off for ages): only the last stretch is worth keeping, but the queue still moves.
-  for (let i = 0; d < todayISO && i < LIMITS.maxSkipDays; i++, d = addDays(d, 1)) {
-    const { slots } = walkDay(state, queue, d, customDays);
-    if (gap - i <= LIMITS.historyDays) {
-      const rec = {};
-      for (const [t, s] of Object.entries(slots)) rec[t] = s.id;
-      if (Object.keys(rec).length) history[d] = rec;
+  const queue = [...state.queue];
+  let snap = cursor === T ? [...queue] : null;
+  const end = lock > 0 ? addDays(T, lock) : addDays(T, -1);
+  const cur = { ...state, published, overrides };
+  const gap = daysBetween(cursor, T);
+  for (let d = cursor, i = 0; d <= end && i < LIMITS.maxSkipDays; d = addDays(d, 1), i++) {
+    if (d === T) snap = [...queue];
+    const { slots } = walkDay(cur, queue, d, customDays);
+    const keys = Object.keys(slots);
+    if (d < T) {
+      if (gap - i <= LIMITS.historyDays && keys.length) history[d] = Object.fromEntries(keys.map((t) => [t, slots[t].id]));
+      delete published[d];
+    } else if (lock > 0) {
+      // only names that really were worked out are published: an empty slot (nobody available / 'Pick someone') stays open
+      const named = keys.filter((t) => slots[t].id);
+      if (named.length) published[d] = Object.fromEntries(named.map((t) => [t, recOf(slots[t])])); else delete published[d];
+      if (overrides[d]) { for (const t of named) delete overrides[d][t]; if (!Object.keys(overrides[d]).length) delete overrides[d]; } // now part of the published slot
     }
   }
-  const floor = addDays(todayISO, -LIMITS.historyDays);
+  const floor = addDays(T, -LIMITS.historyDays);
   for (const k of Object.keys(history)) if (k < floor) delete history[k];
-  const overrides = Object.fromEntries(Object.entries(state.overrides || {}).filter(([k]) => k >= todayISO));
-  return { ...state, queue, cursor: todayISO, history, overrides };
+  for (const k of Object.keys(overrides)) if (k < T) delete overrides[k];
+  for (const k of Object.keys(published)) if (k < T) delete published[k];
+  const next = { ...state, queue: snap || queue, cursor: T, history, published, overrides };
+  return JSON.stringify(next) === JSON.stringify(state) ? state : next;
 }
+export const rollover = settle;
 
 /**
  * The assignments for each date in [fromISO, toISO]:
- *   [{ date, dow, off: '' | 'Shabbos' | ..., slots: [{ tefila, id|null, how, displacedId? }] }]
- * Dates before the cursor come from history (never recomputed); the rest are worked out from the cursor.
+ *   [{ date, dow, off: '' | 'Shabbos' | ..., past, slots: [{ tefila, id|null, how, displacedId?, locked? }] }]
+ * Dates before the cursor come from history (never recomputed); published slots are used as published; the rest are
+ * worked out from the cursor.
  */
 export function assignments(state, fromISO, toISO, customDays = []) {
   const out = [];
@@ -405,31 +481,35 @@ export function slotFor(state, iso, tefila, customDays = []) {
 }
 
 /**
- * For the swap sheet: who is due for date + tefila, who the fill rule suggests, and everybody who could cover, best first
- * (furthest from his turn first). Ignores any swap already made for that slot.
+ * For the swap sheet: who is due for date + tefila, who would cover, and everybody who could, best first (furthest from
+ * his turn first). `locked` = the slot is already published: then a swap changes only this one slot and the suggestion
+ * is always the furthest person, whatever the fill rule says. Ignores a swap not yet published for that slot.
  */
 export function swapOptions(state, iso, tefila, customDays = []) {
   const s = { ...state, overrides: { ...state.overrides, [iso]: { ...(state.overrides?.[iso] || {}) } } };
   delete s.overrides[iso][tefila];
   const cursor = s.cursor || iso;
-  if (iso < cursor) return { due: null, suggest: null, candidates: [] };
+  if (iso < cursor) return { due: null, suggest: null, candidates: [], locked: false, rule: s.settings.fill };
   const queue = [...s.queue];
   for (let d = cursor; d <= iso; d = addDays(d, 1)) {
-    const { list } = tefilosOn(s.settings, d, customDays);
+    const { list } = dayTefilas(s, d, customDays);
     const led = new Set();
     for (const t of list) {
       if (d === iso && t === tefila) {
-        const due = queue.find((id) => canLead(s, id, t)) || null;
+        const pub = s.published?.[iso]?.[tefila];
+        const due = pub ? (pub.how === 'rotation' ? pub.id : (pub.displacedId || pub.id)) : (queue.find((id) => canLead(s, id, t)) || null);
         const ok = (id) => id !== due && !isAway(s, id, iso) && canLead(s, id, t);
         const back = [];
         for (let i = queue.length - 1; i >= 0; i--) if (ok(queue[i])) back.push(queue[i]);
         const candidates = [...back.filter((id) => !led.has(id)), ...back.filter((id) => led.has(id))];
-        return { due, suggest: due ? swapSuggestion(s, queue, due, iso, t, led) : null, candidates };
+        const rule = pub ? 'furthest' : s.settings.fill;
+        const fake = { ...s, settings: { ...s.settings, fill: rule } };
+        return { due, current: pub?.id ?? null, locked: !!pub, rule, suggest: due ? swapSuggestion(fake, queue, due, iso, t, led) : null, candidates };
       }
       walkSlot(s, queue, d, t, led);
     }
   }
-  return { due: null, suggest: null, candidates: [] };
+  return { due: null, suggest: null, candidates: [], locked: false, rule: s.settings.fill };
 }
 
 /** Next in line / furthest from his turn, right now. */
@@ -456,11 +536,27 @@ export function setOrder(state, order, nextId = null) {
   return normalizeState({ ...state, order: clean, queue }, state.cursor);
 }
 
+/**
+ * Swap who leads one davening. On a PUBLISHED slot this rewrites only that slot (a conscious override: any person); on a
+ * davening not shown yet it is a swap the fill rule then works around.
+ */
 export function setSwap(state, date, tefila, personId) {
+  const pub = state.published?.[date]?.[tefila];
+  if (pub) {
+    const orig = pub.how === 'rotation' ? pub.id : (pub.displacedId || pub.id);
+    const published = { ...state.published, [date]: { ...state.published[date], [tefila]: personId === orig ? { id: orig, how: 'rotation' } : { id: personId, how: 'swap', ...(orig ? { displacedId: orig } : {}) } } };
+    return normalizeState({ ...state, published }, state.cursor);
+  }
   const o = { ...state.overrides, [date]: { ...(state.overrides[date] || {}), [tefila]: personId } };
   return normalizeState({ ...state, overrides: o }, state.cursor);
 }
 export function clearSwap(state, date, tefila) {
+  const pub = state.published?.[date]?.[tefila];
+  if (pub && pub.how !== 'rotation') {
+    const orig = pub.displacedId || null;
+    const published = { ...state.published, [date]: { ...state.published[date], [tefila]: orig ? { id: orig, how: 'rotation' } : pub } };
+    return normalizeState({ ...state, published }, state.cursor);
+  }
   const o = { ...state.overrides, [date]: { ...(state.overrides[date] || {}) } };
   delete o[date][tefila];
   if (!Object.keys(o[date]).length) delete o[date];
@@ -546,6 +642,6 @@ export function forKiosk(state, roster, todayISO) {
   const names = Object.fromEntries(ids.filter((id) => byId.has(id)).map((id) => { const p = byId.get(id); return [id, { first: p.first, last: p.last, ...(p.he ? { he: p.he } : {}) }]; }));
   return {
     settings: state.settings, order: state.order, queue: state.queue, cursor: state.cursor,
-    away: state.away, can: state.can, overrides: state.overrides, history, names,
+    away: state.away, can: state.can, overrides: state.overrides, published: state.published || {}, history, names,
   };
 }

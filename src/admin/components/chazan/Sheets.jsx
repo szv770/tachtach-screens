@@ -29,6 +29,7 @@ export function SwapSheet({ target, name, roster, order, onPick, onClose }) {
       {!opts && <div style={small}>Working it out…</div>}
       {opts && (
         <>
+          {opts.locked && <div style={{ ...small, marginBottom: '8px' }} data-testid="swap-locked-note">This name is already on the screen, so only this one davening changes. Nobody else moves.</div>}
           {opts.suggest ? (
             <div style={{ border: `1px solid ${colors.gold || colors.accent}`, borderRadius: 'var(--r-md)', padding: '12px', marginBottom: '8px' }}>
               <div style={{ ...small, fontWeight: 700, color: colors.text }}>Suggested</div>

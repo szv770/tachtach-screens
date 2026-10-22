@@ -3,7 +3,7 @@ import { colors, adminFonts, buttonPrimary, buttonSecondary } from '../../styles
 import { card, h3, small, chip, tefilaLabel, prettyDate, dayTitle } from './shared.js';
 
 /** Today / Tomorrow / the day after: who leads each davening, with a one-tap Swap. */
-export function DayCard({ day, today, name, hebrew, canEdit, onSwap, onUndoSwap }) {
+export function DayCard({ day, today, name, hebrew, canEdit, onSwap, onUndoSwap, isAwayOn = () => false, inLine = () => true }) {
   const title = dayTitle(day.date, today);
   return (
     <div style={{ ...card, marginBottom: '12px' }} data-testid={`chazan-day-${day.date}`}>
@@ -18,7 +18,7 @@ export function DayCard({ day, today, name, hebrew, canEdit, onSwap, onUndoSwap 
           <div style={{ flex: 1, minWidth: '120px', fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text }}>
             {s.id ? name(s.id) : <span style={{ color: colors.dim, fontWeight: 600 }}>{s.how === 'pick' ? 'Pick someone' : 'Nobody available'}</span>}
             {s.how === 'swap' && <span style={{ ...chip, marginLeft: '8px' }}>Swapped{s.displacedId ? ` for ${name(s.displacedId)}` : ''}</span>}
-            {s.how === 'cover' && <span style={{ ...chip, marginLeft: '8px' }}>Covering for {name(s.displacedId)} (away)</span>}
+            {s.how === 'cover' && <span data-testid="cover-note" style={{ ...chip, marginLeft: '8px' }}>{inLine(s.displacedId) ? `Covering for ${name(s.displacedId)}${isAwayOn(s.displacedId, day.date) ? ' — away' : ''}` : 'Covering for someone who left'}</span>}
           </div>
           {canEdit && !day.past && (
             <div style={{ display: 'flex', gap: '8px' }}>

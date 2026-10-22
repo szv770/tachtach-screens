@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {
   normalizeState, normalizeSettings, emptyState, assignments, rollover, setOrder, setSwap, clearSwap, setAway, setBack, setCan,
   swapOptions, lineUp, tefilosOn, applyPreset, matchPreset, tefilaOfEntry, customDayOn, isRoshChodesh, isYomTov, forKiosk,
-  reconcile, addDays, dowOf, nameOf, TEFILOS,
+  reconcile, addDays, dowOf, nameOf, TEFILOS, settle,
 } from '../src/shared/chazan.js';
 
 const ids = (n) => Array.from({ length: n }, (_, i) => `p00${i + 1}`);
 // Sunday 2026-11-01 (a plain week: no Yom Tov, Rosh Chodesh Kislev is 2026-11-11/12 -> avoid by toggling where it matters)
 const SUN = '2026-11-01';
-const mk = (n, extra = {}) => normalizeState({ ...emptyState(SUN), order: ids(n), ...extra }, SUN);
+const mk = (n, extra = {}) => normalizeState({ ...emptyState(SUN), order: ids(n), ...extra, settings: { lockDays: 0, ...(extra.settings || {}) } }, SUN);
 const flat = (days) => days.flatMap((d) => d.slots.map((s) => `${d.date}:${s.tefila[0]}=${s.id}`));
 const seq = (st, from, to) => assignments(st, from, to).flatMap((d) => d.slots.map((s) => s.id));
 const noRC = (st) => ({ ...st, settings: { ...st.settings, roshChodesh: true, yomTov: true } });
@@ -401,4 +401,178 @@ test('schedule paste format: "| tefila Mincha" round-trips, junk is ignored with
   const n = normalizeEntryInput({ name: 'A', time: '14:15', category: 'davening', tefila: 'Mincha' }, { categories: cats });
   assert.equal(n.entry.tefila, 'Mincha');
   assert.equal(normalizeEntryInput({ name: 'A', time: '14:15', category: 'davening', tefila: 'zzz' }, { categories: cats }).entry.tefila, undefined);
+});
+
+
+// ── Stability: published (locked) window ─────────────────────────────────────
+const mkL = (n, settings = {}) => settle(normalizeState({ ...emptyState(SUN), order: ids(n), settings: { lockDays: 2, ...settings } }, SUN), SUN);
+const win = (st, from = SUN, n = 3) => assignments(st, from, addDays(from, n - 1)).map((d) => d.slots.map((x) => `${x.tefila.slice(0, 3)}=${x.id}`).join(','));
+const after = (st, fn, today = SUN) => settle(normalizeState(fn(st), today), today);
+const slotAt = (st, date, t) => assignments(st, date, date)[0].slots.find((x) => x.tefila === t);
+
+test('the first compute publishes today + lockDays; nothing beyond; default lockDays is 2, range 0-7', () => {
+  const st = mkL(9);
+  assert.deepEqual(Object.keys(st.published), [SUN, addDays(SUN, 1), addDays(SUN, 2)]);
+  assert.equal(normalizeSettings({}).lockDays, 2);
+  assert.equal(normalizeSettings({ lockDays: 99 }).lockDays, 7);
+  assert.equal(normalizeSettings({ lockDays: -3 }).lockDays, 0);
+  assert.equal(settle(st, SUN), st, 'settling again changes nothing');
+});
+
+test('published slots never change when someone is marked away, the order is edited, or settings change', () => {
+  const st = mkL(9);
+  const before = win(st);
+  let s2 = after(st, (x) => setOrder(x, [...x.order].reverse()));
+  assert.deepEqual(win(s2), before);
+  s2 = after(s2, (x) => ({ ...x, settings: normalizeSettings({ ...x.settings, fill: 'skip', ...{ grid: applyPreset(x.settings, 'everything').grid }, shabbos: true }) }));
+  assert.deepEqual(win(s2), before);
+  s2 = after(s2, (x) => setOrder(x, [...x.order, 'p010']));
+  assert.deepEqual(win(s2), before);
+  // beyond the window the new order DOES apply
+  assert.notDeepEqual(win(s2, addDays(SUN, 3), 2), win(st, addDays(SUN, 3), 2));
+});
+
+test('an away person who is already published gets a cover on his slots only', () => {
+  const st = mkL(9);                                     // Sun p1 p2 p3 | Mon p4 p5 p6 | Tue p7 p8 p9
+  const before = win(st);
+  const s2 = after(st, (x) => setAway(x, 'p005', addDays(SUN, 1), addDays(SUN, 1)));
+  const a = win(s2);
+  const diff = before.flatMap((d, i) => d.split(',').map((x, k) => [i, k, x, a[i].split(',')[k]])).filter((r) => r[2] !== r[3]);
+  assert.equal(diff.length, 1, JSON.stringify(diff));
+  const c = slotAt(s2, addDays(SUN, 1), 'Mincha');
+  assert.equal(c.how, 'cover'); assert.equal(c.displacedId, 'p005'); assert.ok(c.id && c.id !== 'p005');
+  assert.equal(c.locked, true);
+  // the cover is stable: more edits do not move it
+  const s3 = after(s2, (x) => setOrder(x, [...x.order].reverse()));
+  assert.equal(slotAt(s3, addDays(SUN, 1), 'Mincha').id, c.id);
+  // and it is the furthest person who has not led that day (never an away or same-day leader)
+  assert.ok(!['p004', 'p006'].includes(c.id));
+});
+
+test('the cover rule is "furthest" even when the chosen fill rule shifts people', () => {
+  for (const fill of ['manual', 'displacedNext', 'skip', 'furthest']) {
+    const st = mkL(9, { fill });
+    const s2 = after(st, (x) => setAway(x, 'p002', SUN, SUN));
+    const c = slotAt(s2, SUN, 'Mincha');
+    assert.equal(c.how, 'cover', fill);
+    assert.equal(c.id, 'p009', fill);                    // the end of the line, not the next in line
+    assert.deepEqual(win(s2, addDays(SUN, 1), 2), win(st, addDays(SUN, 1), 2), `${fill}: nobody else's published slot moves`);
+  }
+});
+
+test('a person removed from the roster: only his own published slot is covered, with a note', () => {
+  const st = mkL(9);
+  const before = win(st);
+  const s2 = after(st, (x) => reconcile(x, ids(9).filter((id) => id !== 'p008')));
+  const a = win(s2);
+  const diff = before.flatMap((d, i) => d.split(',').map((x, k) => [x, a[i].split(',')[k]])).filter((r) => r[0] !== r[1]);
+  assert.equal(diff.length, 1);
+  const c = slotAt(s2, addDays(SUN, 2), 'Mincha');
+  assert.equal(c.how, 'cover'); assert.equal(c.displacedId, 'p008');
+  assert.ok(!s2.order.includes('p008'));
+});
+
+test('shifting rules (manual / displacedNext / skip) apply only beyond the locked window', () => {
+  const W3 = addDays(SUN, 3);                            // Wed: first day not published
+  const base = mkL(9);
+  const inWin = win(base);
+  // away only on Wed (beyond the window): the chosen rule applies
+  const outcome = (fill) => {
+    const st = settle(normalizeState({ ...emptyState(SUN), order: ids(9), settings: { lockDays: 2, fill } }, SUN), SUN);
+    const s2 = after(st, (x) => setAway(x, 'p001', W3, W3));
+    assert.deepEqual(win(s2), inWin, `${fill}: window untouched`);
+    return slotAt(s2, W3, 'Shacharis');
+  };
+  assert.equal(outcome('furthest').how, 'cover');
+  assert.equal(outcome('skip').id, 'p002');              // next in line steps up, he is skipped
+  assert.equal(outcome('displacedNext').id, 'p002');     // steps up now; p001 keeps his place for his return
+  assert.equal(outcome('manual').how, 'pick');
+  // displacedNext: he leads the very next davening he is here for (Thu), skip: he waits a round
+  const dn = after(mkL(9, { fill: 'displacedNext' }), (x) => setAway(x, 'p001', W3, W3));
+  assert.equal(slotAt(dn, addDays(SUN, 4), 'Shacharis').id, 'p001');
+  const sk = after(mkL(9, { fill: 'skip' }), (x) => setAway(x, 'p001', W3, W3));
+  assert.notEqual(slotAt(sk, addDays(SUN, 4), 'Shacharis').id, 'p001');
+});
+
+test('manual swap of a published slot changes only that slot, any person allowed, and Undo restores it', () => {
+  const st = mkL(9);
+  const before = win(st);
+  const s2 = after(st, (x) => setSwap(x, addDays(SUN, 1), 'Shacharis', 'p009'));
+  const c = slotAt(s2, addDays(SUN, 1), 'Shacharis');
+  assert.equal(c.id, 'p009'); assert.equal(c.how, 'swap'); assert.equal(c.displacedId, 'p004');
+  const a = win(s2);
+  assert.equal(before.flatMap((d) => d.split(',')).filter((x, i) => x !== a.flatMap((d) => d.split(','))[i]).length, 1);
+  const s3 = after(s2, (x) => clearSwap(x, addDays(SUN, 1), 'Shacharis'));
+  assert.deepEqual(win(s3), before);
+  // an away person can still be chosen by hand (a conscious override)
+  const s4 = after(after(st, (x) => setAway(x, 'p009', SUN, addDays(SUN, 5))), (x) => setSwap(x, SUN, 'Mincha', 'p009'));
+  assert.equal(slotAt(s4, SUN, 'Mincha').id, 'p009');
+});
+
+test('swap options on a published slot always suggest the furthest person (rule a); beyond the window the rule applies', () => {
+  const st = mkL(9, { fill: 'skip' });
+  const pubOpt = swapOptions(st, SUN, 'Mincha');
+  assert.equal(pubOpt.locked, true); assert.equal(pubOpt.rule, 'furthest'); assert.equal(pubOpt.suggest, 'p009');
+  const free = swapOptions(st, addDays(SUN, 4), 'Mincha');
+  assert.equal(free.locked, false); assert.equal(free.rule, 'skip');
+});
+
+test('lockDays 0 behaves like before: nothing published, every change shifts immediately', () => {
+  const st = settle(normalizeState({ ...emptyState(SUN), order: ids(5), settings: { lockDays: 0 } }, SUN), SUN);
+  assert.deepEqual(st.published, {});
+  const s2 = after(st, (x) => setAway(x, 'p002', SUN, SUN));
+  assert.equal(slotAt(s2, SUN, 'Mincha').how, 'cover');
+  const s3 = after(st, (x) => setOrder(x, [...x.order].reverse()));
+  assert.notDeepEqual(win(s3), win(st));
+});
+
+test('rolling forward: yesterday becomes history, a new day enters the window with the CURRENT rules, the rest stays put', () => {
+  let st = mkL(9);
+  const w0 = win(st, SUN, 3);
+  st = after(st, (x) => setOrder(x, [...x.order].reverse()));       // edited today: Wed onward changes
+  const MON = addDays(SUN, 1);
+  const st2 = settle(st, MON);
+  assert.deepEqual(Object.keys(st2.published), [MON, addDays(SUN, 2), addDays(SUN, 3)]);
+  assert.deepEqual(win(st2, MON, 2), w0.slice(1));                    // Mon, Tue exactly as published
+  assert.deepEqual(st2.history[SUN], { Shacharis: 'p001', Mincha: 'p002', Maariv: 'p003' });
+  assert.equal(slotAt(st2, addDays(SUN, 3), 'Shacharis').locked, true);
+  // stepping a day at a time equals one jump
+  let step = st; for (let i = 1; i <= 6; i++) step = settle(step, addDays(SUN, i));
+  const jump = settle(st, addDays(SUN, 6));
+  assert.deepEqual(step.history, jump.history);
+});
+
+test('wrap-around with a short list; DST change days (US 2026-11-01, 2026-03-08) are plain civil days', () => {
+  const st = mkL(4);
+  assert.equal(win(st, SUN, 3).join('|'), 'Sha=p001,Min=p002,Maa=p003|Sha=p004,Min=p001,Maa=p002|Sha=p003,Min=p004,Maa=p001');
+  const dst = normalizeState({ ...emptyState('2026-03-06'), order: ids(5), settings: { lockDays: 3 } }, '2026-03-06');
+  const s = settle(dst, '2026-03-06');
+  assert.deepEqual(Object.keys(s.published), ['2026-03-06', '2026-03-08', '2026-03-09']);
+  const jumped = settle(s, '2026-03-10');
+  assert.ok(jumped.history['2026-03-09'] && jumped.history['2026-03-08']);
+  assert.deepEqual(jumped.history['2026-03-08'], s.published['2026-03-08'] ? Object.fromEntries(Object.entries(s.published['2026-03-08']).map(([k, v]) => [k, v.id])) : null);
+});
+
+test('adding a person mid-rotation: published unchanged, he leads from the next round', () => {
+  const st = mkL(5);
+  const before = win(st, SUN, 3);
+  const s2 = after(st, (x) => setOrder(x, [...x.order, 'p006']));
+  assert.deepEqual(win(s2, SUN, 3), before);
+  const later = assignments(s2, addDays(SUN, 3), addDays(SUN, 12)).flatMap((d) => d.slots.map((x) => x.id));
+  assert.ok(later.includes('p006'));
+  assert.ok(!before.join(',').includes('p006'));
+});
+
+test('a stale kiosk snapshot (published slots included) agrees with the server after it settles', () => {
+  const st = after(mkL(9), (x) => setAway(x, 'p005', addDays(SUN, 1), addDays(SUN, 1)));
+  const MON = addDays(SUN, 1);
+  assert.deepEqual(win(st, MON, 6), win(settle(st, MON), MON, 6));
+});
+
+test('an empty line publishes nothing: names added later are not locked out by earlier empty slots', () => {
+  const empty = settle(normalizeState({ ...emptyState(SUN), order: [], settings: { lockDays: 2 } }, SUN), SUN);
+  assert.deepEqual(empty.published, {});
+  const filled = after(empty, (x) => setOrder(x, ids(5)));
+  assert.equal(slotAt(filled, SUN, 'Shacharis').id, 'p001');
+  assert.ok(Object.keys(filled.published).length === 3);
 });

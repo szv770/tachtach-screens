@@ -36,7 +36,8 @@ router.get('/chazan/swap-options', async (req, res) => {
     const { date, tefila } = req.query;
     if (!isISO(date) || !TEFILOS.includes(tefila)) return err(res, 400, 'Pick a date and a davening.');
     const { state, ctx } = await readView();
-    res.json({ ...swapOptions(state, date, tefila, ctx.customDays), fill: state.settings.fill });
+    const o = swapOptions(state, date, tefila, ctx.customDays);
+    res.json({ ...o, fill: o.rule }); // fill = the rule that applies to THIS slot (a published slot always uses 'furthest')
   } catch { err(res, 500, 'Failed to work out the options.'); }
 });
 
@@ -67,13 +68,13 @@ router.post('/chazan/swap', async (req, res) => {
   try {
     const { date, tefila, personId } = req.body || {};
     if (!isISO(date) || !TEFILOS.includes(tefila)) return err(res, 400, 'Pick a date and a davening.');
+    let refused = '';
     const r = await mutate((s, ctx) => {
-      if (date < s.cursor) return s;
-      if (!onRoster(ctx, personId) || !s.order.includes(personId)) return s;
+      if (date < s.cursor) { refused = 'That day has already passed.'; return s; }
+      if (!onRoster(ctx, personId) || !s.order.includes(personId)) { refused = 'That person is not in the rotation.'; return s; }
       return setSwap(s, date, tefila, personId);
     });
-    if (date < r.state.cursor) return err(res, 400, 'That day has already passed.');
-    if (r.state.overrides[date]?.[tefila] !== personId) return err(res, 400, 'That person is not in the rotation.');
+    if (refused) return err(res, 400, refused);
     res.json(out(r));
   } catch { err(res, 500, 'Failed to save the swap.'); }
 });

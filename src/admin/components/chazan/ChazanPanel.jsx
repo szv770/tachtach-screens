@@ -79,7 +79,7 @@ export default function ChazanPanel({ canEdit = true, onNavigate }) {
         </div>
       )}
 
-      {cards.map((d) => <DayCard key={d.date} day={d} today={today} name={name} hebrew={settings.hebrewLabels} canEdit={canEdit && !busy} onSwap={(date, tefila) => setSwap({ date, tefila })} onUndoSwap={undoSwap} />)}
+      {cards.map((d) => <DayCard key={d.date} day={d} today={today} name={name} hebrew={settings.hebrewLabels} canEdit={canEdit && !busy} isAwayOn={(id, date) => isAway(view, id, date)} inLine={(id) => inLine.has(id)} onSwap={(date, tefila) => setSwap({ date, tefila })} onUndoSwap={undoSwap} />)}
 
       <div style={card} data-testid="chazan-order">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>

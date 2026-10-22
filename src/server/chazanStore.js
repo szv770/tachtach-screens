@@ -12,7 +12,7 @@ import { readJSON, writeJSON } from './storage.js';
 import { broadcast } from './sse.js';
 import { normalizeRosterFile } from '../shared/roster.js';
 import {
-  normalizeState, emptyState, rollover, reconcile, forKiosk, assignments, lineUp, addDays,
+  normalizeState, emptyState, settle, reconcile, forKiosk, assignments, lineUp, addDays,
 } from '../shared/chazan.js';
 
 export const FILE = 'chazan.json';
@@ -44,7 +44,7 @@ async function loadFresh(ctx) {
   const stored = normalizeState(raw, ctx.today);
   const ids = ctx.roster.people.map((p) => p.id);
   const rec = reconcile(stored, ids);
-  const rolled = rollover(rec, ctx.today, ctx.customDays);
+  const rolled = settle(rec, ctx.today, ctx.customDays);
   const changed = !raw || JSON.stringify(rolled) !== JSON.stringify(normalizeState(raw, ctx.today));
   if (changed) await writeJSON(FILE, rolled);
   return rolled;
@@ -75,7 +75,9 @@ export async function mutate(fn) {
   return withLock(async () => {
     const ctx = await context();
     const cur = await loadFresh(ctx);
-    const next = reconcile(normalizeState(await fn(cur, ctx), ctx.today), ctx.roster.people.map((p) => p.id));
+    const ids = ctx.roster.people.map((p) => p.id);
+    // settle AFTER the change too: a published slot whose person just went away gets its cover (that slot only) and anything newly in the window is published
+    const next = settle(reconcile(normalizeState(await fn(cur, ctx), ctx.today), ids), ctx.today, ctx.customDays);
     await writeJSON(FILE, next);
     const kiosk = { ...forKiosk(next, ctx.roster, ctx.today), today: ctx.today, days: buildView(next, ctx).days.filter((d) => d.date >= ctx.today) };
     broadcast('chazan-update', kiosk);
