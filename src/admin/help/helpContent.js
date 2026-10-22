@@ -56,6 +56,8 @@ export const TOPICS = [
     body: ['Schedule → Paste / AI import → copy the request for Claude.', 'Give Claude your times, then paste its answer back. You see a preview before anything is saved.', 'There is a second request for a whole week at once.'] },
   { id: 'other-day', title: 'See what the screen will show on another day', go: 'slides',
     body: ['Use the Date preview box under the live preview on the right, then Open Preview Tab. It shows that date\'s zmanim, schedule and parsha.'] },
+  { id: 'chazan', title: 'Set up the chazan rotation', go: 'chazan',
+    body: ['Screen → Chazan → Add everyone from the list. Whoever is marked Next leads the next davening, then goes to the back.', 'Tap Swap… on any davening to replace the chazan for that day (the suggested name follows your Settings). Tap Away… when someone is out; the rotation skips him and he rejoins.', 'Turn the Chazan slide on in Slides, and in Settings choose which davenings run on which days.'] },
   { id: 'web-page', title: 'Show a website on the screen', go: 'slides',
     body: ['Slides → + New Slide → Web page. Paste the address and click Save & check.', 'It checks whether the site allows being shown. Turn on Fullscreen on that slide to use the whole screen.', 'It loads fresh every time the slide comes up.'] },
   { id: 'photos', title: 'Show photos', go: 'images',

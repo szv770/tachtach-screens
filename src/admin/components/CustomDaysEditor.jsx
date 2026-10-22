@@ -15,7 +15,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
     title: '', subtitle: '',
     hebrewMonth: 'Tishrei', hebrewDay: 1,
     gregorianMonth: 1, gregorianDay: 1,
-    recurring: true,
+    recurring: true, noChazan: false,
   });
 
   const [adding, setAdding] = useState(false);
@@ -39,7 +39,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
       hebrewDay: day.hebrewDay || 1,
       gregorianMonth: day.gregorianMonth || 1,
       gregorianDay: day.gregorianDay || 1,
-      recurring: day.recurring !== false,
+      recurring: day.recurring !== false, noChazan: day.noChazan === true,
     });
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
@@ -52,6 +52,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
         title: form.title,
         subtitle: form.subtitle || undefined,
         recurring: form.recurring,
+        noChazan: form.noChazan,
       };
       if (mode === 'hebrew') {
         payload.hebrewMonth = form.hebrewMonth;
@@ -209,6 +210,10 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
             Repeat every year <span style={{ fontSize: '11px', color: colors.muted }}>(uncheck for a one-time event)</span>
           </span>
         </label>
+        <label title="No chazan from the rotation on this day (the rotation does not use up anyone's turn)." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '36px' }}>
+          <input type="checkbox" checked={!!form.noChazan} onChange={(e) => setForm(f => ({ ...f, noChazan: e.target.checked }))} />
+          <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>No chazan this day</span>
+        </label>
         <div style={{ display: 'flex', gap: '8px', flexDirection: isMobile ? 'column' : 'row' }}>
           <button
             style={{ ...buttonPrimary, opacity: adding || !form.title.trim() ? 0.6 : 1, minHeight: '44px' }}
@@ -245,7 +250,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
               flexShrink: 0,
             }}>
               {day.hebrewMonth ? `${day.hebrewMonth} ${day.hebrewDay}` : `${day.gregorianMonth}/${day.gregorianDay}`}
-              {day.recurring ? ' \u21BB' : ''}
+              {day.recurring ? ' \u21BB' : ''}{day.noChazan ? ' · no chazan' : ''}
             </span>
             <span style={{
               flex: 1,

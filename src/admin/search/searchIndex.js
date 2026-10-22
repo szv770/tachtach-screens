@@ -93,6 +93,11 @@ export const SETTINGS_INDEX = [
   S('roster', 'Bochurim list (names and Hebrew birthdays)', 'roster students boys people names list add remove edit chazan', { match: 'Bochurim' }),
   S('roster', 'Birthdays (Hebrew birthday slide)', 'birthday bday mazel tov happy hebrew date shabbos thursday sunday', { match: 'Birthdays right now' }),
   S('roster', 'Import bochurim from Excel / CSV', 'spreadsheet excel xlsx csv paste import upload names birthdays', { match: 'Import from a spreadsheet' }),
+  S('chazan', 'Chazan rotation (who leads Shacharis, Mincha, Maariv)', 'chazan chazanim davening leader rotation turn shacharis mincha maariv who leads next', { match: 'Rotation order' }),
+  S('chazan', 'Swap a chazan for one davening', 'swap replace switch change chazan today tomorrow cover', { match: 'Today' }),
+  S('chazan', 'Mark a chazan away (and back)', 'away vacation home sick skip back rejoin dates', { match: 'Rotation order' }),
+  S('chazan', 'Chazan settings (days, Shabbos, fill rule, names)', 'weekdays friday shabbos rosh chodesh yom tov grid fill rule swapped out names schedule rail', { anchor: 'chazan-settings' }),
+  S('chazan', 'Chazan forecast (next 14 days)', 'forecast upcoming next days calendar who is next', { anchor: 'chazan-forecast' }),
   // Schedule
   S('schedule', 'Weekly schedule (the base week that repeats)', 'timetable base year week sunday monday blocks entries times', { anchor: 'sched-week' }),
   S('schedule', 'Build my year schedule (step-by-step wizard)', 'wizard guided first create make new base weekly year rebuild start setup', { anchor: 'sched-week' }),

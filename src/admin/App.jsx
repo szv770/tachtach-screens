@@ -35,6 +35,7 @@ import MediaPage from './components/media/MediaPage.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import RosterPanel from './components/RosterPanel.jsx';
+import ChazanPanel from './components/chazan/ChazanPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
 import TeamPanel from './components/TeamPanel.jsx';
 import AccountPanel from './components/AccountPanel.jsx';
@@ -282,6 +283,8 @@ export default function App() {
         return <DailyWordPanel />;
       case 'roster':
         return <RosterPanel canEdit={can(myCaps, 'roster.edit')} onNavigate={setActiveSection} />;
+      case 'chazan':
+        return <ChazanPanel canEdit={can(myCaps, 'chazan.edit')} onNavigate={setActiveSection} />;
       case 'help':
         return <HelpPanel role={role} onNavigate={setActiveSection} onTour={() => setTourOpen(true)} />;
       case 'team':
