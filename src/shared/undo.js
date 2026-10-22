@@ -72,7 +72,7 @@ export function visibleTo(entry, user) {
 
 const TYPE_NAMES = {
   ZMANIM: 'Zmanim', LIMUDIM: 'Daily study', HAYOM_YOM: 'Hayom Yom', PIRKEI_AVOS: 'Pirkei Avos', DAILY_QUOTE: 'Daily quote',
-  DAILY_WORD: 'Daily Word', BIRTHDAYS: 'Birthdays', PARSHA_TIDBITS: 'Parsha tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'News feed',
+  DAILY_WORD: 'Daily Word', BIRTHDAYS: 'Birthdays', CHAZAN: 'Chazan', PARSHA_TIDBITS: 'Parsha tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather', RSS_SLIDE: 'News feed',
   MIVTZAH_LEADERBOARD: 'Mivtzah leaderboard', MIVTZAH_LIVE_EMBED: 'Mivtzah live', VIDEO_SLIDE: 'Video', PDF_SLIDE: 'PDF',
   IMAGE_SLIDE: 'Image', GOOGLE_PHOTOS_SLIDE: 'Google Photos', ANNOUNCEMENT: 'Message', WEB_PAGE: 'Web page',
 };

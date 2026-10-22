@@ -35,3 +35,10 @@ test('viewer state matches the screen (names included) but drops credential-look
   assert.equal(out.settings.banner.mode, 'still');
   assert.equal(out.slides[0].embedUrl, 'https://charidy.com/miami+');
 });
+
+test('viewer state keeps the chazan rotation the same way it keeps birthday names (owner decision: live = the Pi)', () => {
+  const out = viewerState({ chazan: { names: { p001: { first: 'Dovid', last: 'Cohen' } }, order: ['p001'], days: [{ date: '2026-11-01', slots: [{ tefila: 'Mincha', id: 'p001' }] }], settings: { fill: 'furthest' } } });
+  assert.equal(out.chazan.names.p001.first, 'Dovid');
+  assert.equal(out.chazan.days[0].slots[0].id, 'p001');
+  assert.equal(out.chazan.settings.fill, 'furthest');
+});

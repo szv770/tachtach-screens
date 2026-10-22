@@ -32,6 +32,8 @@ import freeze from './freeze.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import rosterRouter, { readRoster } from './routes/roster.js';
+import chazanRouter from './routes/chazan.js';
+import { readForKiosk as readChazanForKiosk } from './chazanStore.js';
 import { forKiosk as rosterForKiosk } from '../shared/roster.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
@@ -223,7 +225,7 @@ export function createApp() {
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
   app.use((req, res, next) => (
-    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|roster|saved-letters)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|roster|chazan|saved-letters)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
   ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
@@ -267,7 +269,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', stateGate, csrfProtection, async (req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -280,6 +282,7 @@ export function createApp() {
         readScheduleDates(),
         readDailyWords(),
         readRoster(),
+        readChazanForKiosk(),
       ]);
       const body = {
         cache: cache ?? {},
@@ -298,6 +301,8 @@ export function createApp() {
         dailyWords: forKiosk(dailyWords),
         // The roster (bochurim + birthday settings); the kiosk works out who has a birthday today.
         roster: rosterForKiosk(roster),
+        // The chazan rotation (rules + names + computed days); the kiosk runs the same pure engine on it.
+        chazan,
         // Running schedule countdown alert (or null), so a kiosk that
         // reconnects/reloads mid-countdown still shows it. Not persisted.
         countdown: getActiveCountdown(),
@@ -493,6 +498,7 @@ export function createApp() {
   app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', rosterRouter);
+  app.use('/api', chazanRouter);
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);

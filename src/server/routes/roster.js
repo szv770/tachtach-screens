@@ -8,6 +8,7 @@
 import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
+import { refreshKiosk as refreshChazan } from '../chazanStore.js';
 import {
   normalizeRosterFile, normalizePeople, normalizeSettings, parseRosterRows, parseDelimited, samePerson, forKiosk, LIMITS,
 } from '../../shared/roster.js';
@@ -26,6 +27,7 @@ async function save(file) {
   const clean = normalizeRosterFile(file);
   await writeJSON(FILE, clean);
   broadcast('roster-update', forKiosk(clean));
+  refreshChazan(); // a rename or removal changes the chazan names too
   return clean;
 }
 

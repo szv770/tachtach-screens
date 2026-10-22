@@ -18,6 +18,7 @@ const AREAS = [
   [/^custom-days/, 'custom day'],
   [/^daily-words/, 'Daily Word list'],
   [/^roster/, 'bochurim list'],
+  [/^chazan/, 'chazan rotation'],
   [/^schedule/, 'schedule'],
   [/^google-album|^images|^media|^upload/, 'photos / media'],
   [/^rss/, 'news feed'],

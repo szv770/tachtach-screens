@@ -37,6 +37,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'feeds.edit', group: 'Screen', label: 'Manage news feeds and Google Photos albums', hint: '' },
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
   { id: 'roster.edit', group: 'Screen', label: 'Edit the bochurim list and birthdays', hint: 'The shared list of names and Hebrew birthdays.' },
+  { id: 'chazan.edit', group: 'Screen', label: 'Edit the chazan rotation', hint: 'Order, away dates, swaps and which davenings have a chazan.' },
   { id: 'screen.control', group: 'Screen', label: 'Pause, skip, freeze, blank or refresh the screen', hint: 'The real TV controls, including Freeze / Blank.' },
   { id: 'schedule.edit', group: 'Schedule', label: 'Edit the schedule', hint: 'Daily and weekly timetable, saved days, templates.' },
   { id: 'customDays.edit', group: 'Schedule', label: 'Edit custom days', hint: 'Mark special dates.' },
@@ -55,7 +56,7 @@ export const isGrantable = (id) => isCapability(id) && !CAP_BY_ID[id].adminOnly;
 
 const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
-  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'roster.edit',
+  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'roster.edit', 'chazan.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
 ];
 
@@ -136,6 +137,7 @@ const SECTION_CAPS = Object.freeze({
   announcements: ['announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete'],
   'daily-word': ['dailyWord.edit'],
   roster: ['roster.edit'],
+  chazan: ['chazan.edit'],
   'custom-days': ['customDays.edit'],
   images: ['media.upload', 'media.delete', 'feeds.edit'],
   'rss-feeds': ['feeds.edit'],
@@ -196,6 +198,7 @@ const RULES = Object.freeze([
   rule('feeds.edit', ANY, /^\/api\/(rss|google-album)(\/|$)/),
   rule('dailyWord.edit', ANY, /^\/api\/daily-words(\/|$)/),
   rule('roster.edit', ANY, /^\/api\/roster(\/|$)/),
+  rule('chazan.edit', ANY, /^\/api\/chazan(\/|$)/),
   rule('screen.control', ANY, /^\/api\/(screen|refresh|freeze)(\/|$)/),
   rule('schedule.edit', ANY, /^\/api\/schedule(\/|$)/),
   rule('customDays.edit', ANY, /^\/api\/custom-days(\/|$)/),

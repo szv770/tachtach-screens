@@ -8,6 +8,7 @@ import multer from 'multer';
 import { readJSON, writeJSON } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
 import { readRoster } from './roster.js';
+import { readForKiosk as readChazanForKiosk } from '../chazanStore.js';
 import { forKiosk as rosterForKiosk } from '../../shared/roster.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { SCREEN_COMMANDS } from '../../shared/screenCommands.js';
@@ -90,7 +91,7 @@ function cleanPdfFields(slide) {
   return slide;
 }
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
-const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
+const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'noChazan', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
 const SCHEDULE_ENTRY_FIELDS = ['name', 'nameHe', 'time', 'endTime', 'category', 'days', 'enabled', 'alertBefore', 'order', 'countdownDisplay', 'icon', 'stages', 'groupTimes', 'groups'];
 // `alertDisplay` is accepted only as a legacy alias (older admin builds and
 // the built-in "Standard Yeshiva Day" template sent it); pickScheduleEntry()
@@ -1426,6 +1427,7 @@ router.get('/preview-state', async (req, res) => {
       scheduleDates: scheduleDates ?? {},
       rssFeeds: rssFeeds ?? [],
       roster: rosterForKiosk(await readRoster()),
+      chazan: await readChazanForKiosk(),
       dailyWords: await readDailyWords(), // full history, so a past date previews the word that really showed
       _previewDate: dateStr,
     });
