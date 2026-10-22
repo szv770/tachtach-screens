@@ -7,7 +7,7 @@ import { LIMUDIM_ITEMS, typeInfo, popupSpec } from './slideTypes.js';
 import { clampPageSeconds, pdfTotalSeconds, PAGE_SECONDS_MIN, PAGE_SECONDS_MAX } from '../../../shared/pdfPages.js';
 
 /** Slide fields this form may write (all are in the server's SLIDE_FIELDS whitelist). */
-export const SLIDE_KEYS = ['label', 'enabled', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom'];
+export const SLIDE_KEYS = ['label', 'enabled', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom', 'qrOn', 'qrUrl', 'qrCorner', 'qrSize', 'qrCaption'];
 
 const ALL_ZMANIM = ZMANIM_DISPLAY.map((z) => z.k);
 
@@ -44,7 +44,7 @@ export function initialValues(slide, settings = {}) {
   if (sections.includes('pdf')) { v.pageSeconds = String(clampPageSeconds(slide.pageSeconds)); v.displayMode = slide.displayMode || 'fit'; v.edgeTreatment = slide.edgeTreatment || 'dark'; }
   if (sections.includes('rss')) { v.rssDisplayMode = slide.rssDisplayMode || 'latest'; v.style = slide.style || ''; }
   if (sections.includes('web') || sections.includes('embed')) v.embedUrl = slide.embedUrl || '';
-  if (sections.includes('web')) { v.webRefreshSec = Number(slide.webRefreshSec) || 0; v.webZoom = Number(slide.webZoom) || 100; }
+  if (sections.includes('web')) { v.webRefreshSec = Number(slide.webRefreshSec) || 0; v.webZoom = Number(slide.webZoom) || 100; v.qrOn = !!slide.qrOn; v.qrUrl = slide.qrUrl || ''; v.qrCorner = slide.qrCorner || 'tr'; v.qrSize = slide.qrSize || 'm'; v.qrCaption = slide.qrCaption || ''; }
   return v;
 }
 
@@ -82,6 +82,12 @@ export function splitValues(values, changed, slide) {
       } else slidePatch.embedUrl = raw;
     } else if (k === 'webRefreshSec') slidePatch.webRefreshSec = Number(val) || undefined;
     else if (k === 'webZoom') slidePatch.webZoom = Number(val) === 100 ? undefined : Number(val);
+    else if (k === 'qrUrl') {
+      const raw = String(val || '').trim();
+      const url = raw ? normalizeWebUrl(raw) : '';
+      if (raw && !url) throw new Error('Enter a full web address for the QR code, like https://charidy.com/miami');
+      slidePatch.qrUrl = url || undefined;
+    } else if (k === 'qrCaption') slidePatch.qrCaption = String(val || '').trim() || undefined;
     else if (k === 'style') slidePatch.style = val || undefined;
     else if (SLIDE_KEYS.includes(k)) slidePatch[k] = val;
     else if (k === 'zmanimVisible') settingsPatch.zmanimVisible = val.length === ALL_ZMANIM.length ? [] : val;

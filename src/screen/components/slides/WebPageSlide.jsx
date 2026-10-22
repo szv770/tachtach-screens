@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { withCacheBust } from '../../../shared/embedCheck.js';
+import QrBadge from '../QrBadge.jsx';
 
 /**
  * Web page slide: shows any website (e.g. a live fundraiser display page) in an
@@ -60,6 +61,7 @@ export default function WebPageSlide({ slide }) {
         referrerPolicy="no-referrer"
         style={{
           position: 'absolute', top: 0, left: 0, border: 'none', background: '#fff',
+          pointerEvents: 'var(--tt-pe, auto)', // 'none' on the TV when "Touch on the main screen" is off (App.jsx)
           width: `${100 / scale}%`, height: `${100 / scale}%`,
           transform: scale === 1 ? undefined : `scale(${scale})`, transformOrigin: '0 0',
           opacity: loaded ? 1 : 0, transition: 'opacity .35s ease',
@@ -74,6 +76,7 @@ export default function WebPageSlide({ slide }) {
           {slow && <div style={{ fontSize: 18, maxWidth: 640 }}>It will keep trying, and loads fresh the next time this slide comes up.</div>}
         </div>
       )}
+      {slide?.qrOn && slide?.qrUrl ? <QrBadge url={slide.qrUrl} corner={slide.qrCorner} size={slide.qrSize} caption={slide.qrCaption} /> : null}
     </div>
   );
 }

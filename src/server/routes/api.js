@@ -78,7 +78,7 @@ function pick(obj, allowedFields) {
 // sends and what VideoSlide/ImageSlide read. They were missing here, so every
 // new video slide was saved without its URL (blank on screen) and image edge
 // treatment / blurred backdrop were silently dropped.
-const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'announcementId', 'pdfPages', 'pageSeconds'];
+const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'qrOn', 'qrUrl', 'qrCorner', 'qrSize', 'qrCaption', 'announcementId', 'pdfPages', 'pageSeconds'];
 // PDF slide pages: only our own page pictures, at most PDF_MAX_PAGES (fail closed: anything else is dropped).
 const PDF_PAGE_URL = /^\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(-p\d{2,3})?\.jpg$/i;
 function cleanPdfFields(slide) {

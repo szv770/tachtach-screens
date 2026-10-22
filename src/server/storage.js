@@ -28,7 +28,7 @@ function releaseLock(filename, resolve) {
 }
 
 // Files that should never have backup copies created (contain sensitive hashes)
-const NO_BACKUP_FILES = new Set(['auth.json', 'users.json']);
+const NO_BACKUP_FILES = new Set(['auth.json', 'users.json', 'live.json']);
 
 /**
  * Ensure the data/ and data/uploads/ directories exist.

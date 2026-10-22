@@ -4,6 +4,7 @@ import { ZMANIM_DISPLAY } from '../../../shared/constants.js';
 import { normalizeWebUrl } from '../../../shared/embedCheck.js';
 import { apiFetch } from '../../hooks/useAdminState.js';
 import Collapsible from '../ui/Collapsible.jsx';
+import QrFields from './QrFields.jsx';
 import { Field, Choices, SwitchRow, Hint, LinkButton, fieldStyle } from '../look/kit.jsx';
 import {
   typeInfo, popupSpec, SECONDS_PRESETS, LANGS, LIMUDIM_ITEMS, IMAGE_FIT, IMAGE_EDGE, PHOTO_LAYOUTS, PHOTO_ORDER, RSS_MODES, RSS_STYLES, WEB_RELOAD, WEB_ZOOM,
@@ -192,6 +193,7 @@ export function AdvancedFields({ slide, form }) {
           {WEB_ZOOM.map((z) => <option key={z} value={z}>{z}%</option>)}
         </select>
       </Field>,
+      <QrFields key="qr" v={v} set={set} />,
     );
   }
   if (sections.includes('photos')) {

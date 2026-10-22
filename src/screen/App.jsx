@@ -15,6 +15,7 @@ import { AnnouncementTakeover } from './components/slides/AnnouncementSlide.jsx'
 import { buildRotation, toRotationSlide, toBannerRow, toNoteRow } from './lib/announcementView.js';
 import CountdownOverlay from './components/CountdownOverlay.jsx';
 import HiddenAccess from './components/HiddenAccess.jsx';
+import LiveControls from './components/LiveControls.jsx';
 import ScreenScaler from './components/ScreenScaler.jsx';
 import ErrorScreen from './components/ErrorScreen.jsx';
 import SlideErrorBoundary from './components/SlideErrorBoundary.jsx';
@@ -86,7 +87,8 @@ function parseScheduleTime(timeStr) {
 }
 
 const _searchParams = new URLSearchParams(window.location.search);
-const _isPreview = _searchParams.get('preview') === 'true';
+// /live/<word> is the public view-only copy: it behaves exactly like the admin Live Preview (follows the TV, never reports or controls it).
+const _isPreview = _searchParams.get('preview') === 'true' || /^\/live(\/|$)/.test(window.location.pathname);
 // Live Preview 'Follow the TV' choice, remembered per browser (the admin writes it; default ON).
 function readFollowSetting() {
   try { return window.localStorage.getItem('tt.preview.follow') !== 'off'; } catch { return true; }
@@ -175,6 +177,20 @@ function AppContent() {
     sr.seekTo(t.index, t.elapsedMs);
     sr.setIsPaused(t.paused);
   };
+
+  // Touch (admin > Health > Live link). The real TV: with "Touch on the main screen" off, web-page slides ignore
+  // touch (iframes read --tt-pe). The public live view (/live/*): swipe/tap/zoom controls on the viewer's OWN copy.
+  const touchFlags = state?.touch || {};
+  const isLiveView = /^\/live(\/|$)/.test(window.location.pathname);
+  const tvTouchOff = !_isPreview && touchFlags.screen === false;
+  useEffect(() => {
+    const root = document.documentElement;
+    if (tvTouchOff) root.style.setProperty('--tt-pe', 'none'); else root.style.removeProperty('--tt-pe');
+    return () => root.style.removeProperty('--tt-pe');
+  }, [tvTouchOff]);
+  const [liveFollow, setLiveFollow] = useState(true);
+  const liveMove = (fn) => { followRef.current.on = false; setLiveFollow(false); fn(slideRotationRef.current); };
+  const liveBack = () => { followRef.current.on = true; setLiveFollow(true); applyFollowRef.current(); };
 
   // A slide that throws while rendering is caught by SlideErrorBoundary
   // (renders nothing); skip to the next slide after a short pause. The delay
@@ -624,7 +640,23 @@ function AppContent() {
     <Banner banners={liveBanners} bannerSettings={settings.banner} motion={freezeOn ? 'minimal' : settings.motion} />
   ) : null;
 
+  const liveUi = isLiveView && !_isDatePreview && touchFlags.live !== false ? (
+    <LiveControls
+      slides={slideRotation.enabledSlides}
+      index={slideRotation.currentIndex}
+      paused={slideRotation.isPaused}
+      following={liveFollow}
+      currentType={slideRotation.currentSlide?.type}
+      onPrev={() => liveMove((sr) => { const n = sr.enabledSlides.length; if (n) sr.goToSlide((sr.currentIndex - 1 + n) % n); })}
+      onNext={() => liveMove((sr) => sr.advance())}
+      onPause={() => liveMove((sr) => sr.setIsPaused(!sr.isPaused))}
+      onGoto={(i) => liveMove((sr) => sr.goToSlide(i))}
+      onLive={liveBack}
+    />
+  ) : null;
+
   return (
+    <>
     <ScreenScaler portrait={isPortrait}>
       <DesignRoot
         settings={settings}
@@ -674,5 +706,7 @@ function AppContent() {
         )}
       </DesignRoot>
     </ScreenScaler>
+    {liveUi}
+    </>
   );
 }

@@ -14,6 +14,7 @@ import Collapsible from '../ui/Collapsible.jsx';
 import Icon from '../ui/Icon.jsx';
 import StatusChip from './StatusChip.jsx';
 import SoftwareUpdateCard from './SoftwareUpdateCard.jsx';
+import LiveLinkCard from './LiveLinkCard.jsx';
 
 const card = { background: colors.card, borderRadius: 'var(--r-lg)', boxShadow: 'var(--e1)', border: `1px solid ${colors.line}` };
 const btn = {
@@ -73,6 +74,7 @@ export default function HealthPage({ me, onGo }) {
   return (
     <div data-testid="health-page" style={{ display: 'grid', gap: '16px', fontFamily: adminFonts.englishBody, color: colors.text }}>
       <SoftwareUpdateCard me={me} />
+      <LiveLinkCard me={me} />
       <section style={{ ...card, padding: '16px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
         <span style={{ width: 48, height: 48, borderRadius: 14, display: 'grid', placeItems: 'center', background: colors.sunken,
           color: data?.overall === 'bad' ? colors.danger : data?.overall === 'warn' ? colors.warn : colors.success }}><Icon name="pulse" size={26} /></span>

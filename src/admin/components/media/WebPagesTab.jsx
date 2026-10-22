@@ -4,6 +4,7 @@ import { apiFetch, notify } from '../../hooks/useAdminState.js';
 import { ConfirmDialog, NumberField } from '../ui.jsx';
 import Collapsible from '../ui/Collapsible.jsx';
 import { Field, Hint, SwitchRow, fieldStyle } from '../look/kit.jsx';
+import QrFields from '../slides/QrFields.jsx';
 import { normalizeWebUrl } from '../../../shared/embedCheck.js';
 
 const REFRESH = [[0, 'Never (the page updates itself)'], [30, 'Every 30 seconds'], [60, 'Every minute'], [120, 'Every 2 minutes'], [300, 'Every 5 minutes'], [600, 'Every 10 minutes']];
@@ -83,6 +84,17 @@ function PageRow({ slide, canEdit, canDelete, onChange, onRemove }) {
               </select>
             </Field>
             <SwitchRow on={!!slide.fullscreen} onChange={(v) => onChange({ fullscreen: v })} label="Use the whole screen" note="Hides the clock and date column so the page gets everything." />
+          </Collapsible>
+          <Collapsible title="QR code on this page" summary={slide.qrOn ? `On, ${({ tr: 'top right', tl: 'top left', br: 'bottom right', bl: 'bottom left' })[slide.qrCorner || 'tr']}` : 'Off'} style={{ marginTop: '16px', boxShadow: 'none' }}>
+            <QrFields v={slide} set={(k, val) => {
+              if (k === 'qrUrl') {
+                const raw = String(val || '').trim();
+                const u = raw ? normalizeWebUrl(raw) : '';
+                if (raw && !u) { notify('Enter a full web address, like https://charidy.com/miami', 'error'); return; }
+                onChange({ qrUrl: u || undefined });
+              } else if (k === 'qrCaption') onChange({ qrCaption: String(val || '').trim() || undefined });
+              else onChange({ [k]: val });
+            }} />
           </Collapsible>
         </>
       )}

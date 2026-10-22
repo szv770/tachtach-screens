@@ -6,6 +6,7 @@ const clients = new Map(); // id -> { res, isPreview }
 let kioskLastSeenAt = null;
 const MAX_KIOSK_CLIENTS = 20;
 const MAX_PREVIEW_CLIENTS = 10;
+const MAX_VIEWER_CLIENTS = 40; // public live-view watchers: their own pool, so they never evict the admin preview
 
 /**
  * Register a new SSE client.
@@ -15,7 +16,7 @@ const MAX_PREVIEW_CLIENTS = 10;
  *                               but NOT regular broadcast()
  * @returns {string} client id
  */
-export function addClient(res, isPreview = false) {
+export function addClient(res, isPreview = false, viewer = false) {
   const id = crypto.randomBytes(8).toString('hex');
 
   // Set SSE headers
@@ -36,7 +37,7 @@ export function addClient(res, isPreview = false) {
   // Send initial connection event
   res.write(`data: ${JSON.stringify({ type: 'connected', data: { id } })}\n\n`);
 
-  clients.set(id, { res, isPreview });
+  clients.set(id, { res, isPreview, viewer });
   if (!isPreview) kioskLastSeenAt = Date.now();
 
   // Remove on disconnect
@@ -48,11 +49,11 @@ export function addClient(res, isPreview = false) {
   // Enforce max clients — separate limits for kiosk vs preview, evict oldest of same type
   const sameTypeClients = [];
   for (const [cid, c] of clients) {
-    if (c.isPreview === isPreview && cid !== id) {
+    if (c.isPreview === isPreview && !!c.viewer === viewer && cid !== id) {
       sameTypeClients.push(cid);
     }
   }
-  const maxForType = isPreview ? MAX_PREVIEW_CLIENTS : MAX_KIOSK_CLIENTS;
+  const maxForType = viewer ? MAX_VIEWER_CLIENTS : isPreview ? MAX_PREVIEW_CLIENTS : MAX_KIOSK_CLIENTS;
   while (sameTypeClients.length >= maxForType) {
     const oldest = sameTypeClients.shift();
     const oldClient = clients.get(oldest);
@@ -116,6 +117,13 @@ export function getKioskClientCount() {
   return n;
 }
 
+/** Number of public live-view watchers connected right now. */
+export function getViewerClientCount() {
+  let n = 0;
+  for (const [, c] of clients) if (c.viewer) n++;
+  return n;
+}
+
 /** Epoch ms the real screen was last connected (null = not since this server started). */
 export function getKioskLastSeenAt() {
   return getKioskClientCount() > 0 ? Date.now() : kioskLastSeenAt;
@@ -138,4 +146,4 @@ setInterval(() => {
   for (const [, client] of clients) {
     client.res.write(payload);
   }
-}, 15_000);
+}, 15_000).unref(); // never the reason a process (or a test importing this file) stays alive
