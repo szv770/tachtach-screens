@@ -1,14 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateWord, randomWord, viewerState } from '../src/server/live.js';
+import { validateWord, randomWord, viewerState, createGuessGuard, guessKey } from '../src/server/live.js';
 import { assignments } from '../src/shared/chazan.js';
 
 test('live word: easy-to-type, lowercased, bad input refused with a plain message', () => {
-  assert.equal(validateWord('  Blue-Maple-1234 ').word, 'blue-maple-1234');
-  assert.equal(validateWord('miami').word, 'miami');
-  for (const bad of ['abc', '', 'has space', 'under_score', '-lead', 'trail-', 'x'.repeat(41), '../etc', null]) {
+  assert.equal(validateWord('  Blue-Maple-Candle-1234 ').word, 'blue-maple-candle-1234');
+  assert.equal(validateWord('school-screen-2026').word, 'school-screen-2026');
+  for (const bad of ['abc', '', 'has space here', 'under_score_word', '-lead-lead-lead', 'trail-trail-trail-', 'x'.repeat(41), '../etc/passwd', null]) {
     assert.ok(validateWord(bad).error, `should refuse ${JSON.stringify(bad)}`);
   }
+});
+
+test('M2: weak custom words are refused with a clear message (short, or hardly any different letters)', () => {
+  for (const weak of ['miami', 'tachtach', 'password1', 'aaaaaaaaaaaa', 'abababababab', '1234567890']) {
+    const r = validateWord(weak);
+    assert.ok(r.error && /Too easy to guess/.test(r.error) && /New word/.test(r.error), weak);
+  }
+  assert.ok(validateWord('blue-river-candle-4821').word);
 });
 
 test('random live word passes its own rules and varies', () => {
@@ -19,6 +27,31 @@ test('random live word passes its own rules and varies', () => {
     seen.add(w);
   }
   assert.ok(seen.size > 20);
+  assert.match(randomWord(), /^[a-z]+-[a-z]+-[a-z]+-\d{4}$/, 'three words and four digits (about 31 bits)');
+});
+
+test('M2: guess guard — per-address pause is short, the global budget pauses everybody, successes never count', () => {
+  let t = 1_000_000; let pushed = 0;
+  const g = createGuessGuard({ now: () => t, onGlobalBlock: () => { pushed++; } });
+  for (let i = 0; i < 19; i++) g.fail('a');
+  assert.equal(g.blocked('a'), false);
+  g.fail('a');
+  assert.equal(g.blocked('a'), true, '20 wrong words pause that address');
+  assert.equal(g.blocked('b'), false, 'someone else is not affected');
+  t += 2 * 60 * 1000 + 1;
+  assert.equal(g.blocked('a'), false, 'the pause is only about 2 minutes (the right word is not locked out for long)');
+  // 300 wrong words an hour from many addresses -> everybody (new viewers) waits and the admins are told
+  for (let i = 0; i < 300; i++) g.fail('addr' + i);
+  assert.equal(g.blocked('someone-new'), true);
+  assert.equal(pushed, 1);
+  t += 15 * 60 * 1000 + 1;
+  assert.equal(g.blocked('someone-new'), false);
+});
+
+test('M2: IPv6 guessers are keyed by /48, IPv4 by address', () => {
+  assert.equal(guessKey('2001:db8:1:1::1'), guessKey('2001:db8:1:ffff::9'));
+  assert.notEqual(guessKey('2001:db8:1::1'), guessKey('2001:db8:2::1'));
+  assert.equal(guessKey('203.0.113.9'), '203.0.113.9');
 });
 
 import { hebrewDateOf, addDays } from '../src/shared/roster.js';

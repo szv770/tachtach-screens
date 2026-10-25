@@ -9,6 +9,7 @@ import { userForRequest, localhostOrAuth, localhostOnly } from './middleware.js'
 import { normalizeIp } from './clientIp.js';
 import { getViewerClientCount } from './sse.js';
 import { buildCsp } from './csp.js';
+import { sendPush } from './push.js';
 import { isActive, zonedParts, DEFAULT_TZ } from '../shared/announcements.js';
 import { birthdaysFor, addDays as rosterAddDays } from '../shared/roster.js';
 import { assignments, addDays as chazanAddDays } from '../shared/chazan.js';
@@ -35,15 +36,23 @@ const WORD_RE = /^[a-z0-9][a-z0-9-]{2,38}[a-z0-9]$/;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_SCREEN = path.resolve(__dirname, '../../dist/src/screen/index.html');
 
-const ADJ = ['blue', 'green', 'golden', 'bright', 'quiet', 'happy', 'sunny', 'calm', 'brave', 'swift', 'warm', 'royal'];
-const NOUN = ['maple', 'river', 'garden', 'candle', 'harbor', 'meadow', 'orchard', 'falcon', 'lantern', 'valley', 'willow', 'anchor'];
+// 64 short, easy-to-type words. Three of them plus a 4-digit number = 64^3 x 9000, about 31 bits (audit M2; the first version was ~20 bits).
+const WORDS = ['blue', 'green', 'golden', 'bright', 'quiet', 'happy', 'sunny', 'calm', 'brave', 'swift', 'warm', 'royal', 'silver', 'amber', 'gentle', 'lucky',
+  'maple', 'river', 'garden', 'candle', 'harbor', 'meadow', 'orchard', 'falcon', 'lantern', 'valley', 'willow', 'anchor', 'cedar', 'forest', 'island', 'summit',
+  'apple', 'bridge', 'castle', 'dolphin', 'eagle', 'flower', 'glacier', 'hammer', 'jungle', 'kitten', 'ladder', 'mirror', 'needle', 'ocean', 'pencil', 'rabbit',
+  'saddle', 'tiger', 'umbrella', 'violin', 'window', 'yellow', 'zebra', 'basket', 'canyon', 'desert', 'engine', 'feather', 'guitar', 'honey', 'iron', 'jacket'];
 const pick = (a) => a[crypto.randomInt(a.length)];
-export const randomWord = () => `${pick(ADJ)}-${pick(NOUN)}-${crypto.randomInt(1000, 10000)}`;
+export const randomWord = () => `${pick(WORDS)}-${pick(WORDS)}-${pick(WORDS)}-${crypto.randomInt(1000, 10000)}`;
 
+export const MIN_WORD_LENGTH = 10;
 export function validateWord(raw) {
   const w = String(raw ?? '').trim().toLowerCase();
-  if (w.length < 4 || w.length > 40) return { error: 'The word must be 4 to 40 characters.' };
-  if (!WORD_RE.test(w)) return { error: 'Use only letters, numbers and dashes (no spaces).' };
+  if (w.length > 40) return { error: 'The word can be at most 40 characters.' };
+  if (w && !WORD_RE.test(w) && w.length >= 4) return { error: 'Use only letters, numbers and dashes (no spaces).' };
+  // Anyone who guesses it can watch the screen: keep it hard to guess (audit M2). 'New word' makes a good one.
+  if (w.length < MIN_WORD_LENGTH || new Set(w.replace(/-/g, '')).size < 6) {
+    return { error: `Too easy to guess. Use at least ${MIN_WORD_LENGTH} characters, for example three words and a number like blue-river-candle-4821 (the New word button makes one for you).` };
+  }
   return { word: w };
 }
 
@@ -209,10 +218,43 @@ function sendViewer(res) {
   return res.sendFile(DIST_SCREEN);
 }
 
-const wrongWordLimiter = rateLimit({
-  keyGenerator: (req) => normalizeIp(req.ip),
-  windowMs: 10 * 60 * 1000, max: 20, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false,
-  handler: (_req, res) => sendFormPage(res, 429, 'Too many tries. Please wait a few minutes.'),
+/**
+ * Wrong-word budget (audit M2). Per address (IPv6 counted per /48, so a rented /64 farm is one guesser): 20 wrong
+ * words in 10 minutes -> that address is paused for 2 minutes (short, so the right word is not kept out for long
+ * by someone sharing the address). Overall: 300 wrong words an hour from everybody -> every NEW viewer waits 15 minutes
+ * (people who already watch keep their cookie) and the admins get a push. Successful words never count.
+ */
+export function createGuessGuard({ now = () => Date.now(), addrMax = 20, addrWindowMs = 10 * 60 * 1000, addrBlockMs = 2 * 60 * 1000,
+  globalMax = 300, globalWindowMs = 60 * 60 * 1000, globalBlockMs = 15 * 60 * 1000, onGlobalBlock = () => {} } = {}) {
+  const addrs = new Map();
+  const g = { n: 0, first: 0, until: 0 };
+  return {
+    blocked(key) {
+      const t = now();
+      if (g.until > t) return true;
+      const a = addrs.get(key);
+      return !!(a && a.until > t);
+    },
+    fail(key) {
+      const t = now();
+      let a = addrs.get(key);
+      if (!a || (a.until <= t && a.first + addrWindowMs <= t)) { a = { n: 0, first: t, until: 0 }; addrs.set(key, a); }
+      a.n += 1;
+      if (a.n >= addrMax) { a.until = t + addrBlockMs; a.n = 0; a.first = t; }
+      if (g.first + globalWindowMs <= t) { g.n = 0; g.first = t; }
+      g.n += 1;
+      if (g.n >= globalMax) { g.until = t + globalBlockMs; g.n = 0; g.first = t; try { onGlobalBlock(); } catch { /* never break a request */ } }
+      if (addrs.size > 5000) for (const [k, v] of addrs) if (v.until <= t && v.first + addrWindowMs <= t) addrs.delete(k);
+    },
+  };
+}
+/** Address key for guessing: IPv4 as is, IPv6 reduced to its /48. */
+export function guessKey(ip) {
+  const n = normalizeIp(ip); // IPv6 comes back as a:b:c:d::/64
+  return n.endsWith('::/64') ? n.slice(0, -5).split(':').slice(0, 3).join(':') + '::/48' : n;
+}
+const guessGuard = createGuessGuard({
+  onGlobalBlock: () => sendPush({ title: 'Someone is guessing the live-view word', body: 'Many wrong words were tried. New viewers are paused for 15 minutes. You can change the word under Health > Live link.', tag: 'live-guess' }).catch(() => {}),
 });
 
 /** Public routes: /live (type the word; admins go straight in) and /live/:word. */
@@ -223,9 +265,11 @@ liveRouter.get('/live', async (req, res) => {
   if (w) return res.redirect(302, `/live/${encodeURIComponent(w)}`);
   return sendFormPage(res, 200);
 });
-liveRouter.get('/live/:word', wrongWordLimiter, async (req, res) => {
+liveRouter.get('/live/:word', async (req, res) => {
+  const key = guessKey(req.ip);
+  if (guessGuard.blocked(key)) return sendFormPage(res, 429, 'Too many tries. Please wait a few minutes.');
   const cfg = await readConfig();
-  if (!wordMatches(cfg, req.params.word)) return sendFormPage(res, 404, 'That word is not right, or the live view is switched off.');
+  if (!wordMatches(cfg, req.params.word)) { guessGuard.fail(key); return sendFormPage(res, 404, 'That word is not right, or the live view is switched off.'); }
   res.cookie(COOKIE, tokenFor(cfg), { httpOnly: true, sameSite: 'lax', secure: req.secure || req.headers['x-forwarded-proto'] === 'https', maxAge: COOKIE_MAX_AGE, path: '/' });
   return sendViewer(res);
 });
