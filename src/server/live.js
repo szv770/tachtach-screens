@@ -89,6 +89,18 @@ export const orViewer = (guard) => async (req, res, next) => {
   return guard(req, res, next);
 };
 export const stateGate = orViewer(localhostOrAuth);
+
+// Per-address budgets for live viewers only (the TV and signed-in admins are never limited here). The page
+// polls /api/state every 5 s (12/min per watcher) and every poll reads ~14 files, so a script hammering it
+// could slow the real screen down (audit M6).
+const viewerBudget = (windowMs, max) => rateLimit({
+  keyGenerator: (req) => normalizeIp(req.ip),
+  skip: (req) => req.liveViewer !== true,
+  windowMs, max, standardHeaders: true, legacyHeaders: false,
+  message: { error: 'Too many requests. Please slow down.' },
+});
+export const viewerStateLimiter = viewerBudget(60 * 1000, 120);
+export const viewerStreamLimiter = viewerBudget(60 * 1000, 30);
 export const kioskGate = orViewer(localhostOnly);
 
 const SECRETISH = /(token|secret|passw|apikey|api_key|webhook|vapid|private)/i;

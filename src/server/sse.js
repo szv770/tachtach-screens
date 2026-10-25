@@ -7,6 +7,10 @@ let kioskLastSeenAt = null;
 const MAX_KIOSK_CLIENTS = 20;
 const MAX_PREVIEW_CLIENTS = 10;
 const MAX_VIEWER_CLIENTS = 40; // public live-view watchers: their own pool, so they never evict the admin preview
+// One address may hold only a few streams of the non-TV kinds, so a single person (or a script) cannot fill a
+// whole pool and churn everybody else out (audit M6). A family or class behind one address still fits.
+const MAX_VIEWER_PER_ADDRESS = 4;
+const MAX_PREVIEW_PER_ADDRESS = 6;
 
 /**
  * Register a new SSE client.
@@ -14,9 +18,11 @@ const MAX_VIEWER_CLIENTS = 40; // public live-view watchers: their own pool, so 
  * @param {import('express').Response} res
  * @param {boolean} isPreview — preview-only clients receive broadcastToAll
  *                               but NOT regular broadcast()
+ * @param {boolean} viewer — public live-view watcher
+ * @param {string} [key] — who is asking (normalised address); caps how many non-TV streams one address may hold
  * @returns {string} client id
  */
-export function addClient(res, isPreview = false, viewer = false) {
+export function addClient(res, isPreview = false, viewer = false, key = null) {
   const id = crypto.randomBytes(8).toString('hex');
 
   // Set SSE headers
@@ -37,7 +43,7 @@ export function addClient(res, isPreview = false, viewer = false) {
   // Send initial connection event
   res.write(`data: ${JSON.stringify({ type: 'connected', data: { id } })}\n\n`);
 
-  clients.set(id, { res, isPreview, viewer });
+  clients.set(id, { res, isPreview, viewer, key });
   if (!isPreview) kioskLastSeenAt = Date.now();
 
   // Remove on disconnect
@@ -51,6 +57,16 @@ export function addClient(res, isPreview = false, viewer = false) {
   for (const [cid, c] of clients) {
     if (c.isPreview === isPreview && !!c.viewer === viewer && cid !== id) {
       sameTypeClients.push(cid);
+    }
+  }
+  if (key && isPreview) {
+    const cap = viewer ? MAX_VIEWER_PER_ADDRESS : MAX_PREVIEW_PER_ADDRESS;
+    const mine = sameTypeClients.filter((cid) => clients.get(cid)?.key === key);
+    while (mine.length >= cap) {
+      const oldest = mine.shift();
+      sameTypeClients.splice(sameTypeClients.indexOf(oldest), 1);
+      clients.get(oldest)?.res.end();
+      clients.delete(oldest);
     }
   }
   const maxForType = viewer ? MAX_VIEWER_CLIENTS : isPreview ? MAX_PREVIEW_CLIENTS : MAX_KIOSK_CLIENTS;

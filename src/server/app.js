@@ -18,7 +18,7 @@ import { startUpdateMonitor } from './systemUpdate.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
-import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState, getTouchFlags } from './live.js';
+import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState, getTouchFlags, viewerStateLimiter, viewerStreamLimiter } from './live.js';
 import { homePage, HOME_CSP } from './homePage.js';
 import { cspMiddleware } from './csp.js';
 import { publicErrorMessage } from './safeError.js';
@@ -261,6 +261,7 @@ export function createApp() {
   // ── 6. Guard on kiosk routes — kiosk (localhost) or a logged-in admin ─
   app.use('/screen', localhostOrAuth);
   app.use('/stream', stateGate); // kiosk, a logged-in admin, or a live-view watcher (src/server/live.js)
+  app.use('/stream', viewerStreamLimiter); // viewers only: reconnect storms / stream floods
   app.use(liveRouter); // public /live (type the word) and /live/:word (read-only copy of the screen)
 
   // ── 6b. SSE stream route (before static serving) ────────────────────
@@ -272,7 +273,7 @@ export function createApp() {
   // the first mutating request after opening the admin panel always failed
   // with 403 "CSRF validation failed" (the cookie was only issued by that
   // failing response), and the change appeared to silently revert.
-  app.get('/api/state', stateGate, csrfProtection, async (req, res) => {
+  app.get('/api/state', stateGate, viewerStateLimiter, csrfProtection, async (req, res) => {
     try {
       const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories] = await Promise.all([
         readJSON('cache.json'),
