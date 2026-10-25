@@ -63,6 +63,8 @@ Files: `users.json` (logins; legacy `auth.json` only read for migration), `activ
 
 ## Fetchers (`src/fetchers/`)
 
+**Data source switch (`settings.dataSource`)**: `'live'` (default) = the fetchers below; `'local'` = `src/fetchers/dataSource.js` `sourceFor(settings, cache)` returns the same four functions (`fetchHebrewDate/fetchParsha/fetchOmer/fetchZmanim`) backed by `src/shared/localData.js` (no network), `fetchAll` skips every Chabad/Hebcal/TorahCalc call and adds the monthly Tehillim + the data pack (`src/server/dataPackStore.js`, `data/pack/`, format in `src/shared/dataPack.js`). Plan, measured parity and licence questions: `docs/DATA-PACK-PLAN.md`.
+
 All server-side, all write into `cache.json`. `chabad.js` (zmanim RSS + Hayom Yom/Chitas/Rambam HTML scrape via `cheerio`), `hebcal.js` (Hebrew date, Omer, parsha), `sefaria.js` (Daily Rambam/Tanya calendar), `rss.js` (generic feed + field mapping), `google-photos.js` (shared-album scrape, no OAuth), `mivtzah.js` (pulls from the co-located SaaS platform), `torahcalc.js`, `browserFetch.js` (puppeteer-core-backed fetch used where a plain HTTP request gets blocked — see GOTCHAS.md re: Cloudflare). `cache.rambam1/rambam3/seferHamitzvot` keep the RSS text as is (`displayEn`/`displayHe`); the kiosk structures it at render time with `src/shared/limudim.js` (sefer/halachos/perakim, Sefer HaMitzvos items; unparsable text falls back to the raw line), so no cache migration is needed.
 
 ## Schedule by date (`src/shared/scheduleResolution.js`, `schedulePaste.js`, `scheduleClaudePrompt.js`)
