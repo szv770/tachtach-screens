@@ -158,6 +158,10 @@ export default function AdminLayout({
     return () => { ro?.disconnect(); root.style.setProperty('--tt-tabbar-h', '0px'); };
   }, [wide]);
 
+  // Desktop sidebar accordion: only one area is open; it follows the page you are on.
+  const [openArea, setOpenArea] = useState(area);
+  useEffect(() => { setOpenArea(area); }, [area]);
+
   // Close the drawer when the layout changes or a section changes.
   useEffect(() => { setPreviewOpen(false); }, [activeSection, wide, roomForPreview]);
 
@@ -301,28 +305,36 @@ export default function AdminLayout({
           {AREAS.filter((a) => a.key !== 'home').map((a) => {
             const items = sectionsOfArea(a.key, role);
             if (!items.length) return null;
+            const open = openArea === a.key;
             return (
-              <div key={a.key} style={{ marginTop: '16px' }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '8px', padding: '0 10px 6px', fontFamily: adminFonts.englishBody,
-                  fontSize: '11px', fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: colors.muted,
+              <div key={a.key} style={{ marginTop: '6px' }}>
+                <button type="button" aria-expanded={open} data-testid={`side-area-${a.key}`} onClick={() => setOpenArea(open ? null : a.key)} style={{
+                  display: 'flex', alignItems: 'center', gap: '10px', width: '100%', minHeight: '40px', padding: '0 10px', borderRadius: 'var(--r-sm)',
+                  border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: adminFonts.englishBody,
+                  fontSize: '14px', fontWeight: 800, color: area === a.key ? colors.accent : colors.text,
                 }}>
-                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: a.color }} />{a.en}
-                </div>
-                {a.key === 'look'
-                  ? LOOK_GROUPS.map((g) => {
-                    const gi = items.filter((it) => it.group === g.key);
-                    if (!gi.length) return null;
-                    return (
-                      <div key={g.key} style={{ marginTop: '6px' }}>
-                        <div style={{ padding: '6px 10px 2px', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.muted }}>{g.en}</div>
-                        {gi.map((it) => <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />)}
-                      </div>
-                    );
-                  })
-                  : items.map((it) => (
-                    <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
-                  ))}
+                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: a.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{a.en}</span>
+                  <span aria-hidden="true" style={{ display: 'inline-block', color: colors.muted, transition: 'transform .2s', transform: open ? 'rotate(90deg)' : 'none' }}>›</span>
+                </button>
+                {open && (
+                  <div style={{ marginLeft: '14px', paddingLeft: '8px', borderLeft: `1px solid ${colors.line}` }}>
+                    {a.key === 'look'
+                      ? LOOK_GROUPS.map((g) => {
+                        const gi = items.filter((it) => it.group === g.key);
+                        if (!gi.length) return null;
+                        return (
+                          <div key={g.key} style={{ marginTop: '6px' }}>
+                            <div style={{ padding: '6px 10px 2px', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.muted }}>{g.en}</div>
+                            {gi.map((it) => <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />)}
+                          </div>
+                        );
+                      })
+                      : items.map((it) => (
+                        <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
+                      ))}
+                  </div>
+                )}
               </div>
             );
           })}
