@@ -2,7 +2,7 @@
 
 Owner decision (2026-10-25): the Pi should stop downloading the day's Jewish data every day (Chabad.org, Hebcal, Sefaria, TorahCalc). Calculate what can be calculated, and bundle the texts once, a year or more ahead.
 
-Status in this branch: the calculation half is **built and measured** (section 3); the text pack has its **format, loader and build tool** but **no text in it** (section 4 to 7). Switch: `settings.dataSource` = `'live'` (default, exactly today's behaviour) or `'local'`.
+Status in this branch: the calculation half is **built and measured** (section 3); the text pack has its **format, loader, build tool, on-Pi builder, upload route and admin card** (sections 4 to 9). **No text is in the repo**: it is collected on the Pi. Owner decision 2026-10-25: Chabad.org allows its content with credit, so the licence blocker in section 7 is lifted for the chabad.org sections. Switch: `settings.dataSource` = `'live'` (default, exactly today's behaviour) or `'local'`.
 
 ## 1. What the Pi fetches today
 
@@ -40,7 +40,7 @@ Not a fetcher but relevant: the Kiddush Levana announcement, birthdays and chaza
 | Chumash reference of the day | bundle (could be derived) | the reading line; derivable from the parsha plus a table of portion boundaries, not built |
 | Rambam 1 and 3 chapter, Sefer HaMitzvos | bundle (could be derived) | derivable from a verified chapter table plus the cycle start; not built (see 7) |
 | Tanya of the day (Chabad cycle, differs by year type) + first/last words | bundle | year-specific |
-| Daily Quote, Parsha Tidbits | not in the pack | marketing/article content from Chabad.org; slides keep their last data or are turned off (owner decision, 7) |
+| Daily Quote, Parsha Tidbits | bundle (collected) | feeds only show today: the builder collects them (quote pool; tidbits by Shabbos + parsha name), see section 9 |
 | Weather, feeds, photos | stay live | not daily Jewish data |
 
 ## 3. Local calculation: how it works and how well it matches (measured 2026-10-25)
@@ -110,7 +110,9 @@ days-YYYY-MM.json    { month, days: { "2026-10-25": { chumash, tehillim, tanya, 
 
 Unknown until the real text is in hand (the format supports every answer, the content decides): whether the source has its own Hayom Yom text for Adar I days in a leap year; whether 30 Cheshvan / 30 Kislev (complete years) and the Yom Tov days have entries.
 
-## 7. Sources and licences (needs the owner)
+## 7. Sources and licences
+
+**Update 2026-10-25 (owner):** Chabad.org explicitly allows pulling its content provided it is CREDITED. Hayom Yom, Tanya, Rambam, Chumash/Chitas, Sefer HaMitzvos, Daily Quote and Parsha Tidbits (all chabad.org) may therefore go in the pack. The credit is 'Courtesy of Chabad.org' on the kiosk pages that show it (admin switch, default on) and the pack manifest records `credit: 'Chabad.org'` and `licence: 'Chabad.org — used with credit'` per section. Exception to note: Rambam / Sefer HaMitzvos reference lines come from TorahCalc's per-date API (the one the admin date-preview already uses), marked in the manifest as 'chapter references only (facts); cycle courtesy of Chabad.org'. The table below is the original analysis, kept for the record.
 
 **Nothing copyrighted has been copied into the repo.** The build tool needs a licence note per section before it will produce any file.
 
@@ -120,7 +122,7 @@ Unknown until the real text is in hand (the format supports every answer, the co
 | Tanya: daily lesson reference and first/last 8 words | chabad.org RSS + `tanya.asp` scrape | The daily division is a factual schedule; the Hebrew text of the Tanya (1796) is public domain. The excerpt is scraped from chabad.org pages that also carry copyrighted English/commentary. Safer: take the division from a stated calculation or an openly licensed source and the Hebrew words from an openly licensed Tanya text (check Sefaria's licence for that edition). |
 | Chumash/Rashi, Rambam, Sefer HaMitzvos | only the reading LINE, no text | References are facts; the cycle assignment can be rebuilt independently (cycle start + a chapter table). Low risk. Chabad.org's page is the convenient but not the only source (Sefaria's calendar API and Hebcal's Torah-reading data are possible; **check each licence and attribution requirement before use**). |
 | Tehillim | calculated | no text, a published cycle |
-| Daily Quote, Parsha Tidbits | chabad.org RSS | marketing/article copy; not bundled in this plan |
+| Daily Quote, Parsha Tidbits | chabad.org RSS | now in the pack (owner decision 2026-10-25: Chabad.org allows use with credit) |
 | Hebrew calendar, parsha, holidays, zmanim | calculated | no text. The calculators are original code. Hebcal and Chabad.org outputs are used only as measuring sticks for tests (dates, holiday names, times: facts); holiday and portion names follow Hebcal's spelling for compatibility. |
 
 Candidate sources to ask about for the text (owner/rabbi decision): (1) Kehot / Chabad.org permission to bundle Hayom Yom and Chitas references; (2) Sefaria (openly licensed texts, calendar API; needs a name-mapping table for Rambam halachos, Sefaria spells them differently from Chabad.org); (3) the school's own purchased/licensed edition; (4) keep Hayom Yom live (one tiny request a day) and bundle only the rest.
@@ -140,6 +142,26 @@ Candidate sources to ask about for the text (owner/rabbi decision): (1) Kehot / 
 | Pack loader | `src/server/dataPackStore.js` |
 | Tests + parity fixtures | `test/localData.test.js`, `test/fixtures/hebcal-parity.json`, `zmanim-parity.json`, `scripts/make-parity-fixtures.mjs` |
 
-Not done: no admin UI for the switch (set `dataSource` through `PATCH /api/settings`; a one-line toggle in Health or Look & Settings is the follow-up), no Health row for pack cover, no pack upload route, no Rambam / Chumash derivation, Daily Quote and Parsha Tidbits not covered, `kiddushLevana.js` / `roster.js` / `chazan.js` still use `Intl` for the Hebrew date. Not run on the real Pi.
+Not done in the first pass (all done now, see section 9): no admin UI for the switch (set `dataSource` through `PATCH /api/settings`; a one-line toggle in Health or Look & Settings is the follow-up), no Health row for pack cover, no pack upload route, no Rambam / Chumash derivation, Daily Quote and Parsha Tidbits not covered, `kiddushLevana.js` / `roster.js` / `chazan.js` still use `Intl` for the Hebrew date. Not run on the real Pi.
 
 Decisions the owner must make: (1) permission/source for Hayom Yom text (section 7), the main blocker for a pack with text; (2) same question for the Tanya lines and the chabad.org-derived cycle assignments, or an openly licensed route; (3) how the pack gets onto the Pi (scp, Health upload card, monthly pull); (4) Daily Quote and Parsha Tidbits: drop in local mode, or keep a live fetch for just those; (5) go-live: flip `dataSource` to `local` only once a pack with Hayom Yom is installed (zmanim, date, parsha, omer, Tehillim work without it, so the switch is safe to try earlier: Hayom Yom and Chitas would then show old text); (6) confirm Psalm 119 wording for the 25th/26th (the pack supplies it).
+
+## 9. Chabad.org text pack, credit and footnotes (2026-10-25)
+
+**What changed**
+- Sections now: `hayomYom` (perpetual), `chumash`, `tanya` (+ first/last words), `rambam1`, `rambam3`, `seferHamitzvot`, `tehillim` (Psalm 119 days only), `dailyQuote` (+ `quotePool`), `tidbits` (weekly). Format additions: `weekly.json`, `manifest.credit/licence/coverage`.
+- **Builder on the Pi**: Health > Offline data > Build / refresh (or `npm run build-pack`). Reads the same Chabad.org pages the live fetchers use, one request at a time with a 1.5 s jittered pause, 3 tries with back-off per request, stops after 12 failures in a row ('blocked': what was collected is installed, run again later). State in `data/pack-work/state.json`, so it can be stopped/crashed/power-cut and resumed; a refresh seeds from the installed pack and only fetches what is new (about 430 civil days x 3 request groups + 414 Hayom Yom days + about 30 Psalm 119 days for 14 months, roughly 1 to 1.5 hours at the default pace).
+- **Pack delivery**: upload card (one-file pack made by `--bundle` or downloaded from another box), or build on the Pi. Cover shown as 'covers until <date>', warns 60 days before the end, red after.
+- **Local mode** reads all of it; a section the pack lacks is shown as 'Not in the data pack yet' (never yesterday's text, never a crash).
+
+**Special years/days handled (tests in `test/dataPackChabad.test.js`)**: both Adars of a leap year (`Adar I-1..30`, `Adar II-1..29`) plus plain `Adar` fetched so later plain years are covered; days with no Hayom Yom (`null`, explicit empty page) vs a failed page (retried, never stored); 30th of the month (`X-30` keys only for months that have a 30th; Cheshvan/Kislev 30 only in years that have them, found within a 3-year horizon); Psalm 119 days = Hebrew 25th/26th, the only days Tehillim is read from the pack; Shabbos / Yom Tov / Chol HaMoed each get their own chumash reading (a Yom Tov heading is kept verbatim, not forced into the 'Parshat' shape); holiday-Shabbos weeks have no parsha so no tidbits key; resume/seed/refresh.
+
+**What the owner must do on the Pi (once)**
+1. Update the Pi (Health > Software update).
+2. `cd ~/tachtach-screens && node scripts/build-data-pack.js --probe` : reads ONE day of every section from Chabad.org and prints what was found. Any line that says EMPTY or FAIL means that reader needs adjusting for the real page (send me the output).
+3. If the probe is fine: Health > Offline data > Build / refresh on this Pi (leave it running; you can close the page). Check the gap list when it finishes; press Build again to retry anything that failed.
+4. Only then switch Health > Offline data to Local. Re-run the build every few months (the card warns 60 days before the end) and now and then to grow the Daily Quote pool and Parsha Tidbits.
+5. If the Pi cannot reach chabad.org (or is blocked): build on any computer with `node scripts/build-data-pack.js --fetch --bundle pack.json --out ./pack-out` and upload `pack.json` on the same card.
+
+**Known limits**: the per-date page URLs and heading selectors are unverified (sandbox is blocked); Daily Quote and Tidbits can only be collected as they are published (the pool and the same-portion fallback cover the gaps); Hebrew text for Chumash/Tehillim/Tanya headings comes from the he.chabad.org twin pages and falls back to empty if absent; not run on the real Pi.
+

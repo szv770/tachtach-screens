@@ -169,3 +169,12 @@ RSS feed URLs, Google album links/photos and the embed probe use `src/server/saf
 
 ## Secrets on disk (audit low, 2026-10-19)
 `data/` is 0700; `users.json`, `auth.json`, `push.json`, `undo.json` and `data/tls/*.key` are 0600. `writeJSON` creates them that way and `ensureDataDir()` tightens existing ones once per start (only files this process owns; `src/server/dataPerms.js`). If a copy/restore as another user makes the Pi fail to read them, `sudo chown -R <pi-user> data` then restart.
+
+## Data pack builder and footnotes (2026-10-25)
+- **The per-date Chabad.org page URLs in `src/fetchers/packSources.js` were written in a sandbox where chabad.org is Cloudflare-blocked**: they follow the URLs the live fetchers and the admin date-preview already use (`hayomyom.asp`, `torahreading.asp`, `tehillim.asp`, `tanya.asp`, `he.chabad.org` twins) but have never been run for real. First thing on the Pi: `node scripts/build-data-pack.js --probe`. A section that reads EMPTY/FAIL there needs its reader adjusted (heading selector, URL), not the builder.
+- **The two feeds (Daily Quote, Parsha Tidbits) only ever show TODAY.** The pack can therefore only hold what the builder collected on the days it ran: quotes also go into `quotePool` (a spare one is picked per day when a day has none) and tidbits are filed under this week's Shabbos with the parsha name (the same portion in another year is the fallback). Re-run the build now and then to grow both.
+- **'Page could not load' is never stored as 'no Hayom Yom that day'**: `fetchHayomYomDetailed` returns `empty` only when the page has the Hayom Yom section but no text; a missing section / challenge page is `error` (retried, then listed under `state.failed`). Storing a failure as `null` would blank that day for a year.
+- **Footnote digits are removed only when attached with no space to a word or to closing punctuation** (`said.12`, `God1`), never after a colon or digit (`119:3`, `1,000`, `5787.12` is kept because it could be a decimal). Reference lines (Chumash/Rambam/Tanya from the feeds) only get the markup rules, not the glued-digit rule.
+- **Local mode no longer keeps yesterday's text** when the pack lacks today: `packToCache` writes explicit `missing` entries. If a screen shows 'Not in the data pack yet' on a day inside the pack's range, check the Health card's gap list first.
+- The upload route takes a RAW body (`Content-Type: application/octet-stream`) so it skips the 16 kB JSON parser in `app.js`; don't switch it to JSON without adding it to that exemption list.
+
