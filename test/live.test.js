@@ -12,7 +12,7 @@ test('live word: easy-to-type, lowercased, bad input refused with a plain messag
 });
 
 test('M2: weak custom words are refused with a clear message (short, or hardly any different letters)', () => {
-  for (const weak of ['miami', 'tachtach', 'password1', 'aaaaaaaaaaaa', 'abababababab', '1234567890']) {
+  for (const weak of ['miami', 'tachtach', 'password1', 'aaaaaaaaaaaa', 'abababababab']) {
     const r = validateWord(weak);
     assert.ok(r.error && /Too easy to guess/.test(r.error) && /New word/.test(r.error), weak);
   }

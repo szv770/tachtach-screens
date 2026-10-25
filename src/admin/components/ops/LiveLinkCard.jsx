@@ -139,7 +139,7 @@ export default function LiveLinkCard({ me }) {
                 onChange={(e) => { editing.current = true; setDraft(e.target.value); setWordErr(''); }} style={field} />
               <button type="submit" data-testid="live-word-save" disabled={busy || !draft.trim() || draft.trim().toLowerCase() === word} style={{ ...btn, opacity: (busy || !draft.trim() || draft.trim().toLowerCase() === word) ? 0.5 : 1 }}>Save</button>
             </div>
-            <div style={small}>4 to 40 letters, numbers or hyphens. Changing it stops the old link for everyone.</div>
+            <div style={small}>10 to 40 letters, numbers or hyphens, hard to guess (the New word button makes a good one). Changing it stops the old link for everyone.</div>
             {wordErr && <div role="alert" data-testid="live-word-error" style={{ color: colors.danger, fontSize: '14px' }}>{wordErr}</div>}
           </form>
 
