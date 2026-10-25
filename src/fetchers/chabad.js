@@ -33,7 +33,8 @@ export function parseZmanimRSS(xml) {
   for (const item of items) {
     const title = item.title || "";
     const cat = (item.category || "").trim();
-    const m = title.match(/^(.+?) - \d+:/);
+    // The feed now writes the quotes in Mincha Ketanah / Plag HaMincha as curly quotes; RSS_MAP has straight ones.
+    const m = title.replace(/[\u201C\u201D]/g, '"').replace(/[\u2018\u2019]/g, "'").match(/^(.+?) - \d+:/);
     if (m && cat && !cat.includes("min.")) {
       const key = RSS_MAP[m[1].trim()] || (/candle/i.test(m[1]) ? "candleLighting" : null);
       if (key) res[key] = cat;

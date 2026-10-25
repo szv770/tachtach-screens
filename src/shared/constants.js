@@ -12,6 +12,7 @@ export function normalizeCheshvan(str) {
 export const RSS_MAP = {
   "Dawn (Alot Hashachar)": "alotHaShachar",
   "Earliest Tallit and Tefillin (Misheyakir)": "misheyakir",
+  "Earliest Tallit (Misheyakir)": "misheyakir",
   "Sunrise (Hanetz Hachamah)": "sunrise",
   "Latest Shema": "sofZmanShma",
   "Latest Shacharit": "sofZmanTfilla",
@@ -23,6 +24,7 @@ export const RSS_MAP = {
   "Nightfall (Tzeit Hakochavim)": "tzeit7083deg",
   // Additional zmanim
   "Midnight (Chatzot Layla)": "chatzotLayla",
+  "Midnight (Chatzot HaLailah)": "chatzotLayla",
   "Chatzot Layla (Halachic Midnight)": "chatzotLayla",
   "Shaah Zmanit (Halachic Hour)": "shaaZmanit",
   "Halachic Hour (Shaah Zmanit)": "shaaZmanit",
