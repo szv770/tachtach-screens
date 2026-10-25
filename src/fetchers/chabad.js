@@ -3,6 +3,7 @@ import { XMLParser } from "fast-xml-parser";
 import * as cheerio from "cheerio";
 import { RSS_MAP, normalizeCheshvan } from "../shared/constants.js";
 import { fetchRenderedHTML } from "./browserFetch.js";
+import { removeFootnoteNodes, stripFootnoteMarkers, stripFootnoteHtml } from "../shared/footnotes.js";
 
 const UA = "Mozilla/5.0 (compatible; TachTach-Screens/1.0)";
 
@@ -109,11 +110,18 @@ export function parseHayomYom(html) {
   // would otherwise pollute the saying extraction below.
   $('.hayom-yom-info, script, style, nav, header, footer, noscript, iframe').remove();
 
+  // Footnote reference numbers (<sup>, a.footnote, co:footnoteref ...) and the footnote table are taken out
+  // BEFORE any text is read, so no number ends up glued into a sentence. The notes are kept apart, never shown.
+  const notes = { en: [], he: [] };
+  $('.hayom-yom-hebrew').each((_, el) => { notes.he.push(...removeFootnoteNodes($, $(el)).notes); });
+  $('.hayom-yom-native').each((_, el) => { notes.en.push(...removeFootnoteNodes($, $(el)).notes); });
+  removeFootnoteNodes($, $.root());
+
   // ── Hebrew extraction ───────────────────────────────────────────────────────
   // .hayom-yom-hebrew > div.hebrew holds just the day's saying (no header/copyright).
   // Hayom Yom entries are frequently Yiddish in their original — authentic, not noise.
   let hayomHe = '';
-  const heText = $('.hayom-yom-hebrew .hebrew').first().text().replace(/\s+/g, ' ').trim();
+  const heText = stripFootnoteMarkers($('.hayom-yom-hebrew .hebrew').first().text().replace(/\s+/g, ' ').trim());
   if (heText) {
     const rawWords = heText.split(/\s+/).filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
     hayomHe = trimDedication(rawWords).join(' ');
@@ -135,8 +143,7 @@ export function parseHayomYom(html) {
       const deduped = heSegments.filter(
         (s, i) => !heSegments.some((t, j) => j !== i && t.length > s.length && t.includes(s))
       );
-      const allHeWords = deduped
-        .join(' ')
+      const allHeWords = stripFootnoteMarkers(deduped.join(' '))
         .split(/\s+/)
         .filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
       hayomHe = trimDedication(allHeWords).join(' ');
@@ -146,7 +153,7 @@ export function parseHayomYom(html) {
   // ── English extraction ──────────────────────────────────────────────────────
   // .hayom-yom-native > co:body holds just the day's saying (footnotes live in
   // a separate sibling <co:footnotetable>, so this is already clean).
-  let hayomEn = $('.hayom-yom-native').find('co\\:body').first().text().replace(/\s+/g, ' ').trim();
+  let hayomEn = stripFootnoteMarkers($('.hayom-yom-native').find('co\\:body').first().text().replace(/\s+/g, ' ').trim());
   const enParts = [];
   if (!hayomEn) $('span.co_verse, span.text-with-annotation').each((_, el) => {
     const text = $(el).text().replace(/\s+/g, ' ').trim();
@@ -169,9 +176,11 @@ export function parseHayomYom(html) {
     });
   }
 
-  if (!hayomEn) hayomEn = enParts.slice(0, 5).join(' ');
+  if (!hayomEn) hayomEn = stripFootnoteMarkers(enParts.slice(0, 5).join(' '));
 
-  return { hayomHe: normalizeCheshvan(hayomHe), hayomEn };
+  const out = { hayomHe: normalizeCheshvan(hayomHe), hayomEn };
+  if (notes.en.length || notes.he.length) out.notes = notes;
+  return out;
 }
 
 /**
@@ -224,7 +233,7 @@ export async function fetchHayomYom(date) {
 function parseRambamDescription(desc) {
   if (!desc) return { displayText: '', chaptersArabic: [] };
   // Strip HTML tags
-  let text = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  let text = stripFootnoteHtml(desc, { glued: false });
   // Strip "Today's Lesson: " prefix (case-insensitive)
   text = text.replace(/^today's lesson:\s*/i, '').trim();
   // Extract all chapter numbers: "Chapter 4", "Chapter 1", etc.
@@ -295,7 +304,7 @@ export function parseDailyStudyRSS(xml) {
   const tanyaDesc = findItem('Daily Tanya');
 
   // Clean up descriptions — strip HTML tags and known prefixes
-  const clean = (s) => s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+  const clean = (s) => stripFootnoteHtml(s, { glued: false });
 
   let chumash = clean(chumashDesc);
   let tehillim = clean(tehillimDesc).replace(/^Today's (Psalms|Tehillim):\s*/i, '');
@@ -370,7 +379,7 @@ export async function fetchDailyQuote() {
     const item = Array.isArray(items) ? items[0] : items;
     if (!item?.description) return null;
 
-    const raw = String(item.description).replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    const raw = stripFootnoteHtml(String(item.description));
     // Try em-dash — most authoritative separator
     const lastEmDash = raw.lastIndexOf('—');
     if (lastEmDash > 0) {
@@ -416,7 +425,7 @@ export function parseDailyStudyHebrewRSS(xml) {
   };
 
   const clean = (s) => {
-    let text = s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    let text = stripFootnoteHtml(s, { glued: false });
     // Jump to first Hebrew character — drops any leading English phrases
     const firstHebrew = text.search(/[\u05D0-\u05EA\u05F0-\u05F4\uFB1D-\uFB4E]/);
     if (firstHebrew > 0) text = text.slice(firstHebrew);
@@ -432,7 +441,7 @@ export function parseDailyStudyHebrewRSS(xml) {
     const titleText = (typeof item.title === 'string' ? item.title : '').trim();
     if (titleText.includes('Rambam')) {
       let rawDesc = (typeof item.description === 'string' ? item.description : String(item.description || ''));
-      rawDesc = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      rawDesc = stripFootnoteHtml(rawDesc, { glued: false });
       rawDesc = rawDesc.replace(/^today's lesson:\s*/i, '').trim();
       if (titleText.includes('1 Chapter')) rambam1He = rawDesc;
       else if (titleText.includes('3 Chapter')) rambam3He = rawDesc;
@@ -440,7 +449,7 @@ export function parseDailyStudyHebrewRSS(xml) {
     const titleLower = titleText.toLowerCase();
     if (titleLower.includes('daily mitzvah') || titleLower.includes('sefer')) {
       let rawDesc = (typeof item.description === 'string' ? item.description : String(item.description || ''));
-      rawDesc = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      rawDesc = stripFootnoteHtml(rawDesc, { glued: false });
       rawDesc = rawDesc.replace(/^today's lesson:\s*/i, '').trim();
       seferHamitzvotHe = rawDesc;
     }
@@ -486,6 +495,7 @@ export async function fetchDailyStudyHebrewRSS() {
  */
 export function parseTanyaExcerpt(html) {
   const $ = cheerio.load(html);
+  removeFootnoteNodes($, $.root());
 
   // Remove commentary, noise, and dedication blocks
   $('.co_commentary, script, style, nav, header, footer, noscript, iframe, .subnav, .social-bar, .breadcrumb, .related-articles, .dedication, .sponsor, [class*="sponsor"], [class*="dedicat"]').remove();
@@ -498,8 +508,7 @@ export function parseTanyaExcerpt(html) {
   });
 
   if (heSpans.length > 0) {
-    const rawWords = heSpans
-      .join(' ')
+    const rawWords = stripFootnoteMarkers(heSpans.join(' '))
       .split(/\s+/)
       .filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
     const heWords = trimDedication(rawWords);
@@ -530,8 +539,7 @@ export function parseTanyaExcerpt(html) {
     const deduped = segments.filter(
       (s, i) => !segments.some((t, j) => j !== i && t.length > s.length && t.includes(s))
     );
-    const rawWords = deduped
-      .join(' ')
+    const rawWords = stripFootnoteMarkers(deduped.join(' '))
       .split(/\s+/)
       .filter(w => /[\u05D0-\u05EA]/.test(w) && w.length > 1);
     const heWords = trimDedication(rawWords);
@@ -660,7 +668,7 @@ export async function fetchParshaTidbits() {
       .filter(item => item?.title)
       .map(item => ({
         title: String(item.title || '').trim(),
-        description: String(item.description || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim(),
+        description: stripFootnoteHtml(String(item.description || '')),
         link: String(item.link || '').trim(),
       }));
   } catch (err) {
