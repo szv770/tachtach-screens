@@ -9,6 +9,9 @@ import { userForRequest, localhostOrAuth, localhostOnly } from './middleware.js'
 import { normalizeIp } from './clientIp.js';
 import { getViewerClientCount } from './sse.js';
 import { buildCsp } from './csp.js';
+import { isActive, zonedParts, DEFAULT_TZ } from '../shared/announcements.js';
+import { birthdaysFor, addDays as rosterAddDays } from '../shared/roster.js';
+import { assignments, addDays as chazanAddDays } from '../shared/chazan.js';
 
 /**
  * Live view: a read-only copy of the screen for anyone holding the "live word"
@@ -19,7 +22,7 @@ import { buildCsp } from './csp.js';
  *  - Holding the word sets an httpOnly cookie (HMAC of the word under a server secret in
  *    data/live.json); only that cookie opens the viewer GET allow-list wired in app.js
  *    (/stream, /api/state, kiddush shown, google-album photos, rss cache). Never a write route.
- *  - /api/state for viewers is the screen's own state minus token/secret-looking keys (birthday names ARE shown, by owner choice).
+ *  - /api/state for viewers is built from an allow-list (viewerState): what the TV renders, no drafts/later posts, no staff names, no album links; only birthday and chazan names (owner choice).
  *  - Changing the word or switching off kills every viewer's cookie at once.
  *  - Wrong words are rate-limited per IP; the word is compared in constant time.
  * Admin config: GET/PUT /api/system/live, POST /api/system/live/new-word (admins only: /api/system).
@@ -113,12 +116,76 @@ function scrub(v) {
   }
   return v;
 }
+// ── What a live viewer may see (audit M1) ─────────────────────────────────────
+// An ALLOW-LIST, built from what the kiosk actually renders. Anything not listed here is not sent, so a
+// new key added to /api/state never reaches viewers until it is added on purpose. Owner decisions kept:
+// birthday names and chazan names are shown (like the TV), nothing else about students.
+const VIEWER_KEYS = ['cache', 'settings', 'slides', 'announcements', 'messages', 'pinned', 'customDays', 'googleAlbums', 'schedule',
+  'rssFeeds', 'fonts', 'scheduleDates', 'dailyWords', 'dailyStories', 'roster', 'chazan', 'countdown', 'screenDisplay', 'freeze', 'touch'];
+const STAFF_FIELDS = ['createdBy', 'createdById', 'updatedBy', 'updatedById'];
+const without = (o, keys) => { const c = { ...o }; for (const k of keys) delete c[k]; return c; };
+const isoOf = (now, tz) => zonedParts(now, tz).date;
+
+/** Posts the TV shows now (or in the next few minutes, so a hand-over is smooth): no drafts, no later ones, no staff names. */
+function viewerAnnouncements(list, now, tz) {
+  const soon = new Date(now.getTime() + 10 * 60 * 1000);
+  return (Array.isArray(list) ? list : []).filter((i) => isActive(i, now, { tz }) || isActive(i, soon, { tz })).map((i) => without(i, STAFF_FIELDS));
+}
+
+/** Only the people the birthday page can show yesterday, today or tomorrow (its own look-ahead strips included). */
+function viewerRoster(roster, now, tz) {
+  if (!roster || typeof roster !== 'object') return roster;
+  const today = isoOf(now, tz);
+  const keep = new Set();
+  for (const day of [rosterAddDays(today, -1), today, rosterAddDays(today, 1)]) {
+    const b = birthdaysFor(roster.people, day, roster.birthdays);
+    for (const x of [...b.today, ...b.recent, ...b.upcoming]) keep.add(x.person.id);
+  }
+  return { ...roster, people: (roster.people || []).filter((p) => keep.has(p.id)) };
+}
+
+/** The rotation reduced to the davenings the TV shows (today and the next few days): who leads, no queue, no away/can lists, no history. */
+function viewerChazan(chazan, customDays, now, tz) {
+  if (!chazan || typeof chazan !== 'object' || !chazan.settings) return chazan;
+  const today = chazan.today || isoOf(now, tz);
+  const published = {};
+  const ids = new Set();
+  for (const d of assignments(chazan, today, chazanAddDays(today, 4), customDays)) {
+    for (const sl of d.slots) {
+      if (!sl.id) continue;
+      published[d.date] = { ...(published[d.date] || {}), [sl.tefila]: { id: sl.id, how: sl.how === 'history' ? 'rotation' : sl.how, ...(sl.displacedId ? { displacedId: sl.displacedId } : {}) } };
+      ids.add(sl.id);
+      if (sl.displacedId) ids.add(sl.displacedId);
+    }
+  }
+  const names = Object.fromEntries(Object.entries(chazan.names || {}).filter(([id]) => ids.has(id)));
+  // queue = just the people on screen: the engine only honours a published slot whose person is still in the queue
+  return { settings: chazan.settings, order: [], queue: [...ids].filter((id) => names[id]), cursor: today, away: {}, can: {}, overrides: {}, published, history: {}, names, today, days: [] };
+}
+
 /**
- * What a live viewer gets of /api/state: exactly what the real screen gets (owner decision 2026-10-21:
- * the live view is the same as the Pi, birthday names included), minus anything that looks like a credential.
+ * What a live viewer gets of /api/state: the screen's own state, rebuilt from the allow-list above and
+ * stripped of anything credential-looking, of drafts / later posts, staff names, album and feed links,
+ * the school's zip code and every student who is not on the birthday page or leading a davening.
  */
-export function viewerState(state) {
-  return scrub(state);
+export function viewerState(state, now = new Date()) {
+  const src = scrub(state || {});
+  const tz = src.settings?.location?.timezone || DEFAULT_TZ;
+  const out = {};
+  for (const k of VIEWER_KEYS) if (k in src) out[k] = src[k];
+  if (out.announcements) {
+    out.announcements = viewerAnnouncements(out.announcements, now, tz);
+    const live = new Set(out.announcements.map((i) => String(i.id)));
+    for (const k of ['messages', 'pinned']) if (Array.isArray(out[k])) out[k] = out[k].filter((m) => live.has(String(m?.id))).map((m) => without(m, STAFF_FIELDS));
+  }
+  if (out.googleAlbums) out.googleAlbums = (Array.isArray(out.googleAlbums) ? out.googleAlbums : []).map((a) => without(a, ['url', 'albumId']));
+  if (out.rssFeeds) out.rssFeeds = (Array.isArray(out.rssFeeds) ? out.rssFeeds : []).map((f) => without(f, ['url']));
+  if (out.roster) out.roster = viewerRoster(out.roster, now, tz);
+  if (out.chazan) out.chazan = viewerChazan(out.chazan, out.customDays, now, tz);
+  if (out.freeze?.active) out.freeze = { ...out.freeze, active: without(out.freeze.active, ['source', ...STAFF_FIELDS]) };
+  if (out.settings?.location) out.settings = { ...out.settings, location: without(out.settings.location, ['zip', 'locationId']) };
+  if (out.settings) out.settings = without(out.settings, ['zipCode', 'chabadLocationId']);
+  return out;
 }
 
 // ── Pages ────────────────────────────────────────────────────────────────────

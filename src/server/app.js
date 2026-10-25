@@ -323,7 +323,7 @@ export function createApp() {
         // Touch switches (admin > Health > Live link): the TV can ignore touch, live viewers can swipe/tap their own copy.
         touch: await getTouchFlags(),
       };
-      res.json(req.liveViewer ? viewerState(body) : body); // live viewers never get student names or anything credential-like
+      res.json(req.liveViewer ? viewerState(body) : body); // live viewers get the allow-listed copy (src/server/live.js)
     } catch (err) {
       res.status(500).json({ error: 'Failed to read state' });
     }
