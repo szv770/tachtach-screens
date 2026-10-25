@@ -5,12 +5,12 @@ import { canOpenSection } from '../shared/permissions.js';
 /** Every section that has its own URL. `area` null = reached from the header (account, help, home). */
 export const navItems = [
   { key: 'home', en: 'Home', desc: 'What\'s on the screen now', area: 'home' },
-  { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen' },
-  { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen' },
-  { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
-  { key: 'daily-story', en: 'Daily Story', desc: 'A short story or thought every day', area: 'screen' },
-  { key: 'roster', en: 'Bochurim', desc: 'The list of names, and the birthday slide', area: 'screen' },
-  { key: 'chazan', en: 'Chazan', desc: 'Who leads Shacharis, Mincha and Maariv', area: 'screen' },
+  { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen', group: 'main' },
+  { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen', group: 'main' },
+  { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen', group: 'daily' },
+  { key: 'daily-story', en: 'Daily Story', desc: 'A short story or thought every day', area: 'screen', group: 'daily' },
+  { key: 'roster', en: 'Bochurim', desc: 'The list of names, and the birthday slide', area: 'screen', group: 'daily' },
+  { key: 'chazan', en: 'Chazan', desc: 'Who leads Shacharis, Mincha and Maariv', area: 'screen', group: 'daily' },
   { key: 'schedule', en: 'Schedule', desc: 'Weekly timetable, one-day changes & alerts', area: 'schedule' },
   { key: 'custom-days', en: 'Custom days', desc: 'Mark special dates', area: 'schedule' },
   { key: 'announcements', en: 'Announcements', desc: 'Posts, quick messages, banners & letters', area: 'announce' },
@@ -45,9 +45,40 @@ export const AREAS = [
 /** Sub-groups of the Look & Settings area (sidebar headings + the two-row sub-nav on a phone). */
 export const LOOK_GROUPS = [
   { key: 'look', en: 'Look' },
-  { key: 'setup', en: 'Screen setup' },
+  { key: 'setup', en: 'Settings' },
   { key: 'system', en: 'System' },
 ];
+
+/** Sub-groups of the Screen area (desktop sidebar shows each as its own section). */
+export const SCREEN_GROUPS = [
+  { key: 'main', en: 'Slides & media' },
+  { key: 'daily', en: 'Daily & people' },
+];
+
+/**
+ * Desktop sidebar sections: every area, split by its groups, so no list is long.
+ * key = `${area}` or `${area}:${group}`; `of(section)` tells which one a page lives in.
+ */
+export function sidebarSections(role) {
+  const out = [];
+  for (const a of AREAS) {
+    if (a.key === 'home') continue;
+    const items = sectionsOfArea(a.key, role);
+    if (!items.length) continue;
+    const groups = a.key === 'look' ? LOOK_GROUPS : a.key === 'screen' ? SCREEN_GROUPS : null;
+    if (!groups) { out.push({ key: a.key, area: a.key, en: a.en, color: a.color, items }); continue; }
+    for (const g of groups) {
+      const gi = items.filter((it) => it.group === g.key);
+      if (gi.length) out.push({ key: `${a.key}:${g.key}`, area: a.key, en: a.key === 'look' ? g.en : g.en, color: a.color, items: gi });
+    }
+  }
+  return out;
+}
+export const sidebarKeyOf = (section) => {
+  const info = sectionInfo(section);
+  if (!info?.area || info.area === 'home') return null;
+  return info.group && (info.area === 'look' || info.area === 'screen') ? `${info.area}:${info.group}` : info.area;
+};
 
 /** Retired section URLs that still work (bookmarks, old links, help text). */
 export const SECTION_ALIASES = { settings: 'location', 'rss-feeds': 'images' };

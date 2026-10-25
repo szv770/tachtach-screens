@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { colors, adminFonts } from '../styles/admin-tokens.js';
 import { canOpenSection, ROLE_LABEL } from '../../shared/permissions.js';
-import { navItems, AREAS, LOOK_GROUPS, areaOfSection, areaInfo, sectionInfo, sectionsOfArea, sectionsOfGroup, firstSectionOfArea, areasFor } from '../nav.js';
+import { navItems, AREAS, LOOK_GROUPS, areaOfSection, areaInfo, sectionInfo, sectionsOfArea, sectionsOfGroup, firstSectionOfArea, areasFor, sidebarSections, sidebarKeyOf } from '../nav.js';
 import Icon from './ui/Icon.jsx';
 import SegmentedControl from './ui/SegmentedControl.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
@@ -159,8 +159,8 @@ export default function AdminLayout({
   }, [wide]);
 
   // Desktop sidebar accordion: only one area is open; it follows the page you are on.
-  const [openArea, setOpenArea] = useState(area);
-  useEffect(() => { setOpenArea(area); }, [area]);
+  const [openArea, setOpenArea] = useState(sidebarKeyOf(activeSection));
+  useEffect(() => { setOpenArea(sidebarKeyOf(activeSection)); }, [activeSection]);
 
   // Close the drawer when the layout changes or a section changes.
   useEffect(() => { setPreviewOpen(false); }, [activeSection, wide, roomForPreview]);
@@ -302,37 +302,22 @@ export default function AdminLayout({
 
         <nav style={{ flex: 1 }}>
           <SideItem label="Home" icon="home" active={activeSection === 'home'} onClick={() => go('home')} />
-          {AREAS.filter((a) => a.key !== 'home').map((a) => {
-            const items = sectionsOfArea(a.key, role);
-            if (!items.length) return null;
-            const open = openArea === a.key;
+          {sidebarSections(role).map((sec) => {
+            const open = openArea === sec.key;
             return (
-              <div key={a.key} style={{ marginTop: '6px' }}>
-                <button type="button" aria-expanded={open} data-testid={`side-area-${a.key}`} onClick={() => setOpenArea(open ? null : a.key)} style={{
+              <div key={sec.key} style={{ marginTop: '6px' }}>
+                <button type="button" aria-expanded={open} data-testid={`side-area-${sec.key}`} onClick={() => setOpenArea(open ? null : sec.key)} style={{
                   display: 'flex', alignItems: 'center', gap: '10px', width: '100%', minHeight: '40px', padding: '0 10px', borderRadius: 'var(--r-sm)',
                   border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontFamily: adminFonts.englishBody,
-                  fontSize: '14px', fontWeight: 800, color: area === a.key ? colors.accent : colors.text,
+                  fontSize: '14px', fontWeight: 800, color: sidebarKeyOf(activeSection) === sec.key ? colors.accent : colors.text,
                 }}>
-                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: a.color, flexShrink: 0 }} />
-                  <span style={{ flex: 1 }}>{a.en}</span>
+                  <span aria-hidden="true" style={{ width: 8, height: 8, borderRadius: 3, background: sec.color, flexShrink: 0 }} />
+                  <span style={{ flex: 1 }}>{sec.en}</span>
                   <span aria-hidden="true" style={{ display: 'inline-block', color: colors.muted, transition: 'transform .2s', transform: open ? 'rotate(90deg)' : 'none' }}>›</span>
                 </button>
                 {open && (
                   <div style={{ marginLeft: '14px', paddingLeft: '8px', borderLeft: `1px solid ${colors.line}` }}>
-                    {a.key === 'look'
-                      ? LOOK_GROUPS.map((g) => {
-                        const gi = items.filter((it) => it.group === g.key);
-                        if (!gi.length) return null;
-                        return (
-                          <div key={g.key} style={{ marginTop: '6px' }}>
-                            <div style={{ padding: '6px 10px 2px', fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, color: colors.muted }}>{g.en}</div>
-                            {gi.map((it) => <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />)}
-                          </div>
-                        );
-                      })
-                      : items.map((it) => (
-                        <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />
-                      ))}
+                    {sec.items.map((it) => <SideItem key={it.key} label={it.en} active={activeSection === it.key} onClick={() => go(it.key)} />)}
                   </div>
                 )}
               </div>
