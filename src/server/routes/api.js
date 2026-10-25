@@ -1316,14 +1316,18 @@ router.get('/preview-state', async (req, res) => {
     ]);
 
     // Fetch date-sensitive data for the override date
-    const { fetchHebrewDate, fetchParsha } = await import('../../fetchers/hebcal.js');
-    const { fetchZmanim, fetchHayomYom, fetchTanyaExcerpt,
+    // settings.dataSource: 'local' calculates the date facts and reads the data pack instead of calling Hebcal / Chabad.org.
+    const { sourceFor } = await import('../../fetchers/dataSource.js');
+    const src = sourceFor(settings, currentCache);
+    const isLocal = src.name === 'local';
+    const { fetchHayomYom, fetchTanyaExcerpt,
             fetchChumashForDate, fetchTehillimForDate } = await import('../../fetchers/chabad.js');
     const { fetchTorahCalc } = await import('../../fetchers/torahcalc.js');
 
     const locationId = settings?.location?.locationId;
     const zip        = settings?.location?.zip;
     const dateObj    = new Date(dateStr + 'T12:00:00');
+    const none       = Promise.resolve(null);
 
     const [
       hebrewDateResult,
@@ -1335,14 +1339,14 @@ router.get('/preview-state', async (req, res) => {
       torahCalcResult,
       parshaResult,
     ] = await Promise.allSettled([
-      fetchHebrewDate(dateObj),
-      locationId ? fetchZmanim(locationId, dateStr) : Promise.resolve(null),
-      fetchHayomYom(dateObj),
-      fetchTanyaExcerpt(dateObj),
-      fetchChumashForDate(dateObj),
-      fetchTehillimForDate(dateObj),
-      fetchTorahCalc(dateObj),
-      zip ? fetchParsha(zip, dateObj) : Promise.resolve(null),
+      src.fetchHebrewDate(dateObj),
+      (locationId || isLocal) ? src.fetchZmanim(locationId, dateStr) : none,
+      isLocal ? none : fetchHayomYom(dateObj),
+      isLocal ? none : fetchTanyaExcerpt(dateObj),
+      isLocal ? none : fetchChumashForDate(dateObj),
+      isLocal ? none : fetchTehillimForDate(dateObj),
+      isLocal ? none : fetchTorahCalc(dateObj),
+      (zip || isLocal) ? src.fetchParsha(zip, dateObj) : none,
     ]);
 
     const val = (r) => r.status === 'fulfilled' ? r.value : null;
@@ -1420,6 +1424,11 @@ router.get('/preview-state', async (req, res) => {
         ? { name: parsha.name, hebrew: parsha.hebrew, date: parsha.date }
         : (currentCache?.parsha ?? null),
     };
+
+    if (isLocal) {
+      const { applyLocalDay } = await import('../../fetchers/index.js');
+      await applyLocalDay(previewCache, { now: new Date().toISOString(), localDate: dateStr, parsha });
+    }
 
     res.json({
       cache: previewCache,

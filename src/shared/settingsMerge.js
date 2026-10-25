@@ -31,6 +31,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'announcements',     // { archiveDays }
   'kiddushLevana',     // { enabled, startAfterDays 3|7, endRule halfway|fifteen, skipCustoms, hebrew, overrides }
   'dataSources',       // legacy, unused
+  'dataSource',        // 'live' (default: Hebcal + Chabad.org) | 'local' (calculated here + data pack); see docs/DATA-PACK-PLAN.md
   // Theme / layout (kiosk)
   'theme', 'customTheme', 'themeAuto', 'orientation', 'portraitLayout', 'clockSide',
   'visibility', 'fonts', 'hebrewFontScale', 'hebrewHeadingScale',

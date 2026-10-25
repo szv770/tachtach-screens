@@ -274,9 +274,9 @@ router.get('/announcements/shabbos-end', async (_req, res) => {
       if (offsetDays === 0) time = cache?.zmanim?.today?.tzeit7083deg;
       else if (offsetDays === 1) time = cache?.zmanim?.tomorrow?.tzeit7083deg;
       if (!time) time = shabbosEndMemo.get(dateISO);
-      if (!time && settings?.location?.locationId) {
-        const { fetchZmanim } = await import('../../fetchers/chabad.js');
-        const z = await fetchZmanim(settings.location.locationId, dateISO);
+      const src = (await import('../../fetchers/dataSource.js')).sourceFor(settings, cache);
+      if (!time && (settings?.location?.locationId || src.name === 'local')) {
+        const z = await src.fetchZmanim(settings.location?.locationId, dateISO);
         time = z?.tzeit7083deg || null;
         if (time) shabbosEndMemo.set(dateISO, time);
       }

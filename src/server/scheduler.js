@@ -267,7 +267,8 @@ export async function applySettingsChange(prev, next) {
   try {
     const config = next?.location || {};
     const prevLoc = prev?.location || {};
-    const locChanged = prevLoc.zip !== config.zip || prevLoc.locationId !== config.locationId;
+    const locChanged = prevLoc.zip !== config.zip || prevLoc.locationId !== config.locationId
+      || prev?.dataSource !== next?.dataSource || prevLoc.lat !== config.lat || prevLoc.lon !== config.lon;
     const wxChanged =
       JSON.stringify(prev?.weather ?? null) !== JSON.stringify(next?.weather ?? null) ||
       prevLoc.timezone !== config.timezone;
@@ -303,7 +304,7 @@ export async function applySettingsChange(prev, next) {
             console.log('[scheduler] Weather refreshed after settings change');
           }
         }
-        if (locChanged && config.locationId && _fetchZmanimOnly) {
+        if (locChanged && (config.locationId || next?.dataSource === 'local') && _fetchZmanimOnly) {
           const updated = await _fetchZmanimOnly(config);
           broadcast('cache-refresh', updated);
         }

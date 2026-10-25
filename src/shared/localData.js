@@ -24,7 +24,7 @@ export function dataSourceOf(settings) {
  */
 export function locationFor(settings, cache) {
   const L = settings?.location || {};
-  const w = cache?.weather?.location || {};
+  const w = cache?.weather?.location || cache?.geo || {};
   const lat = num(L.lat) ?? num(w.lat);
   const lon = num(L.lon) ?? num(w.lon);
   if (lat == null || lon == null) return null;

@@ -1,9 +1,14 @@
-import { fetchZmanim, fetchHayomYom, fetchDailyStudyRSS, fetchDailyStudyHebrewRSS, fetchDailyQuote, fetchParshaTidbits, fetchTanyaExcerpt } from "./chabad.js";
-import { fetchHebrewDate, fetchParsha, fetchOmer } from "./hebcal.js";
+import { fetchHayomYom, fetchDailyStudyRSS, fetchDailyStudyHebrewRSS, fetchDailyQuote, fetchParshaTidbits, fetchTanyaExcerpt } from "./chabad.js";
 import { hNum } from "../shared/constants.js";
 import { fetchTorahCalc } from "./torahcalc.js";
 import { fetchWeather } from "./weather.js";
 import { readJSON, writeJSON } from "../server/storage.js";
+import { sourceFor } from "./dataSource.js";
+import { localTehillim } from "../shared/localData.js";
+import { hebrewDateOf } from "../shared/hebrewCalendar.js";
+import { packToCache } from "../shared/dataPack.js";
+import { getPackDay, getPerpetual } from "../server/dataPackStore.js";
+import { geocodeZip } from "./weather.js";
 
 const CACHE_FILE = "cache.json";
 
@@ -33,6 +38,15 @@ export async function fetchAll(config) {
   // settings.weather: { enabled (default true), units 'F'|'C', zip (default
   // settings.location.zip) }. Disabled → the key is kept as is (not fetched).
   const settings = (await readJSON("settings.json").catch(() => null)) || {};
+  // settings.dataSource: 'live' (default, today's behaviour) or 'local' (calculated here + the data pack, no daily downloads).
+  let source = sourceFor(settings, existing);
+  const local = source.name === "local";
+  if (local && !source.location && zip) {
+    // One-off: the sun maths needs coordinates. Remembered in cache.geo, so this runs once per zip.
+    const g = existing.geo?.zip === String(zip) ? existing.geo : await geocodeZip(zip).catch(() => null);
+    if (g?.lat != null) { existing.geo = { zip: String(zip), lat: g.lat, lon: g.lon }; source = sourceFor(settings, existing); }
+  }
+  const noNet = () => Promise.resolve(null);
   const weatherCfg = settings.weather || {};
   const weatherEnabled = weatherCfg.enabled !== false;
   const weatherJob = weatherEnabled
@@ -59,17 +73,17 @@ export async function fetchAll(config) {
     tanyaExcerptResult,
     weatherResult,
   ] = await Promise.allSettled([
-    fetchZmanim(locationId),
-    fetchHayomYom(),
-    fetchDailyStudyRSS(),
-    fetchDailyStudyHebrewRSS(),
-    fetchHebrewDate(),
-    fetchParsha(zip),
-    fetchOmer(),
-    fetchTorahCalc(),
-    fetchDailyQuote(),
-    fetchParshaTidbits(),
-    fetchTanyaExcerpt(),
+    source.fetchZmanim(locationId),
+    local ? noNet() : fetchHayomYom(),
+    local ? noNet() : fetchDailyStudyRSS(),
+    local ? noNet() : fetchDailyStudyHebrewRSS(),
+    source.fetchHebrewDate(),
+    source.fetchParsha(zip),
+    source.fetchOmer(),
+    local ? noNet() : fetchTorahCalc(),
+    local ? noNet() : fetchDailyQuote(),
+    local ? noNet() : fetchParshaTidbits(),
+    local ? noNet() : fetchTanyaExcerpt(),
     weatherJob,
   ]);
 
@@ -194,22 +208,51 @@ export async function fetchAll(config) {
     weather: weather || existing.weather || null,
   };
 
+  if (local) await applyLocalDay(cache, { now, localDate, parsha });
+
   // Log warnings for failed fetches
   if (!zmanim) console.warn("[fetchAll] zmanim fetch failed, using cached value");
-  if (!hayomYom) {
+  if (!hayomYom && !local) {
     const cached = existing.hayomYom;
     const forDate = cached?.forDate || cached?.fetchedAt?.slice(0, 10) || "never";
     const stale = forDate !== localDate ? " — STALE, not today's" : "";
     console.warn(`[fetchAll] hayomYom fetch failed, using cached value (for ${forDate}${stale})`);
   }
-  if (!dailyStudyRSS) console.warn("[fetchAll] dailyStudyRSS fetch failed, using cached value");
+  if (!dailyStudyRSS && !local) console.warn("[fetchAll] dailyStudyRSS fetch failed, using cached value");
   if (!hebrewDate) console.warn("[fetchAll] hebrewDate fetch failed, using cached value");
   if (!parsha) console.warn("[fetchAll] parsha fetch failed, using cached value");
-  if (!torahCalc) console.warn("[fetchAll] torahCalc fetch failed, using cached value");
+  if (!torahCalc && !local) console.warn("[fetchAll] torahCalc fetch failed, using cached value");
   if (weatherEnabled && !weather) console.warn("[fetchAll] weather fetch failed, using cached value");
 
   await writeJSON(CACHE_FILE, cache);
   return cache;
+}
+
+/**
+ * 'local' mode only: what the calculator and the data pack add on top of the cache
+ * `fetchAll` built (mutates `cache`).
+ *  - a holiday Shabbos has no parsha: show none rather than last week's;
+ *  - the day's Tehillim is calculated (the pack overrides it, and covers Psalm 119 days);
+ *  - Hayom Yom, Chumash, Tanya, Rambam, Sefer HaMitzvos come from the data pack when it has today.
+ *    Without a pack they simply stay as they were (and the Health page says they are old).
+ */
+export async function applyLocalDay(cache, { now, localDate, parsha }) {
+  if (!parsha) cache.parsha = { name: "", hebrew: "", date: "", fetchedAt: now };
+  const th = localTehillim(localDate);
+  if (th) cache.limudim = { ...cache.limudim, tehillim: th.en, tehillimHe: th.he };
+  try {
+    const [day, perpetual] = await Promise.all([getPackDay(localDate), getPerpetual()]);
+    const h = hebrewDateOf(localDate);
+    const { patch, missing } = packToCache({
+      iso: localDate,
+      hebrew: { hebrewMonth: h.hebrewMonth, hebrewDay: h.hebrewDay },
+      day, perpetual, existing: cache, nowISO: now,
+    });
+    Object.assign(cache, patch);
+    if (missing.length) console.warn(`[data-pack] nothing in the pack for ${localDate}: ${missing.join(", ")} (kept as they were)`);
+  } catch (err) {
+    console.error("[data-pack] could not apply the pack:", err.message);
+  }
 }
 
 /**
@@ -224,7 +267,8 @@ export async function fetchZmanimOnly(config, date) {
   const now = new Date().toISOString();
 
   const existing = (await readJSON(CACHE_FILE)) || {};
-  const zmanim = await fetchZmanim(locationId, date);
+  const settings = (await readJSON("settings.json").catch(() => null)) || {};
+  const zmanim = await sourceFor(settings, existing).fetchZmanim(locationId, date);
 
   if (!zmanim) {
     console.warn("[fetchZmanimOnly] zmanim fetch failed, cache unchanged");

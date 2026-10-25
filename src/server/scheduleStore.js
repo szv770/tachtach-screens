@@ -205,8 +205,10 @@ export async function getZmanimForDates(dates) {
   }
   const locationId = settings?.location?.locationId || settings?.chabadLocationId;
   let changed = false;
-  if (toFetch.length && locationId) {
-    const { fetchZmanim } = await import('../fetchers/chabad.js');
+  const { sourceFor } = await import('../fetchers/dataSource.js');
+  const src = sourceFor(settings, cache);   // settings.dataSource: 'live' (Chabad.org) or 'local' (calculated, no network)
+  if (toFetch.length && (locationId || src.name === 'local')) {
+    const fetchZmanim = (id, d) => src.fetchZmanim(id, d);
     await Promise.all(toFetch.map(async (d) => {
       const key = `${locationId}:${d}`;
       if (!inflight.has(key)) {
@@ -234,11 +236,10 @@ export async function getZmanimForDates(dates) {
   const p = cache?.parsha;
   if (p?.name && p?.date && dates.includes(String(p.date).slice(0, 10))) {
     parsha = String(p.name).replace(/^Parash(at|as|ah)\s+/i, '');
-  } else if (dates.some((d) => dateFromISO(d)?.getDay() === 6) && settings?.location?.zip) {
+  } else if (dates.some((d) => dateFromISO(d)?.getDay() === 6) && (settings?.location?.zip || src.name === 'local')) {
     try {
-      const { fetchParsha } = await import('../fetchers/hebcal.js');
       const sat = dates.find((d) => dateFromISO(d)?.getDay() === 6);
-      const r = await withTimeout(fetchParsha(settings.location.zip, dateFromISO(sat)), 6000);
+      const r = await withTimeout(src.fetchParsha(settings.location?.zip, dateFromISO(sat)), 6000);
       if (r?.name && String(r.date).slice(0, 10) === sat) parsha = String(r.name).replace(/^Parash(at|as|ah)\s+/i, '');
     } catch { /* optional */ }
   }

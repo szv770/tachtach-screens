@@ -68,6 +68,8 @@ export function normalizeSettings(settings) {
     const clean = sanitizeGroups(s.scheduleGroups);
     if (JSON.stringify(clean) !== JSON.stringify(s.scheduleGroups)) { s = { ...s, scheduleGroups: clean }; c = true; }
   }
+  // data source (src/fetchers/dataSource.js): only 'local' switches it, anything else means the default 'live'
+  if (s && typeof s === 'object' && 'dataSource' in s && s.dataSource !== 'live' && s.dataSource !== 'local') { s = { ...s, dataSource: 'live' }; c = true; }
   return { settings: s, changed: a.changed || b.changed || c };
 }
 
