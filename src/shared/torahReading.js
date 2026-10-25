@@ -221,7 +221,7 @@ export function holidayEvents(iso) {
   if (m === AV) {
     if (d === 9 && dow !== 6) add('Tish’a B’Av');
     if (d === 10 && dow === 0) add('Tish’a B’Av (observed)');
-    if (d === 8 && dowOfFixed(fixed + 1) !== 6) add('Erev Tish’a B’Av'); // none when the fast moves to Sunday
+    if ((d === 8 && dowOfFixed(fixed + 1) !== 6) || (d === 9 && dow === 6)) add('Erev Tish’a B’Av'); // Shabbos 9 Av: the fast moves to Sunday, the Erev is Shabbos
     if (d === 15) add('Tu B’Av');
   }
 
