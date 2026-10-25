@@ -98,5 +98,6 @@ export const TOUR = [
   { title: 'Announcements: say something', text: 'Messages, banners, side notes and full-screen takeovers all live here. Post, edit while live, repeat weekly, or bring an old one back with Again.', go: 'announcements', goLabel: 'Show me Announcements' },
   { title: 'Schedule: the day\'s times', text: 'Build your weekly schedule once with the wizard, then change single dates or paste from Claude. Reminders count down on screen before each item.', go: 'schedule', goLabel: 'Show me Schedule' },
   { title: 'Daily Word', text: 'A new word every day, with how to say it and how to use it. See what is coming up, browse the archive of past words, and pin a word to a special day.', go: 'daily-word', goLabel: 'Show me Daily Word' },
+  { title: 'Daily Story', text: 'A short story or thought to read, a new one every day. It starts with 60 stories; add your own, hide any, and pin one to a special day.', go: 'daily-story', goLabel: 'Show me Daily Story' },
   { title: 'Help is always here', text: 'The Help tab has a get-started checklist, plain-English answers to common questions, and what to do if something looks wrong.', go: 'help', goLabel: 'Open Help' },
 ];

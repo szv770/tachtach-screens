@@ -34,6 +34,7 @@ import ThisScreenPage from './components/look/ThisScreenPage.jsx';
 import MediaPage from './components/media/MediaPage.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
+import DailyStoryPanel from './components/DailyStoryPanel.jsx';
 import RosterPanel from './components/RosterPanel.jsx';
 import ChazanPanel from './components/chazan/ChazanPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
@@ -281,6 +282,8 @@ export default function App() {
         );
       case 'daily-word':
         return <DailyWordPanel />;
+      case 'daily-story':
+        return <DailyStoryPanel />;
       case 'roster':
         return <RosterPanel canEdit={can(myCaps, 'roster.edit')} onNavigate={setActiveSection} />;
       case 'chazan':

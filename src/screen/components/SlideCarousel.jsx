@@ -83,7 +83,7 @@ export default function SlideCarousel({
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
-      case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} />;
+      case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'BIRTHDAYS': return <BirthdaysSlide roster={roster} dateISO={dateISO} />;
       case 'CHAZAN': return <ChazanSlide chazan={chazan} dateISO={dateISO} customDays={customDays} schedule={schedule} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
