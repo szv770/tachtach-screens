@@ -853,6 +853,18 @@ Everything in ARCHITECTURE.md "Auth model": invite links (7 days, single use), s
 - Platform owner: keep password + 2-step, add a passkey; no Google for the platform login (one less way in).
 - Code: new `routes/oauth.js`, the session is created by the same `users.js` function as a password login, so everything after sign-in is unchanged.
 
+### 14.4 One login for several orgs (decided 2026-10-25)
+Owner requirement: someone who already has an account with one org must reach the other orgs they belong to (e.g. the owner, or a principal who sits on two schools) with the SAME login and edit what their role there allows.
+
+- **Identity vs membership.** Split today's per-org user row into two tables: `people` (one row per human: name, email/username, password hash, 2-step secret, Google sub later) and `memberships` (`person_id`, `org_id`, `role`, `preset`, `overrides`, `status`, `invited_by`). Roles are **per org**: editor at one, admin at another. Removing someone from an org deletes only their membership, never the person.
+- **Sign in once, then switch.** After login, a person with 2+ memberships sees the **org switcher** in the slot the admin sidebar already reserves (the site card at the top of the sidebar, also in the phone header). Picking an org opens `<short>.<domain>/admin` with a **one-time exchange ticket** (30 s, single use) so no password is retyped; the target org then creates its own org-scoped session.
+- **Every session is still tied to exactly one org** (see section 7). The switcher never creates a "multi-org session": that would defeat isolation. Each org keeps its own session, activity log entries and lockout counters.
+- **2-step lives on the person**, so it is enforced once; an org may still *require* it for its admins and refuse a membership whose person has none.
+- **Invites.** Inviting an existing person (same username/email) to a second org adds a membership and notifies them at next sign-in instead of creating a second password. Invites to an unknown person work as today.
+- **Platform owner.** Has a special `platform` membership: the switcher shows every org plus "Platform dashboard"; entering an org counts as a support visit and is logged (section 16).
+- **Privacy rule.** The switcher only lists orgs the person belongs to; an org never learns about the person's other orgs.
+- **Build size.** Medium: schema split + migration of existing rows (1 person + 1 membership each), switcher UI, exchange-ticket endpoint, tests that a membership in org A gives nothing in org B. Slot this into the phase that introduces the shared user table (P4-P5) so it is never retrofitted.
+
 ---
 
 ## 15. The platform dashboard (`platform.<domain>`)
