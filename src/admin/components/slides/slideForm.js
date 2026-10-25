@@ -7,7 +7,7 @@ import { LIMUDIM_ITEMS, typeInfo, popupSpec } from './slideTypes.js';
 import { clampPageSeconds, pdfTotalSeconds, PAGE_SECONDS_MIN, PAGE_SECONDS_MAX } from '../../../shared/pdfPages.js';
 
 /** Slide fields this form may write (all are in the server's SLIDE_FIELDS whitelist). */
-export const SLIDE_KEYS = ['label', 'enabled', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom', 'qrOn', 'qrUrl', 'qrCorner', 'qrSize', 'qrCaption'];
+export const SLIDE_KEYS = ['label', 'enabled', 'duration', 'pageSeconds', 'fullscreen', 'displayMode', 'edgeTreatment', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'rssDisplayMode', 'style', 'embedUrl', 'webRefreshSec', 'webZoom', 'qrOn', 'qrUrl', 'qrCorner', 'qrSize', 'qrCaption', 'hideOnShabbos'];
 
 const ALL_ZMANIM = ZMANIM_DISPLAY.map((z) => z.k);
 
@@ -19,6 +19,7 @@ export function initialValues(slide, settings = {}) {
     duration: String(slide.duration || typeInfo(t)?.defaults?.duration || 15),
     fullscreen: !!slide.fullscreen,
     enabled: slide.enabled !== false,
+    hideOnShabbos: !!slide.hideOnShabbos,
   };
   if (sections.includes('zmanim')) {
     const vis = settings.zmanimVisible;

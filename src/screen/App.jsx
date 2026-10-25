@@ -9,6 +9,7 @@ import { useClock } from './hooks/useClock.js';
 import { useSlideRotation } from './hooks/useSlideRotation.js';
 import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
+import { pickDailyStory } from '../shared/dailyStories.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
 import { AnnouncementTakeover } from './components/slides/AnnouncementSlide.jsx';
@@ -28,6 +29,7 @@ import { computeStageNow } from '../shared/stageNow.js';
 import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
+import { withoutShabbosSlides } from '../shared/shabbosMode.js';
 import FrozenScreen from './components/FrozenScreen.jsx';
 import { toList, followTarget } from '../shared/rotationPosition.js';
 import { freezeInForce, coversScreen, isEmergencyTakeover } from '../shared/freeze.js';
@@ -144,11 +146,20 @@ function AppContent() {
     () => chazanDays(state?.chazan, scheduleDateISO, state?.customDays, 3).some((d) => d.slots.length > 0),
     [state?.chazan, state?.customDays, scheduleDateISO],
   );
+  // Daily Story: out of the rotation when every story is hidden.
+  const hasStory = React.useMemo(() => !!pickDailyStory(state?.dailyStories, scheduleDateISO), [state?.dailyStories, scheduleDateISO]);
   const allSlides = React.useMemo(
     () => buildRotation(state?.slides || [], ann.slides)
       .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
-      .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething],
+      .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething)
+      .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory],
+  );
+  // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
+  const shabbosMinute = Math.floor(clock.time.getTime() / 60000);
+  const rotationSlides = React.useMemo(
+    () => withoutShabbosSlides(allSlides, new Date(shabbosMinute * 60000), state?.cache?.zmanim?.today),
+    [allSlides, shabbosMinute, state?.cache?.zmanim?.today],
   );
   const birthdayNote = React.useMemo(
     () => (state?.roster?.birthdays?.rail === false ? null : railNote(birthdaysToday, state?.roster?.birthdays?.names)),
@@ -167,7 +178,7 @@ function AppContent() {
   const holdSlide = React.useMemo(() => (!freezeOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, freezeOn]);
 
   // Takeovers, holds and a freeze pause the rotation timer; banners never do.
-  const slideRotation = useSlideRotation(allSlides, { paused: !!takeover || !!holdSlide || freezeOn });
+  const slideRotation = useSlideRotation(rotationSlides, { paused: !!takeover || !!holdSlide || freezeOn });
 
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
@@ -309,6 +320,9 @@ function AppContent() {
         break;
       case 'daily-words-update':
         setState(prev => prev ? { ...prev, dailyWords: data } : prev);
+        break;
+      case 'daily-stories-update':
+        setState(prev => prev ? { ...prev, dailyStories: data } : prev);
         break;
       case 'chazan-update':
         setState(prev => prev ? { ...prev, chazan: data } : prev);
@@ -643,6 +657,7 @@ function AppContent() {
         rssCache={rssCache}
         rssFeeds={state?.rssFeeds || []}
         dailyWords={state?.dailyWords}
+        dailyStories={state?.dailyStories}
         roster={state?.roster}
         chazan={state?.chazan}
         customDays={state?.customDays}

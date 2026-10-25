@@ -9,6 +9,7 @@ import ImageSlide from './slides/ImageSlide.jsx';
 import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
+import DailyStorySlide from './slides/DailyStorySlide.jsx';
 import BirthdaysSlide from './slides/BirthdaysSlide.jsx';
 import ChazanSlide from './slides/ChazanSlide.jsx';
 import ParshaTidbitsSlide from './slides/ParshaTidbitsSlide.jsx';
@@ -59,7 +60,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dateISO, roster, chazan, customDays,
+  dailyWords, dailyStories, dateISO, roster, chazan, customDays,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -82,6 +83,7 @@ export default function SlideCarousel({
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
+      case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} />;
       case 'BIRTHDAYS': return <BirthdaysSlide roster={roster} dateISO={dateISO} />;
       case 'CHAZAN': return <ChazanSlide chazan={chazan} dateISO={dateISO} customDays={customDays} schedule={schedule} />;
       case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;

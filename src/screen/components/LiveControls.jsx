@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
  */
 const NAMES = {
   ZMANIM: 'Zmanim', LIMUDIM: 'Limudim', HAYOM_YOM: 'Hayom Yom', PIRKEI_AVOS: 'Pirkei Avos', DAILY_QUOTE: 'Daily Quote',
-  DAILY_WORD: 'Daily Word', BIRTHDAYS: 'Birthdays', CHAZAN: 'Chazan', PARSHA_TIDBITS: 'Parsha Tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather',
+  DAILY_WORD: 'Daily Word', DAILY_STORY: 'Daily Story', BIRTHDAYS: 'Birthdays', CHAZAN: 'Chazan', PARSHA_TIDBITS: 'Parsha Tidbits', SCHEDULE: 'Schedule', WEATHER: 'Weather',
   RSS_SLIDE: 'News', MIVTZAH_LEADERBOARD: 'Mivtzah Leaderboard', MIVTZAH_LIVE_EMBED: 'Mivtzah Live', VIDEO_SLIDE: 'Video',
   PDF_SLIDE: 'PDF', IMAGE_SLIDE: 'Picture', GOOGLE_PHOTOS_SLIDE: 'Photos', ANNOUNCEMENT: 'Message', WEB_PAGE: 'Web page',
 };

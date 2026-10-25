@@ -90,6 +90,8 @@ export const SETTINGS_INDEX = [
   S('images', 'Web page reload and zoom', 'refresh reload seconds page size zoom', { tab: 'web', match: 'Your web pages' }),
   S('images', 'News feeds (RSS)', 'rss news feed refresh add feed preview mapping sync', { tab: 'feeds', anchor: 'media-feed-add' }),
   S('daily-word', 'Daily Word', 'yiddish word archive coming up import', { match: 'Daily Word' }),
+  S('daily-story', 'Daily Story', 'story thought vort mashal inspiration archive coming up pin import', { match: 'Daily Story' }),
+  S('slides', 'Daily Story slide: seconds on screen and name', 'story thought seconds duration pencil edit slide more settings', { slide: { kind: 'edit', type: 'DAILY_STORY' } }),
   S('roster', 'Bochurim list (names and Hebrew birthdays)', 'roster students boys people names list add remove edit chazan', { match: 'Bochurim' }),
   S('roster', 'Birthdays (Hebrew birthday slide)', 'birthday bday mazel tov happy hebrew date shabbos thursday sunday', { match: 'Birthdays right now' }),
   S('roster', 'Import bochurim from Excel / CSV', 'spreadsheet excel xlsx csv paste import upload names birthdays', { match: 'Import from a spreadsheet' }),

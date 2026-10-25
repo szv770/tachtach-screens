@@ -15,6 +15,8 @@ export const LATE_BUILTINS = [
   { id: 'birthdays', type: 'BIRTHDAYS', label: 'Birthdays', duration: 15, enabled: true, order: 103 },
   // Off until the owner turns it on (Screen > Chazan, then Slides).
   { id: 'chazan', type: 'CHAZAN', label: 'Chazan', duration: 15, enabled: false, order: 104 },
+  // Off until the owner turns it on (Slides); the stories live in Screen > Daily Story.
+  { id: 'daily-story', type: 'DAILY_STORY', label: 'Daily Story', duration: 25, enabled: false, order: 105 },
 ];
 
 export function addMissingBuiltins(slides) {

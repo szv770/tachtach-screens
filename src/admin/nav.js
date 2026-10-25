@@ -8,6 +8,7 @@ export const navItems = [
   { key: 'slides', en: 'Slides', desc: 'Control what plays on screen', area: 'screen' },
   { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen' },
+  { key: 'daily-story', en: 'Daily Story', desc: 'A short story or thought every day', area: 'screen' },
   { key: 'roster', en: 'Bochurim', desc: 'The list of names, and the birthday slide', area: 'screen' },
   { key: 'chazan', en: 'Chazan', desc: 'Who leads Shacharis, Mincha and Maariv', area: 'screen' },
   { key: 'schedule', en: 'Schedule', desc: 'Weekly timetable, one-day changes & alerts', area: 'schedule' },

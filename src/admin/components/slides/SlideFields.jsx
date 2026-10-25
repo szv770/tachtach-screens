@@ -253,6 +253,7 @@ export function BasicFields({ slide, form }) {
       )}
       <div style={{ marginTop: '12px' }}>
         <SwitchRow on={!!v.enabled} onChange={() => form.set('enabled', !v.enabled)} label="Show this slide on the screen" note="Off keeps it in the list but skips it." testId="f-enabled" />
+        <SwitchRow on={!!v.hideOnShabbos} onChange={() => form.set('hideOnShabbos', !v.hideOnShabbos)} label="Hide on Shabbos and Yom Tov" note="Skipped from candle lighting until nightfall, then it comes back by itself." testId="f-hide-shabbos" />
       </div>
     </>
   );

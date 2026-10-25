@@ -31,6 +31,8 @@ import freezeRouter from './routes/freeze.js';
 import freeze from './freeze.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
+import dailyStoriesRouter, { readDailyStories, startDailyStoryRecorder } from './routes/daily-stories.js';
+import { forKiosk as storiesForKiosk } from '../shared/dailyStories.js';
 import rosterRouter, { readRoster } from './routes/roster.js';
 import chazanRouter from './routes/chazan.js';
 import { readForKiosk as readChazanForKiosk } from './chazanStore.js';
@@ -89,6 +91,7 @@ export function createApp() {
       try {
         await ensureBuiltinSlides();
         startDailyWordRecorder();
+        startDailyStoryRecorder();
         await freeze.init(); // re-arms a freeze that survived a restart
         startKiddushLevana();
       } catch (bsErr) {
@@ -225,7 +228,7 @@ export function createApp() {
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
   app.use((req, res, next) => (
-    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|roster|chazan|saved-letters)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|roster|chazan|saved-letters)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
   ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
@@ -269,7 +272,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', stateGate, csrfProtection, async (req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -283,6 +286,7 @@ export function createApp() {
         readDailyWords(),
         readRoster(),
         readChazanForKiosk(),
+        readDailyStories(),
       ]);
       const body = {
         cache: cache ?? {},
@@ -299,6 +303,8 @@ export function createApp() {
         scheduleDates: scheduleDates ?? {},
         // Daily Word list ({ order, words }); the kiosk picks today's word from it.
         dailyWords: forKiosk(dailyWords),
+        // Daily Story list ({ order, stories }); the kiosk picks today's story from it.
+        dailyStories: storiesForKiosk(dailyStories),
         // The roster (bochurim + birthday settings); the kiosk works out who has a birthday today.
         roster: rosterForKiosk(roster),
         // The chazan rotation (rules + names + computed days); the kiosk runs the same pure engine on it.
@@ -497,6 +503,7 @@ export function createApp() {
   app.use('/api', kiddushLevanaRouter);
   app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
+  app.use('/api', dailyStoriesRouter);
   app.use('/api', rosterRouter);
   app.use('/api', chazanRouter);
   app.use('/api', embedProbeRouter);
