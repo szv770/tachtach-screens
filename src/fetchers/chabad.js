@@ -361,6 +361,25 @@ export async function fetchDailyStudyRSS() {
 // Daily Quote RSS
 // ---------------------------------------------------------------------------
 
+/** Parse the daily quote RSS into {text, source} (footnote markers removed). */
+export function parseDailyQuote(xml) {
+  const parser = new XMLParser();
+  const doc = parser.parse(xml);
+  const items = doc?.rss?.channel?.item;
+  const item = Array.isArray(items) ? items[0] : items;
+  if (!item?.description) return null;
+
+  const raw = stripFootnoteHtml(String(item.description));
+  const cut = (i, len) => ({ text: normalizeCheshvan(raw.slice(0, i).trim()), source: raw.slice(i + len).trim() });
+  const lastEmDash = raw.lastIndexOf('\u2014');
+  if (lastEmDash > 0) return cut(lastEmDash, 1);
+  const doubleDash = raw.lastIndexOf(' -- ');
+  if (doubleDash > 0) return cut(doubleDash, 4);
+  const lastEnDash = raw.lastIndexOf('\u2013');
+  if (lastEnDash > 0) return cut(lastEnDash, 1);
+  return { text: normalizeCheshvan(raw), source: '' };
+}
+
 /**
  * Fetch daily inspirational quote from Chabad.org RSS feed.
  * @returns {Promise<{text: string, source: string}|null>}
@@ -371,31 +390,7 @@ export async function fetchDailyQuote() {
       headers: { "User-Agent": UA },
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const xml = await resp.text();
-
-    const parser = new XMLParser();
-    const doc = parser.parse(xml);
-    const items = doc?.rss?.channel?.item;
-    const item = Array.isArray(items) ? items[0] : items;
-    if (!item?.description) return null;
-
-    const raw = stripFootnoteHtml(String(item.description));
-    // Try em-dash — most authoritative separator
-    const lastEmDash = raw.lastIndexOf('—');
-    if (lastEmDash > 0) {
-      return { text: normalizeCheshvan(raw.slice(0, lastEmDash).trim()), source: raw.slice(lastEmDash + 1).trim() };
-    }
-    // Try " -- " (double hyphen with surrounding spaces — Chabad.org common format)
-    const doubleDash = raw.lastIndexOf(' -- ');
-    if (doubleDash > 0) {
-      return { text: normalizeCheshvan(raw.slice(0, doubleDash).trim()), source: raw.slice(doubleDash + 4).trim() };
-    }
-    // Try en-dash
-    const lastEnDash = raw.lastIndexOf('–');
-    if (lastEnDash > 0) {
-      return { text: normalizeCheshvan(raw.slice(0, lastEnDash).trim()), source: raw.slice(lastEnDash + 1).trim() };
-    }
-    return { text: normalizeCheshvan(raw), source: '' };
+    return parseDailyQuote(await resp.text());
   } catch (err) {
     console.error("[chabad] fetchDailyQuote failed:", err.message);
     return null;
@@ -648,6 +643,18 @@ export async function fetchTehillimForDate(date) {
 // Parsha Tidbits RSS
 // ---------------------------------------------------------------------------
 
+/** Parse the parsha RSS into [{title, description, link}] (footnote markers removed). */
+export function parseParshaTidbits(xml) {
+  const doc = new XMLParser().parse(xml);
+  return ensureArray(doc?.rss?.channel?.item)
+    .filter(item => item?.title)
+    .map(item => ({
+      title: String(item.title || '').trim(),
+      description: stripFootnoteHtml(String(item.description || '')),
+      link: String(item.link || '').trim(),
+    }));
+}
+
 /**
  * Fetch parsha-related articles/tidbits from Chabad.org RSS feed.
  * @returns {Promise<Array<{title: string, description: string, link: string}>|null>}
@@ -658,19 +665,7 @@ export async function fetchParshaTidbits() {
       headers: { "User-Agent": UA },
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const xml = await resp.text();
-
-    const parser = new XMLParser();
-    const doc = parser.parse(xml);
-    const items = ensureArray(doc?.rss?.channel?.item);
-
-    return (Array.isArray(items) ? items : [items])
-      .filter(item => item?.title)
-      .map(item => ({
-        title: String(item.title || '').trim(),
-        description: stripFootnoteHtml(String(item.description || '')),
-        link: String(item.link || '').trim(),
-      }));
+    return parseParshaTidbits(await resp.text());
   } catch (err) {
     console.error("[chabad] fetchParshaTidbits failed:", err.message);
     return null;

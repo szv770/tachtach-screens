@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stripFootnoteMarkers, stripFootnoteHtml, looksLikeMarker } from '../src/shared/footnotes.js';
-import { parseHayomYom, parseDailyStudyRSS, parseDailyStudyHebrewRSS } from '../src/fetchers/chabad.js';
+import { parseHayomYom, parseDailyStudyRSS, parseDailyQuote, parseParshaTidbits } from '../src/fetchers/chabad.js';
 
 const fx = (n) => fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'fixtures', 'chabad', n), 'utf8');
 
@@ -60,5 +60,10 @@ test('feeds: daily study lines, Rambam/Tanya and quote/tidbits lose the markers;
   assert.deepEqual(r.rambam3.chaptersArabic, [7, 8, 9]);
   assert.equal(r.seferHamitzvot.displayEn, 'Positive Commandment 6');
   assert.match(r.chumash, /Vayeira/);
-  assert.equal(parseDailyStudyHebrewRSS(fx('dailystudy.xml')).tehillimHe, '');
+  const q = parseDailyQuote(fx('dailyquote.xml'));
+  assert.equal(q.text, 'Every Jew is a letter in the Torah. Light a candle, not a fire, in Elul.');
+  assert.equal(q.source, 'The Rebbe, Letter 119');
+  const t = parseParshaTidbits(fx('parsha.xml'));
+  assert.equal(t[0].description, 'Ten trials in Psalm 119 and Genesis 22:1.');
+  assert.equal(t[1].description, 'She lived 127 years. Truly.');
 });

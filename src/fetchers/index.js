@@ -136,7 +136,7 @@ export async function fetchAll(config) {
     // forDate is the server-local calendar date the text is for, so staleness
     // is visible in cache.json and the logs.
     hayomYom: hayomYom
-      ? { en: hayomYom.hayomEn, he: hayomYom.hayomHe, fetchedAt: now, forDate: localDate }
+      ? { en: hayomYom.hayomEn, he: hayomYom.hayomHe, ...(hayomYom.notes ? { notes: hayomYom.notes } : {}), fetchedAt: now, forDate: localDate }
       : existing.hayomYom || { en: "", he: "", fetchedAt: null, forDate: null },
 
     // Limudim now sourced from Chabad.org Daily Study RSS (authoritative)
