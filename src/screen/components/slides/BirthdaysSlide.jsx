@@ -142,7 +142,7 @@ export default function BirthdaysSlide({ roster, dateISO, portrait: portraitProp
   const blessing = pickBlessing(dateISO);
   const cols = n > 8 ? 3 : n > 3 ? 2 : 1;
   // the more names, the more of the page they get (the Hebrew hero gives way first)
-  const heroGrow = n > 3 ? 0.55 : n > 1 ? 0.85 : 1;
+  const heroGrow = n > 3 ? 0.6 : n > 1 ? 1 : 1.2;
   const namesGrow = n > 3 ? 2.5 : n > 1 ? 2 : 1.7;
   const key = `${dateISO}|${n}|${portrait}`;
   const strips = [
