@@ -2,9 +2,10 @@ import React from 'react';
 import { Panel, PageTitle, Empty, F, Bidi, bidiNodes } from '../../design/ui.jsx';
 import { isHebrew } from '../../design/time.js';
 import { parshaEnglish } from '../Rail.jsx';
+import SourceCredit from '../SourceCredit.jsx';
 
 /** Parsha tidbits: the first few articles as ruled rows (static — no scroll loop). */
-export default function ParshaTidbitsSlide({ cache }) {
+export default function ParshaTidbitsSlide({ cache, settings }) {
   const items = (cache?.parshaTidbits?.items || []).filter((t) => t.description).slice(0, 4);
   const parsha = cache?.parsha;
   return (
@@ -23,6 +24,7 @@ export default function ParshaTidbitsSlide({ cache }) {
           })}
         </div>
       )}
+      {items.length > 0 && <SourceCredit settings={settings} />}
     </Panel>
   );
 }

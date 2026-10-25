@@ -6,6 +6,7 @@ import { useDesign } from '../../design/DesignRoot.jsx';
 import { prefersReducedMotion } from '../../design/reader.js';
 import { READER, longTextSettings, readerMode, readerSlideSeconds, scrollSeconds, wpmFor } from '../../../shared/longText.js';
 import { hebrewDateText } from '../Rail.jsx';
+import SourceCredit from '../SourceCredit.jsx';
 
 /**
  * Hayom Yom — the "Sicha" reading look (R2 §6 Inspiration): Torah-text font at
@@ -112,6 +113,7 @@ export default function HayomYomSlide({ cache, settings, onRequestDuration }) {
       </div>
       <footer style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', fontWeight: 500 }}>
         <span className="tt-he" style={{ fontFamily: 'var(--f-th)' }}>{hebrewDateText(hd)}</span>
+        <SourceCredit settings={settings} inline />
         {total > 1 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span className="tt-num">{page + 1} / {total}</span>

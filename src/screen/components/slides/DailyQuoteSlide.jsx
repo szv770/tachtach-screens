@@ -3,6 +3,7 @@ import { Panel, Bidi, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { isHebrew } from '../../design/time.js';
 import { gematria } from '../../../shared/limudim.js';
+import SourceCredit from '../SourceCredit.jsx';
 
 /**
  * Daily Quote (the owner's "Tanya page": Chabad.org's daily quote is very
@@ -35,7 +36,7 @@ export function hebrewSource(source) {
 
 const stripQuotes = (t) => String(t || '').trim().replace(/^["“”„«»']+|["“”„«»']+$/g, '').trim();
 
-export default function DailyQuoteSlide({ cache }) {
+export default function DailyQuoteSlide({ cache, settings }) {
   const quote = cache?.dailyQuote;
   if (!quote?.text) return null;
   const text = stripQuotes(quote.text);
@@ -70,6 +71,7 @@ export default function DailyQuoteSlide({ cache }) {
           </div>
         )}
       </Fit>
+      <SourceCredit settings={settings} style={{ marginTop: 6 }} />
     </Panel>
   );
 }

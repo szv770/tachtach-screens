@@ -3,6 +3,7 @@ import { Panel, PageTitle, Empty, F } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { parseRambam, parseSeferHamitzvos, rambamTrack } from '../../../shared/limudim.js';
+import SourceCredit from '../SourceCredit.jsx';
 
 /**
  * Daily study page (R2 system), two zoom levels on one subject:
@@ -257,6 +258,7 @@ export default function LimudimSlide({ cache, settings, portrait = false }) {
           </div>
         )}
       </div>
+      <SourceCredit settings={settings} />
     </Panel>
   );
 }

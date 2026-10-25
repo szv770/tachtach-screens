@@ -4,6 +4,7 @@ import { useDesign } from '../../design/DesignRoot.jsx';
 import { useNow, placeName } from '../../design/hooks.js';
 import { toMinutes, nowMinutes, durationText } from '../../design/time.js';
 import { CandleIcon } from '../../design/graphics.jsx';
+import SourceCredit from '../SourceCredit.jsx';
 
 /**
  * Zmanim page (R2 README §6). settings.zmanimLayout:
@@ -260,6 +261,8 @@ export default function ZmanimSlide({ cache, settings }) {
       ) : (
         <CleanBoard rows={rows} st={st} now={now} portrait={portrait} />
       )}
+      {/* only when the times really come from Chabad.org's feed (Live source); calculated times need no credit */}
+      {rows.length > 0 && <SourceCredit settings={settings} show={settings?.dataSource !== 'local'} style={{ marginTop: 8 }} />}
     </Panel>
   );
 }

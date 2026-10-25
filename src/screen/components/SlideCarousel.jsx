@@ -81,12 +81,12 @@ export default function SlideCarousel({
       case 'LIMUDIM': return <LimudimSlide cache={cache} tokens={tokens} settings={settings} portrait={portrait} portraitLayout={portraitLayout} />;
       case 'HAYOM_YOM': return <HayomYomSlide cache={cache} tokens={tokens} settings={settings} onRequestDuration={onRequestDuration} />;
       case 'PIRKEI_AVOS': return <PirkeiAvosSlide cache={cache} tokens={tokens} />;
-      case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} />;
+      case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} settings={settings} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'BIRTHDAYS': return <BirthdaysSlide roster={roster} dateISO={dateISO} />;
       case 'CHAZAN': return <ChazanSlide chazan={chazan} dateISO={dateISO} customDays={customDays} schedule={schedule} />;
-      case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} />;
+      case 'PARSHA_TIDBITS': return <ParshaTidbitsSlide cache={cache} tokens={tokens} settings={settings} />;
       case 'IMAGE_SLIDE': return <ImageSlide slide={slide} tokens={tokens} />;
       case 'PDF_SLIDE': return <PdfSlide slide={slide} tokens={tokens} onRequestDuration={onRequestDuration} />;
       case 'VIDEO_SLIDE': return <VideoSlide slide={slide} tokens={tokens} onEnded={onVideoEnded} />;
