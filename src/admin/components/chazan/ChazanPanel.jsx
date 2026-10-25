@@ -81,6 +81,14 @@ export default function ChazanPanel({ canEdit = true, onNavigate }) {
 
       {cards.map((d) => <DayCard key={d.date} day={d} today={today} name={name} hebrew={settings.hebrewLabels} canEdit={canEdit && !busy} isAwayOn={(id, date) => isAway(view, id, date)} inLine={(id) => inLine.has(id)} onSwap={(date, tefila) => setSwap({ date, tefila })} onUndoSwap={undoSwap} />)}
 
+      <Collapsible title="Next 14 days" summary="Who leads what, day by day" id="chazan-forecast">
+        <Forecast days={upcoming.slice(0, 14)} today={today} name={name} hebrew={settings.hebrewLabels} />
+      </Collapsible>
+      <div style={{ height: '12px' }} />
+      <Collapsible title="Settings" summary={settingsSummary(settings)} id="chazan-settings">
+        <ChazanSettings settings={settings} canEdit={canEdit} onChange={saveSettings} />
+      </Collapsible>
+      <div style={{ height: '12px' }} />
       <div style={card} data-testid="chazan-order">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
           <h3 style={{ ...h3, margin: 0 }}>Rotation order ({view.order.length})</h3>
@@ -130,14 +138,6 @@ export default function ChazanPanel({ canEdit = true, onNavigate }) {
           })}
         </div>
       </div>
-
-      <Collapsible title="Next 14 days" summary="Who leads what, day by day" id="chazan-forecast">
-        <Forecast days={upcoming.slice(0, 14)} today={today} name={name} hebrew={settings.hebrewLabels} />
-      </Collapsible>
-      <div style={{ height: '12px' }} />
-      <Collapsible title="Settings" summary={settingsSummary(settings)} id="chazan-settings">
-        <ChazanSettings settings={settings} canEdit={canEdit} onChange={saveSettings} />
-      </Collapsible>
 
       {swap && <SwapSheet target={swap} name={name} roster={view.roster} order={view.order} onPick={doSwap} onClose={() => setSwap(null)} />}
       {away && <AwaySheet person={away} name={name(away)} today={today} onClose={() => setAway(null)}

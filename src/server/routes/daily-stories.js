@@ -8,13 +8,15 @@ import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
 import { normalizeDailyStoriesFile, normalizeStories, parseStoriesText, recordShownStory, forKiosk, LIMITS } from '../../shared/dailyStories.js';
-import { SEED_STORIES } from '../../shared/dailyStoriesSeed.js';
+import { SEED_STORIES, RETIRED_SEED_IDS } from '../../shared/dailyStoriesSeed.js';
 import { todayISO } from './daily-words.js';
 
 export const FILE = 'daily-stories.json';
 
 export async function readDailyStories() {
-  return normalizeDailyStoriesFile(await readJSON(FILE), SEED_STORIES);
+  const saved = await readJSON(FILE);
+  if (saved && Array.isArray(saved.stories)) saved.stories = saved.stories.filter((s) => !RETIRED_SEED_IDS.includes(s?.id));
+  return normalizeDailyStoriesFile(saved, SEED_STORIES);
 }
 
 let chain = Promise.resolve();

@@ -60,12 +60,13 @@ function StoryForm({ initial, onSave, onCancel, busy }) {
       </div>
       {area('text', 'The story (English). Short reads best: about 60 to 90 words.', { placeholder: 'Once, on Yom Kippur…' })}
       {area('textHe', 'In Hebrew (optional, shows beside the English)', { dir: 'rtl' })}
-      <label style={{ ...label, marginTop: '10px' }}>Source (optional)
-        <input value={s.source} onChange={(e) => set('source', e.target.value)} style={inputStyle} maxLength={LIMITS.source} placeholder="Told about the Baal Shem Tov" />
+      <label style={{ ...label, marginTop: '10px' }}>Source (required for a story: who told it / which book)
+        <input value={s.source} onChange={(e) => set('source', e.target.value)} style={inputStyle} maxLength={LIMITS.source} placeholder="Exact source, e.g. book and page" />
       </label>
+      {!check.error && s.kind !== 'thought' && !s.source.trim() && (s.title || s.text || s.textHe) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>A story needs a real source before it can go on the screen.</div>}
       {check.error && (s.title || s.text || s.textHe) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>{check.error}</div>}
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-        <button style={{ ...buttonPrimary, minHeight: '40px', opacity: check.error || busy ? 0.5 : 1 }} disabled={!!check.error || busy}
+        <button style={{ ...buttonPrimary, minHeight: '40px', opacity: check.error || busy || (s.kind !== 'thought' && !s.source.trim()) ? 0.5 : 1 }} disabled={!!check.error || busy || (s.kind !== 'thought' && !s.source.trim())}
           onClick={() => onSave({ ...check.story, id: initial?.id || check.story.id, enabled: initial ? initial.enabled !== false : true })}>Save</button>
         <button style={{ ...buttonSecondary, minHeight: '40px' }} onClick={onCancel}>Cancel</button>
       </div>
@@ -136,7 +137,7 @@ export default function DailyStoryPanel() {
   const row = { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' };
   const summary = (s, extra) => (
     <div style={{ flex: 1, minWidth: '170px' }}>
-      <div style={{ ...small, color: colors.text, fontSize: '14px', fontWeight: 600 }}>{s?.title || s?.titleHe || 'Untitled'} <span style={{ color: colors.dim, fontWeight: 400 }}>· {s?.kind === 'thought' ? 'thought' : 'story'}</span>{extra}</div>
+      <div style={{ ...small, color: colors.text, fontSize: '14px', fontWeight: 600 }}>{s?.title || s?.titleHe || 'Untitled'} <span style={{ color: colors.dim, fontWeight: 400 }}>· {s?.kind === 'thought' ? 'thought' : 'story'}</span>{s?.kind !== 'thought' && !s?.source && <span style={{ color: colors.danger, fontWeight: 600 }}> · needs a source, hidden</span>}{extra}</div>
       <div style={small}>{preview(s?.text || s?.textHe)}</div>
     </div>
   );

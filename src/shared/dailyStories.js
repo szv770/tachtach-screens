@@ -42,6 +42,8 @@ export function normalizeStory(input) {
     tags: tagsIn.map((t) => line(t, LIMITS.tag)).filter(Boolean).slice(0, LIMITS.tags),
   };
   if (ISO.test(String(input.showOn || ''))) out.showOn = String(input.showOn);
+  // A story is only shown with a real source (owner rule): without one it stays hidden until a source is added.
+  if (out.kind === 'story' && !out.source) out.enabled = false;
   return { story: out };
 }
 
@@ -214,7 +216,7 @@ export function storyLength(s) {
 
 /** Prompt the admin copies into a chat assistant to write more. */
 export const DAILY_STORY_PROMPT = `You are helping fill the "Daily Story" page of a Chabad yeshiva's digital screen, read by bochurim walking past.
-Write {N} short, uplifting Chassidic-style stories or thoughts. Retell traditional tales in your own words (never copy a book), or write original ones.
+Write {N} short, uplifting stories ONLY IF you are certain each one is real and you can name its exact source (book/sefer and page or chapter, or the named person who told it). Never invent or embellish a story, never attribute words to the Rebbe or any person unless a real source says so. If you are not sure, leave it out and return fewer. Retell in your own words, never copy a book.
 Reply with ONLY a JSON list, no commentary. One object per entry:
 {
   "kind": "story" or "thought",
@@ -222,6 +224,6 @@ Reply with ONLY a JSON list, no commentary. One object per entry:
   "titleHe": "the title in Hebrew (optional)",
   "text": "60 to 90 words of warm, simple English; Chabad spelling (Shabbos, chossid, Yiras Shomayim)",
   "textHe": "optional Hebrew version, or leave empty",
-  "source": "e.g. 'Told about the Baal Shem Tov', 'Pirkei Avos 2:4', or empty"
+  "source": "REQUIRED for a story: the exact, checkable source, e.g. 'Sichos Kodesh 5731 vol. 2 p. 114' or 'Told by Rabbi Y. Y. Jacobson, <where>'"
 }
 Do not repeat these titles already on the list: {EXISTING}.`;

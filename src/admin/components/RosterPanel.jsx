@@ -263,6 +263,31 @@ export default function RosterPanel({ canEdit = true, onNavigate }) {
         </div>
       </div>
 
+      <Collapsible title="Import from a spreadsheet" summary="Excel, CSV or paste" defaultOpen={!people.length}>
+        <ImportCard people={people} canEdit={canEdit} onDone={(f, msg) => { setFile(f); notify(msg); }} />
+      </Collapsible>
+
+      <Collapsible title="Birthday slide settings" summary={`${settings.names === 'short' ? 'First name + initial' : 'Full names'} · ${settings.lookAhead} day${settings.lookAhead === 1 ? '' : 's'} ahead`}>
+        <div style={{ display: 'grid', gap: '16px', marginTop: '6px' }}>
+          <div>
+            <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>How names are shown</div>
+            <SegmentedControl ariaLabel="Names" value={settings.names} onChange={(v) => canEdit && saveSettings({ names: v })} options={[{ value: 'full', label: 'Full name' }, { value: 'short', label: 'First name + initial' }]} />
+          </div>
+          <div>
+            <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>Small “just celebrated / coming up” lines</div>
+            <SegmentedControl ariaLabel="Days ahead" value={settings.lookAhead} onChange={(v) => canEdit && saveSettings({ lookAhead: v })} options={[{ value: 0, label: 'Off' }, { value: 1, label: '1 day' }, { value: 2, label: '2 days' }, { value: 3, label: '3 days' }]} />
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontFamily: adminFonts.englishBody, color: colors.text }}>
+            <span>Small card in the side rail on a birthday<span style={{ ...small, display: 'block' }}>“Birthday today: Moshe C.” next to the clock.</span></span>
+            <ToggleSwitch on={settings.rail} onChange={() => canEdit && saveSettings({ rail: !settings.rail })} label="Side rail card" />
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontFamily: adminFonts.englishBody, color: colors.text }}>
+            <span>Treat Friday like the weekend<span style={{ ...small, display: 'block' }}>A birthday on Shabbos always shows Thursday and Sunday. Turn this on if there is no school on Friday either.</span></span>
+            <ToggleSwitch on={settings.fridayIsWeekend} onChange={() => canEdit && saveSettings({ fridayIsWeekend: !settings.fridayIsWeekend })} label="Friday is weekend" />
+          </label>
+        </div>
+      </Collapsible>
+
       <div style={card}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', flexWrap: 'wrap' }}>
           <h3 style={{ ...h3, margin: 0 }}>Bochurim ({people.length})</h3>
@@ -297,31 +322,6 @@ export default function RosterPanel({ canEdit = true, onNavigate }) {
           ))}
         </div>
       </div>
-
-      <Collapsible title="Import from a spreadsheet" summary="Excel, CSV or paste" defaultOpen={!people.length}>
-        <ImportCard people={people} canEdit={canEdit} onDone={(f, msg) => { setFile(f); notify(msg); }} />
-      </Collapsible>
-
-      <Collapsible title="Birthday slide settings" summary={`${settings.names === 'short' ? 'First name + initial' : 'Full names'} · ${settings.lookAhead} day${settings.lookAhead === 1 ? '' : 's'} ahead`}>
-        <div style={{ display: 'grid', gap: '16px', marginTop: '6px' }}>
-          <div>
-            <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>How names are shown</div>
-            <SegmentedControl ariaLabel="Names" value={settings.names} onChange={(v) => canEdit && saveSettings({ names: v })} options={[{ value: 'full', label: 'Full name' }, { value: 'short', label: 'First name + initial' }]} />
-          </div>
-          <div>
-            <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>Small “just celebrated / coming up” lines</div>
-            <SegmentedControl ariaLabel="Days ahead" value={settings.lookAhead} onChange={(v) => canEdit && saveSettings({ lookAhead: v })} options={[{ value: 0, label: 'Off' }, { value: 1, label: '1 day' }, { value: 2, label: '2 days' }, { value: 3, label: '3 days' }]} />
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontFamily: adminFonts.englishBody, color: colors.text }}>
-            <span>Small card in the side rail on a birthday<span style={{ ...small, display: 'block' }}>“Birthday today: Moshe C.” next to the clock.</span></span>
-            <ToggleSwitch on={settings.rail} onChange={() => canEdit && saveSettings({ rail: !settings.rail })} label="Side rail card" />
-          </label>
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', fontFamily: adminFonts.englishBody, color: colors.text }}>
-            <span>Treat Friday like the weekend<span style={{ ...small, display: 'block' }}>A birthday on Shabbos always shows Thursday and Sunday. Turn this on if there is no school on Friday either.</span></span>
-            <ToggleSwitch on={settings.fridayIsWeekend} onChange={() => canEdit && saveSettings({ fridayIsWeekend: !settings.fridayIsWeekend })} label="Friday is weekend" />
-          </label>
-        </div>
-      </Collapsible>
 
       {editing && <PersonSheet person={editing === 'new' ? null : editing} busy={busy} onSave={onSavePerson} onClose={() => setEditing(null)} />}
       {confirmDel && (

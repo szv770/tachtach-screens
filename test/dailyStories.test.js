@@ -4,7 +4,7 @@ import {
   normalizeStory, normalizeDailyStoriesFile, parseStoriesText, pickDailyStory, pickFromRotation, recordShownStory,
   upcomingStories, pinStory, dayNumber, addDaysISO, permutation, forKiosk,
 } from '../src/shared/dailyStories.js';
-import { SEED_STORIES } from '../src/shared/dailyStoriesSeed.js';
+import { SEED_STORIES } from './fixtures/dailyStoriesSample.js';
 import { canDo, canOpenSection } from '../src/shared/permissions.js';
 import { popupSpec, SLIDE_TYPES } from '../src/admin/components/slides/slideTypes.js';
 import { LATE_BUILTINS } from '../src/server/builtin-slides.js';
@@ -96,4 +96,17 @@ test('registered everywhere: slide type, popup, late builtin, permissions', () =
   assert.equal(canDo('editor', 'PUT', '/api/daily-stories'), true);
   assert.equal(canDo({ role: 'editor', preset: 'full', overrides: { grant: [], deny: ['dailyWord.edit'] } }, 'PUT', '/api/daily-stories'), false);
   assert.equal(canOpenSection({ role: 'editor', preset: 'full' }, 'daily-story'), true);
+});
+
+test('a story without a source is forced hidden; thoughts are exempt', () => {
+  const a = normalizeStory({ kind: 'story', title: 'x', text: 'hello', enabled: true });
+  assert.equal(a.story.enabled, false);
+  const b = normalizeStory({ kind: 'story', title: 'x', text: 'hello', source: 'Book p. 1' });
+  assert.equal(b.story.enabled, true);
+  assert.equal(normalizeStory({ kind: 'thought', title: 'x', text: 'hello' }).story.enabled, true);
+});
+test('shipped starter list is empty and retired ids are known', async () => {
+  const m = await import('../src/shared/dailyStoriesSeed.js');
+  assert.equal(m.SEED_STORIES.length, 0);
+  assert.equal(m.RETIRED_SEED_IDS.length, 60);
 });
