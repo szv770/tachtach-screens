@@ -98,7 +98,7 @@ export function formatZman(ms, tz, mode = 'round') {
 /**
  * Cache-shaped zmanim for a civil date.
  * @param {string} dateISO 'YYYY-MM-DD' (the school's local date)
- * @param {{lat:number, lon:number, timezone:string, elevation?:number}} loc
+ * @param {{lat:number, lon:number, timezone:string, elevation?:number, candleMinutes?:number}} loc
  * @param {{erev?: boolean}} [opts] erev: add candleLighting (Friday / the day before a Yom Tov)
  * @returns {Record<string,string>|null} null when the location has no usable coordinates
  */
@@ -115,7 +115,7 @@ export function localZmanim(dateISO, loc, opts = {}) {
   if (mid) res.chatzotLayla = mid;
   if (opts.erev && ms.sunset != null) {
     // the feed counts back from the sunset it shows (already a whole minute)
-    const c = formatZman(Math.round(ms.sunset / MIN) * MIN - ZMANIM_PARAMS.candleMinutes * MIN, tz, 'round');
+    const c = formatZman(Math.round(ms.sunset / MIN) * MIN - (Number.isFinite(Number(loc.candleMinutes)) && loc.candleMinutes != null ? Number(loc.candleMinutes) : ZMANIM_PARAMS.candleMinutes) * MIN, tz, 'round');
     if (c) res.candleLighting = c;
   }
   return res;
