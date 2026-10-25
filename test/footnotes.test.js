@@ -67,3 +67,8 @@ test('feeds: daily study lines, Rambam/Tanya and quote/tidbits lose the markers;
   assert.equal(t[0].description, 'Ten trials in Psalm 119 and Genesis 22:1.');
   assert.equal(t[1].description, 'She lived 127 years. Truly.');
 });
+
+test('entities in RSS text are decoded (quotes, ampersands, numeric)', async () => {
+  const { stripFootnoteHtml } = await import('../src/shared/footnotes.js');
+  assert.equal(stripFootnoteHtml('the &#x0022;circumference&#x0022; &amp; more &#8217;s &quot;x&quot;'), 'the "circumference" & more ’s "x"');
+});

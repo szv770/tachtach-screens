@@ -93,6 +93,16 @@ export function stripFootnoteMarkers(text, { glued = true } = {}) {
   return s.replace(/[ \t]{2,}/g, ' ').replace(/ +([.,;!?])/g, '$1').trim();
 }
 
+const NAMED = { quot: '"', amp: '&', lt: '<', gt: '>', apos: "'", nbsp: ' ', rsquo: '\u2019', lsquo: '\u2018', rdquo: '\u201D', ldquo: '\u201C', ndash: '\u2013', mdash: '\u2014', hellip: '\u2026' };
+/** &#x0022; / &#34; / &quot; -> the character (after tags are gone, so a decoded < can never start a tag). */
+export function decodeEntities(str) {
+  return String(str ?? '').replace(/&(?:#x([0-9a-f]+)|#(\d+)|([a-z]+));/gi, (m, hex, dec, name) => {
+    if (name) return NAMED[name.toLowerCase()] ?? m;
+    const cp = hex ? parseInt(hex, 16) : parseInt(dec, 10);
+    return cp > 0 && cp < 0x110000 ? String.fromCodePoint(cp) : m;
+  });
+}
+
 /** HTML held in a string (RSS descriptions): marker elements out, tags out, whitespace tidy, then markers. */
 export function stripFootnoteHtml(str, opts) {
   let s = String(str ?? '');
@@ -100,5 +110,5 @@ export function stripFootnoteHtml(str, opts) {
   s = s.replace(/<a\b[^>]*(?:class|rel|href)\s*=\s*["'](?:[^"']*footnote[^"']*|#fn[^"']*|#ftn[^"']*)["'][^>]*>[\s\S]*?<\/a>/gi, '');
   s = s.replace(/<(co:footnote\w*)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
   s = s.replace(/<[^>]+>/g, ' ');
-  return stripFootnoteMarkers(s.replace(/\s+/g, ' ').trim(), opts);
+  return stripFootnoteMarkers(decodeEntities(s).replace(/\s+/g, ' ').trim(), opts);
 }
