@@ -21,17 +21,17 @@ export default function ChazanSettings({ settings: s, canEdit, onChange }) {
         <div style={{ ...small, fontWeight: 700, color: colors.text, marginBottom: '6px' }}>Which davenings have a chazan</div>
         <SegmentedControl ariaLabel="Presets" value={preset || 'custom'} onChange={(v) => canEdit && v !== 'custom' && onChange(applyPreset(s, v))}
           options={[...Object.entries(GRID_PRESETS).map(([value, p]) => ({ value, label: p.label })), ...(preset ? [] : [{ value: 'custom', label: 'Custom' }])]} />
-        <div style={{ overflowX: 'auto', marginTop: '10px' }}>
-          <table style={{ borderCollapse: 'collapse', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.text, minWidth: '100%' }} data-testid="chazan-grid">
-            <thead><tr><th />{DAY_SHORT.map((d, i) => <th key={d} style={{ padding: '4px 2px', color: colors.dim, fontWeight: 700, opacity: i === 6 && !s.shabbos ? 0.45 : 1 }}>{d}</th>)}</tr></thead>
+        <div style={{ marginTop: '10px' }}>
+          <table style={{ borderCollapse: 'collapse', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.text, width: '100%', tableLayout: 'fixed' }} data-testid="chazan-grid">
+            <thead><tr><th style={{ width: '74px' }} />{DAY_SHORT.map((d, i) => <th key={d} style={{ padding: '4px 2px', color: colors.dim, fontWeight: 700, opacity: i === 6 && !s.shabbos ? 0.45 : 1 }}>{d}</th>)}</tr></thead>
             <tbody>
               {TEFILOS.map((t) => (
                 <tr key={t}>
-                  <td style={{ paddingRight: '8px', fontWeight: 700, whiteSpace: 'nowrap' }}>{t}</td>
+                  <td style={{ paddingRight: '4px', fontWeight: 700, fontSize: '12.5px' }}>{t}</td>
                   {DAY_SHORT.map((d, i) => (
                     <td key={d} style={{ textAlign: 'center' }}>
                       <button type="button" aria-pressed={!!s.grid[i][t]} aria-label={`${t} on ${d}`} onClick={() => toggleCell(i, t)} disabled={!canEdit}
-                        style={{ width: '44px', height: '44px', borderRadius: '10px', border: `1px solid ${s.grid[i][t] ? colors.accent : colors.line}`, background: s.grid[i][t] ? colors.goldBg : 'transparent', color: colors.text, cursor: canEdit ? 'pointer' : 'default', opacity: i === 6 && !s.shabbos ? 0.45 : 1, fontWeight: 800 }}>
+                        style={{ width: '100%', maxWidth: '44px', minWidth: 0, height: '44px', padding: 0, touchAction: 'pan-y', borderRadius: '10px', border: `1px solid ${s.grid[i][t] ? colors.accent : colors.line}`, background: s.grid[i][t] ? colors.goldBg : 'transparent', color: colors.text, cursor: canEdit ? 'pointer' : 'default', opacity: i === 6 && !s.shabbos ? 0.45 : 1, fontWeight: 800 }}>
                         {s.grid[i][t] ? '✓' : ''}
                       </button>
                     </td>
