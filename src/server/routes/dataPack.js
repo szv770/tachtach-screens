@@ -35,7 +35,7 @@ export function createDataPackRouter({ afterInstall = async () => {} } = {}) {
   router.get('/', async (_req, res) => {
     try {
       const settings = (await readJSON('settings.json').catch(() => null)) || {};
-      res.json({ pack: await packStatus(todayISO()), job: jobStatus(), dataSource: dataSourceOf(settings), months: BUILD_MONTHS });
+      res.json({ pack: await packStatus(todayISO()), job: jobStatus(), dataSource: dataSourceOf(settings), showCredit: settings.showChabadCredit !== false, months: BUILD_MONTHS });
     } catch (e) {
       console.error('[data-pack] GET:', e.message);
       res.status(500).json({ error: 'Could not read the data pack status.' });
