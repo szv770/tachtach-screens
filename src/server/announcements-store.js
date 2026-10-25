@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { readJSON, writeJSON } from './storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP } from './storage.js';
 import { broadcast } from './sse.js';
 import {
   messageToItem, pinnedToItem, slideToItem, isLegacyTextSlide, refRowFor,
@@ -179,12 +179,11 @@ export async function purgeArchived(now = new Date()) {
     if (!removed.length) return [];
     await saveItems(keep);
     const gone = new Set(removed.map((i) => i.id));
-    const slides = (await readJSON('slides.json')) ?? [];
-    const filtered = slides.filter((s) => !(s.type === 'ANNOUNCEMENT' && gone.has(s.announcementId)));
-    if (filtered.length !== slides.length) {
-      await writeJSON('slides.json', filtered);
-      broadcast('slides-update', filtered);
-    }
+    const filtered = await updateJSON('slides.json', (slides) => {
+      const kept = slides.filter((s) => !(s.type === 'ANNOUNCEMENT' && gone.has(s.announcementId)));
+      return kept.length !== slides.length ? kept : SKIP;
+    }, () => []);
+    if (filtered !== SKIP) broadcast('slides-update', filtered);
     console.log(`[announcements] Auto-deleted ${removed.length} archived item(s) older than ${days} day(s)`);
     return removed.map((i) => i.id);
   });

@@ -92,42 +92,72 @@ export async function writeJSON(filename, data) {
 
   const unlock = await acquireLock(filename);
   try {
-    await ensureDataDir();
-
-    const filePath = path.join(DATA_DIR, filename);
-    const tmpPath = filePath + '.tmp';
-
-    // Back up the existing file if it is intact (a corrupt one must never replace the last good .bak).
-    // Secret files get a 0600 .bak too, so a damaged users.json can be recovered from it (audit H2).
-    const mode = SECRET_FILES.includes(filename) ? SECRET_FILE_MODE : undefined;
-    if (existsSync(filePath) && await readsAsJSON(filePath)) {
-      const bakPath = filePath + '.bak';
-      await writeFile(bakPath, await readFile(filePath), mode ? { mode } : undefined);
-      if (mode) await chmod(bakPath, mode).catch(() => {});
-    }
-
-    // Write to temp file, then atomically rename
-    const jsonStr = JSON.stringify(data, null, 2);
-    // Secret files are born 0600 (the rename keeps the mode), never briefly world-readable.
-    // fsync before the rename: otherwise a power cut can leave the renamed file empty.
-    const fh = await open(tmpPath, 'w', mode);
-    try { await fh.writeFile(jsonStr, 'utf-8'); await fh.sync(); } finally { await fh.close(); }
-    if (mode) await chmod(tmpPath, mode).catch(() => {}); // an old .tmp left behind keeps its mode otherwise
-    try {
-      await rename(tmpPath, filePath);
-    } catch (renameErr) {
-      // On Windows/OneDrive, rename can fail with EPERM if the file is locked.
-      // Fall back to direct write (not atomic, but better than crashing).
-      if (renameErr.code === 'EPERM' || renameErr.code === 'EBUSY') {
-        console.warn(`[storage] Atomic rename failed for ${filename}, falling back to direct write`);
-        await writeFile(filePath, jsonStr, { encoding: 'utf-8', ...(mode ? { mode } : {}) });
-        // Clean up the tmp file
-        await unlink(tmpPath).catch(() => {});
-      } else {
-        throw renameErr;
-      }
-    }
+    await writeLocked(filename, data);
   } finally {
     releaseLock(filename, unlock);
+  }
+}
+
+/** Returned by an updateJSON callback to say "nothing to change, do not write". */
+export const SKIP = Symbol('skip-write');
+
+/**
+ * Read-modify-write under the per-file lock (audit M4). Two simultaneous saves used to read the same
+ * old list and the second write dropped the first one's change. `fn(current)` gets the parsed file
+ * (or `fallback` when it does not exist) and returns the new value to store, or SKIP to leave the
+ * file alone; it may mutate `current` and return it. Whatever fn returns (new value or SKIP) is
+ * returned. Do not call writeJSON/updateJSON for the SAME file from inside fn (it would wait on itself).
+ */
+export async function updateJSON(filename, fn, fallback = null) {
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    throw new Error('Invalid filename');
+  }
+  const unlock = await acquireLock(filename);
+  try {
+    const current = (await readJSON(filename)) ?? (typeof fallback === 'function' ? fallback() : fallback);
+    const next = await fn(current);
+    if (next === SKIP) return SKIP;
+    await writeLocked(filename, next);
+    return next;
+  } finally {
+    releaseLock(filename, unlock);
+  }
+}
+
+async function writeLocked(filename, data) {
+  await ensureDataDir();
+
+  const filePath = path.join(DATA_DIR, filename);
+  const tmpPath = filePath + '.tmp';
+
+  // Back up the existing file if it is intact (a corrupt one must never replace the last good .bak).
+  // Secret files get a 0600 .bak too, so a damaged users.json can be recovered from it (audit H2).
+  const mode = SECRET_FILES.includes(filename) ? SECRET_FILE_MODE : undefined;
+  if (existsSync(filePath) && await readsAsJSON(filePath)) {
+    const bakPath = filePath + '.bak';
+    await writeFile(bakPath, await readFile(filePath), mode ? { mode } : undefined);
+    if (mode) await chmod(bakPath, mode).catch(() => {});
+  }
+
+  // Write to temp file, then atomically rename
+  const jsonStr = JSON.stringify(data, null, 2);
+  // Secret files are born 0600 (the rename keeps the mode), never briefly world-readable.
+  // fsync before the rename: otherwise a power cut can leave the renamed file empty.
+  const fh = await open(tmpPath, 'w', mode);
+  try { await fh.writeFile(jsonStr, 'utf-8'); await fh.sync(); } finally { await fh.close(); }
+  if (mode) await chmod(tmpPath, mode).catch(() => {}); // an old .tmp left behind keeps its mode otherwise
+  try {
+    await rename(tmpPath, filePath);
+  } catch (renameErr) {
+    // On Windows/OneDrive, rename can fail with EPERM if the file is locked.
+    // Fall back to direct write (not atomic, but better than crashing).
+    if (renameErr.code === 'EPERM' || renameErr.code === 'EBUSY') {
+      console.warn(`[storage] Atomic rename failed for ${filename}, falling back to direct write`);
+      await writeFile(filePath, jsonStr, { encoding: 'utf-8', ...(mode ? { mode } : {}) });
+      // Clean up the tmp file
+      await unlink(tmpPath).catch(() => {});
+    } else {
+      throw renameErr;
+    }
   }
 }

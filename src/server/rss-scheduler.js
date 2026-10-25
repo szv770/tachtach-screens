@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { fetchRSSFeed } from '../fetchers/rss.js';
-import { readJSON, writeJSON } from './storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP } from './storage.js';
 import { broadcast } from './sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -41,13 +41,13 @@ export async function refreshRSSFeed(feed) {
     await writeFile(cachePath, JSON.stringify(cacheData, null, 2), 'utf-8');
 
     // Update feed metadata (lastFetched, itemCount)
-    const feeds = (await readJSON('rss-feeds.json')) ?? [];
-    const idx = feeds.findIndex(f => f.id === feed.id);
-    if (idx !== -1) {
+    await updateJSON('rss-feeds.json', (feeds) => {
+      const idx = feeds.findIndex(f => f.id === feed.id);
+      if (idx === -1) return SKIP;
       feeds[idx].lastFetched = cacheData.fetchedAt;
       feeds[idx].itemCount = result.items.length;
-      await writeJSON('rss-feeds.json', feeds);
-    }
+      return feeds;
+    }, () => []);
 
     // Broadcast update so the kiosk screen refreshes
     broadcast('rss-update', { feedId: feed.id, ...cacheData });

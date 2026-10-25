@@ -12,7 +12,7 @@ import express, { Router } from 'express';
 import { effectiveCaps, can } from '../../shared/permissions.js';
 import { stampCreator, canUndoOwn } from '../ownPost.js';
 import { v4 as uuidv4 } from 'uuid';
-import { readJSON, writeJSON } from '../storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
 import { broadcast } from '../sse.js';
 import {
   ValidationError, sanitizeInput, mergeItem, createItem, validateForSave,
@@ -200,14 +200,12 @@ router.delete('/announcements/:id', async (req, res) => {
         }
       }
       await saveItems(items.filter((i) => i.id !== item.id));
-      const slides = (await readJSON('slides.json')) ?? [];
       const refs = [];
-      slides.forEach((s, index) => { if (s.type === 'ANNOUNCEMENT' && s.announcementId === item.id) refs.push({ index, row: s }); });
-      if (refs.length) {
-        const filtered = slides.filter((s) => !(s.type === 'ANNOUNCEMENT' && s.announcementId === item.id));
-        await writeJSON('slides.json', filtered);
-        broadcast('slides-update', filtered);
-      }
+      const filtered = await updateJSON('slides.json', (slides) => {
+        slides.forEach((s, index) => { if (s.type === 'ANNOUNCEMENT' && s.announcementId === item.id) refs.push({ index, row: s }); });
+        return refs.length ? slides.filter((s) => !(s.type === 'ANNOUNCEMENT' && s.announcementId === item.id)) : SKIP;
+      }, () => []);
+      if (filtered !== SKIP) broadcast('slides-update', filtered);
       return { success: true, item, refs };
     });
     res.json(result);
@@ -230,13 +228,14 @@ router.post('/announcements/restore', async (req, res) => {
       await saveItems(items);
       const refs = Array.isArray(req.body?.refs) ? req.body.refs : [];
       if (refs.length) {
-        const slides = (await readJSON('slides.json')) ?? [];
-        for (const r of [...refs].sort((a, b) => a.index - b.index)) {
-          if (slides.some((s) => s.id === r.row?.id)) continue;
-          const row = refRowFor(item, { id: typeof r.row?.id === 'string' ? r.row.id : item.id });
-          slides.splice(Math.min(Math.max(0, Number(r.index) || 0), slides.length), 0, row);
-        }
-        await writeJSON('slides.json', slides);
+        const slides = await updateJSON('slides.json', (list) => {
+          for (const r of [...refs].sort((a, b) => a.index - b.index)) {
+            if (list.some((s) => s.id === r.row?.id)) continue;
+            const row = refRowFor(item, { id: typeof r.row?.id === 'string' ? r.row.id : item.id });
+            list.splice(Math.min(Math.max(0, Number(r.index) || 0), list.length), 0, row);
+          }
+          return list;
+        }, () => []);
         broadcast('slides-update', slides);
       }
       return item;
@@ -391,10 +390,8 @@ router.post('/slides', async (req, res, next) => {
       const items = await loadItems();
       items.push(item);
       await saveItems(items);
-      const slides = (await readJSON('slides.json')) ?? [];
       const ref = refRowFor(item);
-      slides.push(ref);
-      await writeJSON('slides.json', slides);
+      const slides = await updateJSON('slides.json', (list) => { list.push(ref); return list; }, () => []);
       broadcast('slides-update', slides);
       return ref;
     });

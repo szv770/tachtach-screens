@@ -5,7 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir } from 'fs/promises';
 import multer from 'multer';
-import { readJSON, writeJSON } from '../storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
 import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
 import { readRoster } from './roster.js';
@@ -263,7 +263,7 @@ router.put('/slides', async (req, res) => {
     }
     // Sanitize each slide to only allowed fields (preserve id)
     const sanitized = slides.map((s) => cleanPdfFields({ id: s?.id, ...pick(s, SLIDE_FIELDS) }));
-    await writeJSON('slides.json', sanitized);
+    await updateJSON('slides.json', () => sanitized); // under the file lock, so it cannot interleave with a post being published
     broadcast('slides-update', sanitized);
     reinitCountdownsForSlides();
     res.json(sanitized);
@@ -275,13 +275,11 @@ router.put('/slides', async (req, res) => {
 
 router.post('/slides', async (req, res) => {
   try {
-    const slides = (await readJSON('slides.json')) ?? [];
     const picked = cleanPdfFields(pick(req.body, SLIDE_FIELDS));
     // Default enabled to true so new slides are visible immediately
     if (picked.enabled === undefined) picked.enabled = true;
     const newSlide = { id: uuidv4(), ...picked };
-    slides.push(newSlide);
-    await writeJSON('slides.json', slides);
+    const slides = await updateJSON('slides.json', (list) => { list.push(newSlide); return list; }, () => []);
     broadcast('slides-update', slides);
     reinitCountdownsForSlides();
     res.status(201).json(newSlide);
@@ -293,11 +291,12 @@ router.post('/slides', async (req, res) => {
 
 router.delete('/slides/:id', async (req, res) => {
   try {
-    let slides = (await readJSON('slides.json')) ?? [];
     // Find the slide being deleted so we can clean up its uploaded file
-    const deleted = slides.find((s) => s.id === req.params.id);
-    slides = slides.filter((s) => s.id !== req.params.id);
-    await writeJSON('slides.json', slides);
+    let deleted;
+    const slides = await updateJSON('slides.json', (list) => {
+      deleted = list.find((s) => s.id === req.params.id);
+      return list.filter((s) => s.id !== req.params.id);
+    }, () => []);
     broadcast('slides-update', slides);
     reinitCountdownsForSlides();
 
@@ -347,10 +346,8 @@ router.post('/custom-days', async (req, res) => {
     if (!req.body?.title) {
       return res.status(400).json({ error: 'Custom day title is required.' });
     }
-    const customDays = (await readJSON('custom-days.json')) ?? [];
     const newDay = { id: uuidv4(), ...pick(req.body, CUSTOM_DAY_FIELDS) };
-    customDays.push(newDay);
-    await writeJSON('custom-days.json', customDays);
+    const customDays = await updateJSON('custom-days.json', (list) => { list.push(newDay); return list; }, () => []);
     broadcast('custom-days-update', customDays);
     res.status(201).json(newDay);
   } catch (err) {
@@ -363,19 +360,22 @@ router.post('/custom-days', async (req, res) => {
 // clears the other kind's fields so the badge can't match on both.
 router.put('/custom-days/:id', async (req, res) => {
   try {
-    const customDays = (await readJSON('custom-days.json')) ?? [];
-    const idx = customDays.findIndex((d) => d.id === req.params.id);
-    if (idx === -1) return res.status(404).json({ error: 'Custom day not found.' });
     const updates = pick(req.body, CUSTOM_DAY_FIELDS);
     if ('title' in updates && !String(updates.title || '').trim()) {
       return res.status(400).json({ error: 'Custom day title is required.' });
     }
-    const next = { ...customDays[idx], ...updates, id: req.params.id };
-    if (updates.hebrewMonth) { delete next.gregorianMonth; delete next.gregorianDay; }
-    if (updates.gregorianMonth) { delete next.hebrewMonth; delete next.hebrewDay; }
-    for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === null) delete next[k];
-    customDays[idx] = next;
-    await writeJSON('custom-days.json', customDays);
+    let next = null;
+    const customDays = await updateJSON('custom-days.json', (list) => {
+      const idx = list.findIndex((d) => d.id === req.params.id);
+      if (idx === -1) return SKIP;
+      next = { ...list[idx], ...updates, id: req.params.id };
+      if (updates.hebrewMonth) { delete next.gregorianMonth; delete next.gregorianDay; }
+      if (updates.gregorianMonth) { delete next.hebrewMonth; delete next.hebrewDay; }
+      for (const k of Object.keys(next)) if (next[k] === undefined || next[k] === null) delete next[k];
+      list[idx] = next;
+      return list;
+    }, () => []);
+    if (customDays === SKIP) return res.status(404).json({ error: 'Custom day not found.' });
     broadcast('custom-days-update', customDays);
     res.json(next);
   } catch (err) {
@@ -386,9 +386,7 @@ router.put('/custom-days/:id', async (req, res) => {
 
 router.delete('/custom-days/:id', async (req, res) => {
   try {
-    let customDays = (await readJSON('custom-days.json')) ?? [];
-    customDays = customDays.filter((d) => d.id !== req.params.id);
-    await writeJSON('custom-days.json', customDays);
+    const customDays = await updateJSON('custom-days.json', (list) => list.filter((d) => d.id !== req.params.id), () => []);
     broadcast('custom-days-update', customDays);
     res.json({ success: true });
   } catch (err) {
@@ -418,10 +416,11 @@ router.put('/schedule/entries', async (req, res) => {
     if (!Array.isArray(entries)) {
       return res.status(400).json({ error: 'Invalid entries data — expected an array.' });
     }
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
     const gids = await scheduleGroupIds();
-    schedule.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e, gids) }));
-    await writeJSON('schedule.json', schedule);
+    const schedule = await updateJSON('schedule.json', (sch) => {
+      sch.entries = entries.map((e) => ({ id: e?.id, ...pickScheduleEntry(e, gids) }));
+      return sch;
+    }, () => ({ entries: [], categories: [] }));
     broadcast('schedule-update', schedule);
     // Re-initialize countdown timers with new schedule
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
@@ -443,12 +442,10 @@ router.post('/schedule/entries', async (req, res) => {
     const gids = await scheduleGroupIds();
     const gErr = sanitizeGroupFields(req.body, gids).errors;
     if (gErr.length) return res.status(400).json({ error: gErr.join(' ') });
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
     const picked = pickScheduleEntry(req.body, gids);
     if (picked.enabled === undefined) picked.enabled = true;
     const newEntry = { id: uuidv4(), ...picked };
-    schedule.entries.push(newEntry);
-    await writeJSON('schedule.json', schedule);
+    const schedule = await updateJSON('schedule.json', (sch) => { sch.entries.push(newEntry); return sch; }, () => ({ entries: [], categories: [] }));
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
     res.status(201).json(newEntry);
@@ -460,26 +457,28 @@ router.post('/schedule/entries', async (req, res) => {
 
 router.put('/schedule/entries/:id', async (req, res) => {
   try {
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    const idx = schedule.entries.findIndex((e) => e.id === req.params.id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Schedule entry not found.' });
-    }
     const gids = await scheduleGroupIds();
     const gErr = sanitizeGroupFields(req.body, gids).errors;
     if (gErr.length) return res.status(400).json({ error: gErr.join(' ') });
-    schedule.entries[idx] = { ...schedule.entries[idx], ...pickScheduleEntry(req.body, gids), id: req.params.id };
-    // Sending an empty groupTimes / groups clears them (same idea as stages below).
-    const cleanG = sanitizeGroupFields(req.body || {}, gids);
-    if (req.body && 'groupTimes' in req.body && !cleanG.groupTimes) delete schedule.entries[idx].groupTimes;
-    if (req.body && 'groups' in req.body && !cleanG.groups) delete schedule.entries[idx].groups;
-    if (req.body && 'tefila' in req.body && !normalizeTefilaTag(req.body.tefila)) delete schedule.entries[idx].tefila; // '' = back to automatic
-    // Sending an empty/invalid `stages` clears the stored override (pickScheduleEntry drops it, so the merge would keep the old one).
-    if (req.body && 'stages' in req.body && !sanitizeStages(req.body.stages)) delete schedule.entries[idx].stages;
-    await writeJSON('schedule.json', schedule);
+    let updated = null;
+    const schedule = await updateJSON('schedule.json', (sch) => {
+      const idx = sch.entries.findIndex((e) => e.id === req.params.id);
+      if (idx === -1) return SKIP;
+      sch.entries[idx] = { ...sch.entries[idx], ...pickScheduleEntry(req.body, gids), id: req.params.id };
+      // Sending an empty groupTimes / groups clears them (same idea as stages below).
+      const cleanG = sanitizeGroupFields(req.body || {}, gids);
+      if (req.body && 'groupTimes' in req.body && !cleanG.groupTimes) delete sch.entries[idx].groupTimes;
+      if (req.body && 'groups' in req.body && !cleanG.groups) delete sch.entries[idx].groups;
+      if (req.body && 'tefila' in req.body && !normalizeTefilaTag(req.body.tefila)) delete sch.entries[idx].tefila; // '' = back to automatic
+      // Sending an empty/invalid `stages` clears the stored override (pickScheduleEntry drops it, so the merge would keep the old one).
+      if (req.body && 'stages' in req.body && !sanitizeStages(req.body.stages)) delete sch.entries[idx].stages;
+      updated = sch.entries[idx];
+      return sch;
+    }, () => ({ entries: [], categories: [] }));
+    if (schedule === SKIP) return res.status(404).json({ error: 'Schedule entry not found.' });
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
-    res.json(schedule.entries[idx]);
+    res.json(updated);
   } catch (err) {
     console.error('[api] PUT /schedule/entries/:id error:', err.message);
     res.status(500).json({ error: 'Failed to update schedule entry.' });
@@ -488,9 +487,7 @@ router.put('/schedule/entries/:id', async (req, res) => {
 
 router.delete('/schedule/entries/:id', async (req, res) => {
   try {
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.entries = schedule.entries.filter((e) => e.id !== req.params.id);
-    await writeJSON('schedule.json', schedule);
+    const schedule = await updateJSON('schedule.json', (sch) => { sch.entries = sch.entries.filter((e) => e.id !== req.params.id); return sch; }, () => ({ entries: [], categories: [] }));
     broadcast('schedule-update', schedule);
     initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
     res.json({ success: true });
@@ -506,9 +503,7 @@ router.put('/schedule/categories', async (req, res) => {
     if (!Array.isArray(categories)) {
       return res.status(400).json({ error: 'Invalid categories data — expected an array.' });
     }
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    schedule.categories = categories.map(pickCategory);
-    await writeJSON('schedule.json', schedule);
+    const schedule = await updateJSON('schedule.json', (sch) => { sch.categories = categories.map(pickCategory); return sch; }, () => ({ entries: [], categories: [] }));
     broadcast('schedule-update', schedule);
     res.json(schedule.categories);
   } catch (err) {
@@ -567,14 +562,12 @@ router.post('/schedule/templates', async (req, res) => {
     } else {
       picked.categories = [];
     }
-    const templates = (await readJSON('schedule-templates.json')) ?? [];
     const newTemplate = {
       id: uuidv4(),
       ...picked,
       createdAt: new Date().toISOString(),
     };
-    templates.push(newTemplate);
-    await writeJSON('schedule-templates.json', templates);
+    await updateJSON('schedule-templates.json', (list) => { list.push(newTemplate); return list; }, () => []);
     res.status(201).json(newTemplate);
   } catch (err) {
     console.error('[api] POST /schedule/templates error:', err.message);
@@ -584,11 +577,6 @@ router.post('/schedule/templates', async (req, res) => {
 
 router.put('/schedule/templates/:id', async (req, res) => {
   try {
-    const templates = (await readJSON('schedule-templates.json')) ?? [];
-    const idx = templates.findIndex((t) => t.id === req.params.id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Template not found.' });
-    }
     const updates = pick(req.body, SCHEDULE_TEMPLATE_FIELDS);
     // Sanitize entries and categories if provided
     if (Array.isArray(updates.entries)) {
@@ -597,9 +585,16 @@ router.put('/schedule/templates/:id', async (req, res) => {
     if (Array.isArray(updates.categories)) {
       updates.categories = updates.categories.map(pickCategory);
     }
-    templates[idx] = { ...templates[idx], ...updates, id: req.params.id, updatedAt: new Date().toISOString() };
-    await writeJSON('schedule-templates.json', templates);
-    res.json(templates[idx]);
+    let updated = null;
+    const r = await updateJSON('schedule-templates.json', (list) => {
+      const idx = list.findIndex((t) => t.id === req.params.id);
+      if (idx === -1) return SKIP;
+      list[idx] = { ...list[idx], ...updates, id: req.params.id, updatedAt: new Date().toISOString() };
+      updated = list[idx];
+      return list;
+    }, () => []);
+    if (r === SKIP) return res.status(404).json({ error: 'Template not found.' });
+    res.json(updated);
   } catch (err) {
     console.error('[api] PUT /schedule/templates error:', err.message);
     res.status(500).json({ error: 'Failed to update schedule template.' });
@@ -608,13 +603,8 @@ router.put('/schedule/templates/:id', async (req, res) => {
 
 router.delete('/schedule/templates/:id', async (req, res) => {
   try {
-    let templates = (await readJSON('schedule-templates.json')) ?? [];
-    const exists = templates.find((t) => t.id === req.params.id);
-    if (!exists) {
-      return res.status(404).json({ error: 'Template not found.' });
-    }
-    templates = templates.filter((t) => t.id !== req.params.id);
-    await writeJSON('schedule-templates.json', templates);
+    const r = await updateJSON('schedule-templates.json', (list) => (list.some((t) => t.id === req.params.id) ? list.filter((t) => t.id !== req.params.id) : SKIP), () => []);
+    if (r === SKIP) return res.status(404).json({ error: 'Template not found.' });
     res.json({ success: true });
   } catch (err) {
     console.error('[api] DELETE /schedule/templates error:', err.message);
@@ -892,15 +882,7 @@ router.post('/google-album', async (req, res) => {
       return res.status(400).json({ error: 'Invalid Google Photos shared album URL.' });
     }
 
-    const albums = (await readJSON('google-albums.json')) ?? [];
     const albumId = extractAlbumId(url);
-
-    // Check if this album is already configured
-    const existing = albums.find(a => extractAlbumId(a.url) === albumId);
-    if (existing) {
-      return res.status(409).json({ error: 'This album is already connected.', id: existing.id });
-    }
-
     const newAlbum = {
       id: uuidv4(),
       ...pick(req.body, GOOGLE_ALBUM_FIELDS),
@@ -909,9 +891,17 @@ router.post('/google-album', async (req, res) => {
       createdAt: new Date().toISOString(),
       enabled: true,
     };
-
-    albums.push(newAlbum);
-    await writeJSON('google-albums.json', albums);
+    let existing = null;
+    await updateJSON('google-albums.json', (albums) => {
+      // Check if this album is already configured
+      existing = albums.find(a => extractAlbumId(a.url) === albumId);
+      if (existing) return SKIP;
+      albums.push(newAlbum);
+      return albums;
+    }, () => []);
+    if (existing) {
+      return res.status(409).json({ error: 'This album is already connected.', id: existing.id });
+    }
 
     // Start initial sync in background (don't block the response)
     syncAlbum(newAlbum).catch(err => {
@@ -978,16 +968,17 @@ router.post('/google-album/:id/sync', async (req, res) => {
 
 router.put('/google-album/:id', async (req, res) => {
   try {
-    const albums = (await readJSON('google-albums.json')) ?? [];
-    const idx = albums.findIndex(a => a.id === req.params.id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Album not found.' });
-    }
-    const prevMax = albums[idx].maxPhotos;
     const updates = pick(req.body, GOOGLE_ALBUM_FIELDS);
     delete updates.url; // the album link itself can't change (cache dirs are keyed by it)
-    albums[idx] = { ...albums[idx], ...updates, id: req.params.id };
-    await writeJSON('google-albums.json', albums);
+    let prevMax, idx = -1;
+    const albums = await updateJSON('google-albums.json', (list) => {
+      idx = list.findIndex(a => a.id === req.params.id);
+      if (idx === -1) return SKIP;
+      prevMax = list[idx].maxPhotos;
+      list[idx] = { ...list[idx], ...updates, id: req.params.id };
+      return list;
+    }, () => []);
+    if (albums === SKIP) return res.status(404).json({ error: 'Album not found.' });
 
     // A new photo cap takes effect now, not at the next timed sync.
     if ('maxPhotos' in updates && updates.maxPhotos !== prevMax && albums[idx].enabled !== false) {
@@ -1013,8 +1004,7 @@ router.put('/google-album/:id', async (req, res) => {
 
 router.delete('/google-album/:id', async (req, res) => {
   try {
-    let albums = (await readJSON('google-albums.json')) ?? [];
-    const album = albums.find(a => a.id === req.params.id);
+    const album = ((await readJSON('google-albums.json')) ?? []).find(a => a.id === req.params.id);
     if (!album) {
       return res.status(404).json({ error: 'Album not found.' });
     }
@@ -1022,8 +1012,7 @@ router.delete('/google-album/:id', async (req, res) => {
     // Delete cached photos
     await deleteAlbumCache(album.url);
 
-    albums = albums.filter(a => a.id !== req.params.id);
-    await writeJSON('google-albums.json', albums);
+    const albums = await updateJSON('google-albums.json', (list) => list.filter(a => a.id !== req.params.id), () => []);
     broadcast('google-albums-update', albums);
     res.json({ success: true });
   } catch (err) {
@@ -1073,10 +1062,8 @@ router.post('/fonts', (req, res, next) => {
     await writeFile(path.join(FONTS_DIR, filename), req.file.buffer);
 
     // Update fonts.json
-    const fonts = (await readJSON('fonts.json')) ?? [];
     const entry = { id, name, filename, format };
-    fonts.push(entry);
-    await writeJSON('fonts.json', fonts);
+    const fonts = await updateJSON('fonts.json', (list) => { list.push(entry); return list; }, () => []);
     broadcast('fonts-update', fonts);
 
     res.status(201).json(entry);
@@ -1088,8 +1075,7 @@ router.post('/fonts', (req, res, next) => {
 
 router.delete('/fonts/:id', async (req, res) => {
   try {
-    let fonts = (await readJSON('fonts.json')) ?? [];
-    const font = fonts.find(f => f.id === req.params.id);
+    const font = ((await readJSON('fonts.json')) ?? []).find(f => f.id === req.params.id);
     if (!font) {
       return res.status(404).json({ error: 'Font not found.' });
     }
@@ -1103,8 +1089,7 @@ router.delete('/fonts/:id', async (req, res) => {
       }
     }
 
-    fonts = fonts.filter(f => f.id !== req.params.id);
-    await writeJSON('fonts.json', fonts);
+    const fonts = await updateJSON('fonts.json', (list) => list.filter(f => f.id !== req.params.id), () => []);
     broadcast('fonts-update', fonts);
 
     res.json({ success: true });
@@ -1162,7 +1147,6 @@ router.post('/rss/feeds', async (req, res) => {
       }
     }
 
-    const feeds = (await readJSON('rss-feeds.json')) ?? [];
     const newFeed = {
       id: uuidv4(),
       url: url.trim(),
@@ -1174,8 +1158,7 @@ router.post('/rss/feeds', async (req, res) => {
       itemCount: 0,
     };
 
-    feeds.push(newFeed);
-    await writeJSON('rss-feeds.json', feeds);
+    await updateJSON('rss-feeds.json', (list) => { list.push(newFeed); return list; }, () => []);
 
     refreshRSSFeed(newFeed).catch(err => {
       console.error(`[api] Initial RSS fetch failed for ${newFeed.id}:`, err.message);
@@ -1191,12 +1174,6 @@ router.post('/rss/feeds', async (req, res) => {
 
 router.put('/rss/feeds/:id', async (req, res) => {
   try {
-    const feeds = (await readJSON('rss-feeds.json')) ?? [];
-    const idx = feeds.findIndex(f => f.id === req.params.id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Feed not found.' });
-    }
-
     const updates = pick(req.body, RSS_FEED_FIELDS);
     if ('url' in updates && !(typeof updates.url === 'string' && parseFeedUrl(updates.url))) {
       return res.status(400).json({ error: 'Enter a web address starting with http:// or https://' });
@@ -1217,14 +1194,21 @@ router.put('/rss/feeds/:id', async (req, res) => {
       delete updates.refreshInterval;
     }
 
-    feeds[idx] = { ...feeds[idx], ...updates, id: req.params.id };
-    await writeJSON('rss-feeds.json', feeds);
+    let updated = null;
+    const feeds = await updateJSON('rss-feeds.json', (list) => {
+      const idx = list.findIndex(f => f.id === req.params.id);
+      if (idx === -1) return SKIP;
+      list[idx] = { ...list[idx], ...updates, id: req.params.id };
+      updated = list[idx];
+      return list;
+    }, () => []);
+    if (feeds === SKIP) return res.status(404).json({ error: 'Feed not found.' });
 
     stopRSSTimer(req.params.id);
-    startRSSScheduler(feeds[idx]);
+    startRSSScheduler(updated);
 
     broadcast('rss-feeds-update', feeds);
-    res.json(feeds[idx]);
+    res.json(updated);
   } catch (err) {
     console.error('[api] PUT /rss/feeds error:', err.message);
     res.status(500).json({ error: 'Failed to update RSS feed.' });
@@ -1233,15 +1217,13 @@ router.put('/rss/feeds/:id', async (req, res) => {
 
 router.delete('/rss/feeds/:id', async (req, res) => {
   try {
-    let feeds = (await readJSON('rss-feeds.json')) ?? [];
-    const feed = feeds.find(f => f.id === req.params.id);
+    const feed = ((await readJSON('rss-feeds.json')) ?? []).find(f => f.id === req.params.id);
     if (!feed) {
       return res.status(404).json({ error: 'Feed not found.' });
     }
 
     stopRSSTimer(req.params.id);
-    feeds = feeds.filter(f => f.id !== req.params.id);
-    await writeJSON('rss-feeds.json', feeds);
+    const feeds = await updateJSON('rss-feeds.json', (list) => list.filter(f => f.id !== req.params.id), () => []);
 
     try {
       const { unlink: unlinkFile } = await import('fs/promises');
