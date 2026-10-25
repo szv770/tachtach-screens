@@ -168,7 +168,7 @@ export function canOpenSection(who, key) {
 /** Per-person endpoints any signed-in person may use on their own account. */
 const SELF = /^\/api\/(me|account|push|history)(\/|$)/; // history: the undo route re-checks the person's capabilities per change
 /** Pure calculations the screen preview needs; harmless to everyone signed in. */
-const PREVIEW = /^\/api\/preview(\/|$)/;
+const PREVIEW = /^\/api\/preview(\/|$)/; // no such route any more; kept so the path stays closed to everyone without a screen capability
 /** Areas only people-managers may even read. */
 const ADMIN_AREA = /^\/api\/(team|activity)(\/|$)/;
 /** Software update (runs code on the Pi): reading AND writing need system.update, which is adminOnly so nobody but an admin can ever hold it. */

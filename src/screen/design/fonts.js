@@ -37,7 +37,7 @@ const FORMAT = { truetype: 'truetype', opentype: 'opentype', woff: 'woff', woff2
 export function applyUploadedFonts(list) {
   if (typeof document === 'undefined') return;
   const rules = (Array.isArray(list) ? list : []).filter((f) => f?.name && f?.filename).map((f) => {
-    const name = String(f.name).replace(/['\\]/g, '');
+    const name = String(f.name).replace(/[^\p{L}\p{N} _.-]/gu, ''); // never let a stored name break out of the CSS string
     const file = encodeURIComponent(String(f.filename));
     return `@font-face { font-family: '${name}'; src: url('/fonts/${file}') format('${FORMAT[f.format] || 'truetype'}'); font-weight: 100 900; font-display: swap; }`;
   }).join('\n');

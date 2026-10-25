@@ -10,6 +10,7 @@ import { normalizeIp } from './clientIp.js';
 import { getViewerClientCount } from './sse.js';
 import { buildCsp } from './csp.js';
 import { sendPush } from './push.js';
+import activity from './activity.js';
 import { isActive, zonedParts, DEFAULT_TZ } from '../shared/announcements.js';
 import { birthdaysFor, addDays as rosterAddDays } from '../shared/roster.js';
 import { assignments, addDays as chazanAddDays } from '../shared/chazan.js';
@@ -274,12 +275,24 @@ liveRouter.get('/live/:word', async (req, res) => {
   return sendViewer(res);
 });
 
+/** Who switched the public live view on, changed its word or the touch switches (audit L2). Never writes the word itself. */
+export function logLiveChanges(user, before, after, record = (e) => activity.record(e).catch(() => {})) {
+  const lines = [];
+  if (before.enabled !== after.enabled) lines.push(after.enabled ? 'Switched the public live view ON' : 'Switched the public live view off');
+  if (before.word !== after.word) lines.push('Changed the live-view word (old links stopped working)');
+  if (before.touchScreen !== after.touchScreen) lines.push(`Touch on the TV turned ${after.touchScreen ? 'on' : 'off'}`);
+  if (before.touchLive !== after.touchLive) lines.push(`Touch on the live view turned ${after.touchLive ? 'on' : 'off'}`);
+  for (const action of lines) record({ user, action, area: 'live view' });
+  return lines;
+}
+
 /** Admin API (mounted at /api/system/live, behind requireAuth + enforceRole; /api/system is admin-only). */
 export const liveAdminRouter = Router();
 liveAdminRouter.get('/', async (_req, res) => res.json(view(await readConfig())));
 liveAdminRouter.put('/', async (req, res) => {
   const cfg = await readConfig();
   const body = req.body && typeof req.body === 'object' ? req.body : {};
+  const before = { ...cfg };
   if (body.word !== undefined) {
     const v = validateWord(body.word);
     if (v.error) return res.status(400).json({ error: v.error });
@@ -289,11 +302,14 @@ liveAdminRouter.put('/', async (req, res) => {
   if (body.touchScreen !== undefined) cfg.touchScreen = body.touchScreen === true;
   if (body.touchLive !== undefined) cfg.touchLive = body.touchLive === true;
   await saveConfig(cfg);
+  logLiveChanges(req.user, before, cfg);
   res.json(view(cfg));
 });
-liveAdminRouter.post('/new-word', async (_req, res) => {
+liveAdminRouter.post('/new-word', async (req, res) => {
   const cfg = await readConfig();
+  const before = { ...cfg };
   cfg.word = randomWord();
   await saveConfig(cfg);
+  logLiveChanges(req.user, before, cfg);
   res.json(view(cfg));
 });

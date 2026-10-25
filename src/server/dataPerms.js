@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-export const SECRET_FILES = ['users.json', 'auth.json', 'push.json', 'undo.json', 'live.json'];
+export const SECRET_FILES = ['users.json', 'auth.json', 'push.json', 'undo.json', 'live.json', 'roster.json', 'chazan.json']; // roster + chazan hold real student names (audit L5)
 export const SECRET_FILE_MODE = 0o600;
 export const DATA_DIR_MODE = 0o700;
 const KEY_FILE = /\.(key|pem)$/i;

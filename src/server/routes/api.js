@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir } from 'fs/promises';
 import multer from 'multer';
 import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
+import { normalizeWebUrl } from '../../shared/embedCheck.js';
 import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
 import { readRoster } from './roster.js';
@@ -84,13 +85,33 @@ function pick(obj, allowedFields) {
 const SLIDE_FIELDS = ['type', 'template', 'titleHe', 'titleEn', 'bodyHe', 'bodyEn', 'attribution', 'label', 'fullscreen', 'imageUrl', 'videoUrl', 'blurUrl', 'edgeTreatment', 'isGif', 'mediaId', 'filename', 'blurFilename', 'mediaType', 'duration', 'textHe', 'textEn', 'enabled', 'order', 'width', 'height', 'dominantColor', 'googleAlbumId', 'displayMode', 'photoInterval', 'photoOrder', 'kenBurns', 'imageDisplayMode', 'subtitle', 'style', 'rssFeedId', 'rssDisplayMode', 'embedUrl', 'webRefreshSec', 'webZoom', 'webCacheBust', 'qrOn', 'qrUrl', 'qrCorner', 'qrSize', 'qrCaption', 'announcementId', 'pdfPages', 'pageSeconds', 'hideOnShabbos'];
 // PDF slide pages: only our own page pictures, at most PDF_MAX_PAGES (fail closed: anything else is dropped).
 const PDF_PAGE_URL = /^\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(-p\d{2,3})?\.jpg$/i;
+// Web page / QR addresses: http(s) only (defence in depth behind the kiosk CSP, audit L3); anything else is dropped.
+export function cleanUrlFields(slide) {
+  for (const k of ['embedUrl', 'qrUrl']) {
+    if (!(k in slide) || slide[k] === '' || slide[k] === null || slide[k] === undefined) continue;
+    const ok = typeof slide[k] === 'string' && slide[k].length <= 2000 ? normalizeWebUrl(slide[k]) : null;
+    if (ok) slide[k] = ok; else delete slide[k];
+  }
+  return slide;
+}
 function cleanPdfFields(slide) {
+  cleanUrlFields(slide);
   if ('pdfPages' in slide) {
     const ok = Array.isArray(slide.pdfPages) ? slide.pdfPages.filter((u) => typeof u === 'string' && PDF_PAGE_URL.test(u)).slice(0, PDF_MAX_PAGES) : [];
     if (ok.length) slide.pdfPages = ok; else delete slide.pdfPages;
   }
   if ('pageSeconds' in slide) slide.pageSeconds = clampPageSeconds(slide.pageSeconds);
   return slide;
+}
+/** Letters, digits, space and dash only (any script), at most 60 characters. */
+export function cleanFontName(raw) {
+  return String(raw ?? '').normalize('NFKC').replace(/[^\p{L}\p{N} -]/gu, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+/** TrueType / OpenType / WOFF / WOFF2 / collection signatures (the file is served as-is, so check what it claims to be). */
+export function looksLikeFont(buf) {
+  if (!buf || buf.length < 12) return false;
+  const sig = buf.subarray(0, 4);
+  return sig.equals(Buffer.from([0, 1, 0, 0])) || ['OTTO', 'wOFF', 'wOF2', 'true', 'ttcf'].includes(sig.toString('latin1'));
 }
 const RSS_FEED_FIELDS = ['url', 'name', 'mapping', 'refreshInterval'];
 const CUSTOM_DAY_FIELDS = ['title', 'titleHe', 'subtitle', 'date', 'recurring', 'type', 'enabled', 'noChazan', 'hebrewMonth', 'hebrewDay', 'gregorianMonth', 'gregorianDay'];
@@ -693,12 +714,7 @@ router.get('/screen/state', (_req, res) => {
   res.json(getScreenState());
 });
 
-// ── Preview ────────────────────────────────────────────────────────────────
-
-router.post('/preview', (req, res) => {
-  broadcastToAll('preview', req.body);
-  res.json({ success: true });
-});
+// (POST /api/preview, a relay of any JSON to every screen and live viewer, was removed: nothing used it. Audit L6.)
 
 // ── Logo upload (credit line logo) ───────────────────────────────────────
 
@@ -1052,9 +1068,12 @@ router.post('/fonts', (req, res, next) => {
     const id = uuidv4();
     const filename = `${id}${ext}`;
 
-    // Derive a display name from the original filename (strip extension)
-    const name = req.body?.name
-      || path.basename(req.file.originalname, ext).replace(/[-_]+/g, ' ').trim()
+    if (!looksLikeFont(req.file.buffer)) return res.status(400).json({ error: 'That file does not look like a font (.ttf, .otf, .woff or .woff2).' });
+
+    // Derive a display name from the original filename (strip extension); letters, digits, space and dash only,
+    // because the name is written into the screen's CSS (audit L4).
+    const name = cleanFontName(req.body?.name)
+      || cleanFontName(path.basename(req.file.originalname, ext).replace(/[-_]+/g, ' '))
       || 'Custom Font';
 
     // Write font file to disk
