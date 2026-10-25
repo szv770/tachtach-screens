@@ -55,7 +55,8 @@ function requestOnce(url, addr, o, signal) {
       path: url.pathname + url.search, method: o.method, signal,
       headers: { 'accept-encoding': 'gzip, deflate, br', ...o.headers, host: url.host },
       // Pinned: whatever the resolver says later, this socket goes to the address we vetted.
-      lookup: (_h, _opts, cb) => (_opts && _opts.all ? cb(null, [{ address: addr.address, family: addr.family }]) : cb(null, addr.address, addr.family)),
+      // The callback must be async (audit H1): a synchronous one lets a failing connect emit 'error' before the request has its socket listener, which killed the process.
+      lookup: (_h, _opts, cb) => process.nextTick(() => (_opts && _opts.all ? cb(null, [{ address: addr.address, family: addr.family }]) : cb(null, addr.address, addr.family))),
       servername: net.isIP(url.hostname.replace(/^\[|\]$/g, '')) ? undefined : url.hostname,
     }, (res) => {
       const headers = {};

@@ -265,6 +265,8 @@ export function canDo(who, method, path, body) {
   const m = String(method || 'GET').toUpperCase();
   if (ADMIN_AREA.test(p)) return caps.has('team.manage');
   if (SYSTEM_AREA.test(p)) return caps.has('system.update');
+  // The embed probe makes the Pi fetch an outside address: only people who edit slides may use it (audit L1).
+  if (/^\/api\/embed-probe$/.test(p)) return caps.has('slides.edit');
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return true;
   // The preview feed reaches every open admin panel: only people who change the screen may drive it.
   if (PREVIEW.test(p)) return ['slides.edit', 'screen.control', 'announcements.post', 'look.change'].some((c) => caps.has(c));

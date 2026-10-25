@@ -40,3 +40,9 @@ test('unknown role is denied; tabs per role', () => {
   assert.equal(canOpenSection('editor', 'account'), true);
   assert.equal(canOpenSection('admin', 'team'), true);
 });
+
+test('L1: the embed probe (an outbound fetch) needs slides.edit, so View-only cannot use it', () => {
+  assert.equal(canDo({ role: 'editor', preset: 'view' }, 'GET', '/api/embed-probe?url=https://example.com'), false);
+  assert.equal(canDo('editor', 'GET', '/api/embed-probe?url=https://example.com'), true);
+  assert.equal(canDo('admin', 'GET', '/api/embed-probe'), true);
+});

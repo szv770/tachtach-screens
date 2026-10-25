@@ -119,3 +119,10 @@ test('web-push endpoints: known push services only, https, no creds', () => {
   assert.equal(validSubscription({ endpoint: 'https://fcm.googleapis.com/x', keys }), true);
   assert.equal(validSubscription({ endpoint: 'https://10.0.0.1/x', keys }), false);
 });
+
+test('H1: a failing connect to the pinned address rejects normally and does not crash the process', async () => {
+  // An IPv6 address on a box without an IPv6 route fails the connect synchronously (ENETUNREACH); elsewhere it just times out.
+  const resolve = fakeDns({ 'v6only.example': ['2606:4700::1111'] });
+  await assert.rejects(safeFetch('http://v6only.example/', { resolve, timeoutMs: 1500 }));
+  await new Promise((r) => setTimeout(r, 50)); // an unhandled socket 'error' would have thrown by now
+});
