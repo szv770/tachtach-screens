@@ -46,18 +46,35 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-lively .tt-page.tt-exit   { animation: ttLiOut 300ms ease-in both; }
 .m-smooth .tt-tick, .m-lively .tt-tick { animation: ttFadeIn 280ms ease-out; }
 .tt-fadein { animation: ttFadeIn 400ms ease-out both; }
-/* Birthday slide: confetti drops in once, each name pops in once (finite, transform + opacity only; Minimal motion leaves it all still). */
-.m-smooth .tt-bd-c, .m-lively .tt-bd-c { animation: ttBdDrop 1200ms cubic-bezier(.2,.8,.3,1) both; animation-delay: var(--d, 0ms); }
-.m-smooth .tt-bd-n, .m-lively .tt-bd-n { animation: ttBdPop 700ms cubic-bezier(.2,.9,.25,1.25) both; animation-delay: calc(350ms + var(--i, 0) * 140ms); }
+/* Birthday slide (owner 2026-10-25): a FINITE celebration that always settles. Bunting drops, the hero scales in,
+   the names pop one by one, the brocho rises; confetti pieces fall all the way through the panel (--fall = its
+   measured height) and end hidden below it, so nothing is ever left hanging mid-air. Transform + opacity only,
+   one animation per element, nothing loops; Minimal motion and reduced-motion show the settled state at once. */
+.tt-bd-f { position: absolute; top: -60px; opacity: 0; }
+.m-smooth .tt-bd-f, .m-lively .tt-bd-f { animation: ttBdFall var(--dur, 3200ms) cubic-bezier(.35,.15,.65,1) var(--d, 0ms) both; }
+.m-smooth .tt-bd-bunt, .m-lively .tt-bd-bunt { animation: ttBdBunt 700ms cubic-bezier(.2,.9,.3,1.15) 80ms both; }
+.m-smooth .tt-bd-hero, .m-lively .tt-bd-hero { animation: ttBdHero 950ms cubic-bezier(.2,.8,.3,1) 150ms both; }
+.m-smooth .tt-bd-up, .m-lively .tt-bd-up { animation: ttBdUp 650ms cubic-bezier(.22,.7,.2,1) var(--t, 0ms) both; }
+.m-smooth .tt-bd-late, .m-lively .tt-bd-late { animation-delay: calc(1250ms + var(--n, 1) * 240ms + var(--t2, 0ms)); }
+.m-smooth .tt-bd-n, .m-lively .tt-bd-n { animation: ttBdPop 800ms cubic-bezier(.2,.9,.25,1.2) both; animation-delay: calc(1000ms + var(--i, 0) * 240ms); }
+@keyframes ttBdFall {
+  0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)) rotateX(0deg); }
+  40%  { opacity: 1; transform: translate3d(var(--sx), calc(var(--fall) * .4), 0) rotate(calc((var(--r0) + var(--r1)) / 2)) rotateX(calc(var(--fx) / 2)); }
+  96%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(var(--dx), var(--fall), 0) rotate(var(--r1)) rotateX(var(--fx)); }
+}
+@keyframes ttBdBunt { from { opacity: 0; transform: translate3d(0, -100%, 0); } }
+@keyframes ttBdHero { 0% { opacity: 0; transform: scale(.45); } 55% { opacity: 1; transform: scale(1.07); } 100% { opacity: 1; transform: none; } }
+@keyframes ttBdUp   { from { opacity: 0; transform: translate3d(0, 22px, 0); } }
+@keyframes ttBdPop  { 0% { opacity: 0; transform: translate3d(0, 34px, 0) scale(.55); } 60% { opacity: 1; transform: translate3d(0, -4px, 0) scale(1.08); } 100% { opacity: 1; transform: none; } }
 @keyframes ttSmIn   { from { opacity: 0; transform: translateY(14px); } }
 @keyframes ttFadeIn { from { opacity: 0; } }
 @keyframes ttFadeOut{ to   { opacity: 0; } }
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
-@keyframes ttBdDrop { from { opacity: 0; transform: translate3d(0, -60px, 0) rotate(-40deg); } }
-@keyframes ttBdPop  { from { opacity: 0; transform: translate3d(0, 18px, 0) scale(.82); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-c, .tt-bd-n { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up { animation: none !important; }
+  .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }
 `;
