@@ -13,9 +13,12 @@ const PREAUTH_COOKIE = 'tachtach_preauth';
 const TRUSTED_DEVICE_COOKIE = 'tachtach_trusted_device';
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
-// Failures are counted per address (loose: a whole school can share one) and per
-// person+address (tight). Nobody can lock a colleague out from another address.
-const IP_LIMIT = { max: 20, lockMs: 60 * 60 * 1000 };
+// Failures are counted per address (a generous ceiling: a whole school can share one) and per
+// person+address (tight). Nobody can lock a colleague out from another address, and (audit M5) a
+// person on a shared address cannot shut the real admin out either: the address ceiling is high and
+// short, a browser that already proved 2-step (trusted-device cookie) is let through it, and the 2-step
+// screens (which need the right password first) are only limited per person+address.
+export const IP_LIMIT = { max: 100, lockMs: 15 * 60 * 1000 };
 const USER_LIMIT = { max: 8, lockMs: 15 * 60 * 1000 };
 
 /**
@@ -79,7 +82,7 @@ async function afterFirstStep(req, res, user, how) {
 
 async function ipBlocked(req, res) {
   if (await users.isLocked(ipKey(req))) {
-    res.status(429).json({ error: 'Too many failed attempts. Please try again later.' });
+    res.status(429).json({ error: 'Too many failed attempts from this network. Please try again in 15 minutes.' });
     return true;
   }
   return false;
@@ -100,8 +103,9 @@ router.get('/login', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
-    if (await ipBlocked(req, res)) return;
     const body = req.body || {};
+    const trusted = await users.isLocked(ipKey(req)) && await users.isTrustedDeviceForName(body.username, req.cookies?.[TRUSTED_DEVICE_COOKIE]);
+    if (!trusted && await ipBlocked(req, res)) return;
     const name = normalizeUsername(body.username);
     const key = userKey(req, name);
     if (await users.isLocked(key)) {
@@ -127,7 +131,6 @@ router.post('/login', async (req, res) => {
 
 async function totpStep(req, res, stage) {
   try {
-    if (await ipBlocked(req, res)) return;
     const pre = await users.getPreAuth(req.cookies?.[PREAUTH_COOKIE]);
     if (!pre || pre.stage !== stage) {
       clearPreAuthCookie(res);

@@ -582,6 +582,14 @@ export function createUserStore({
       return true;
     });
   }
+  /** Is this a device that already proved 2-step for the person with this typed username (the only person when none is typed)? */
+  async function isTrustedDeviceForName(username, token) {
+    if (!token || typeof token !== 'string') return false;
+    const d = await load();
+    const name = normalizeUsername(username);
+    const u = name ? d.users.find((x) => x.username === name) : (d.users.length === 1 ? d.users[0] : null);
+    return u ? isTrustedDevice(u.id, token) : false;
+  }
   async function forgetTrustedDevices(userId) {
     await tx(async (d) => {
       const u = byId(d, userId);
@@ -676,7 +684,7 @@ export function createUserStore({
     createSession, getSession, destroySession, destroyUserSessions,
     createPreAuth, getPreAuth, clearPreAuth,
     beginTotpEnrollment, confirmTotp, verifyTotp, disableTotp,
-    trustDevice, isTrustedDevice, forgetTrustedDevices,
+    trustDevice, isTrustedDevice, isTrustedDeviceForName, forgetTrustedDevices,
     createLink, peekLink, consumeLink, revokeLinks,
     isLocked, recordFailure, clearFailures,
   };
