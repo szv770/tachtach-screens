@@ -576,3 +576,50 @@ test('an empty line publishes nothing: names added later are not locked out by e
   assert.equal(slotAt(filled, SUN, 'Shacharis').id, 'p001');
   assert.ok(Object.keys(filled.published).length === 3);
 });
+
+// ── Regression (owner, 2026-10-25): turning Shabbos off left an already-published Shabbos on the screen ──
+import * as CZ from '../src/shared/chazan.js';
+import { daysModel as czDaysModel } from '../src/shared/chazanView.js';
+
+test('day-level switches win over published days: Shabbos off removes a published Shabbos at once', () => {
+  const people = ['aaaa1', 'bbbb2', 'cccc3', 'dddd4', 'eeee5', 'ffff6', 'gggg7', 'hhhh8'];
+  const withShabbos = CZ.GRID_PRESETS.everything || Object.values(CZ.GRID_PRESETS).find((p) => p.shabbos);
+  let st = CZ.normalizeState({ settings: { shabbos: true, grid: withShabbos.grid }, order: people, queue: people }, '2026-10-23');
+  st = CZ.settle(st, '2026-10-23', []);
+  assert.ok(st.published['2026-10-24'], 'Shabbos was published while the switch was on');
+  st = CZ.normalizeState({ ...st, settings: { ...st.settings, shabbos: false } }, st.cursor);
+  st = CZ.settle(st, '2026-10-23', []);
+  assert.equal(st.published['2026-10-24'], undefined, 'no longer published');
+  const names = Object.fromEntries(people.map((p) => [p, p]));
+  const sat = czDaysModel({ ...st, names }, '2026-10-23', [], 3).find((d) => d.date === '2026-10-24');
+  assert.deepEqual(sat.slots, []);
+  assert.equal(sat.off, 'Shabbos');
+  // Friday and Sunday names did not move
+  const fri = czDaysModel({ ...st, names }, '2026-10-23', [], 3)[0];
+  assert.ok(fri.slots.length > 0);
+});
+
+test('a davening removed from the grid disappears from a published day; the others keep their names', () => {
+  const people = ['aaaa1', 'bbbb2', 'cccc3', 'dddd4', 'eeee5'];
+  let st = CZ.normalizeState({ order: people, queue: people }, '2026-10-22'); // Thursday: all three by default
+  st = CZ.settle(st, '2026-10-22', []);
+  const before = st.published['2026-10-22'];
+  assert.deepEqual(Object.keys(before).sort(), ['Maariv', 'Mincha', 'Shacharis']);
+  const grid = st.settings.grid.map((r) => ({ ...r }));
+  grid[4] = { ...grid[4], Maariv: false };
+  st = CZ.normalizeState({ ...st, settings: { ...st.settings, grid } }, st.cursor);
+  st = CZ.settle(st, '2026-10-22', []);
+  assert.deepEqual(Object.keys(st.published['2026-10-22']).sort(), ['Mincha', 'Shacharis']);
+  assert.equal(st.published['2026-10-22'].Shacharis.id, before.Shacharis.id);
+  assert.equal(st.published['2026-10-22'].Mincha.id, before.Mincha.id);
+});
+
+test("a Custom Day marked 'No chazan' added after publishing removes that day", () => {
+  const people = ['aaaa1', 'bbbb2', 'cccc3', 'dddd4', 'eeee5'];
+  let st = CZ.normalizeState({ order: people, queue: people }, '2026-10-22');
+  st = CZ.settle(st, '2026-10-22', []);
+  assert.ok(st.published['2026-10-23']);
+  const custom = [{ id: 'x1', date: '2026-10-23', recurring: false, noChazan: true }];
+  st = CZ.settle(st, '2026-10-22', custom);
+  assert.equal(st.published['2026-10-23'], undefined);
+});

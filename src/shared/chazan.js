@@ -379,13 +379,15 @@ function walkSlot(state, queue, iso, tefila, led = new Set()) {
   return r;
 }
 
-/** The davenings of a day: a published day keeps the davenings it was published with; otherwise the grid decides. */
+/**
+ * The davenings of a day. The CURRENT rules always decide WHICH davenings exist (the Shabbos / Rosh Chodesh /
+ * Yom Tov switches, Custom Days 'no chazan', the day-by-tefila grid): when the owner turns something off it
+ * disappears from the screen at once. Publishing only protects WHO leads a davening that still exists.
+ * (An earlier version also kept every davening a day had been published with, so turning Shabbos off left an
+ * already-published Shabbos on the screen, and its names had already used up turns in the rotation.)
+ */
 function dayTefilas(state, iso, customDays) {
-  const grid = tefilosOn(state.settings, iso, customDays);
-  const pubDay = state.published?.[iso];
-  if (!pubDay) return grid;
-  const list = TEFILOS.filter((t) => grid.list.includes(t) || t in pubDay);
-  return { list, why: list.length ? '' : grid.why };
+  return tefilosOn(state.settings, iso, customDays);
 }
 
 function walkDay(state, queue, iso, customDays) {
