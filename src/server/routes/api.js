@@ -238,6 +238,7 @@ router.patch('/settings', async (req, res) => {
 
 // ── Slides ─────────────────────────────────────────────────────────────────
 
+router.use('/slides', express.json({ limit: '256kb' })); // whole-rotation saves outgrow the 16 kB default (audit M3)
 router.get('/slides', async (_req, res) => {
   try {
     const slides = await readJSON('slides.json');

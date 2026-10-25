@@ -8,7 +8,7 @@
  * working). Every change broadcasts SSE `announcements-update`.
  */
 
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { effectiveCaps, can } from '../../shared/permissions.js';
 import { stampCreator, canUndoOwn } from '../ownPost.js';
 import { v4 as uuidv4 } from 'uuid';
@@ -24,6 +24,7 @@ import { zonedParts, addDays, zonedTimeToUtc, durationMinutes } from '../../shar
 
 const router = Router();
 
+router.use('/announcements', express.json({ limit: '256kb' })); // letters/sichos up to 12,000 characters (audit M3)
 router.use(['/announcements', '/messages', '/pinned'], async (_req, _res, next) => {
   await ensureMigrated();
   next();
