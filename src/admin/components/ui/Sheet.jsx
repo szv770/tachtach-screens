@@ -31,7 +31,7 @@ export default function Sheet({ open, onClose, title, children, zIndex = 1100, m
       alignItems: wide ? 'center' : 'flex-end', justifyContent: 'center',
     }}>
       <div role="dialog" aria-modal="true" aria-label={label || title} onClick={(e) => e.stopPropagation()} style={{
-        width: '100%', maxWidth, maxHeight: '92dvh', overflowY: 'auto', background: colors.card, color: colors.text,
+        width: '100%', maxWidth, maxHeight: '92dvh', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', boxSizing: 'border-box', background: colors.card, color: colors.text,
         borderRadius: wide ? 'var(--r-xl)' : 'var(--r-xl) var(--r-xl) 0 0', boxShadow: 'var(--e3)',
         padding: `8px 16px calc(24px + env(safe-area-inset-bottom))`, transform: `translateY(${drag}px)`,
         transition: startY.current == null ? 'transform var(--t-sheet) var(--ease)' : 'none', fontFamily: adminFonts.englishBody,

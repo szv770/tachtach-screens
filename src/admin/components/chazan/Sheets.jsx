@@ -55,9 +55,9 @@ export function AwaySheet({ person, name, today, onSave, onClose }) {
   const bad = to && to < from;
   return (
     <Sheet open onClose={onClose} title={`${name} is away`}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-        <label style={{ ...small, display: 'flex', flexDirection: 'column', gap: '4px' }}>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inputStyle} aria-label="From" /></label>
-        <label style={{ ...small, display: 'flex', flexDirection: 'column', gap: '4px' }}>To (last day)<input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} style={inputStyle} aria-label="To" /></label>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: '10px' }}>
+        <label style={{ ...small, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>From<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ ...inputStyle, width: '100%', minWidth: 0, boxSizing: 'border-box' }} aria-label="From" /></label>
+        <label style={{ ...small, display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0 }}>To (last day)<input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} style={{ ...inputStyle, width: '100%', minWidth: 0, boxSizing: 'border-box' }} aria-label="To" /></label>
       </div>
       <div style={{ ...small, marginTop: '8px' }}>Leave “To” empty if you do not know yet: he stays away until you tap Back. The rotation skips him and he rejoins by itself.</div>
       {bad && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>The last day cannot be before the first.</div>}
