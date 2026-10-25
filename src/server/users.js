@@ -60,8 +60,7 @@ export function slugUsername(name) {
 }
 
 /** What the admin UI may see about someone — never hashes or secrets. */
-export function publicUser(u, links = []) {
-  const now = Date.now();
+export function publicUser(u, links = [], now = Date.now()) {
   const pending = links.find((l) => l.userId === u.id && l.kind === 'invite' && !l.usedAt && Date.parse(l.expiresAt) > now);
   return {
     id: u.id,
@@ -230,7 +229,7 @@ export function createUserStore({
   // ── users ─────────────────────────────────────────────────────────────────
   async function listUsers() {
     const d = await load();
-    return d.users.map((u) => publicUser(u, d.links));
+    return d.users.map((u) => publicUser(u, d.links, now()));
   }
   async function userCount() {
     return (await load()).users.length;
@@ -242,7 +241,7 @@ export function createUserStore({
   async function getPublicUser(id) {
     const d = await load();
     const u = byId(d, id);
-    return u ? publicUser(u, d.links) : null;
+    return u ? publicUser(u, d.links, now()) : null;
   }
 
   async function createUser({ name, username, role = 'editor', preset, overrides, createdBy = null }) {
@@ -269,7 +268,7 @@ export function createUserStore({
         trustedDevices: [], sessions: [], createdAt: iso(now()), createdBy, lastLoginAt: null,
       };
       d.users.push(user);
-      return publicUser(user, d.links);
+      return publicUser(user, d.links, now());
     });
   }
 
@@ -307,7 +306,7 @@ export function createUserStore({
         // Changing the preset without sending overrides keeps none; overrides are relative to the preset.
         u.overrides = sanitizeOverrides(nextPreset, overrides !== undefined ? overrides : (preset !== undefined ? {} : u.overrides));
       }
-      return publicUser(u, d.links);
+      return publicUser(u, d.links, now());
     });
   }
 
