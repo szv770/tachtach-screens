@@ -59,5 +59,7 @@ test('writeJSON creates secret files 0600 and tightens an existing loose data di
   assert.equal(mode(path.join(root, 'data/users.json')), 0o600);
   assert.equal(mode(path.join(root, 'data/push.json')), 0o600);
   assert.notEqual(mode(path.join(root, 'data/settings.json')), 0o600);
-  assert.ok(!fs.existsSync(path.join(root, 'data/users.json.bak')), 'secrets are never backed up');
+  // Audit H2: secrets get a last-good .bak (so a damaged users.json can be recovered), kept private like the file itself.
+  await writeJSON('users.json', { a: 2 });
+  assert.equal(mode(path.join(root, 'data/users.json.bak')), 0o600);
 });

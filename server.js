@@ -3,6 +3,19 @@ import https from 'https';
 import { ensureDataDir } from './src/server/storage.js';
 import { ensureLocalCert, LOCAL_TLS_PORT, setLocalTlsEnabled } from './src/server/localTls.js';
 
+// A rejected promise must not take the whole display down (audit H2): log it and keep serving.
+// Real fatal errors still stop the process (systemd restarts it), but are logged first.
+// Before the port is bound, a rejection IS a startup failure and must stop the process.
+let listening = false;
+process.on('unhandledRejection', (err) => {
+  console.error('[server] Unhandled promise rejection' + (listening ? ' (kept running):' : ' during startup, exiting:'), err?.stack || err);
+  if (!listening) process.exit(1);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[server] Uncaught exception, exiting:', err?.stack || err);
+  process.exit(1);
+});
+
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
@@ -10,6 +23,7 @@ await ensureDataDir();
 const app = createApp();
 
 app.listen(PORT, HOST, () => {
+  listening = true;
   console.log(`TachTach-Screens running on http://${HOST}:${PORT}`);
   console.log(`  Kiosk:  http://localhost:${PORT}/screen`);
   console.log(`  Admin:  http://localhost:${PORT}/admin`);

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import './asyncErrors.js';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import { TRUST_PROXY_SETTING, normalizeIp } from './clientIp.js';

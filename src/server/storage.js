@@ -1,4 +1,4 @@
-import { readFile, writeFile, rename, copyFile, mkdir, unlink, chmod } from 'fs/promises';
+import { readFile, writeFile, rename, mkdir, unlink, chmod, open } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -7,7 +7,8 @@ import { SECRET_FILES, SECRET_FILE_MODE, DATA_DIR_MODE, tightenDataPermissions }
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+// TACHTACH_DATA_DIR lets the tests use a scratch folder; nothing sets it in production.
+const DATA_DIR = process.env.TACHTACH_DATA_DIR ? path.resolve(process.env.TACHTACH_DATA_DIR) : path.join(PROJECT_ROOT, 'data');
 
 // Simple file-level locking to prevent concurrent write corruption
 const fileLocks = new Map();
@@ -26,9 +27,6 @@ function releaseLock(filename, resolve) {
   fileLocks.delete(filename);
   resolve();
 }
-
-// Files that should never have backup copies created (contain sensitive hashes)
-const NO_BACKUP_FILES = new Set(['auth.json', 'users.json', 'live.json']);
 
 /**
  * Ensure the data/ and data/uploads/ directories exist.
@@ -53,13 +51,30 @@ export async function readJSON(filename) {
   }
 
   const filePath = path.join(DATA_DIR, filename);
+  let raw;
   try {
-    const raw = await readFile(filePath, 'utf-8');
-    return JSON.parse(raw);
+    raw = await readFile(filePath, 'utf-8');
   } catch (err) {
     if (err.code === 'ENOENT') return null;
     throw err;
   }
+  try {
+    return JSON.parse(raw);
+  } catch (err) {
+    // Truncated by a power cut or a bad copy (audit H2): fall back to the last good copy instead of failing every request.
+    try {
+      const good = JSON.parse(await readFile(filePath + '.bak', 'utf-8'));
+      console.error(`[storage] ${filename} is not valid JSON (${err.message}); using ${filename}.bak`);
+      return good;
+    } catch { /* no usable backup */ }
+    console.error(`[storage] ${filename} is not valid JSON and there is no usable ${filename}.bak: ${err.message}`);
+    throw err;
+  }
+}
+
+/** Does this file parse as JSON right now? (Only a good file may replace the .bak.) */
+async function readsAsJSON(p) {
+  try { JSON.parse(await readFile(p, 'utf-8')); return true; } catch { return false; }
 }
 
 /**
@@ -82,17 +97,21 @@ export async function writeJSON(filename, data) {
     const filePath = path.join(DATA_DIR, filename);
     const tmpPath = filePath + '.tmp';
 
-    // Back up the existing file if it exists (skip for sensitive files like auth.json)
-    if (!NO_BACKUP_FILES.has(filename) && existsSync(filePath)) {
+    // Back up the existing file if it is intact (a corrupt one must never replace the last good .bak).
+    // Secret files get a 0600 .bak too, so a damaged users.json can be recovered from it (audit H2).
+    const mode = SECRET_FILES.includes(filename) ? SECRET_FILE_MODE : undefined;
+    if (existsSync(filePath) && await readsAsJSON(filePath)) {
       const bakPath = filePath + '.bak';
-      await copyFile(filePath, bakPath);
+      await writeFile(bakPath, await readFile(filePath), mode ? { mode } : undefined);
+      if (mode) await chmod(bakPath, mode).catch(() => {});
     }
 
     // Write to temp file, then atomically rename
     const jsonStr = JSON.stringify(data, null, 2);
     // Secret files are born 0600 (the rename keeps the mode), never briefly world-readable.
-    const mode = SECRET_FILES.includes(filename) ? SECRET_FILE_MODE : undefined;
-    await writeFile(tmpPath, jsonStr, { encoding: 'utf-8', ...(mode ? { mode } : {}) });
+    // fsync before the rename: otherwise a power cut can leave the renamed file empty.
+    const fh = await open(tmpPath, 'w', mode);
+    try { await fh.writeFile(jsonStr, 'utf-8'); await fh.sync(); } finally { await fh.close(); }
     if (mode) await chmod(tmpPath, mode).catch(() => {}); // an old .tmp left behind keeps its mode otherwise
     try {
       await rename(tmpPath, filePath);

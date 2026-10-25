@@ -218,7 +218,7 @@ export function scheduleMidnightReset() {
 
   midnightTimer = setTimeout(async () => {
     console.log('[countdown] Midnight reset — recalculating alerts');
-    await initCountdowns();
-    scheduleMidnightReset(); // schedule the next one
+    try { await initCountdowns(); } catch (err) { console.error('[countdown] Midnight reset failed:', err.message); }
+    scheduleMidnightReset(); // schedule the next one (also after a failure)
   }, msUntilMidnight);
 }

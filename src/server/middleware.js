@@ -201,7 +201,17 @@ export function csrfProtection(req, res, next) {
  * for non-login, non-static requests.
  */
 export async function setupCheck(req, res, next) {
-  if (await checkSetupComplete()) {
+  let complete = false;
+  try {
+    complete = await checkSetupComplete();
+  } catch (err) {
+    // users.json unreadable (audit H2): keep failing closed, but answer instead of crashing, and do not tell
+    // the owner to run setup.js (it would wipe data/): the file needs repairing, not recreating.
+    console.error('[setup] cannot read the login file:', err.message);
+    if (req.path === '/login' || req.path.match(/\.(js|css|png|jpg|svg|ico|woff2?|ttf|otf)$/)) return next();
+    return res.status(503).type('text/plain').send('TachTach-Screens cannot read its login file right now. An admin needs to check data/users.json (a copy may be in users.json.bak).');
+  }
+  if (complete) {
     return next();
   }
 
