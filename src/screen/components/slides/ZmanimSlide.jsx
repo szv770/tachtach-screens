@@ -262,7 +262,7 @@ export default function ZmanimSlide({ cache, settings }) {
         <CleanBoard rows={rows} st={st} now={now} portrait={portrait} />
       )}
       {/* only when the times really come from Chabad.org's feed (Live source); calculated times need no credit */}
-      {rows.length > 0 && <SourceCredit settings={settings} show={settings?.dataSource !== 'local'} style={{ marginTop: 8 }} />}
+      {rows.length > 0 && <SourceCredit settings={settings} cache={cache} show={settings?.dataSource !== 'local'} style={{ marginTop: 8 }} />}
     </Panel>
   );
 }

@@ -13,9 +13,13 @@ import { F } from '../design/ui.jsx';
  */
 export const chabadCreditOn = (settings) => settings?.showChabadCredit !== false;
 
-export const CREDIT_TEXT = 'Courtesy of Chabad.org';
+export const CREDIT_NAME = 'Chabad.org';
+/** The name comes from the installed data pack's manifest when there is one (cache.packInfo.credit), else Chabad.org. */
+export const creditText = (cache) => `Courtesy of ${String(cache?.packInfo?.credit || CREDIT_NAME).slice(0, 60)}`;
+export const CREDIT_TEXT = creditText();
+export const NOT_IN_PACK = 'Not in the data pack yet';
 
-export default function SourceCredit({ settings, show = true, align = 'flex-end', inline = false, style }) {
+export default function SourceCredit({ settings, cache, show = true, align = 'flex-end', inline = false, style }) {
   if (!show || !chabadCreditOn(settings)) return null;
   return (
     <div
@@ -31,7 +35,7 @@ export default function SourceCredit({ settings, show = true, align = 'flex-end'
       }}
     >
       <span aria-hidden style={{ width: 16, height: 2, borderRadius: 1, background: 'var(--line)' }} />
-      <span>{CREDIT_TEXT}</span>
+      <span>{creditText(cache)}</span>
     </div>
   );
 }

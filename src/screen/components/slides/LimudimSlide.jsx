@@ -3,7 +3,7 @@ import { Panel, PageTitle, Empty, F } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { parseRambam, parseSeferHamitzvos, rambamTrack } from '../../../shared/limudim.js';
-import SourceCredit from '../SourceCredit.jsx';
+import SourceCredit, { NOT_IN_PACK } from '../SourceCredit.jsx';
 
 /**
  * Daily study page (R2 system), two zoom levels on one subject:
@@ -206,9 +206,9 @@ export default function LimudimSlide({ cache, settings, portrait = false }) {
   const excerpt = l.tanyaFirstWords || l.tanyaLastWords ? { first: l.tanyaFirstWords || '', last: l.tanyaLastWords || '' } : null;
 
   const chitas = [
-    on('chumash') && { labelHe: 'חומש', labelEn: 'Chumash', valueHe: oneLine(l.chumashHe), valueEn: oneLine(l.chumash) },
+    on('chumash') && { labelHe: 'חומש', labelEn: 'Chumash', valueHe: oneLine(l.chumashHe), valueEn: oneLine(l.chumash) || (l.packMissing?.includes('chumash') ? NOT_IN_PACK : '') },
     on('tehillim') && { labelHe: 'תהילים', labelEn: 'Tehillim', valueHe: oneLine(l.tehillimHe), valueEn: oneLine(l.tehillim) },
-    on('tanya') && { labelHe: 'תניא', labelEn: 'Tanya', valueHe: oneLine(l.tanyaHe), valueEn: oneLine(l.tanya), excerpt },
+    on('tanya') && { labelHe: 'תניא', labelEn: 'Tanya', valueHe: oneLine(l.tanyaHe), valueEn: oneLine(l.tanya) || (l.packMissing?.includes('tanya') ? NOT_IN_PACK : ''), excerpt },
   ].filter((r) => r && (r.valueHe || r.valueEn));
 
   const r3 = on('rambam3') ? parseRambam(cache?.rambam3) : null;
@@ -236,7 +236,7 @@ export default function LimudimSlide({ cache, settings, portrait = false }) {
   ].filter(Boolean);
 
   if (!chitas.length && !cards.length) {
-    return <Panel pad="30px 48px 34px"><PageTitle en="Today’s learning" heText="לימוד היום" /><Empty en="Learning data will appear once it is fetched" /></Panel>;
+    return <Panel pad="30px 48px 34px"><PageTitle en="Today’s learning" heText="לימוד היום" /><Empty en={cache?.rambam1?.missing || cache?.rambam3?.missing ? NOT_IN_PACK : 'Learning data will appear once it is fetched'} /></Panel>;
   }
 
   const rows = chitas.map(() => 'auto');
@@ -258,7 +258,7 @@ export default function LimudimSlide({ cache, settings, portrait = false }) {
           </div>
         )}
       </div>
-      <SourceCredit settings={settings} />
+      <SourceCredit settings={settings} cache={cache} />
     </Panel>
   );
 }

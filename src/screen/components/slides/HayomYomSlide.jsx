@@ -6,7 +6,7 @@ import { useDesign } from '../../design/DesignRoot.jsx';
 import { prefersReducedMotion } from '../../design/reader.js';
 import { READER, longTextSettings, readerMode, readerSlideSeconds, scrollSeconds, wpmFor } from '../../../shared/longText.js';
 import { hebrewDateText } from '../Rail.jsx';
-import SourceCredit from '../SourceCredit.jsx';
+import SourceCredit, { NOT_IN_PACK } from '../SourceCredit.jsx';
 
 /**
  * Hayom Yom — the "Sicha" reading look (R2 §6 Inspiration): Torah-text font at
@@ -89,7 +89,8 @@ export default function HayomYomSlide({ cache, settings, onRequestDuration }) {
   const size = both ? 31 : 39;
 
   if (!heText && !enText) {
-    return <Panel><div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--inkDim)', fontFamily: F.en, fontSize: 30 }}>No Hayom Yom available</div></Panel>;
+    // 'missing' = Local mode and the data pack has nothing for today; 'none' = the pack says this day has no entry
+    return <Panel><div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--inkDim)', fontFamily: F.en, fontSize: 30 }}>{hy.missing ? NOT_IN_PACK : hy.none ? 'No Hayom Yom for today' : 'No Hayom Yom available'}</div></Panel>;
   }
   return (
     <Panel pad="44px 64px 40px">
@@ -113,7 +114,7 @@ export default function HayomYomSlide({ cache, settings, onRequestDuration }) {
       </div>
       <footer style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, fontFamily: F.en, fontSize: 26, color: 'var(--inkDim)', fontWeight: 500 }}>
         <span className="tt-he" style={{ fontFamily: 'var(--f-th)' }}>{hebrewDateText(hd)}</span>
-        <SourceCredit settings={settings} inline />
+        <SourceCredit settings={settings} cache={cache} inline />
         {total > 1 && (
           <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span className="tt-num">{page + 1} / {total}</span>

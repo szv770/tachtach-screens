@@ -1,9 +1,9 @@
 import React from 'react';
-import { Panel, Bidi, bidiNodes } from '../../design/ui.jsx';
+import { Panel, Bidi, bidiNodes, Empty } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { isHebrew } from '../../design/time.js';
 import { gematria } from '../../../shared/limudim.js';
-import SourceCredit from '../SourceCredit.jsx';
+import SourceCredit, { NOT_IN_PACK } from '../SourceCredit.jsx';
 
 /**
  * Daily Quote (the owner's "Tanya page": Chabad.org's daily quote is very
@@ -38,6 +38,7 @@ const stripQuotes = (t) => String(t || '').trim().replace(/^["“”„«»']+|[
 
 export default function DailyQuoteSlide({ cache, settings }) {
   const quote = cache?.dailyQuote;
+  if (quote?.missing) return <Panel pad="60px 88px 52px"><Empty en={NOT_IN_PACK} /></Panel>;
   if (!quote?.text) return null;
   const text = stripQuotes(quote.text);
   const hb = isHebrew(text);
@@ -71,7 +72,7 @@ export default function DailyQuoteSlide({ cache, settings }) {
           </div>
         )}
       </Fit>
-      <SourceCredit settings={settings} style={{ marginTop: 6 }} />
+      <SourceCredit settings={settings} cache={cache} style={{ marginTop: 6 }} />
     </Panel>
   );
 }
