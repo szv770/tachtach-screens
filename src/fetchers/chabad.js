@@ -10,7 +10,7 @@ const UA = "Mozilla/5.0 (compatible; TachTach-Screens/1.0)";
 // chabad.org's dailystudy/*.asp pages sit behind a Cloudflare JS challenge for
 // bot-like User-Agents/requests. Detect the interstitial so callers can fall
 // back to a real (headless) browser fetch instead of parsing garbage.
-function isChallengePage(html) {
+export function isChallengePage(html) {
   return /just a moment/i.test(html) && /cloudflare/i.test(html);
 }
 
@@ -226,9 +226,54 @@ export async function fetchHayomYom(date) {
   }
 }
 
+
+/**
+ * One page from Chabad.org: a plain request first, a headless browser when Cloudflare challenges it.
+ * @returns {Promise<{html: string, via: 'plain'|'browser'}|null>}  null = could not get a real page
+ */
+export async function fetchPage(url, { waitForSelector } = {}) {
+  try {
+    const resp = await fetch(url, { headers: { 'User-Agent': UA } });
+    const html = await resp.text();
+    if (resp.ok && !isChallengePage(html)) return { html, via: 'plain' };
+  } catch (err) {
+    console.warn(`[chabad] plain fetch of ${url} failed: ${err.message}`);
+  }
+  try {
+    const html = await fetchRenderedHTML(url, waitForSelector ? { waitForSelector } : undefined);
+    return html ? { html, via: 'browser' } : null;
+  } catch (err) {
+    console.warn(`[chabad] browser fetch of ${url} failed: ${err.message}`);
+    return null;
+  }
+}
+
+/**
+ * Hayom Yom for any civil date, telling "this day has no entry" apart from "could not load the page"
+ * (the data pack builder needs the difference: the first is stored as an explicit empty day, the second is retried).
+ * @param {Date|string} date  a Date, or 'YYYY-MM-DD'
+ * @param {{ getPage?: Function }} [o]  injectable page loader (tests)
+ * @returns {Promise<{status:'ok', hayomEn:string, hayomHe:string, notes?:object}|{status:'empty'}|{status:'error', error:string}>}
+ */
+export async function fetchHayomYomDetailed(date, { getPage = fetchPage } = {}) {
+  const d = typeof date === 'string' ? new Date(`${date}T12:00:00`) : (date || new Date());
+  const tdate = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const page = await getPage(`https://www.chabad.org/dailystudy/hayomyom.asp?tdate=${tdate}`, { waitForSelector: '.hayom-yom-hebrew, .hayom-yom-native' });
+  if (!page) return { status: 'error', error: 'page could not be loaded' };
+  const r = parseHayomYom(page.html);
+  if (r.hayomHe || r.hayomEn) return { status: 'ok', ...r };
+  // a real Hayom Yom page whose saying is empty = the day has no entry; anything else (layout change, half-loaded) is an error
+  return /hayom-yom-(hebrew|native)/.test(page.html) ? { status: 'empty' } : { status: 'error', error: 'page has no Hayom Yom section (layout change or blocked)' };
+}
+
 // ---------------------------------------------------------------------------
 // Daily Study RSS — Chumash, Tehillim, Tanya (authoritative source)
 // ---------------------------------------------------------------------------
+
+/** Chapter numbers in a Rambam line: 'Issurei Biah - Chapter 7, Chapter 8' -> [7, 8]. */
+export function rambamChapters(text) {
+  return [...String(text || '').matchAll(/chapter\s+(\d+)/gi)].map((m) => parseInt(m[1], 10));
+}
 
 function parseRambamDescription(desc) {
   if (!desc) return { displayText: '', chaptersArabic: [] };
@@ -254,7 +299,45 @@ function parseRambamDescription(desc) {
  */
 function extractH2(html) {
   const $ = cheerio.load(html);
-  return $('h2').first().text().replace(/\s+/g, ' ').trim();
+  removeFootnoteNodes($, $.root());
+  return stripFootnoteMarkers($('h2').first().text().replace(/\s+/g, ' ').trim(), { glued: false });
+}
+/** The first <h2> of a dailystudy page ('Parshat Vayeira, 1st Portion (...)', 'Issurei Biah - Chapter 6'). */
+export const parseHeading = extractH2;
+
+/**
+ * "Parshat Acharei-Kedoshim, 5th Portion (Vayikra (Leviticus) 19:15-19:32) with Rashi"
+ *   -> "Parshat Acharei-Kedoshim \u00B7 5th Portion\nVayikra 19:15-32"
+ * (used for the daily-study feed AND for the per-date pages the data pack builder reads).
+ */
+export function formatChumashLine(chumash) {
+  chumash = String(chumash || '');
+  // Strip trailing " with Rashi"
+  chumash = chumash.replace(/\s+with Rashi$/i, '');
+
+  // Clean up chumash formatting:
+  // Input:  "Parshat Acharei-Kedoshim, 5th Portion (Vayikra (Leviticus) 19:15-19:32)"
+  // Output: "Parshat Acharei-Kedoshim · 5th Portion\nVayikra 19:15-32"
+  chumash = chumash.replace(
+    /^(Parshat\s+[^,]+),\s*([\w]+\s+Portion)\s*\((\w+)\s*\([^)]*\)\s*(\d+:\d+)-\d+:(\d+)\)$/,
+    '$1 \u00B7 $2\n$3 $4-$5'
+  );
+  // Also handle single-chapter references like "19:15-19:32" → "19:15-32"
+  // and cases where the regex above doesn't match exactly
+  chumash = chumash.replace(
+    /^(Parshat\s+[^,]+),\s*([\w]+\s+Portion)\s*\((.+?)\s*(\d+:\d+)-(\d+:\d+)\)$/,
+    (_, parsha, portion, book, from, to) => {
+      // Remove English book name in parens from book: "Vayikra (Leviticus)" → "Vayikra"
+      const cleanBook = book.replace(/\s*\([^)]*\)\s*/g, '').trim();
+      // Simplify verse range: "19:15-19:32" → "19:15-32"
+      const [fromCh, fromV] = from.split(':');
+      const [toCh, toV] = to.split(':');
+      const verseRange = fromCh === toCh ? `${from}-${toV}` : `${from}-${to}`;
+      return `${parsha} \u00B7 ${portion}\n${cleanBook} ${verseRange}`;
+    }
+  );
+
+  return chumash;
 }
 
 /**
@@ -310,30 +393,7 @@ export function parseDailyStudyRSS(xml) {
   let tehillim = clean(tehillimDesc).replace(/^Today's (Psalms|Tehillim):\s*/i, '');
   let tanya = clean(tanyaDesc).replace(/^Today's Lessons:\s*/i, '');
 
-  // Strip trailing " with Rashi" from chumash
-  chumash = chumash.replace(/\s+with Rashi$/i, '');
-
-  // Clean up chumash formatting:
-  // Input:  "Parshat Acharei-Kedoshim, 5th Portion (Vayikra (Leviticus) 19:15-19:32)"
-  // Output: "Parshat Acharei-Kedoshim · 5th Portion\nVayikra 19:15-32"
-  chumash = chumash.replace(
-    /^(Parshat\s+[^,]+),\s*([\w]+\s+Portion)\s*\((\w+)\s*\([^)]*\)\s*(\d+:\d+)-\d+:(\d+)\)$/,
-    '$1 \u00B7 $2\n$3 $4-$5'
-  );
-  // Also handle single-chapter references like "19:15-19:32" → "19:15-32"
-  // and cases where the regex above doesn't match exactly
-  chumash = chumash.replace(
-    /^(Parshat\s+[^,]+),\s*([\w]+\s+Portion)\s*\((.+?)\s*(\d+:\d+)-(\d+:\d+)\)$/,
-    (_, parsha, portion, book, from, to) => {
-      // Remove English book name in parens from book: "Vayikra (Leviticus)" → "Vayikra"
-      const cleanBook = book.replace(/\s*\([^)]*\)\s*/g, '').trim();
-      // Simplify verse range: "19:15-19:32" → "19:15-32"
-      const [fromCh, fromV] = from.split(':');
-      const [toCh, toV] = to.split(':');
-      const verseRange = fromCh === toCh ? `${from}-${toV}` : `${from}-${to}`;
-      return `${parsha} \u00B7 ${portion}\n${cleanBook} ${verseRange}`;
-    }
-  );
+  chumash = formatChumashLine(chumash);
 
   return { chumash, tehillim, tanya, rambam1, rambam3, seferHamitzvot };
 }

@@ -315,7 +315,7 @@ test('pack -> cache: text, a day with no Hayom Yom, Adar I/II fallback, missing 
   const perpetual = { format: 1, hayomYom: { 'Cheshvan-14': HY, 'Cheshvan-15': null, 'Adar-5': { en: 'adar', he: 'אדר' } } };
   const day = { chumash: { en: 'C', he: 'ח' }, tehillim: { en: 'T', he: 'ת' }, tanya: { en: 'Y', he: 'ט', firstWords: 'a', lastWords: 'z' }, rambam1: { en: 'R1', he: 'ר1', chaptersArabic: [6] }, rambam3: { en: 'R3', he: 'ר3', chaptersArabic: [7, 8, 9] }, seferHamitzvot: { en: 'S', he: 'ס' } };
   const r = packToCache({ iso: '2026-10-25', hebrew: { hebrewMonth: 'Cheshvan', hebrewDay: 14 }, day, perpetual, existing: { limudim: { chumash: 'old', tanyaFirstWords: 'old' } }, nowISO: '2026-10-25T00:00:00Z' });
-  assert.deepEqual(r.missing, []);
+  assert.deepEqual(r.missing, ['dailyQuote', 'tidbits']);   // this test pack has neither
   assert.equal(r.patch.hayomYom.en, 'Hayom Yom text');
   assert.equal(r.patch.hayomYom.forDate, '2026-10-25');
   assert.equal(r.patch.limudim.chumash, 'C');
@@ -325,10 +325,10 @@ test('pack -> cache: text, a day with no Hayom Yom, Adar I/II fallback, missing 
   // no entry that day: an explicit empty page, not yesterday's text
   const none = packToCache({ iso: '2026-10-26', hebrew: { hebrewMonth: 'Cheshvan', hebrewDay: 15 }, day: null, perpetual, existing: {}, nowISO: 'x' });
   assert.deepEqual([none.patch.hayomYom.en, none.patch.hayomYom.none], ['', true]);
-  assert.deepEqual(none.missing.sort(), ['chumash', 'rambam1', 'rambam3', 'seferHamitzvot', 'tanya', 'tehillim']);
-  // not in the pack at all: nothing overwritten
-  const miss = packToCache({ iso: '2026-10-27', hebrew: { hebrewMonth: 'Cheshvan', hebrewDay: 16 }, day: null, perpetual, existing: {}, nowISO: 'x' });
-  assert.equal('hayomYom' in miss.patch, false);
+  assert.deepEqual(none.missing.sort(), ['chumash', 'dailyQuote', 'rambam1', 'rambam3', 'seferHamitzvot', 'tanya', 'tehillim', 'tidbits']);
+  // not in the pack at all: an explicit "missing" entry (shown as 'Not in the data pack yet'), never yesterday's text
+  const miss = packToCache({ iso: '2026-10-27', hebrew: { hebrewMonth: 'Cheshvan', hebrewDay: 16 }, day: null, perpetual, existing: { hayomYom: { en: 'yesterday' } }, nowISO: 'x' });
+  assert.deepEqual([miss.patch.hayomYom.missing, miss.patch.hayomYom.en], [true, '']);
   assert.ok(miss.missing.includes('hayomYom'));
   // leap year: Adar I / Adar II use the plain Adar entry
   assert.equal(hayomYomLookup(perpetual, 'Adar I', 5).en, 'adar');
@@ -371,9 +371,9 @@ test('pack store + applyLocalDay: reads a built pack, ignores a corrupted one, f
     // no pack at all
     setPackDir(path.join(dir, 'nope'));
     assert.deepEqual(await packStatus('2026-10-25'), { present: false });
-    const c3 = { hayomYom: { en: 'keep' } };
+    const c3 = { hayomYom: { en: 'old' } };
     await applyLocalDay(c3, { now: 'n', localDate: '2026-10-25', parsha: { name: 'P' } });
-    assert.equal(c3.hayomYom.en, 'keep');
+    assert.deepEqual([c3.hayomYom.en, c3.hayomYom.missing], ['', true]);   // visible 'not in the data pack yet', not stale text
     assert.equal(c3.limudim.tehillim, 'Chapters 72-76');
   } finally {
     setPackDir(null);

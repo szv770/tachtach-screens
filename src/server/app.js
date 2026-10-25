@@ -10,6 +10,8 @@ import { fileURLToPath } from 'url';
 import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
+import { createDataPackRouter } from './routes/dataPack.js';
+import { refreshAfterPack } from './packRefresh.js';
 import pushRouter from './routes/push.js';
 import statusRouter from './routes/status.js';
 import historyRouter from './routes/history.js';
@@ -495,6 +497,7 @@ export function createApp() {
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
   app.use('/api/system/live', liveAdminRouter); // admin-only (the /api/system area): public live view on/off + its word
+  app.use('/api/system/data-pack', createDataPackRouter({ afterInstall: refreshAfterPack })); // admin-only: the offline data pack (upload / build on this Pi / status)
   app.use('/api', teamRouter);
   app.use('/api', systemUpdateRouter); // admin-only software update (writes one request file; a root unit does the work)
   app.use('/api', pushRouter);

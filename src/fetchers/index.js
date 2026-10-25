@@ -7,7 +7,7 @@ import { sourceFor } from "./dataSource.js";
 import { localTehillim } from "../shared/localData.js";
 import { hebrewDateOf } from "../shared/hebrewCalendar.js";
 import { packToCache } from "../shared/dataPack.js";
-import { getPackDay, getPerpetual } from "../server/dataPackStore.js";
+import { getPackDay, getPerpetual, getWeekly, getManifest } from "../server/dataPackStore.js";
 import { geocodeZip } from "./weather.js";
 
 const CACHE_FILE = "cache.json";
@@ -233,23 +233,24 @@ export async function fetchAll(config) {
  * `fetchAll` built (mutates `cache`).
  *  - a holiday Shabbos has no parsha: show none rather than last week's;
  *  - the day's Tehillim is calculated (the pack overrides it, and covers Psalm 119 days);
- *  - Hayom Yom, Chumash, Tanya, Rambam, Sefer HaMitzvos come from the data pack when it has today.
- *    Without a pack they simply stay as they were (and the Health page says they are old).
+ *  - Hayom Yom, Chumash, Tanya, Rambam, Sefer HaMitzvos, Daily Quote and Parsha Tidbits come from the data pack.
+ *    Anything the pack does not have for today (or no pack at all) becomes an explicit `missing: true` entry, which
+ *    the slides show as "Not in the data pack yet" (never yesterday's text passed off as today's, never a crash).
  */
 export async function applyLocalDay(cache, { now, localDate, parsha }) {
   if (!parsha) cache.parsha = { name: "", hebrew: "", date: "", fetchedAt: now };
   const th = localTehillim(localDate);
   if (th) cache.limudim = { ...cache.limudim, tehillim: th.en, tehillimHe: th.he };
   try {
-    const [day, perpetual] = await Promise.all([getPackDay(localDate), getPerpetual()]);
+    const [day, perpetual, weekly, manifest] = await Promise.all([getPackDay(localDate), getPerpetual(), getWeekly(), getManifest()]);
     const h = hebrewDateOf(localDate);
     const { patch, missing } = packToCache({
       iso: localDate,
       hebrew: { hebrewMonth: h.hebrewMonth, hebrewDay: h.hebrewDay },
-      day, perpetual, existing: cache, nowISO: now,
+      day, perpetual, weekly, manifest, existing: cache, nowISO: now,
     });
     Object.assign(cache, patch);
-    if (missing.length) console.warn(`[data-pack] nothing in the pack for ${localDate}: ${missing.join(", ")} (kept as they were)`);
+    if (missing.length) console.warn(`[data-pack] ${manifest ? "nothing in the pack for" : "no data pack installed;"} ${localDate}: ${missing.join(", ")} (shown as 'not in the data pack yet')`);
   } catch (err) {
     console.error("[data-pack] could not apply the pack:", err.message);
   }
