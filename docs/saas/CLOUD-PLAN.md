@@ -37,7 +37,7 @@ One cloud service, still called **TachTach Screens**, that runs the admin websit
 | R5 | MLMI starts in **Mode L** (names stay on its Pi), because that is exactly where they are today. | Lowest risk for the first migration: `roster.json` and `chazan.json` simply do not move. |
 | R6 | Free tiers while building and while MLMI is the only org; switch to **Vercel Pro + Supabase Pro (about $45-50/month total)** the day a second org's real data arrives. | Free Supabase has no backups and pauses when idle; Vercel's free plan is for non-commercial use only. |
 | R7 | Pis follow a **`stable` branch** that the owner moves forward only after MLMI has run a version for a few days. | MLMI is the "canary": a bad update hits one school, not five. |
-| R8 | Build nothing for billing, self-signup, single sign-on, per-screen different content, Windows players or end-to-end encryption until someone actually asks. | D3. |
+| R8 | Build nothing for billing, self-signup, single sign-on, per-screen different content, Windows players or end-to-end encryption until someone actually asks. | D3. (2026-10-26: the owner asked for Windows; a single-school Windows install now exists, `deploy/windows/`. The cloud-era Windows player is a thin browser player, see 12.7.) |
 
 ### Roadmap at a glance
 Sizes: **S** = a few days of focused work, **M** = about 1-2 weeks, **L** = about 3-4 weeks. Calendar time depends on how many sessions per week the owner runs; the MLMI soak periods are calendar time no matter what.
@@ -785,6 +785,16 @@ Multi-org version:
 
 ### 12.7 Other screens than a Pi
 Any browser can be a player (`<domain>/play`, cookie token, service-worker cache). Limits: no Mode L names, no guaranteed cold boot offline, no remote updates or health beyond what the browser reports. Good enough for a second TV with a cheap stick. A Windows agent is not planned (section 24).
+
+**Player platforms (added 2026-10-26).** The owner asked for a Windows PC behind the TV. Today (before the cloud) that PC runs the **whole server**, exactly like the Pi: `deploy/windows/` + `docs/windows/` (server as a `LOCAL SERVICE` scheduled task, Edge kiosk + watchdog, website updates through a SYSTEM runner + `NETWORK SERVICE` worker; not yet run on a real PC). Once the cloud exists, the plan per platform is:
+
+| Player | Before the cloud (now) | After the cloud |
+|---|---|---|
+| Raspberry Pi | Full server + Chromium kiosk | Player mode + agent (R3): on-disk cache, Mode L names, cold boot offline, remote updates |
+| Windows PC | Full server + Edge kiosk (`deploy/windows/`) | **Thin browser player, no server needed**: the same Edge kiosk + watchdog (`kiosk.ps1`) pointed at `<domain>/play` with a device cookie, service-worker cache. Same limits as any browser player (no Mode L, offline only while the page stays loaded). If an org needs Mode L or cold-boot-offline on Windows, the existing Windows server install can run in player mode instead (it already has the tasks, ACLs and the update path); that is the "Windows agent" and stays unbuilt until asked (R8). |
+| Any other browser / TV stick | - | Thin browser player |
+
+So the Windows work done now is not wasted after the move: `kiosk.ps1` (auto-login, Edge policies, power plan, watchdog) is exactly the thin player's launcher, and the dashboard's `platform` column (section 6.2) can say `windows`.
 
 ---
 

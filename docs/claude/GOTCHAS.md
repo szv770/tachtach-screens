@@ -178,3 +178,16 @@ RSS feed URLs, Google album links/photos and the embed probe use `src/server/saf
 - **Local mode no longer keeps yesterday's text** when the pack lacks today: `packToCache` writes explicit `missing` entries. If a screen shows 'Not in the data pack yet' on a day inside the pack's range, check the Health card's gap list first.
 - The upload route takes a RAW body (`Content-Type: application/octet-stream`) so it skips the 16 kB JSON parser in `app.js`; don't switch it to JSON without adding it to that exemption list.
 
+## Windows PC (2026-10-26, not yet run on a real PC) - things that differ from the Pi
+Full list in `docs/windows/AUDIT.md`; owner test list `docs/windows/TEST-CHECKLIST.md`. Rules for anyone touching this:
+- **Platform differences go through `src/server/platform.js`**, and every helper returns exactly the old value on Linux (tests inject `platform: 'win32'` / `'linux'`). Don't sprinkle `process.platform` checks around the code.
+- **A minimal env for a child process must include `SystemRoot`** (and friends: `platformChildEnv()`), or git on Windows cannot even resolve a host name. `gitEnv()` in `systemUpdate.js` once had only PATH/LANG/HOME.
+- **git refuses a repo owned by another account** ("dubious ownership"). The Windows server runs as `LOCAL SERVICE`, the code is owned by Administrators: every server git call gets `-c safe.directory=<root>` (`gitSafeDirectoryArgs`), the installer adds it to the system git config for the update worker.
+- **Windows cannot replace a loaded DLL**: `npm ci` fails while the server has sharp/bcrypt loaded. Any Windows update path must stop (and *disable*: the task restarts it every minute) the server first. On Linux the old server keeps running during the build; don't copy that pattern.
+- **SYSTEM must never write into, or run anything from, a folder a lower account can write** (junction / hard-link tricks; hooks in `.git/config`). That is why the update status lives in `%ProgramData%\TachTach\updater` on Windows (`updateStateDir()`), the SYSTEM runner reads `.git\HEAD` by hand instead of running git, and the runner + helper run from admin-only copies. Mirror of the Pi rule "root never runs a file the app user can edit".
+- **Rename over a file someone has open fails on Windows** (Defender/indexer): `renameWithRetry()` retries ~1.6 s before storage.js's existing direct-write fallback.
+- **PowerShell 5.1**: ASCII-only scripts (no BOM = ANSI code page), no `&&`/`??`/ternary, native stderr becomes an error under `$ErrorActionPreference = 'Stop'` (use `Invoke-TTLogged`/`Invoke-TTCapture`), `Start-Process` needs `$p.Handle` touched or `ExitCode` comes back empty, `Remove-Item -Recurse` on a junction deletes the target's contents, embedded double quotes in native arguments are mangled. `test/windowsKit.test.js` lints the first few.
+- **Task Scheduler defaults bite**: execution limit 72 h (set `[TimeSpan]::Zero`), priority 7 = below normal (set 4/5), "stop if on batteries" (turned off).
+- **`localhost` resolves to `::1` first on Windows** and the server listens on IPv4 only: the Windows kiosk always uses `http://127.0.0.1:<port>`.
+- The Windows kiosk uses **plain http by default** (`KioskUseHttps` in `C:\ProgramData\TachTach\tachtach.json`), because `--allow-insecure-localhost` + Git's openssl are unverified there.
+

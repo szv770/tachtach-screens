@@ -1,6 +1,6 @@
 # STATE — where we are (read this first after a context reset)
 
-Last updated 2026-10-20. Owner = the school's tech lead (non-developer; wants plain-English answers, multi-choice questions over typing, English-first UI with Hebrew as a nice extra, premium look, mobile-first admin, SaaS-ready thinking: another yeshiva should be able to get its own screen setup without a huge job).
+Last updated 2026-10-26. Owner = the school's tech lead (non-developer; wants plain-English answers, multi-choice questions over typing, English-first UI with Hebrew as a nice extra, premium look, mobile-first admin, SaaS-ready thinking: another yeshiva should be able to get its own screen setup without a huge job).
 
 ## What exists now (all shipped to `main`)
 The 2026-10 **admin redesign** is complete: Direction A "Seal" look (`docs/design/2026-10-18-admin-upgrade/` = SPEC.md owner decisions, DESIGN-NOTES.md tokens, mockups), 5-area shell (Home / Screen / Schedule / Announce / Look & Settings; mobile tab bar + ＋ FAB, desktop sidebar), global search, ui kit (`src/admin/components/ui/`), capability-based roles (Full editor / Messages only / View only + per-person tweaks), Slides (2-step New slide, pencil popups, PDF slides), Media (Library/Photos/Web/Feeds + measured screen size), Schedule (wizard, week view, groups Aleph/Bais/Gimmel, categories kinds, stages), Announce (quick-message templates, banner still/scrolling, letters/saved letters, automatic Kiddush Levana), Home dashboard, History/Undo, Change tomorrow, Health + software update from the website, Freeze/Blank screen, Live Preview that follows the TV, 3 schedule views on the kiosk (Whole day / Timeline / Focus / Auto), AutoScroll long text, 3 security audits + fixes. Details per feature: CLAUDE.md changelog (newest 8) and `docs/claude/CHANGELOG.md` (older), `FEATURES.md`, `ARCHITECTURE.md`, `ADMIN_FEATURE_MAP.md`.
@@ -13,6 +13,10 @@ The 2026-10 **admin redesign** is complete: Direction A "Seal" look (`docs/desig
 
 ## Verified vs NOT verified on the real Pi
 Everything was tested on throwaway copies in a sandbox (unit tests ~540, Playwright DOM checks). **Never run on the real Pi/TV by us**: the software-update systemd units, poppler PDF slides, ARM builds of sharp/bcrypt after the dependency bumps, the new CSP against every real slide (Charidy web page, Mivtzah embed), Google Photos long albums, real-TV legibility of the 3 schedule views, Hebrew wording (`כעת: X`, `בעיצומו של`) — needs a native speaker. Owner reports back with photos/screenshots; fix from those.
+
+## Windows PC as the screen computer (2026-10-26, branch `claude/wizardly-ride-bnbtzj`) - written, NOT yet run on Windows
+- Owner wants TachTach to run on an ordinary Windows 10/11 PC behind the TV, not only the Pi. Done: `docs/windows/AUDIT.md` (every Linux assumption, ranked), `src/server/platform.js` (helpers; Linux behaviour unchanged, `test/platform.test.js`), Windows switch in `deploy/update-helper.mjs` (`test/windowsUpdate.test.js`), kit `deploy/windows/*.ps1` (install / server supervisor / kiosk watchdog / SYSTEM update runner + NETWORK SERVICE worker / update / uninstall / health check; static lint `test/windowsKit.test.js`), owner docs `docs/windows/SETUP.md`, `TEST-CHECKLIST.md`, `RISKS.md`.
+- No PowerShell in the sandbox (download denied), so the scripts are linted, not run. **Next: owner runs TEST-CHECKLIST.md on a test PC and sends the health-check zip; fix from that.** Top risk: the server task as `LOCAL SERVICE` (A5 in the checklist).
 
 ## Open decisions / waiting on owner
 - Kiddush Levana: confirm cutoff (halfway point = Minhag Chabad?) and skip customs with a rav (`docs/kiddush-levana-next-14-months.md`).
