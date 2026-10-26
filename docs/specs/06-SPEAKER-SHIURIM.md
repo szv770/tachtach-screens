@@ -226,7 +226,7 @@ SSE `shiurim-update`; `/api/state.shiurim = forKiosk(...)`; `VIEWER_KEYS` + `'sh
 ## 6. Security and privacy
 
 - Class P1: adults' names/photos are shown on the TV by design. Guests are outside people: the admin sheet reminds "Only add a photo you have permission to show." Photos follow the private-image rules (sniff, re-encode, EXIF/GPS removed, random names, gated) even though they are P1, so a visitor's photo never sits on a public path.
-- All text React-only; no URLs, no HTML; no registration links in v1 (a QR to a signup page is a later, `urlRules.js`-validated addition: Q5).
+- All text React-only; no URLs, no HTML; no registration links in v1 (a QR to a signup page is a later, `urlRules.js`-validated addition, see question 5 below).
 - Validation: enums (day codes, view), `HH:MM`, ISO dates, id formats, caps (2.1), hostile keys dropped; import is text-only with bounded line count; rate limits as other routes; per-user 30 guest posts / hour.
 - Linked ids are checked against the live schedule at read time and **never trusted to exist**; a dangling link degrades to "needs attention" in admin and hidden on the kiosk.
 - Retention: archived guests and their photos are purged after 60 days; deleting a person deletes their photo; "Remove photo" is one tap.
@@ -236,7 +236,7 @@ SSE `shiurim-update`; `/api/state.shiurim = forKiosk(...)`; `VIEWER_KEYS` + `'sh
 
 ## 7. SaaS fit
 
-Doc `shiurim` per org (C1), photos under `org/<id>/private/speaker/`; flag `shiurim`; titles ("Rabbi", "Rav", "Dr.") and all wording are data/one table; schedule groups and weekday set come from the org; time zone from the org's settings; not names-mode dependent (P1 stays in the cloud even in Mode L, because staff are not students; **if the owner wants rebbeim names kept local too, that is a one-line class change**, Q7). Multi-screen orgs: the same doc, a future `screens` filter like Spec 1's `audience`.
+Doc `shiurim` per org (C1), photos under `org/<id>/private/speaker/`; flag `shiurim`; titles ("Rabbi", "Rav", "Dr.") and all wording are data/one table; schedule groups and weekday set come from the org; time zone from the org's settings; not names-mode dependent (P1 stays in the cloud even in Mode L, because staff are not students; **if the owner wants rebbeim names kept local too, that is a one-line class change**, QUESTIONS Q11). Multi-screen orgs: the same doc, a future `screens` filter like Spec 1's `audience`.
 
 ---
 

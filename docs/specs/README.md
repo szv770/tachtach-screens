@@ -48,7 +48,7 @@ A new editable thing needs: a capability in `CAPABILITIES` (with `group`, `label
 |---|---|---|---|---|
 | `announcements.post` (exists) | Announcements | composer, Mazel Tov quick-post | yes | yes |
 | `shabbos.edit` (new) | Screen | Shabbos page reminders and wording | yes | no |
-| `simchas.edit` (new) | Screen | Mazel Tov list (names) | yes | **yes** (Mazel Tov is a "message") - see Q8 |
+| `simchas.edit` (new) | Screen | Mazel Tov list (names) | yes | **yes** (Mazel Tov is a "message") - see QUESTIONS Q7 |
 | `photowall.edit` (new) | Screen | Photo Wall albums, upload, caption | yes | no |
 | `photowall.moderate` (new, grantable) | Screen | approve / hide photos from a shared inbox | no | no |
 | `menu.edit` (new) | Screen | Menu | yes | no |

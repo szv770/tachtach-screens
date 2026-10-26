@@ -151,7 +151,7 @@ One column: hero, photo (full width up to 640 px tall), names (Fit, floor 56), p
 
 ### 4.4 Takeover option
 
-`takeoverItems()` yields a virtual announcement (`display: 'takeover'`, `look.style` from `settings.takeoverStyle` default `simcha`, layout "Big words": headline `MAZEL TOV / מזל טוב`, line = names + phrase) for `minutes` from `at` (or from creation). It uses the existing stage, conflict rules (`findTakeoverConflicts`) and the Animation setting, so nothing new is drawn. **v1: no photo in the takeover** (the stage's side-graphic box is for style art; a photo needs a layout change, Q5). Capability `announcements.takeover` required to switch it on.
+`takeoverItems()` yields a virtual announcement (`display: 'takeover'`, `look.style` from `settings.takeoverStyle` default `simcha`, layout "Big words": headline `MAZEL TOV / מזל טוב`, line = names + phrase) for `minutes` from `at` (or from creation). It uses the existing stage, conflict rules (`findTakeoverConflicts`) and the Animation setting, so nothing new is drawn. **v1: no photo in the takeover** (the stage's side-graphic box is for style art; a photo needs a layout change, question 5 in section 10). Capability `announcements.takeover` required to switch it on.
 
 ### 4.5 Live view
 
@@ -198,7 +198,7 @@ SSE `simchas-update` (kiosk view). `/api/state` gains `simchas = forKiosk(...)`.
 - Expiry **is a privacy control**: archive on `showUntil + 1 day`, purge archived records and photos after 30 days (setting later). "Delete" is immediate and also removes the file.
 - Rate limit per user: 20 creates / hour. Body limits as 5.
 - Live view: allow-list (4.5), photos off by default.
-- Consent: the sheet shows the one-line reminder; recording a consent tick is Q4 (recommendation: reminder only, no stored consent, because the school already has its own photo-permission process).
+- Consent: the sheet shows the one-line reminder; recording a consent tick is QUESTIONS Q6 (recommendation: reminder only, no stored consent, because the school already has its own photo-permission process).
 
 ---
 

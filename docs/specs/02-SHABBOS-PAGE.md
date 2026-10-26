@@ -46,7 +46,7 @@ Status: SPEC (not built). Shared rules: [README.md](README.md) (C1-C9).
     "greeting": "shavuaTov",                               // 'shavuaTov' | 'gutVoch' | 'both' | 'none'
     "kiddushLevana": true, "nextUp": true, "reminders": true
   },
-  "during": "off",                                         // what the TV does between candle lighting and nightfall: 'off' (= today: hide-on-Shabbos slides drop, everything else keeps rotating) | 'still' (see 4.4)  -- Q3
+  "during": "off",                                         // what the TV does between candle lighting and nightfall: 'off' (= today: hide-on-Shabbos slides drop, everything else keeps rotating) | 'still' (see 4.4)  -- QUESTIONS QUESTIONS Q3
   "spelling": "shabbos",                                   // 'shabbos' | 'shabbat' : one copy table switch (Shabbos / Shabbat, Parshas / Parashat)
   "rail": { "candleCard": true, "fromHours": 3 },
   "rows": [                                                // extra time rows, max 8
@@ -82,7 +82,7 @@ Rules:
 - `shabbos`: candle lighting to tzeis. The Shabbos/Motzei rows do not show here unless `during: 'still'` (4.4).
 - `motzei`: tzeis to tzeis + `minutes`, only when **today is a rest day and tomorrow is not** (so between two Yom Tov days there is no Motzei page; after Yom Tov it says "Gut Yom Tov / Good Yom Tov, Shavua tov" per copy table).
 - `kind`: `shabbos` / `yomtov` / `both` decides greeting words (שבת שלום, גוט שבת, גוט יום טוב, חג שמח) and title (Erev Shabbos / Erev Yom Tov / Erev Shabbos and Yom Tov).
-- **Second night of Yom Tov**: candles are lit after nightfall (not at `candleLighting`). v1 shows the Erev page only for the first evening; the second night shows "Candles after nightfall (7:42 PM)" taken from tzeis, no countdown to a wrong time. Documented in the admin panel help; see Q4.
+- **Second night of Yom Tov**: candles are lit after nightfall (not at `candleLighting`). v1 shows the Erev page only for the first evening; the second night shows "Candles after nightfall (7:42 PM)" taken from tzeis, no countdown to a wrong time. Documented in the admin panel help; see the defaults list in QUESTIONS-FOR-OWNER.md.
 - Missing zmanim: the countdown and the candle hero are hidden, never guessed; the greeting, parsha and reminders still show; the admin Health page already flags missing zmanim.
 
 ### 2.4 Where times come from (no double entry)
@@ -128,7 +128,7 @@ New admin section **Screen > Shabbos** (`/admin/shabbos`, `components/ShabbosPan
 │ ▾ Side column                                          │
 │    ● 'Candle lighting 4:52 · in 2 h 14 min' card, from [3] hours before
 │ ▾ During Shabbos (candle lighting to nightfall)        │
-│    (•) Nothing special  ( ) Show one still Good Shabbos page   ← Q3
+│    (•) Nothing special  ( ) Show one still Good Shabbos page   ← QUESTIONS QUESTIONS Q3
 │                                                        │
 │ Preview   [ Friday 3:30 PM ]  [ Motzei 7:00 PM ]  [ Now ]  (opens Live Preview at that time)
 └────────────────────────────────────────────────────────┘
@@ -175,7 +175,7 @@ Single column: greeting, parsha chip, candles + hero time (>= 160 px, the width 
 
 Hero "Shavua Tov / שבוע טוב" (+ "גוט וואך" per `greeting`), line "Shabbos ended 7:42 PM", optional **Kiddush Levana card** (only if enabled and the window is open tonight; uses `kiddushLevanaState`; text from the existing KL copy; the last night says LAST NIGHT; it adds no new calculation), "Tonight" rows = the schedule's next rows (e.g. Melave Malka) via the same resolver as the up-next card, Motzei reminders. Entirely static after a single fade-in. Theme: whatever the day/night switch gives (by default night after tzeis); **the page never forces a theme**.
 
-### 4.4 `during: 'still'` (needs the owner's answer, Q3)
+### 4.4 `during: 'still'` (needs the owner's answer, QUESTIONS Q3)
 
 Between candle lighting and nightfall the TV would show **one** unchanging page: greeting + parsha + "Shabbos ends 6:12 PM" — no countdown, no changing seconds, no rail clock refresh (rail clock shows the minute; if the owner's rabbi wants nothing that changes, the existing **scheduled Freeze window (Logo only / Message)** is the right tool, and this page is not used). So v1 recommendation: `during` stays `'off'` and the admin panel links to Freeze > Scheduled off-hours with a one-tap **"Switch the screen off from candle lighting to nightfall"** preset that creates a weekly window computed from zmanim (a small addition to `freeze.js` windows: `from: 'candle'`, `to: 'tzeis'`). Both choices are listed in the questions.
 
