@@ -98,7 +98,9 @@ Order and dependencies:
 
 **Do.** In `src/shared/settingsMerge.js`, next to `SETTINGS_KEYS`, add `export const SETTING_SCOPE = Object.freeze({ location: 'org', siteName: 'org', orientation: 'box', ... })` using the table in `CODE-INVENTORY.md` section 3 (box candidates: `orientation`, `portraitLayout`, `clockSide`; `scheduler`, `dataSource`: `'org'` with a comment "platform in the cloud"; legacy keys: `'legacy'`). No behaviour change: nothing reads it yet except tests.
 
-**Acceptance.** `test/settingScope.test.js`: every key in `SETTINGS_KEYS` has a scope in `{org, box, platform, legacy}`; no extra keys; `LOOK_SETTING_KEYS` and `SCHEDULE_SETTING_KEYS` (`permissions.js:216,223`) contain only `org` or `box` keys. Owner question to raise in the hand-back: confirm the three box keys.
+**Owner decision (2026-10-26): per-screen overrides.** An org can have several screens (TVs). Look settings follow ONE model: an **org default** that every screen follows, plus an optional **per-screen override layer** for the things that can legitimately differ: orientation, portrait layout, clock side, **theme** (e.g. one screen forced dark because its room is dark), **liveliness / motion level**, and similar look options. Default = all screens match; an override is explicit, visible ('this screen differs: Dark theme') and can be cleared with one tap ('follow the others'). So tag these keys scope `'box'`-overridable (`'org+box'`): resolved as `box override ?? org value`. The owner's message was cut off mid-sentence after 'but if there...' (probably 'if there are several screens'): confirm the rest. Design needs: a `screens` list per org (name, role, platform), `resolveSettings(orgSettings, screenOverrides)` pure function shared by kiosk/admin/server, admin UI = 'This screen' picker on the Look pages, live preview per screen.
+
+**Acceptance.** `test/settingScope.test.js`: every key in `SETTINGS_KEYS` has a scope in `{org, box, 'org+box', platform, legacy}`; no extra keys; `LOOK_SETTING_KEYS` and `SCHEDULE_SETTING_KEYS` (`permissions.js:216,223`) contain only `org` or `box` keys. Owner question to raise in the hand-back: confirm the three box keys.
 
 ---
 

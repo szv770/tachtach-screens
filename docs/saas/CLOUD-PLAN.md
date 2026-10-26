@@ -730,6 +730,9 @@ Both write `audit_log` rows; platform owner can do the same from the dashboard.
 
 ---
 
+### 11.6 Per-screen look overrides (owner decision 2026-10-26)
+One org can run several TVs. Look settings use an **org default + optional per-screen override**: orientation, portrait layout, clock side, theme (a screen in a dark room can be forced dark), liveliness/motion and similar look options. Default is that all screens match. An override is explicit, labelled in the admin ('this screen differs: Dark theme') and removable with one tap. Resolved by one shared pure function `resolveSettings(orgSettings, screenOverrides)` so kiosk, admin preview and server always agree; the device token identifies which screen is asking. Content (slides, schedule, messages) stays org-wide unless a later 'screen groups' feature is added (open question: do some messages go to only some screens?). See NEXT-STEPS N6.
+
 ## 12. The Pi player and agent
 
 ### 12.1 What the Pi does in the end state
