@@ -178,14 +178,14 @@ One column: hero, photo (full width up to 640 px tall), names (Fit, floor 56), p
 |---|---|---|
 | `GET /api/simchas` | the file (admin) | any signed-in (read, like roster) |
 | `POST /api/simchas` | create one; JSON <= 8 kB | `simchas.edit` |
-| `PUT /api/simchas/:id`, `DELETE /api/simchas/:id`, `POST /api/simchas/:id/pause` | validated by shared normaliser | `simchas.edit` (own record within 30 min also allowed to a poster, `canUndoOwn`-style, Q8) |
+| `PUT /api/simchas/:id`, `DELETE /api/simchas/:id`, `POST /api/simchas/:id/pause` | validated by shared normaliser | `simchas.edit` (a poster may also change their own record for 30 min, `canUndoOwn`-style) |
 | `PUT /api/simchas/settings` | `{photos, liveNames, livePhotos, maxShown, takeoverStyle}` | `simchas.edit` |
 | `POST /api/simchas/:id/photo` | multipart `photo` <= 10 MB, one file | `simchas.edit` |
 | `DELETE /api/simchas/:id/photo` | | `simchas.edit` |
 | `GET /private/simchas/:file` | the gated image | `kioskGate` |
 | takeover on | body `takeover.on = true` additionally needs | `announcements.takeover` |
 
-SSE `simchas-update` (kiosk view). `/api/state` gains `simchas = forKiosk(...)`. Permissions edits per C3; **Messages-only preset includes `simchas.edit`** (recommended: a Mazel Tov is a message, Q8). Undo kinds `simcha.create/edit/delete` (shared). The router mounts with `express.json({ limit: '16kb' })`.
+SSE `simchas-update` (kiosk view). `/api/state` gains `simchas = forKiosk(...)`. Permissions edits per C3; **Messages-only preset includes `simchas.edit`** (recommended: a Mazel Tov is a message, question 7). Undo kinds `simcha.create/edit/delete` (shared). The router mounts with `express.json({ limit: '16kb' })`.
 
 ---
 
