@@ -107,6 +107,12 @@ export function buildHealth(f = {}, now = Date.now()) {
       quiet > 30 * MIN && !sc.paused ? { help: 'The page may be stuck. Use "Refresh screen" on Home.' } : {}));
   }
 
+  // ── Settings that make times wrong when missing ──
+  if (f.config && f.config.timezoneSet === false) {
+    checks.push(row('timezone', 'Data', 'Time zone', 'warn', 'No time zone is set, so candle-lighting, zmanim and announcement times are worked out for New York.',
+      { help: 'Choose your time zone under Look & Settings > Location, then Save.', go: 'location' }));
+  }
+
   // ── Data freshness ──
   const c = f.cache || {};
   const z = judgeAge(c.zmanimFetchedAt, now, T.zmanimWarnMs, T.zmanimBadMs);

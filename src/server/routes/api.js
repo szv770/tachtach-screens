@@ -38,6 +38,8 @@ import { sanitizeGroupFields } from '../../shared/scheduleGroups.js';
 import { scheduleGroupIds } from '../schedule-groups.js';
 import { getStateExtras } from '../announcements-store.js';
 import { fetchWeather } from '../../fetchers/weather.js';
+import { nextCandleLighting } from '../../shared/localData.js';
+import { candleMinutesOf } from '../../shared/candleLighting.js';
 import { describeWeather } from '../../shared/weatherCodes.js';
 
 import { dataPath } from '../dataDir.js';
@@ -639,7 +641,7 @@ router.delete('/schedule/templates/:id', async (req, res) => {
 // show, or a plain-English reason it can't. Writes nothing (cache untouched).
 router.get('/weather/preview', async (req, res) => {
   const settings = (await readJSON('settings.json').catch(() => null)) ?? {};
-  const zip = String(settings.location?.zip || '').trim();
+  const zip = String(settings.weather?.zip || settings.location?.zip || '').trim();
   const units = req.query.units === 'C' ? 'C' : req.query.units === 'F' ? 'F' : (settings.weather?.units === 'C' ? 'C' : 'F');
   if (!zip) return res.json({ ok: false, error: 'No zip code is set. Add one under Settings → Location and save.' });
   if (!/^\d{5}$/.test(zip)) return res.json({ ok: false, zip, error: `"${zip}" is not a 5-digit US zip code, so the weather can't be looked up. Fix it under Settings → Location.` });
@@ -654,6 +656,17 @@ router.get('/weather/preview', async (req, res) => {
   } catch (err) {
     res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${networkReason(err)}. Check the zip code and that the server is online.` });
   }
+});
+
+// ── Candle lighting preview (admin Location > Candle lighting) ─────────────
+// What the NEXT candle lighting would be for the saved location and either the saved or the typed
+// minutes (?minutes=20, 10-60 only). Calculated here; writes nothing. Reading is open to any signed-in person.
+router.get('/candle-preview', async (req, res) => {
+  const settings = (await readJSON('settings.json').catch(() => null)) ?? {};
+  const cache = (await readJSON('cache.json').catch(() => null)) ?? {};
+  const raw = req.query.minutes;
+  if (raw !== undefined && candleMinutesOf(raw) === null) return res.status(400).json({ ok: false, error: 'minutes must be a whole number from 10 to 60.' });
+  res.json(nextCandleLighting(settings, cache, { minutes: raw }));
 });
 
 // ── Refresh ────────────────────────────────────────────────────────────────

@@ -1,0 +1,51 @@
+{
+  "_about": "Deliberate exceptions to test/adminExposure.test.js: a setting or announcement field that is accepted by the server but has no admin control. Every entry needs a reason and EITHER an expiry date (YYYY-MM-DD, the test fails after it so the exception gets revisited) OR permanent:true for an internal marker. Add a control instead whenever you can.",
+  "settings": {
+    "themeVersion": {
+      "reason": "internal one-time migration marker (settings-migrate.js), not an option",
+      "permanent": true
+    },
+    "dataSources": {
+      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
+      "expires": "2026-12-31"
+    },
+    "hebrewHeadingScale": {
+      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
+      "expires": "2026-12-31"
+    },
+    "scheduleDisplayMode": {
+      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
+      "expires": "2026-12-31"
+    },
+    "scheduleScrollSpeed": {
+      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
+      "expires": "2026-12-31"
+    },
+    "scheduleScrollStart": {
+      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
+      "expires": "2026-12-31"
+    }
+  },
+  "announcement": {
+    "look.maxFontPx": {
+      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
+      "expires": "2026-12-31"
+    },
+    "note.icon": {
+      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
+      "expires": "2026-12-31"
+    },
+    "note.order": {
+      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
+      "expires": "2026-12-31"
+    },
+    "priority": {
+      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
+      "expires": "2026-12-31"
+    },
+    "takeover.rotateSec": {
+      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
+      "expires": "2026-12-31"
+    }
+  }
+}

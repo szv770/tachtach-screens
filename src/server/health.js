@@ -139,6 +139,7 @@ export async function collectHealth({ userId, clientNow } = {}) {
     feeds: (Array.isArray(feeds) ? feeds : []).map((f) => ({ id: f.id, name: f.name, lastFetched: f.lastFetched || null, itemCount: f.itemCount, refreshInterval: f.refreshInterval })),
     albums: albumRows,
     disk, uploadsBytes: up.bytes, uploadsCount: up.count,
+    config: { timezoneSet: typeof tz === 'string' && tz.length > 0 },
     process: { uptimeSec: Math.round(process.uptime()), node: process.versions.node },
     tls: cert,
     push: { subscribedHere: pushCount },

@@ -22,6 +22,8 @@
  * The legacy whole-object `PUT /api/settings` is unchanged (old admin tabs).
  */
 
+import { validateSettingValues } from './settingsRules.js';
+
 export const SETTINGS_KEYS = Object.freeze([
   // Server-read
   'location',          // { zip, locationId, timezone, displayName }
@@ -54,6 +56,28 @@ export const SETTINGS_KEYS = Object.freeze([
   // Legacy stray keys — accepted so normalizeSettingsKeys() can fold them.
   'zipCode', 'chabadLocationId', 'trackA', 'trackBTime',
 ]);
+
+/**
+ * Scope of every top-level key (docs/saas/FIT-RULES.md rule 3, NEXT-STEPS N6):
+ *  org      - belongs to the school/shul; moves to the cloud with it
+ *  box      - describes the physical screen player
+ *  org+box  - an org default that ONE screen may override (owner decision 2026-10-26: per-screen look overrides)
+ *  platform - identical for every org (a setting only on a self-hosted box)
+ *  legacy   - accepted so old files keep loading; never add to
+ * Nothing reads this at run time yet except test/settingScope.test.js (every key must be tagged).
+ */
+export const SETTING_SCOPE = Object.freeze({
+  location: 'org', siteName: 'org', scheduleGroups: 'org', announcements: 'org', kiddushLevana: 'org', showChabadCredit: 'org',
+  scheduler: 'platform',     // org on a self-hosted box; the cloud runs one platform tick
+  dataSource: 'platform',    // org on a self-hosted box; sources are shared in the cloud
+  theme: 'org+box', customTheme: 'org', themeAuto: 'org', orientation: 'org+box', portraitLayout: 'org+box', clockSide: 'org+box',
+  visibility: 'org', fonts: 'org', hebrewFontScale: 'org', banner: 'org', credit: 'org',
+  limudimLang: 'org', limudimItems: 'org', hayomYomLang: 'org', zmanimVisible: 'org',
+  rail: 'org', layout: 'org', motion: 'org+box', graphics: 'org+box', longText: 'org', weather: 'org', zmanimLayout: 'org', scheduleLayout: 'org', scheduleView: 'org',
+  fontRoles: 'org', themeVersion: 'legacy', announceFonts: 'org',
+  hebrewHeadingScale: 'legacy', language: 'legacy', scheduleDisplayMode: 'legacy', scheduleScrollSpeed: 'legacy', scheduleScrollStart: 'legacy',
+  dataSources: 'legacy', zipCode: 'legacy', chabadLocationId: 'legacy', trackA: 'legacy', trackBTime: 'legacy',
+});
 
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -90,6 +114,8 @@ export function validateSettingsPatch(patch) {
   if (unknown.length) {
     return { ok: false, error: `Unknown settings key(s): ${unknown.join(', ')}` };
   }
+  const bad = validateSettingValues(patch);
+  if (bad.length) return { ok: false, error: bad.join(' ') };
   return { ok: true };
 }
 

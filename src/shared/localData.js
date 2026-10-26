@@ -8,6 +8,7 @@
 import { hebrewDateOf, fixedFromISO, hebrewFromFixed, monthLengthOf, NISAN, TISHREI, ELUL, dowOfFixed } from './hebrewCalendar.js';
 import { eventsFor, parshaForDate } from './torahReading.js';
 import { localZmanim } from './zmanim.js';
+import { candleMinutesOf } from './candleLighting.js';
 import { tehillimForDay } from './tehillimCycle.js';
 
 const num = (v) => (v === null || v === undefined || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
@@ -28,7 +29,7 @@ export function locationFor(settings, cache) {
   const lat = num(L.lat) ?? num(w.lat);
   const lon = num(L.lon) ?? num(w.lon);
   if (lat == null || lon == null) return null;
-  return { lat, lon, timezone: L.timezone || 'America/New_York', elevation: num(L.elevation) ?? 0, candleMinutes: num(L.candleMinutes) };
+  return { lat, lon, timezone: L.timezone || 'America/New_York', elevation: num(L.elevation) ?? 0, candleMinutes: candleMinutesOf(L.candleMinutes) };
 }
 
 /** 'YYYY-MM-DD' of a Date using its LOCAL parts (the server's clock, as the live fetchers do). */
@@ -79,4 +80,30 @@ export function localZmanimFor(dateISO, loc) {
 export function localTehillim(dateISO) {
   const h = hebrewFromFixed(fixedFromISO(dateISO));
   return tehillimForDay(h.d, monthLengthOf(dateISO));
+}
+
+/**
+ * The next candle lighting the screen would show (Friday or the day before a Yom Tov), for the admin's
+ * "this is what your number means" line. Calculated here from the saved location; `minutes` overrides
+ * the saved number so the admin can see an unsaved change.
+ * @returns {{ok:true, date:string, label:string, sunset:string, candle:string, minutes:number, source:'calculated'}
+ *          |{ok:false, error:string}}
+ */
+export function nextCandleLighting(settings, cache, { minutes, now = new Date() } = {}) {
+  const loc = locationFor(settings, cache);
+  if (!loc) return { ok: false, error: 'The location is not known yet (no coordinates for the zip code). Save a zip code, or enter coordinates under "Calculated times".' };
+  const mins = candleMinutesOf(minutes) ?? candleMinutesOf(settings?.location?.candleMinutes) ?? 18;
+  const tz = loc.timezone;
+  let todayISO;
+  try { todayISO = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now); } catch { todayISO = localISO(now); }
+  const [y, m, d] = todayISO.split('-').map(Number);
+  for (let i = 0; i < 16; i++) {
+    const iso = new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10);
+    if (!isErev(iso)) continue;
+    const z = localZmanim(iso, { ...loc, candleMinutes: mins }, { erev: true });
+    if (!z?.candleLighting || !z.sunset) continue;
+    const label = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(`${iso}T12:00:00Z`));
+    return { ok: true, date: iso, label, sunset: z.sunset, candle: z.candleLighting, minutes: mins, source: 'calculated' };
+  }
+  return { ok: false, error: 'Could not work out the next candle lighting for this location.' };
 }

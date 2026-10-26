@@ -140,3 +140,12 @@ test('label helpers', () => {
   assert.equal(ago(5 * H), '5 hours ago');
   assert.equal(bytesLabel(1.5 * 1024 ** 3), '1.5 GB');
 });
+
+test('Health warns when no time zone is set, and is silent when it is (or when the fact is absent)', () => {
+  const off = buildHealth({ ...GOOD(), config: { timezoneSet: false } }, NOW);
+  const row = off.checks.find((c) => c.id === 'timezone');
+  assert.equal(row.status, 'warn');
+  assert.match(row.summary, /New York/);
+  assert.equal(buildHealth({ ...GOOD(), config: { timezoneSet: true } }, NOW).checks.some((c) => c.id === 'timezone'), false);
+  assert.equal(buildHealth(GOOD(), NOW).checks.some((c) => c.id === 'timezone'), false);
+});

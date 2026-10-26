@@ -1,6 +1,7 @@
 import { readJSON, writeJSON } from './storage.js';
 import { sanitizeGroups } from '../shared/scheduleGroups.js';
 import { migrateThemeSettings } from '../shared/themes.js';
+import { sanitizeSettingValues } from '../shared/settingsRules.js';
 
 /**
  * Settings key normalization (audit bug 6, 2026-10-14).
@@ -70,6 +71,9 @@ export function normalizeSettings(settings) {
   }
   // data source (src/fetchers/dataSource.js): only 'local' switches it, anything else means the default 'live'
   if (s && typeof s === 'object' && 'dataSource' in s && s.dataSource !== 'live' && s.dataSource !== 'local') { s = { ...s, dataSource: 'live' }; c = true; }
+  // nested values that break a range/type rule (hand-edited file, old undo copy): drop them so the default applies
+  const v = sanitizeSettingValues(s);
+  if (v.changed) { s = v.settings; c = true; }
   return { settings: s, changed: a.changed || b.changed || c };
 }
 

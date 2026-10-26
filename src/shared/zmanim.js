@@ -13,6 +13,7 @@
  * test/localData.test.js for the measured agreement.
  */
 import { sunAtZenith, elevationZenith } from './solar.js';
+import { candleMinutesOf, DEFAULT_CANDLE_MINUTES } from './candleLighting.js';
 
 export const ZMANIM_PARAMS = Object.freeze({
   /** Visible sunrise / sunset: centre of the sun 50' below the horizon (refraction + radius). */
@@ -27,7 +28,7 @@ export const ZMANIM_PARAMS = Object.freeze({
   gedolaHours: 6.5,
   ketanaHours: 9.5,
   plagHours: 10.75,
-  candleMinutes: 18,
+  candleMinutes: DEFAULT_CANDLE_MINUTES,
 });
 
 const MIN = 60000;
@@ -115,7 +116,7 @@ export function localZmanim(dateISO, loc, opts = {}) {
   if (mid) res.chatzotLayla = mid;
   if (opts.erev && ms.sunset != null) {
     // the feed counts back from the sunset it shows (already a whole minute)
-    const c = formatZman(Math.round(ms.sunset / MIN) * MIN - (Number.isFinite(Number(loc.candleMinutes)) && loc.candleMinutes != null ? Number(loc.candleMinutes) : ZMANIM_PARAMS.candleMinutes) * MIN, tz, 'round');
+    const c = formatZman(Math.round(ms.sunset / MIN) * MIN - (candleMinutesOf(loc.candleMinutes) ?? ZMANIM_PARAMS.candleMinutes) * MIN, tz, 'round');
     if (c) res.candleLighting = c;
   }
   return res;
