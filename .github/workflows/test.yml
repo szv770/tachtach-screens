@@ -1,0 +1,31 @@
+# Runs the tests, the build and the dependency audit on every push and pull request.
+# Safe by design: read-only token, no secrets, no deploys, no pull_request_target, pinned action versions.
+name: test
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Tests
+        run: node --test $(ls test/*.test.js | grep -v google-photos)
+      - name: Build
+        run: npx vite build
+      - name: Dependency audit (production)
+        run: npm audit --omit=dev
