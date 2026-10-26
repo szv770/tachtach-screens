@@ -9,7 +9,7 @@
  * schedule-blocks.json { version: 1, seeded: [...markers], blocks: [{ id, name, label, entries, createdAt, updatedAt }] }
  */
 import { v4 as uuidv4 } from 'uuid';
-import { readJSON, writeJSON } from './storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP } from './storage.js';
 import { findCategory, newCategoryId } from '../shared/schedulePaste.js';
 import { fillCategoryKinds, inferKind, isKind as isKindValue } from '../shared/scheduleStages.js';
 import { toISODate, addDaysISO, isISODate, dateFromISO } from '../shared/scheduleResolution.js';
@@ -50,6 +50,26 @@ export function withScheduleLock(fn) {
   const run = queue.then(fn, fn);
   queue = run.catch(() => {});
   return run;
+}
+
+/**
+ * Every read-modify-write of schedule.json goes through here (or updateJSON directly, as routes/api.js does):
+ * ONE lock domain, storage.js's per-file lock. Never readJSON + writeJSON around a change (lost updates).
+ * `fn(schedule)` mutates/returns the new document, or returns SKIP to leave the file alone.
+ */
+export function updateSchedule(fn) {
+  return updateJSON('schedule.json', fn, () => ({ entries: [], categories: [] }));
+}
+
+/** Add missing categories to schedule.json under the file lock. Resolves { schedule, added } (schedule = what is stored now). */
+export async function addCategoriesLocked(newCats) {
+  let added = [];
+  const schedule = await updateSchedule((sch) => {
+    added = addCategories(sch, newCats);
+    return added.length ? sch : SKIP;
+  });
+  // SKIP means nothing changed: hand back the current document.
+  return { schedule: schedule === SKIP ? ((await readJSON('schedule.json')) ?? { entries: [], categories: [] }) : schedule, added };
 }
 
 export async function readScheduleDates() {
@@ -116,9 +136,11 @@ export async function ensureDefaultCategories() {
   return withScheduleLock(async () => {
     const blocks = await readBlocksFile();
     if (blocks.seeded.includes(SEED_MARKER)) return [];
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
-    const added = addCategories(schedule, DEFAULT_CATEGORIES.map((c) => ({ ...c, id: c.name.toLowerCase() })));
-    if (added.length) await writeJSON('schedule.json', schedule);
+    let added = [];
+    await updateSchedule((schedule) => {
+      added = addCategories(schedule, DEFAULT_CATEGORIES.map((c) => ({ ...c, id: c.name.toLowerCase() })));
+      return added.length ? schedule : SKIP;
+    });
     blocks.seeded.push(SEED_MARKER);
     await writeBlocksFile(blocks);
     return added;
@@ -137,15 +159,16 @@ export async function ensureCategoryDefaultAlerts() {
   return withScheduleLock(async () => {
     const blocks = await readBlocksFile();
     if (blocks.seeded.includes(ALERT_SEED_MARKER)) return [];
-    const schedule = (await readJSON('schedule.json')) ?? { entries: [], categories: [] };
     const updated = [];
-    for (const c of schedule.categories || []) {
-      if (c.defaultAlert !== undefined) continue;
-      if (!DEFAULT_ALERT_CATEGORIES.some((n) => findCategory([c], n))) continue;
-      c.defaultAlert = DEFAULT_ALERT_MINUTES;
-      updated.push(c.name);
-    }
-    if (updated.length) await writeJSON('schedule.json', schedule);
+    await updateSchedule((schedule) => {
+      for (const c of schedule.categories || []) {
+        if (c.defaultAlert !== undefined) continue;
+        if (!DEFAULT_ALERT_CATEGORIES.some((n) => findCategory([c], n))) continue;
+        c.defaultAlert = DEFAULT_ALERT_MINUTES;
+        updated.push(c.name);
+      }
+      return updated.length ? schedule : SKIP;
+    });
     blocks.seeded.push(ALERT_SEED_MARKER);
     await writeBlocksFile(blocks);
     return updated;
@@ -160,10 +183,13 @@ export async function ensureCategoryDefaultAlerts() {
  */
 export async function ensureCategoryKinds() {
   return withScheduleLock(async () => {
-    const schedule = await readJSON('schedule.json');
-    if (!schedule || !Array.isArray(schedule.categories)) return [];
-    const { categories, changed } = fillCategoryKinds(schedule.categories);
-    if (changed.length) await writeJSON('schedule.json', { ...schedule, categories });
+    let changed = [];
+    await updateJSON('schedule.json', (schedule) => {
+      if (!schedule || !Array.isArray(schedule.categories)) return SKIP;
+      const r = fillCategoryKinds(schedule.categories);
+      changed = r.changed;
+      return changed.length ? { ...schedule, categories: r.categories } : SKIP;
+    });
     return changed;
   });
 }

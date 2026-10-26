@@ -25,7 +25,7 @@ import {
   isISODate, toISODate, hasDateOverride, weeklyEntriesFor, sortEntriesByTime, addDaysISO,
 } from '../../shared/scheduleResolution.js';
 import {
-  withScheduleLock, readScheduleDates, writeScheduleDates, readBlocksFile, writeBlocksFile,
+  withScheduleLock, updateSchedule, addCategoriesLocked, readScheduleDates, writeScheduleDates, readBlocksFile, writeBlocksFile,
   addCategories, withIds, getZmanimForDates,
 } from '../scheduleStore.js';
 
@@ -145,7 +145,6 @@ router.put('/dates', async (req, res) => {
       if (errors.length || !parsed.days.length) {
         return { status: 400, body: { error: `Nothing was saved — fix ${errors.length || 'the'} error${errors.length === 1 ? '' : 's'} first.`, errors } };
       }
-      const createdCategories = addCategories(schedule, parsed.newCategories);
       const applied = [];
       for (const d of parsed.days) {
         if (d.clear) {
@@ -160,13 +159,11 @@ router.put('/dates', async (req, res) => {
           applied.push({ date: d.date, count: d.entries.length });
         }
       }
-      if (createdCategories.length) {
-        await writeJSON('schedule.json', schedule);
-        broadcast('schedule-update', schedule);
-      }
+      const { schedule: nowSchedule, added: createdCategories } = await addCategoriesLocked(parsed.newCategories);
+      if (createdCategories.length) broadcast('schedule-update', nowSchedule);
       const saved = await writeScheduleDates(dates);
       afterDatesChange(saved);
-      return { status: 200, body: { applied, createdCategories, scheduleDates: saved, categories: schedule.categories, warnings: parsed.warnings } };
+      return { status: 200, body: { applied, createdCategories, scheduleDates: saved, categories: nowSchedule.categories, warnings: parsed.warnings } };
     });
     res.status(result.status).json(result.body);
   } catch (err) {
@@ -184,11 +181,8 @@ router.put('/dates/:date', async (req, res) => {
       const [schedule, dates] = await Promise.all([readSchedule(), readScheduleDates()]);
       const n = normalizeEntries(req.body?.entries, schedule.categories || [], await scheduleGroupIds());
       if (n.errors.length) return { status: 400, body: { error: n.errors[0].message, errors: n.errors } };
-      const createdCategories = addCategories(schedule, n.newCategories);
-      if (createdCategories.length) {
-        await writeJSON('schedule.json', schedule);
-        broadcast('schedule-update', schedule);
-      }
+      const { schedule: nowSchedule, added: createdCategories } = await addCategoriesLocked(n.newCategories);
+      if (createdCategories.length) broadcast('schedule-update', nowSchedule);
       dates[date] = { label: cleanLabel(req.body?.label), entries: withIds(n.entries), updatedAt: new Date().toISOString() };
       const saved = await writeScheduleDates(dates);
       afterDatesChange(saved);
@@ -316,9 +310,16 @@ router.put('/weekly', async (req, res) => {
         await writeJSON('schedule-templates.json', pruneAutoBackups(templates));
         backupName = plan.backup.name;
       }
-      const createdCategories = addCategories(schedule, parsed.newCategories);
-      schedule.entries = withIds(plan.entries);
-      await writeJSON('schedule.json', schedule);
+      // Whole-list replace of the weekly entries, but categories are merged into the CURRENT file under the file lock.
+      let createdCategories = [];
+      const newEntries = withIds(plan.entries);
+      const stored = await updateSchedule((cur) => {
+        createdCategories = addCategories(cur, parsed.newCategories);
+        cur.entries = newEntries;
+        return cur;
+      });
+      schedule.categories = stored.categories;
+      schedule.entries = stored.entries;
       broadcast('schedule-update', schedule);
       initCountdowns().catch((err) => console.error('[countdown] Re-init error:', err.message));
       return { status: 200, body: { schedule, replaced: plan.replaces, count: plan.entries.length, backupName, createdCategories, warnings: parsed.warnings } };
