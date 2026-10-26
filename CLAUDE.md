@@ -29,6 +29,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 | `data/` | Runtime state, JSON files + `uploads/`, `fonts/`, `google-photos/`, `rss-cache/`. Gitignored except committed starting defaults. |
 | `deploy/` | Pi provisioning + Cloudflare Tunnel setup (user-facing, see files directly); `deploy/windows/` = Windows PC kit (PowerShell), docs in `docs/windows/` |
 | `src/server/platform.js` | Every Linux/Windows difference in the Node code (Linux behaviour unchanged; `test/platform.test.js`) |
+| `docs/saas/` | SaaS plan (`CLOUD-PLAN.md`) + rules every change must follow (`FIT-RULES.md`), inventory, store interface, next steps |
 | `docs/ADMIN_GUIDE.md`, `docs/FULL_SETUP_GUIDE.md` | User-facing guides — not needed for code changes |
 | `saas-admin/`, `saas-server/` | Separate Mivtzah SaaS product (see above) |
 
@@ -41,6 +42,7 @@ Node/Express 4, React 18, Vite 6, Framer Motion, Sharp, node-schedule, bcrypt+ot
 - **Banners never pause slide rotation; Takeovers always do; Boards replace slide content only.** This is intentional product behavior, not a bug.
 - **`data/users.json` (and the legacy `auth.json`) is never backed up or touched by `git pull`.** Password/2-step reset only via `npm run reset-admin` (`scripts/reset-admin-credentials.js`), never `setup.js`.
 - No Tailwind on the kiosk, and no hard-coded fonts or colours in screen components: they paint with the design roles (CSS custom properties set by `src/screen/design/DesignRoot.jsx` from `src/shared/themes.js` and `src/shared/fontRoles.js`). The approved round-2 look uses **Rubik** (Hebrew) + **Manrope** (English/numerals) + Frank Ruhl Libre / EB Garamond (Torah text) by default, every role swappable in admin to any built-in or uploaded font. No Inter/Roboto/system sans on the display. No infinite animations, blur, backdrop-filter or blend modes on the kiosk (Pi 5 at 4K, see GOTCHAS), except in takeovers/announcements and the **scrolling Banner** (one owner-approved ticker: one element, `translate3d` only, linear, seamless; see GOTCHAS "Kiosk design system rules"). Spec: `docs/design/2026-10-14-mockups-r2/`.
+- **SaaS fit (every change, owner 2026-10-26).** This app becomes a multi-org cloud brain + thin Pi player (`docs/saas/CLOUD-PLAN.md`). Every new data file, route, setting, event, job or fetcher must pass the checklist in **`docs/saas/FIT-RULES.md`**: data only through a store module (never raw `data/` paths), declared scope (org/box/platform) and privacy class (names/secret), no hard-coded site/person values, a capability in `permissions.js`, files keyed by org, caches keyed by what they depend on, no module-level org state, an isolation test stub, viewer allow-lists opt-in. Where the code stands: `docs/saas/CODE-INVENTORY.md`; prep backlog: `docs/saas/NEXT-STEPS.md`.
 
 ## Working with agents
 
