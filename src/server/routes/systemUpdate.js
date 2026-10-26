@@ -12,6 +12,7 @@ import realUsers from '../users.js';
 import realActivity from '../activity.js';
 import * as realSvc from '../systemUpdate.js';
 import { UPDATE_ACTIONS } from '../../shared/systemUpdate.js';
+import { updateNotInstalledMessage } from '../platform.js';
 
 const GUESS_LIMIT = { max: 6, lockMs: 15 * 60 * 1000 };
 // Same counters as "change my password" / "turn off 2-step", so the guesses add up across both.
@@ -47,7 +48,7 @@ router.post('/system/update', async (req, res) => {
     const { action, password, code } = req.body || {};
     if (typeof action !== 'string' || !UPDATE_ACTIONS.includes(action)) return res.status(400).json({ error: 'Unknown action.' });
     if (!installedInfo()) {
-      return res.status(409).json({ error: 'Not set up on this Pi yet. Run deploy/update.sh once by hand, then try again.', code: 'not_installed' });
+      return res.status(409).json({ error: updateNotInstalledMessage(), code: 'not_installed' });
     }
     const me = await users.getUser(req.user.id);
     if (!me || me.role !== 'admin') return res.status(403).json({ error: 'Your role can’t do that. Ask an admin.' });

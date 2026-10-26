@@ -186,7 +186,7 @@ export function buildHealth(f = {}, now = Date.now()) {
     else if (Math.abs(skew) >= T.clockWarnMs) { status = 'warn'; summary = `The server clock is ${durationLabel(Math.abs(skew))} ${skew > 0 ? 'ahead of' : 'behind'} this device.`; }
     if (f.clock.ntpSynced === false && status === 'ok') { status = 'warn'; summary = 'The server says its clock is not synchronised with the internet.'; }
     checks.push(row('clock', 'This computer', 'Clock', status, summary,
-      status === 'ok' || status === 'info' ? {} : { help: 'Zmanim and the schedule depend on the right time. Make sure the Pi is online (it sets its clock from the internet) and the time zone is right under Look & Settings > Location.' }));
+      status === 'ok' || status === 'info' ? {} : { help: f.platform === 'win32' ? 'Zmanim and the schedule depend on the right time. Make sure the screen computer is online, that Windows has "Set time automatically" on, and that the Windows time zone matches Look & Settings > Location.' : 'Zmanim and the schedule depend on the right time. Make sure the Pi is online (it sets its clock from the internet) and the time zone is right under Look & Settings > Location.' }));
   }
   if (f.tls && f.tls.enabled) {
     const end = ts(f.tls.notAfter);
@@ -196,7 +196,7 @@ export function buildHealth(f = {}, now = Date.now()) {
       const status = left <= 0 ? 'bad' : left < T.certWarnMs ? 'warn' : 'ok';
       checks.push(row('tls', 'This computer', 'Screen security certificate', status,
         left <= 0 ? 'The screen\'s local certificate has expired.' : `Valid for ${Math.floor(left / DAY)} more days.`,
-        status === 'ok' ? {} : { help: 'Only web-page slides are affected. An admin can delete data/tls on the Pi and restart the server to make a new one.' }));
+        status === 'ok' ? {} : { help: f.platform === 'win32' ? 'Only web-page slides are affected. An admin can delete C:\\TachTach\\data\\tls on the screen computer and restart the TachTach Server task to make a new one.' : 'Only web-page slides are affected. An admin can delete data/tls on the Pi and restart the server to make a new one.' }));
     }
   } else if (f.tls) {
     checks.push(row('tls', 'This computer', 'Screen security certificate', 'info', 'The local secure address is off, so web-page slides from sites that need https may not show.'));
@@ -214,7 +214,7 @@ export function buildHealth(f = {}, now = Date.now()) {
   if (f.poppler != null) {
     checks.push(row('poppler', 'This computer', 'PDF slides (poppler-utils)', f.poppler ? 'ok' : 'warn',
       f.poppler ? 'Installed. PDFs can be turned into slides.' : 'Not installed, so uploaded PDFs cannot become slides.',
-      f.poppler ? {} : { help: 'On the Pi, run: sudo apt install poppler-utils' }));
+      f.poppler ? {} : { help: f.platform === 'win32' ? 'On the screen computer, run deploy\\windows\\install.ps1 again as administrator (it installs the PDF tool).' : 'On the Pi, run: sudo apt install poppler-utils' }));
   }
 
   // ── Alerts and security ──

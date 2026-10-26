@@ -10,7 +10,8 @@
  *    task with doubling back-off, and a stop after `maxConsecutiveFailures` failures in a row (it is being blocked: better
  *    to stop and say so than to hammer the site).
  */
-import { readFile, writeFile, rename, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
+import { renameWithRetry } from './platform.js';
 import path from 'path';
 import { planTasks, ALL_SECTIONS } from '../shared/packPlan.js';
 import { buildPack, dateRange } from '../shared/dataPackBuild.js';
@@ -31,7 +32,7 @@ export async function saveState(workDir, state) {
   await mkdir(workDir, { recursive: true });
   const f = path.join(workDir, 'state.json');
   await writeFile(`${f}.tmp`, JSON.stringify({ ...state, savedAt: new Date().toISOString() }), 'utf-8');
-  await rename(`${f}.tmp`, f);
+  await renameWithRetry(`${f}.tmp`, f);
 }
 
 /** Seed a state from an installed pack ({name: text} files), so a refresh keeps what it already has. */

@@ -5,7 +5,8 @@
  * never fetches it daily. Everything here fails soft: no pack, a damaged file or
  * a day outside the range gives `null`, and the caller keeps what it had.
  */
-import { readFile, readdir, writeFile, mkdir, rename, rm } from 'fs/promises';
+import { readFile, readdir, writeFile, mkdir, rm } from 'fs/promises';
+import { renameWithRetry as rename } from './platform.js';
 import { createHash } from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';

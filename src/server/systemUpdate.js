@@ -20,6 +20,7 @@ import {
   REQUEST_FILE, STATUS_FILE, INSTALLED_FILE, REQUEST_MAX_AGE_MS, MAX_SUBJECTS,
   isFullHash, shortHash, cleanSubject, parseSubjects, parseStatus, requestAllowed, pushFor,
 } from '../shared/systemUpdate.js';
+import { platformChildEnv, gitSafeDirectoryArgs, updateStateDir } from './platform.js';
 
 const run = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -29,32 +30,37 @@ const GIT_TIMEOUT_MS = 20_000;
 const CHECK_MIN_GAP_MS = 30_000;
 const CHECK_TTL_MS = 10 * 60_000;
 const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,100}$/;
+// Where the update status + "installed" marker are read from: data/ on Linux; on Windows a folder only
+// SYSTEM writes (%ProgramData%\TachTach\updater), see docs/windows/AUDIT.md A4.
+const STATE_DIR = updateStateDir({ dataDir: DATA });
 
 /** Env for git: only what it needs, never prompts for credentials. */
 function gitEnv(extra = {}) {
-  const env = { PATH: process.env.PATH || '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', ...extra };
+  // platformChildEnv(): {} on Linux; on Windows SystemRoot etc., without which git cannot even resolve a host (AUDIT A2).
+  const env = { PATH: process.env.PATH || '/usr/bin:/bin', LANG: 'C', LC_ALL: 'C', GIT_TERMINAL_PROMPT: '0', GIT_OPTIONAL_LOCKS: '0', ...platformChildEnv(), ...extra };
   if (process.env.HOME) env.HOME = process.env.HOME;
   return env;
 }
-const git = (args, extraEnv, opts = {}) => run('git', args, { cwd: ROOT, timeout: GIT_TIMEOUT_MS, env: gitEnv(extraEnv), maxBuffer: 256 * 1024, windowsHide: true, ...opts }).then((r) => r.stdout.trim());
+// gitSafeDirectoryArgs(): [] on Linux; on Windows `-c safe.directory=<project>` (the server account does not own the folder, AUDIT A3).
+const git = (args, extraEnv, opts = {}) => run('git', [...gitSafeDirectoryArgs(ROOT), ...args], { cwd: ROOT, timeout: GIT_TIMEOUT_MS, env: gitEnv(extraEnv), maxBuffer: 256 * 1024, windowsHide: true, ...opts }).then((r) => r.stdout.trim());
 const cacheGit = (args) => git([`--git-dir=${CACHE_GIT}`, ...args], { GIT_ALTERNATE_OBJECT_DIRECTORIES: path.join(ROOT, '.git', 'objects') });
 
 // ── files ───────────────────────────────────────────────────────────────────
 
-function readSmallJson(name) {
+function readSmallJson(name, dir = DATA) {
   try {
-    const p = path.join(DATA, name);
+    const p = path.join(dir, name);
     const st = fs.lstatSync(p);
     if (!st.isFile() || st.size > 200_000) return null;
     return JSON.parse(fs.readFileSync(p, 'utf8'));
   } catch { return null; }
 }
 
-export const readStatus = () => parseStatus(readSmallJson(STATUS_FILE));
+export const readStatus = () => parseStatus(readSmallJson(STATUS_FILE, STATE_DIR));
 
 /** The marker install-services.sh writes once the root units are in place. */
 export function installedInfo() {
-  const o = readSmallJson(INSTALLED_FILE);
+  const o = readSmallJson(INSTALLED_FILE, STATE_DIR);
   const t = o && typeof o.installedAt === 'string' ? Date.parse(o.installedAt) : NaN;
   return Number.isFinite(t) ? { at: new Date(t).toISOString() } : null;
 }
@@ -189,6 +195,7 @@ export async function getUpdateInfo({ refresh = false } = {}) {
     check: check || { checkedAt: null, updateAvailable: null, commitsBehind: null, incoming: [], error: null, checking: true },
     previous: prev ? pv : null,
     canRollback: !!prev && !!current && prev.full !== current.full,
+    platform: process.platform,
   };
 }
 

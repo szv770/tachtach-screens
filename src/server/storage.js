@@ -1,8 +1,9 @@
-import { readFile, writeFile, rename, mkdir, unlink, chmod, open } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink, chmod, open } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { SECRET_FILES, SECRET_FILE_MODE, DATA_DIR_MODE, tightenDataPermissions } from './dataPerms.js';
+import { renameWithRetry } from './platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -147,9 +148,10 @@ async function writeLocked(filename, data) {
   try { await fh.writeFile(jsonStr, 'utf-8'); await fh.sync(); } finally { await fh.close(); }
   if (mode) await chmod(tmpPath, mode).catch(() => {}); // an old .tmp left behind keeps its mode otherwise
   try {
-    await rename(tmpPath, filePath);
+    // Linux: one plain rename. Windows: a few short retries first (Defender / indexer locks, docs/windows/AUDIT.md A6).
+    await renameWithRetry(tmpPath, filePath);
   } catch (renameErr) {
-    // On Windows/OneDrive, rename can fail with EPERM if the file is locked.
+    // On Windows/OneDrive, rename can still fail with EPERM if the file stays locked.
     // Fall back to direct write (not atomic, but better than crashing).
     if (renameErr.code === 'EPERM' || renameErr.code === 'EBUSY') {
       console.warn(`[storage] Atomic rename failed for ${filename}, falling back to direct write`);

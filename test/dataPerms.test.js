@@ -47,7 +47,7 @@ test('a stricter mode is never loosened', { skip: process.platform === 'win32' }
 test('writeJSON creates secret files 0600 and tightens an existing loose data dir (storage.js copied under a scratch root)', { skip: process.platform === 'win32' }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tt-store-'));
   fs.mkdirSync(path.join(root, 'src/server'), { recursive: true });
-  for (const f of ['storage.js', 'dataPerms.js']) fs.copyFileSync(new URL(`../src/server/${f}`, import.meta.url), path.join(root, 'src/server', f));
+  for (const f of ['storage.js', 'dataPerms.js', 'platform.js']) fs.copyFileSync(new URL(`../src/server/${f}`, import.meta.url), path.join(root, 'src/server', f));
   fs.mkdirSync(path.join(root, 'data'), { mode: 0o755 });
   fs.chmodSync(path.join(root, 'data'), 0o755);
   fs.writeFileSync(path.join(root, 'data/users.json'), '{"old":1}', { mode: 0o644 });

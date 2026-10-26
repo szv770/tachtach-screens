@@ -14,6 +14,13 @@
  * ACTIONS, the nonce is 32 hex chars, the "by" name is cut to printable text. Nothing from the
  * request file is ever put on a command line or into a shell.
  *
+ * Windows (deploy/windows/update-runner.ps1, run as SYSTEM): NTFS has no owner uid or mode bits (fstat says uid 0,
+ * mode 0o666 for everything), so on win32 the uid/mode rules are skipped HERE and checked by the PowerShell
+ * runner instead (owner SID = LOCAL SERVICE, not a reparse point); this helper then also refuses a request file
+ * with more than one hard link or that is a link itself. Pass "-" for the uid/gid arguments on Windows.
+ * The status file goes to the updater's own folder there (SYSTEM never writes into data\), so no chown.
+ * Linux behaviour is unchanged (test/updateHelper.test.js, test/windowsUpdate.test.js).
+ *
  * CLI:
  *   node update-helper.mjs validate <requestFile> <nonceFile> <jobFile> <ownerUid>
  *       exit 0 and prints the action ("update" | "rollback") on success; exit 2 + reason on stderr.
@@ -48,10 +55,15 @@ export function cleanName(v) {
  * Returns { ok:true, request:{action,by,at,nonce} } or { ok:false, reason }.
  * Unknown extra fields are ignored (never copied).
  */
-export function checkRequest(raw, meta, { ownerUid, now = Date.now(), seenNonces = [] } = {}) {
+export function checkRequest(raw, meta, { ownerUid, now = Date.now(), seenNonces = [], platform = process.platform } = {}) {
   if (!meta.isFile) return { ok: false, reason: 'not a regular file' };
-  if (meta.uid !== ownerUid) return { ok: false, reason: 'wrong owner' };
-  if ((meta.mode & 0o077) !== 0) return { ok: false, reason: 'file mode is too open' };
+  if (platform === 'win32') {
+    // Owner + "is it a link" are checked by update-runner.ps1 (Get-Acl owner SID, reparse point). Here: one hard link only.
+    if (meta.nlink !== 1) return { ok: false, reason: 'file has more than one link' };
+  } else {
+    if (meta.uid !== ownerUid) return { ok: false, reason: 'wrong owner' };
+    if ((meta.mode & 0o077) !== 0) return { ok: false, reason: 'file mode is too open' };
+  }
   if (meta.size > REQUEST_MAX_BYTES) return { ok: false, reason: 'too large' };
   let obj;
   try { obj = JSON.parse(raw); } catch { return { ok: false, reason: 'not JSON' }; }
@@ -67,12 +79,16 @@ export function checkRequest(raw, meta, { ownerUid, now = Date.now(), seenNonces
 }
 
 /** Open without following a symlink, look at the SAME descriptor we read from (no check-then-use gap). */
-export function readRequestFile(file) {
+export function readRequestFile(file, { platform = process.platform } = {}) {
+  if (platform === 'win32') {
+    // No O_NOFOLLOW on Windows: refuse a symlink or junction up front (Node's lstat reports both as links).
+    try { if (fs.lstatSync(file).isSymbolicLink()) return { error: 'is a symlink' }; } catch (e) { return { error: `cannot open (${e.code || e.message})` }; }
+  }
   let fd;
   try { fd = fs.openSync(file, fs.constants.O_RDONLY | O_NOFOLLOW); } catch (e) { return { error: e.code === 'ELOOP' ? 'is a symlink' : `cannot open (${e.code || e.message})` }; }
   try {
     const st = fs.fstatSync(fd);
-    const meta = { uid: st.uid, mode: st.mode & 0o7777, size: st.size, isFile: st.isFile() };
+    const meta = { uid: st.uid, mode: st.mode & 0o7777, size: st.size, isFile: st.isFile(), nlink: st.nlink };
     if (!meta.isFile || meta.size > REQUEST_MAX_BYTES) return { meta, raw: '' };
     const buf = Buffer.alloc(meta.size);
     fs.readSync(fd, buf, 0, meta.size, 0);
@@ -106,11 +122,11 @@ export function writeAtomic(file, text, { mode = 0o600, uid = null, gid = null }
  * validate: read + check the request, remember its nonce, write the job file (the clean copy the rest of the
  * run uses). Returns { ok, action?, reason? }. The request file itself is removed by the caller.
  */
-export function validateRequest({ requestFile, nonceFile, jobFile, ownerUid, now = Date.now() }) {
-  const r = readRequestFile(requestFile);
+export function validateRequest({ requestFile, nonceFile, jobFile, ownerUid, now = Date.now(), platform = process.platform }) {
+  const r = readRequestFile(requestFile, { platform });
   if (r.error) return { ok: false, reason: r.error };
   const seen = readNonces(nonceFile);
-  const c = checkRequest(r.raw, r.meta, { ownerUid, now, seenNonces: seen });
+  const c = checkRequest(r.raw, r.meta, { ownerUid, now, seenNonces: seen, platform });
   if (!c.ok) return c;
   const next = [...seen, c.request.nonce].slice(-KEEP_NONCES);
   writeAtomic(nonceFile, JSON.stringify(next), { mode: 0o600 });
@@ -180,22 +196,30 @@ export function writeStatus({ dataDir, ownerUid, ownerGid, jobFile, logFile, env
 
 // ── CLI ─────────────────────────────────────────────────────────────────────
 
-function main(argv) {
+/** A uid/gid argument: an integer, or "-" on Windows (no POSIX ids there). undefined = invalid. */
+export function parseIdArg(v, platform = process.platform) {
+  if (platform === 'win32' && v === '-') return null;
+  const n = Number(v); // same test as before on Linux: Number.isInteger(Number(v))
+  return Number.isInteger(n) ? n : undefined;
+}
+
+export function main(argv, { platform = process.platform } = {}) {
   const [cmd, ...a] = argv;
   if (cmd === 'validate') {
     const [requestFile, nonceFile, jobFile, uid] = a;
-    const ownerUid = Number(uid);
-    if (!requestFile || !nonceFile || !jobFile || !Number.isInteger(ownerUid)) { console.error('usage: validate <request> <nonces> <job> <uid>'); return 64; }
+    const ownerUid = parseIdArg(uid, platform);
+    if (!requestFile || !nonceFile || !jobFile || ownerUid === undefined) { console.error('usage: validate <request> <nonces> <job> <uid>'); return 64; }
     const now = process.env.TT_NOW ? Number(process.env.TT_NOW) : Date.now();
-    const r = validateRequest({ requestFile, nonceFile, jobFile, ownerUid, now });
+    const r = validateRequest({ requestFile, nonceFile, jobFile, ownerUid, now, platform });
     if (!r.ok) { console.error(`rejected: ${r.reason}`); return 2; }
     console.log(r.action);
     return 0;
   }
   if (cmd === 'status') {
     const [dataDir, uid, gid, jobFile, logFile] = a;
-    if (!dataDir || !jobFile || !logFile || !Number.isInteger(Number(uid)) || !Number.isInteger(Number(gid))) { console.error('usage: status <data> <uid> <gid> <job> <log>'); return 64; }
-    writeStatus({ dataDir, ownerUid: Number(uid), ownerGid: Number(gid), jobFile, logFile });
+    const ownerUid = parseIdArg(uid, platform); const ownerGid = parseIdArg(gid, platform);
+    if (!dataDir || !jobFile || !logFile || ownerUid === undefined || ownerGid === undefined) { console.error('usage: status <data> <uid> <gid> <job> <log>'); return 64; }
+    writeStatus({ dataDir, ownerUid, ownerGid, jobFile, logFile });
     return 0;
   }
   console.error('usage: update-helper.mjs validate|status ...');

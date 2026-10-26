@@ -54,6 +54,7 @@ import { initRSSSchedulers } from './rss-scheduler.js';
 import { startMivtzahScheduler } from './mivtzah-scheduler.js';
 import { migrateSettingsKeys } from './settings-migrate.js';
 import { ensureBuiltinSlides } from './builtin-slides.js';
+import { isWindowsReservedName } from './platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -355,7 +356,8 @@ export function createApp() {
     try {
       const { readFile: rf } = await import('fs/promises');
       // Feed ids are plain tokens; anything with a dot or slash (..%2Fusers) is refused.
-      if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId))) return res.status(400).json({ error: 'Bad feed id.' });
+      // CON/NUL/COM1... are devices on Windows (docs/windows/AUDIT.md A15); real ids are never those.
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId)) || isWindowsReservedName(req.params.feedId)) return res.status(400).json({ error: 'Bad feed id.' });
       const filePath = path.join(PROJECT_ROOT, 'data', 'rss-cache', `${req.params.feedId}.json`);
       const raw = await rf(filePath, 'utf-8');
       res.json(JSON.parse(raw));

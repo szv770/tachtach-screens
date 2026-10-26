@@ -1,0 +1,10 @@
+# Line endings (docs/windows/AUDIT.md B15). Git for Windows defaults to core.autocrlf=true.
+# Scripts the Pi runs must keep LF even when someone edits/commits them on Windows.
+*.sh       text eol=lf
+*.service  text eol=lf
+*.timer    text eol=lf
+*.path     text eol=lf
+*.mjs      text eol=lf
+# Committed data defaults are edited in place by the admin panel: never convert them, or every one of them
+# shows as "changed" on a Windows checkout and can block `git pull --ff-only`.
+data/**    -text

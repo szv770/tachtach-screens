@@ -17,6 +17,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { tightenDataPermissions } from './dataPerms.js';
+import { opensslCommand } from './platform.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -41,12 +42,13 @@ export async function ensureLocalCert() {
   try {
     if (!existsSync(KEY) || !existsSync(CRT)) {
       mkdirSync(DIR, { recursive: true, mode: 0o700 });
-      await run('openssl', [
+      const ossl = opensslCommand(); // Linux: plain `openssl` as before; Windows: Git for Windows' copy (docs/windows/AUDIT.md A10)
+      await run(ossl.cmd, [
         'req', '-x509', '-nodes', '-newkey', 'rsa:2048', '-sha256', '-days', '3650',
         '-keyout', KEY, '-out', CRT,
         '-subj', '/CN=TachTach local kiosk',
         '-addext', 'subjectAltName=IP:127.0.0.1,DNS:localhost',
-      ], { timeout: 30000 });
+      ], { timeout: 30000, windowsHide: true, ...(ossl.env ? { env: ossl.env } : {}) });
       console.log('[tls] Generated a local kiosk certificate in data/tls/');
     }
     tightenDataPermissions({ dataDir: path.join(ROOT, 'data') }); // the private key must be 0600

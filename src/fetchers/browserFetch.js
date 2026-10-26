@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import puppeteer from 'puppeteer-core';
+import { systemTmpDir, extraBrowserCandidates, hasUnixSocketPathLimit } from '../server/platform.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,11 +46,11 @@ function isWritableDir(dir) {
 let pickedTmpDir = null;
 function pickTmpDir() {
   if (pickedTmpDir) return pickedTmpDir;
-  const sys = process.env.TMPDIR || '/tmp';
+  const sys = systemTmpDir(); // Linux: $TMPDIR or /tmp (unchanged); Windows: the account's own temp folder
   pickedTmpDir = isWritableDir(sys) ? sys : DATA_TMP_DIR;
   if (pickedTmpDir === DATA_TMP_DIR) {
     fs.mkdirSync(DATA_TMP_DIR, { recursive: true });
-    if (DATA_TMP_DIR.length + SOCKET_SUFFIX_LEN > 107) {
+    if (hasUnixSocketPathLimit() && DATA_TMP_DIR.length + SOCKET_SUFFIX_LEN > 107) {
       console.warn(`[browserFetch] ${sys} is not writable and ${DATA_TMP_DIR} is too long for Chromium's singleton socket — launches will likely crash. Set PrivateTmp=true or a short writable TMPDIR.`);
     }
   }
@@ -73,6 +74,7 @@ const browserCandidates = () => [
   '/usr/bin/google-chrome-stable',
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+  ...extraBrowserCandidates(), // Windows only: Chrome per-user install, Edge (docs/windows/AUDIT.md A12)
 ].filter(Boolean);
 
 export function findBrowserExecutable() {

@@ -16,6 +16,7 @@ import { pdfToolsAvailable } from './pdf.js';
 import { isLocalTlsEnabled } from './localTls.js';
 import { subscriptionCount } from './push.js';
 import { buildHealth } from '../shared/health.js';
+import { ntpStatusCommand, parseNtpStatus } from './platform.js';
 
 const run = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -88,9 +89,10 @@ async function ntpSynced() {
   if (Date.now() - ntpMemo.at < 5 * 60_000) return ntpMemo.v;
   let v = null;
   try {
-    const { stdout } = await run('timedatectl', ['show', '-p', 'NTPSynchronized', '--value'], { timeout: 3000 });
-    v = stdout.trim() === 'yes' ? true : stdout.trim() === 'no' ? false : null;
-  } catch { /* not systemd / not installed: unknown */ }
+    const [cmd, args] = ntpStatusCommand(); // Linux: timedatectl (unchanged); Windows: w32tm /query /status
+    const { stdout } = await run(cmd, args, { timeout: 3000, windowsHide: true });
+    v = parseNtpStatus(stdout);
+  } catch { /* not systemd / not installed / not allowed: unknown */ }
   ntpMemo = { at: Date.now(), v };
   return v;
 }
@@ -142,6 +144,7 @@ export async function collectHealth({ userId, clientNow } = {}) {
     backups: bak,
     poppler,
     clock: { skewMs: skew, ntpSynced: ntp },
+    platform: process.platform,
   };
   return buildHealth(facts, now);
 }

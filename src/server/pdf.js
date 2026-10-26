@@ -8,6 +8,7 @@ import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { PDF_MAX_PAGES, PDF_MAX_BYTES, isPdfBuffer, parsePageCount, pdfScaleTo, pageFilename } from '../shared/pdfPages.js';
+import { popplerTool, pdfToolsMissingMessage } from './platform.js';
 
 const run = promisify(execFile);
 const TIMEOUT_MS = 90_000;
@@ -21,8 +22,8 @@ let toolsOk = null; // cached after the first check
 export async function pdfToolsAvailable() {
   if (toolsOk !== null) return toolsOk;
   try {
-    await run('pdftoppm', ['-v'], { timeout: 5000 }).catch((e) => { if (e.code === 'ENOENT') throw e; });
-    await run('pdfinfo', ['-v'], { timeout: 5000 }).catch((e) => { if (e.code === 'ENOENT') throw e; });
+    await run(popplerTool('pdftoppm'), ['-v'], { timeout: 5000 }).catch((e) => { if (e.code === 'ENOENT') throw e; });
+    await run(popplerTool('pdfinfo'), ['-v'], { timeout: 5000 }).catch((e) => { if (e.code === 'ENOENT') throw e; });
     toolsOk = true;
   } catch { toolsOk = false; }
   return toolsOk;
@@ -46,14 +47,14 @@ async function convert(buffer, box, uploadDir) {
   if (!isPdfBuffer(buffer)) throw new PdfError('That file is not a PDF.');
   if (buffer.length > PDF_MAX_BYTES) throw new PdfError(`This PDF is too big. The limit is ${Math.round(PDF_MAX_BYTES / 1048576)} MB.`, 413);
   if (!(await pdfToolsAvailable())) {
-    throw new PdfError('PDFs cannot be shown yet: the PDF tool (poppler-utils) is not installed on the screen computer. Ask whoever set it up to run "sudo apt install poppler-utils", or upload each page as a picture.', 503);
+    throw new PdfError(pdfToolsMissingMessage(), 503);
   }
   const dir = await mkdtemp(path.join(os.tmpdir(), 'tt-pdf-'));
   try {
     const input = path.join(dir, 'input.pdf');
     await writeFile(input, buffer, { mode: 0o600 });
     let info = '';
-    try { info = (await run('pdfinfo', [input], { timeout: 30_000, maxBuffer: 1 << 20 })).stdout; }
+    try { info = (await run(popplerTool('pdfinfo'), [input], { timeout: 30_000, maxBuffer: 1 << 20 })).stdout; }
     catch (e) {
       if (/incorrect password|encrypted/i.test(`${e.stderr || ''}${e.message}`)) throw new PdfError('This PDF is password protected. Remove the password and try again.');
       throw new PdfError('This PDF could not be read. It may be damaged.');
@@ -64,7 +65,7 @@ async function convert(buffer, box, uploadDir) {
 
     const prefix = path.join(dir, 'page');
     try {
-      await run('pdftoppm', ['-jpeg', '-jpegopt', 'quality=88', '-scale-to', String(pdfScaleTo(box)), '-l', String(PDF_MAX_PAGES), input, prefix], { timeout: TIMEOUT_MS, maxBuffer: 1 << 20 });
+      await run(popplerTool('pdftoppm'), ['-jpeg', '-jpegopt', 'quality=88', '-scale-to', String(pdfScaleTo(box)), '-l', String(PDF_MAX_PAGES), input, prefix], { timeout: TIMEOUT_MS, maxBuffer: 1 << 20 });
     } catch (e) {
       if (e.killed || e.signal) throw new PdfError('This PDF took too long to convert. Try a smaller one.');
       throw new PdfError('This PDF could not be converted. It may be damaged or use something unsupported.');

@@ -163,8 +163,13 @@ export default function SoftwareUpdateCard({ me }) {
   } else if (!info.installed) {
     body = (
       <div data-testid="update-not-installed" style={{ display: 'grid', gap: '8px' }}>
-        <div style={{ fontWeight: 700 }}>Not set up on this Pi yet</div>
-        <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Run <code>deploy/update.sh</code> once by hand (see the setup guide). That installs the small helper that lets this button work. After that, you can update from here.</div>
+        {info.platform === 'win32' ? (<>
+          <div style={{ fontWeight: 700 }}>Not set up on this computer yet</div>
+          <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Run <code>deploy\windows\install.ps1</code> as administrator on the screen computer (see docs/windows/SETUP.md). That installs the small helper that lets this button work. After that, you can update from here.</div>
+        </>) : (<>
+          <div style={{ fontWeight: 700 }}>Not set up on this Pi yet</div>
+          <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Run <code>deploy/update.sh</code> once by hand (see the setup guide). That installs the small helper that lets this button work. After that, you can update from here.</div>
+        </>)}
         <div style={{ fontSize: '14px' }}>Running now: {version}</div>
       </div>
     );
