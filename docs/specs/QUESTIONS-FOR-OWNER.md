@@ -86,3 +86,15 @@ Spelling "Shabbos / Parshas" with "Shabbat / Parashat" as an admin option; Frida
 | Q9 | 05 sections 2.3-2.4, 9 |
 | Q10 | 06 sections 2.1, 3.3 |
 | Q12 | order of work, each spec's size |
+
+---
+
+## Owner answers (2026-10-26)
+
+- **Q1 Post sheet:** try replacing the four cards with the one Post sheet, BUT add an admin setting ('Post button style': New Post sheet / Classic four cards) so the owner can switch back at any time. Per-org default; later also per person.
+- **Q3 Shabbos:** offer BOTH as an admin choice for the Candle lighting -> nightfall window: (a) 'Screen off' (Freeze preset), (b) 'Simple Good Shabbos sign': one calm still page with far fewer animations (no rotation), (c) 'Keep rotating (hide-on-Shabbos slides drop out)'. Admin picks; default stays (c) until the owner picks.
+- **Q4 'Mivtza reminders':** owner did not remember meaning; explained as editable reminder lines about the mivtzoim (e.g. Shabbos candles for girls and women, tefillin, tzedakah before candles). Default: option A (own editable lines, empty by default). The live Mivtzah leaderboard must later fit into whatever streaming/embed mechanism TachTach Screens defines (the old full-screen live board was a one-time gig; future Mivtzah boards get a dedicated, generic source type).
+- **Q5 photos:** clarified: this question is ONLY about photos staff upload for Mazel Tov / Photo Wall. The Google Photos album slide stays as it is today (streamed, with images cached locally on the screen box so it keeps working when the network drops). Default: option A (uploaded student photos follow the names rule).
+- **Q12 build order:** recommendation accepted by default (exposure clean-up first), which is under way.
+- **New requirement:** several screens, screen groups, targeting a message to one screen/group, per-group/per-screen settings, editors scoped to a group or screen: design in docs/saas/SCREENS-GROUPS.md.
+- **N18 GitHub Actions:** approved if safe: added `.github/workflows/test.yml` (read-only token, no secrets).
