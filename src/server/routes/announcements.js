@@ -246,7 +246,12 @@ router.post('/announcements/restore', async (req, res) => {
 
 // ── "Until end of Shabbos" ─────────────────────────────────────────────────
 
-const shabbosEndMemo = new Map(); // dateISO -> 'h:mm PM'
+const shabbosEndMemo = new Map(); // shabbosMemoKey(...) -> 'h:mm PM'
+
+/** Memo key: the date AND the place (and data source). A date-only key handed one org's tzeis to another org (SaaS-fit rule 1). */
+export function shabbosMemoKey(dateISO, location, sourceName) {
+  return `${dateISO}|${sourceName || ''}|${JSON.stringify(location ?? {})}`;
+}
 
 function parse12h(s) {
   const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(s || '').trim());
@@ -273,12 +278,13 @@ router.get('/announcements/shabbos-end', async (_req, res) => {
       let time = null;
       if (offsetDays === 0) time = cache?.zmanim?.today?.tzeit7083deg;
       else if (offsetDays === 1) time = cache?.zmanim?.tomorrow?.tzeit7083deg;
-      if (!time) time = shabbosEndMemo.get(dateISO);
       const src = (await import('../../fetchers/dataSource.js')).sourceFor(settings, cache);
+      const memoKey = shabbosMemoKey(dateISO, settings?.location, src.name);
+      if (!time) time = shabbosEndMemo.get(memoKey);
       if (!time && (settings?.location?.locationId || src.name === 'local')) {
         const z = await src.fetchZmanim(settings.location?.locationId, dateISO);
         time = z?.tzeit7083deg || null;
-        if (time) shabbosEndMemo.set(dateISO, time);
+        if (time) shabbosEndMemo.set(memoKey, time);
       }
       const hm = parse12h(time);
       return hm ? { time, iso: zonedTimeToUtc(dateISO, hm, tz).toISOString() } : null;
