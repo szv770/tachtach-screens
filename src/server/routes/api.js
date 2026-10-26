@@ -1312,12 +1312,26 @@ router.get('/rss/cache/:feedId', async (req, res) => {
 // Fields that can't be fetched for arbitrary dates (dailyQuote, parshaTidbits,
 // Hebrew limudim) fall back to today's cached values.
 
+// Preview-state can make several outbound fetches (some with a headless browser) per call, and every signed-in role
+// may read it, so it gets its own small budget per person and a sane date window (red-team F6).
+const previewHits = new Map();
+function previewBudgetOk(key) {
+  const now = Date.now();
+  const hits = (previewHits.get(key) || []).filter((t) => now - t < 60_000);
+  if (hits.length >= 12) { previewHits.set(key, hits); return false; }
+  hits.push(now); previewHits.set(key, hits);
+  if (previewHits.size > 500) for (const [k, v] of previewHits) if (!v.some((t) => now - t < 60_000)) previewHits.delete(k);
+  return true;
+}
 router.get('/preview-state', async (req, res) => {
   try {
     const dateStr = req.query.date;
     if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
       return res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
     }
+    const dayDelta = Math.abs(Date.parse(`${dateStr}T12:00:00Z`) - Date.now()) / 86_400_000;
+    if (!Number.isFinite(dayDelta) || dayDelta > 800) return res.status(400).json({ error: 'Pick a date within about two years.' });
+    if (!previewBudgetOk(String(req.user?.id || req.ip || 'anon'))) return res.status(429).json({ error: 'Slow down a little: too many previews in a minute.' });
 
     const [settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, currentCache, scheduleDates] = await Promise.all([
       readJSON('settings.json'),

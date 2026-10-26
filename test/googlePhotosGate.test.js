@@ -35,3 +35,9 @@ test('missing files never throw and never widen access', async () => {
   const { viewerAlbumDirs } = await import('../src/server/google-photos.js');
   assert.equal((await viewerAlbumDirs()).size, 0);
 });
+
+test('F1: dot segments, backslashes and NULs are refused, normal album paths are not', async () => {
+  const { isUnsafeAlbumPath } = await import('../src/server/google-photos.js');
+  for (const bad of ['/live/../off/p.jpg', '/a/../b/p.jpg', '/..', '/a/./b', '/a/..', '\\a', '/a\\..\\b', '/a/b\0.jpg', '/./a']) assert.ok(isUnsafeAlbumPath(bad), bad);
+  for (const ok of ['/album-abc/photo_1.jpg', '/album-abc/blur.v2.jpg', '/a/b.c.jpg', '/']) assert.ok(!isUnsafeAlbumPath(ok), ok);
+});

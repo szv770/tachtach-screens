@@ -142,3 +142,12 @@ test('viewer state: chazan is cut down to who leads in the next few days; the TV
   const flat = (c) => assignments(c, TODAY, addDays(TODAY, 3)).flatMap((d) => d.slots.map((s) => `${d.date}${s.tefila}=${s.id}`));
   assert.deepEqual(flat(out), flat(full));
 });
+
+test('F3: live viewers do not get the school location from the cache copies either', () => {
+  const st = { cache: { weather: { location: { zip: '33139', lat: 25.8, lon: -80.1 }, temp: 71 }, zmanim: { locationId: 1234, today: { sunset: '6:01 PM' } } }, settings: {} };
+  const v = viewerState(st);
+  assert.equal(v.cache.weather.location, undefined);
+  assert.equal(v.cache.weather.temp, 71);
+  assert.equal(v.cache.zmanim.locationId, undefined);
+  assert.equal(v.cache.zmanim.today.sunset, '6:01 PM');
+});

@@ -188,6 +188,12 @@ export function viewerState(state, now = new Date()) {
     const live = new Set(out.announcements.map((i) => String(i.id)));
     for (const k of ['messages', 'pinned']) if (Array.isArray(out[k])) out[k] = out[k].filter((m) => live.has(String(m?.id))).map((m) => without(m, STAFF_FIELDS));
   }
+  if (out.cache && typeof out.cache === 'object') {
+    // the school's place (zip, coordinates, Chabad location id) is withheld from settings; keep it out of the cache copies too (red-team F3)
+    out.cache = { ...out.cache };
+    if (out.cache.weather && typeof out.cache.weather === 'object') out.cache.weather = without(out.cache.weather, ['location', 'zip', 'lat', 'lon', 'latitude', 'longitude']);
+    if (out.cache.zmanim && typeof out.cache.zmanim === 'object') out.cache.zmanim = without(out.cache.zmanim, ['locationId', 'location', 'zip']);
+  }
   if (out.googleAlbums) out.googleAlbums = (Array.isArray(out.googleAlbums) ? out.googleAlbums : []).map((a) => without(a, ['url', 'albumId']));
   if (out.rssFeeds) out.rssFeeds = (Array.isArray(out.rssFeeds) ? out.rssFeeds : []).map((f) => without(f, ['url']));
   if (out.roster) out.roster = viewerRoster(out.roster, now, tz);

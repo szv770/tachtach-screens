@@ -623,3 +623,11 @@ test("a Custom Day marked 'No chazan' added after publishing removes that day", 
   st = CZ.settle(st, '2026-10-22', custom);
   assert.equal(st.published['2026-10-23'], undefined);
 });
+
+test('F4: swapOptions for a far-future date returns at once (no multi-minute loop)', () => {
+  const st = normalizeState({ queue: ['a', 'b', 'c'] });
+  const t0 = Date.now();
+  const o = swapOptions(st, '9999-12-31', 'Shacharis', []);
+  assert.ok(Date.now() - t0 < 1500, 'finished quickly');
+  assert.deepEqual(o.candidates, []);
+});

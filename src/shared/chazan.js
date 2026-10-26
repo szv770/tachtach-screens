@@ -493,7 +493,9 @@ export function swapOptions(state, iso, tefila, customDays = []) {
   const cursor = s.cursor || iso;
   if (iso < cursor) return { due: null, suggest: null, candidates: [], locked: false, rule: s.settings.fill };
   const queue = [...s.queue];
-  for (let d = cursor; d <= iso; d = addDays(d, 1)) {
+  // a date years away would loop for minutes (red-team F4): beyond the walk limit there is nothing to suggest
+  if (iso > addDays(cursor, LIMITS.maxSkipDays)) return { due: null, suggest: null, candidates: [], locked: false, rule: s.settings.fill };
+  for (let d = cursor, steps = 0; d <= iso && steps < LIMITS.maxSkipDays + 2; d = addDays(d, 1), steps++) {
     const { list } = dayTefilas(s, d, customDays);
     const led = new Set();
     for (const t of list) {

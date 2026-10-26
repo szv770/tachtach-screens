@@ -49,7 +49,7 @@ import { readJSON } from './storage.js';
 import { dataPath } from './dataDir.js';
 import { broadcastToPreview } from './sse.js';
 import { getScreenState, setScreenState, getScreenDisplay, followPayload } from './screenState.js';
-import { initGooglePhotosSync } from './google-photos.js';
+import { initGooglePhotosSync, isUnsafeAlbumPath } from './google-photos.js';
 import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
 import { initRSSSchedulers } from './rss-scheduler.js';
@@ -74,7 +74,11 @@ const DIST_DIR = path.join(PROJECT_ROOT, 'dist');
 const googlePhotosGate = async (req, res, next) => {
   try {
     if (await isViewer(req)) {
-      const dir = decodeURIComponent(String(req.path || '/').split('/')[1] || '');
+      // express.static resolves '..' itself, so authorising only the first segment let a watcher walk into a disabled
+      // album (red-team F1): refuse any dot segment, backslash or NUL before looking at the album folder.
+      const decoded = decodeURIComponent(String(req.path || '/'));
+      if (isUnsafeAlbumPath(decoded)) return res.status(404).end();
+      const dir = decoded.split('/')[1] || '';
       const { viewerAlbumDirs } = await import('./google-photos.js');
       if (dir && (await viewerAlbumDirs()).has(dir)) return next();
       return res.status(404).end();
@@ -382,6 +386,13 @@ export function createApp() {
       // Feed ids are plain tokens; anything with a dot or slash (..%2Fusers) is refused.
       // CON/NUL/COM1... are devices on Windows (docs/windows/AUDIT.md A15); real ids are never those.
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId)) || isWindowsReservedName(req.params.feedId)) return res.status(400).json({ error: 'Bad feed id.' });
+      if (req.liveViewer) {
+        // a watcher only gets feeds a switched-on News feed slide uses (red-team F5)
+        const [slides, feeds] = await Promise.all([readJSON('slides.json'), readJSON('rss-feeds.json')]);
+        const feed = (Array.isArray(feeds) ? feeds : []).find((f) => f && f.id === req.params.feedId);
+        const used = (Array.isArray(slides) ? slides : []).some((s) => s && s.type === 'RSS_SLIDE' && s.enabled !== false && s.rssFeedId === req.params.feedId);
+        if (!feed || feed.enabled === false || !used) return res.status(404).json({ error: 'Feed not found.' });
+      }
       const filePath = dataPath('rss-cache', `${req.params.feedId}.json`);
       const raw = await rf(filePath, 'utf-8');
       res.json(JSON.parse(raw));
@@ -425,6 +436,7 @@ export function createApp() {
     // Serve files Vite copied from public/ (e.g. grain.png) at the dist
     // root. Registered after the more specific mounts above/below so it
     // only catches requests nothing else claims first.
+    app.use('/src', (_req, res) => res.status(404).end()); // raw dist/src/* page shells are served by explicit routes only (red-team F2)
     app.use(express.static(DIST_DIR, { maxAge: '7d' }));
 
     // Serve uploaded fonts

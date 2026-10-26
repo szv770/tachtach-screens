@@ -313,6 +313,12 @@ export async function getAlbumPhotos(albumUrl) {
   }));
 }
 
+/** A request path with a '.'/'..' segment, a backslash or a NUL: never allowed for a live viewer (red-team F1). */
+export function isUnsafeAlbumPath(decodedPath) {
+  const p = String(decodedPath ?? '');
+  return /(^|[\\/])\.\.?([\\/]|$)/.test(p) || p.includes('\0') || p.includes('\\');
+}
+
 /**
  * Album folders a live-view WATCHER may see: only albums that are switched on AND used by a switched-on
  * Google Photos slide (what the TV can actually show). A disabled or unused album stays private (red-team 2026-10-26).
