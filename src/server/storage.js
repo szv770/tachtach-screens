@@ -4,12 +4,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { SECRET_FILES, SECRET_FILE_MODE, DATA_DIR_MODE, tightenDataPermissions } from './dataPerms.js';
 import { renameWithRetry } from './platform.js';
+import { dataDir } from './dataDir.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.resolve(__dirname, '../..');
-// TACHTACH_DATA_DIR lets the tests use a scratch folder; nothing sets it in production.
-const DATA_DIR = process.env.TACHTACH_DATA_DIR ? path.resolve(process.env.TACHTACH_DATA_DIR) : path.join(PROJECT_ROOT, 'data');
+// TACHTACH_DATA_DIR lets the tests use a scratch folder; nothing sets it in production (see dataDir.js).
+const DATA_DIR = dataDir();
 
 // Simple file-level locking to prevent concurrent write corruption
 const fileLocks = new Map();
@@ -122,6 +120,25 @@ export async function updateJSON(filename, fn, fallback = null) {
     return next;
   } finally {
     releaseLock(filename, unlock);
+  }
+}
+
+/**
+ * Safe write for a file that is NOT a data/*.json document (RSS cache, Google Photos manifests):
+ * tmp file + fsync + rename, so a power cut never leaves a half-written file. `absPath` must be inside the data dir.
+ */
+export async function writeFileAtomic(absPath, data) {
+  await mkdir(path.dirname(absPath), { recursive: true });
+  const tmpPath = absPath + '.tmp';
+  const fh = await open(tmpPath, 'w');
+  try { await fh.writeFile(data, 'utf-8'); await fh.sync(); } finally { await fh.close(); }
+  try {
+    await renameWithRetry(tmpPath, absPath);
+  } catch (err) {
+    if (err.code === 'EPERM' || err.code === 'EBUSY') { // Windows/OneDrive lock: same fallback as writeLocked
+      await writeFile(absPath, data, 'utf-8');
+      await unlink(tmpPath).catch(() => {});
+    } else throw err;
   }
 }
 

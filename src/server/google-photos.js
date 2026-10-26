@@ -8,11 +8,13 @@ import { isGooglePhotoHost } from './urlRules.js';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchGooglePhotosAlbum, extractAlbumId } from '../fetchers/google-photos.js';
 import { broadcast } from './sse.js';
+import { dataPath } from './dataDir.js';
+import { writeFileAtomic } from './storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const GP_DIR = path.join(PROJECT_ROOT, 'data/google-photos');
+const GP_DIR = dataPath('google-photos');
 
 // Default cap on photos kept per album. Was a hard 200, which silently cut
 // bigger albums. Each album can now set its own `maxPhotos` (0 = no cap);
@@ -65,10 +67,10 @@ export async function readManifest(albumId) {
 /**
  * Write the manifest for an album.
  */
-async function writeManifest(albumId, data) {
+export async function writeManifest(albumId, data) {
   await mkdir(GP_DIR, { recursive: true });
   const manifestPath = path.join(GP_DIR, `${albumId}.json`);
-  await writeFile(manifestPath, JSON.stringify(data, null, 2), 'utf-8');
+  await writeFileAtomic(manifestPath, JSON.stringify(data, null, 2));
 }
 
 /**

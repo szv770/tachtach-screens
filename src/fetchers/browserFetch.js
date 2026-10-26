@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { dataPath } from '../server/dataDir.js';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +25,7 @@ const PROJECT_ROOT = path.resolve(__dirname, '../..');
 // keeps it working however the process is sandboxed (or if the updated unit
 // never got installed). HOME/XDG_* are pointed at data/ too since
 // ProtectHome=read-only blocks ~/.config, ~/.cache, ~/.pki (non-fatal, but noisy).
-const ROOT = path.join(PROJECT_ROOT, 'data', '.puppeteer-tmp');
+const ROOT = dataPath('.puppeteer-tmp');
 const PROFILE_ROOT = path.join(ROOT, 'profiles');
 const DATA_TMP_DIR = path.join(ROOT, 't'); // kept short — see pickTmpDir()
 const HOME_DIR = path.join(ROOT, 'home');

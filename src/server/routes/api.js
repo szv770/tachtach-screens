@@ -40,9 +40,10 @@ import { getStateExtras } from '../announcements-store.js';
 import { fetchWeather } from '../../fetchers/weather.js';
 import { describeWeather } from '../../shared/weatherCodes.js';
 
+import { dataPath } from '../dataDir.js';
 const __apiFilename = fileURLToPath(import.meta.url);
 const __apiDirname = path.dirname(__apiFilename);
-const FONTS_DIR = path.resolve(__apiDirname, '../../../data/fonts');
+const FONTS_DIR = dataPath('fonts');
 await mkdir(FONTS_DIR, { recursive: true });
 
 // Font upload multer instance
@@ -751,7 +752,7 @@ router.post('/logo', (req, res, next) => {
     const ext = sniffed.ext;
     const id = uuidv4();
     const filename = `logo-${id}${ext}`;
-    const uploadsDir = path.resolve(__apiDirname, '../../../data/uploads');
+    const uploadsDir = dataPath('uploads');
 
     // Delete any previous logo files
     try {
@@ -776,7 +777,7 @@ router.post('/logo', (req, res, next) => {
 
 router.delete('/logo', async (req, res) => {
   try {
-    const uploadsDir = path.resolve(__apiDirname, '../../../data/uploads');
+    const uploadsDir = dataPath('uploads');
     const existing = await readdir(uploadsDir);
     for (const f of existing) {
       if (f.startsWith('logo-')) {
@@ -1246,7 +1247,7 @@ router.delete('/rss/feeds/:id', async (req, res) => {
 
     try {
       const { unlink: unlinkFile } = await import('fs/promises');
-      const cachePath = path.resolve(__apiDirname, `../../../data/rss-cache/${req.params.id}.json`);
+      const cachePath = dataPath('rss-cache', `${req.params.id}.json`);
       await unlinkFile(cachePath);
     } catch (e) {
       if (e.code !== 'ENOENT') console.error('[api] RSS cache cleanup error:', e.message);
@@ -1281,7 +1282,7 @@ router.get('/rss/cache/:feedId', async (req, res) => {
   try {
     const { readFile: rf } = await import('fs/promises');
     if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId))) return res.status(400).json({ error: 'Bad feed id.' });
-    const filePath = path.resolve(__apiDirname, `../../../data/rss-cache/${req.params.feedId}.json`);
+    const filePath = dataPath('rss-cache', `${req.params.feedId}.json`);
     const raw = await rf(filePath, 'utf-8');
     res.json(JSON.parse(raw));
   } catch (err) {

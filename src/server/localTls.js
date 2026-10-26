@@ -18,12 +18,13 @@ import { promisify } from 'util';
 import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { tightenDataPermissions } from './dataPerms.js';
 import { opensslCommand } from './platform.js';
+import { dataDir, dataPath } from './dataDir.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const run = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const DIR = path.join(ROOT, 'data', 'tls');
+const DIR = dataPath('tls');
 const KEY = path.join(DIR, 'localhost.key');
 const CRT = path.join(DIR, 'localhost.crt');
 
@@ -51,7 +52,7 @@ export async function ensureLocalCert() {
       ], { timeout: 30000, windowsHide: true, ...(ossl.env ? { env: ossl.env } : {}) });
       console.log('[tls] Generated a local kiosk certificate in data/tls/');
     }
-    tightenDataPermissions({ dataDir: path.join(ROOT, 'data') }); // the private key must be 0600
+    tightenDataPermissions({ dataDir: dataDir() }); // the private key must be 0600
     return { key: readFileSync(KEY), cert: readFileSync(CRT) };
   } catch (err) {
     console.warn(`[tls] Local HTTPS is unavailable (${err.message.split('\n')[0]}); the kiosk will use plain http.`);

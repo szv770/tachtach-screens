@@ -9,12 +9,13 @@ import { readFile, readdir, writeFile, mkdir, rm } from 'fs/promises';
 import { renameWithRetry as rename } from './platform.js';
 import { createHash } from 'crypto';
 import path from 'path';
+import { dataPath } from './dataDir.js';
 import { fileURLToPath } from 'url';
 import { PACK_FORMAT, validateDaysFile, validatePerpetual, validateWeekly, daysAhead, PACK_CREDIT, PACK_LICENCE_NOTE } from '../shared/dataPack.js';
 import { verifyPackFiles, packFileNameOk } from '../shared/dataPackBuild.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_DIR = path.join(path.resolve(__dirname, '../..'), 'data', 'pack');
+const DEFAULT_DIR = dataPath('pack');
 
 let dir = process.env.TACHTACH_PACK_DIR || DEFAULT_DIR;
 let manifest;           // undefined = not loaded, null = none

@@ -3,13 +3,14 @@ import multer from 'multer';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import { dataPath } from './dataDir.js';
 import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir, writeFile, stat } from 'fs/promises';
 import { extraPagesIn } from '../shared/pdfPages.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-export const UPLOAD_DIR = path.resolve(__dirname, '../../data/uploads');
+export const UPLOAD_DIR = dataPath('uploads');
 
 await mkdir(UPLOAD_DIR, { recursive: true });
 

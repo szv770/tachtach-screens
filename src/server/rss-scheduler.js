@@ -2,12 +2,13 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { fetchRSSFeed } from '../fetchers/rss.js';
-import { readJSON, writeJSON, updateJSON, SKIP } from './storage.js';
+import { readJSON, writeJSON, updateJSON, SKIP, writeFileAtomic } from './storage.js';
+import { dataPath } from './dataDir.js';
 import { broadcast } from './sse.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const RSS_CACHE_DIR = path.resolve(__dirname, '../../data/rss-cache');
+const RSS_CACHE_DIR = dataPath('rss-cache');
 
 // Ensure cache directory exists
 await mkdir(RSS_CACHE_DIR, { recursive: true });
@@ -21,6 +22,11 @@ const INTERVALS = {
   every6hours: 6 * 60 * 60 * 1000,
   daily: 24 * 60 * 60 * 1000,
 };
+
+/** Write one feed's cache file (tmp + fsync + rename, like every other data file). */
+export async function writeRssCache(feedId, cacheData) {
+  await writeFileAtomic(path.join(RSS_CACHE_DIR, `${feedId}.json`), JSON.stringify(cacheData, null, 2));
+}
 
 /**
  * Fetch a single RSS feed, cache its items, and update the feed metadata.
@@ -37,8 +43,7 @@ export async function refreshRSSFeed(feed) {
     };
 
     // Write cache file
-    const cachePath = path.join(RSS_CACHE_DIR, `${feed.id}.json`);
-    await writeFile(cachePath, JSON.stringify(cacheData, null, 2), 'utf-8');
+    await writeRssCache(feed.id, cacheData);
 
     // Update feed metadata (lastFetched, itemCount)
     await updateJSON('rss-feeds.json', (feeds) => {

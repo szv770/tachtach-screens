@@ -12,6 +12,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { readJSON, writeJSON, updateJSON, SKIP } from './storage.js';
 import { broadcast } from './sse.js';
+import { dataDir } from './dataDir.js';
 import {
   messageToItem, pinnedToItem, slideToItem, isLegacyTextSlide, refRowFor,
   legacyMessagesFrom, legacyPinnedFrom,
@@ -19,7 +20,7 @@ import {
 import { DEFAULT_TZ, archiveDaysFrom, shouldPurge } from '../shared/announcements.js';
 
 const __filename = fileURLToPath(import.meta.url);
-const DATA_DIR = path.resolve(path.dirname(__filename), '../../data');
+const DATA_DIR = dataDir();
 const LEGACY_DIR = path.join(DATA_DIR, 'legacy');
 const FILE = 'announcements.json';
 

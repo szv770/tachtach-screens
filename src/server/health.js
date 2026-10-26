@@ -9,6 +9,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { X509Certificate } from 'crypto';
 import { readJSON } from './storage.js';
+import { dataDir } from './dataDir.js';
 import { getScreenState } from './screenState.js';
 import { getKioskClientCount, getKioskLastSeenAt } from './sse.js';
 import { getAlbumStatus } from './google-photos.js';
@@ -20,7 +21,7 @@ import { ntpStatusCommand, parseNtpStatus } from './platform.js';
 
 const run = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const DATA = path.join(ROOT, 'data');
+const DATA = dataDir();
 
 /** What the Home card and the health page both read: is a real screen connected, and what is it on. */
 export function screenStatus() {

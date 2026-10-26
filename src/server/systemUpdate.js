@@ -24,6 +24,7 @@ import { platformChildEnv, gitSafeDirectoryArgs, updateStateDir } from './platfo
 
 const run = promisify(execFile);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+// Intentionally NOT dataDir(): the root update helper contract needs the fixed <project>/data (see dataDir.js).
 const DATA = path.join(ROOT, 'data');
 const CACHE_GIT = path.join(DATA, 'update-cache.git');
 const GIT_TIMEOUT_MS = 20_000;

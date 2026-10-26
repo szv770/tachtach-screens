@@ -46,6 +46,7 @@ import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
+import { dataPath } from './dataDir.js';
 import { broadcastToPreview } from './sse.js';
 import { getScreenState, setScreenState, getScreenDisplay, followPayload } from './screenState.js';
 import { initGooglePhotosSync } from './google-photos.js';
@@ -359,7 +360,7 @@ export function createApp() {
       // Feed ids are plain tokens; anything with a dot or slash (..%2Fusers) is refused.
       // CON/NUL/COM1... are devices on Windows (docs/windows/AUDIT.md A15); real ids are never those.
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(String(req.params.feedId)) || isWindowsReservedName(req.params.feedId)) return res.status(400).json({ error: 'Bad feed id.' });
-      const filePath = path.join(PROJECT_ROOT, 'data', 'rss-cache', `${req.params.feedId}.json`);
+      const filePath = dataPath('rss-cache', `${req.params.feedId}.json`);
       const raw = await rf(filePath, 'utf-8');
       res.json(JSON.parse(raw));
     } catch (err) {
@@ -405,7 +406,7 @@ export function createApp() {
     app.use(express.static(DIST_DIR, { maxAge: '7d' }));
 
     // Serve uploaded fonts
-    app.use('/fonts', express.static(path.join(PROJECT_ROOT, 'data/fonts'), {
+    app.use('/fonts', express.static(dataPath('fonts'), {
       maxAge: '30d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -414,7 +415,7 @@ export function createApp() {
     }));
 
     // Serve uploaded images with safe content-type restrictions
-    app.use('/uploads', express.static(path.join(PROJECT_ROOT, 'data/uploads'), {
+    app.use('/uploads', express.static(dataPath('uploads'), {
       maxAge: '7d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -423,7 +424,7 @@ export function createApp() {
     }));
 
     // Serve Google Photos cached images
-    app.use('/google-photos', express.static(path.join(PROJECT_ROOT, 'data/google-photos'), {
+    app.use('/google-photos', express.static(dataPath('google-photos'), {
       maxAge: '1d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -446,7 +447,7 @@ export function createApp() {
     });
   } else {
     // Serve uploaded fonts (dev mode)
-    app.use('/fonts', express.static(path.join(PROJECT_ROOT, 'data/fonts'), {
+    app.use('/fonts', express.static(dataPath('fonts'), {
       maxAge: '30d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -455,7 +456,7 @@ export function createApp() {
     }));
 
     // Serve uploaded images (dev mode) with safe content-type restrictions
-    app.use('/uploads', express.static(path.join(PROJECT_ROOT, 'data/uploads'), {
+    app.use('/uploads', express.static(dataPath('uploads'), {
       maxAge: '7d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -464,7 +465,7 @@ export function createApp() {
     }));
 
     // Serve Google Photos cached images (dev mode)
-    app.use('/google-photos', express.static(path.join(PROJECT_ROOT, 'data/google-photos'), {
+    app.use('/google-photos', express.static(dataPath('google-photos'), {
       maxAge: '1d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');

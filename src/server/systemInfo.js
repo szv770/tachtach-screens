@@ -9,6 +9,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { dataDir as defaultDataDir } from './dataDir.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const startedAt = new Date(Date.now() - Math.round(process.uptime() * 1000)).toISOString();
@@ -105,7 +106,7 @@ function packageVersion() {
 }
 
 /** Gather the real facts and build. `dataDir` is only used to ask the disk for free space; it is never returned. */
-export async function gatherSystemInfo({ settings = {}, dataDir = path.join(ROOT, 'data') } = {}) {
+export async function gatherSystemInfo({ settings = {}, dataDir = defaultDataDir() } = {}) {
   let deviceModel = '';
   let osRelease = '';
   if (process.platform === 'linux') {

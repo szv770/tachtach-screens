@@ -3,13 +3,14 @@ import { fileURLToPath } from 'url';
 import { readdir, unlink, stat, rmdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { readJSON } from './storage.js';
+import { dataDir } from './dataDir.js';
 import { uploadFilesFromSettings, isFileReferenced } from '../shared/uploadRefs.js';
 import { purgeArchived } from './announcements-store.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '../..');
-const DATA_DIR = path.join(PROJECT_ROOT, 'data');
+const DATA_DIR = dataDir();
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const GP_DIR = path.join(DATA_DIR, 'google-photos');
 
