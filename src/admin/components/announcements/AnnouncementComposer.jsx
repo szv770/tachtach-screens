@@ -11,7 +11,8 @@ import {
   isoToLocalInput, localInputToIso, parseTimeInput, timeToDisplay, minutesLabel, endOfDay,
   emptyItem, withDefaults, LAYOUT_LABEL,
 } from './helpers.js';
-import { findTakeoverConflicts, hasText, formatWhen, recurrenceLabel, describeTiming } from '../../../shared/announcements.js';
+import { findTakeoverConflicts, hasText, formatWhen, recurrenceLabel, describeTiming, TAKEOVER_TURNS_GROUP, DEFAULT_TAKEOVER_ROTATE_SEC, MIN_TAKEOVER_ROTATE_SEC, MAX_TAKEOVER_ROTATE_SEC } from '../../../shared/announcements.js';
+import { NumberField } from '../ui.jsx';
 import { lockScroll } from '../ui/scrollLock.js';
 
 // ── Small building blocks ───────────────────────────────────────────────────
@@ -31,7 +32,7 @@ function Section({ title, children, hint }) {
 
 const isHeb = (v) => /[\u0590-\u05FF]/.test(String(v || ''));
 
-function Chip({ active, onClick, children, disabled, title, ariaPressed = true }) {
+function Chip({ active, onClick, children, disabled, title, ariaPressed = true, style }) {
   return (
     <button
       type="button"
@@ -44,7 +45,7 @@ function Chip({ active, onClick, children, disabled, title, ariaPressed = true }
         border: `1px solid ${active ? colors.gold : colors.border}`,
         background: active ? colors.goldBg : 'transparent',
         color: disabled ? colors.muted : active ? colors.gold : colors.text,
-        fontFamily: adminFonts.englishBody, fontSize: '14px', opacity: disabled ? 0.55 : 1, whiteSpace: 'nowrap',
+        fontFamily: adminFonts.englishBody, fontSize: '14px', opacity: disabled ? 0.55 : 1, whiteSpace: 'nowrap', ...style,
       }}
     >
       {children}
@@ -640,6 +641,28 @@ export default function AnnouncementComposer({
     </Section>
   );
 
+  // Takeovers that share a group take turns full screen (audit E-06/E-07). One fixed group name, so there is nothing to type.
+  const takesTurns = !!item.takeover.group;
+  const takeoverSection = d === 'takeover' && (
+    <Section title="If more than one takeover is on" hint="Normally only the newest takeover shows and it covers the others. Turn this on for takeovers that should each get a turn.">
+      <Chip active={takesTurns} style={{ minHeight: '44px' }} onClick={() => set('takeover.group', takesTurns ? null : TAKEOVER_TURNS_GROUP)}>
+        {takesTurns ? '✓ ' : ''}Take turns with other takeovers
+      </Chip>
+      {takesTurns && (
+        <label style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginTop: '12px', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim }}>
+          Change every
+          <NumberField
+            value={item.takeover.rotateSec ?? DEFAULT_TAKEOVER_ROTATE_SEC} min={MIN_TAKEOVER_ROTATE_SEC} max={MAX_TAKEOVER_ROTATE_SEC}
+            ariaLabel="Seconds each takeover stays on screen when taking turns" onCommit={(n) => set('takeover.rotateSec', n)}
+            style={{ width: '72px', minHeight: '44px', textAlign: 'center' }}
+          />
+          seconds (standard {DEFAULT_TAKEOVER_ROTATE_SEC}, allowed {MIN_TAKEOVER_ROTATE_SEC} to {MAX_TAKEOVER_ROTATE_SEC})
+        </label>
+      )}
+      <p style={{ ...label, marginTop: '8px', color: colors.muted }}>Only takeovers with this turned on take turns with each other. The one that starts first goes first.</p>
+    </Section>
+  );
+
   const holdSection = d === 'slide' && (
     <Section title="While this is showing">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -780,6 +803,7 @@ export default function AnnouncementComposer({
       <Section title="Text" hint={usesLayout && layout !== 'classic' ? 'Text grows to fill the screen: a few words show huge.' : undefined}>{textFields}</Section>
       {bannerSection}
       {lookSection}
+      {takeoverSection}
       {holdSection}
       {isMobile && <section style={{ padding: '16px 0', borderTop: `1px solid ${colors.border}` }}>{previewBlock}</section>}
       {whenSection}

@@ -28,22 +28,14 @@
   },
   "announcement": {
     "look.maxFontPx": {
-      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
-      "expires": "2026-12-31"
+      "reason": "audit E-05 said 'read', but nothing in the kiosk reads it (toLegacyTakeover is unused; TakeoverStage only uses it as a cache key): a control would do nothing. Wire the kiosk fit first.",
+      "expires": "2027-03-31"
     },
     "note.icon": {
-      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
-      "expires": "2026-12-31"
-    },
-    "note.order": {
-      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
-      "expires": "2026-12-31"
+      "reason": "audit E-08 said 'read', but PinnedNotes.jsx never draws the icon: a control would do nothing. Draw it on the kiosk first.",
+      "expires": "2027-03-31"
     },
     "priority": {
-      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
-      "expires": "2026-12-31"
-    },
-    "takeover.rotateSec": {
       "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
       "expires": "2026-12-31"
     }

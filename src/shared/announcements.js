@@ -31,6 +31,10 @@ export const DISPLAYS = ['slide', 'banner', 'note', 'takeover'];
 export const STATUSES = ['draft', 'live', 'scheduled', 'paused', 'archived'];
 export const DEFAULT_ARCHIVE_DAYS = 30;
 export const DEFAULT_TAKEOVER_ROTATE_SEC = 10;
+/** The one group name the composer's "Take turns with other takeovers" switch stores (takeover.group). */
+export const TAKEOVER_TURNS_GROUP = 'turns';
+export const MIN_TAKEOVER_ROTATE_SEC = 3;
+export const MAX_TAKEOVER_ROTATE_SEC = 300;
 
 const DAY_ALIASES = {
   sun: 0, sunday: 0, mon: 1, monday: 1, tue: 2, tues: 2, tuesday: 2,
@@ -355,9 +359,30 @@ export function findTakeoverConflicts(candidate, items, now = new Date(), opts =
     if (!o || o.id === candidate.id || o.display !== 'takeover') return false;
     const st = status(o, now, opts);
     if (st !== 'live' && st !== 'scheduled') return false;
+    // Takeovers that share a group take turns on purpose, so overlapping is not a conflict between them.
+    if (candidate.takeover?.group && candidate.takeover.group === o.takeover?.group) return false;
     const r = span(o, nowMs);
     return c.s < r.e && r.s < c.e;
   });
+}
+
+/**
+ * Side-note order: the notes as the screen sorts them (note.order, then oldest first), and the
+ * `{ id, order }` writes that move one note up or down by one place. Only notes whose number
+ * has to change are returned (numbers become 0, 1, 2 ... in the new order).
+ * @param {object[]} notes announcements with display 'note'
+ * @returns {{ ordered: object[], moves: {id:string, order:number}[] }}
+ */
+export function moveNote(notes, id, dir) {
+  const byCreated = (a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || ''));
+  const ordered = [...(notes || [])].sort((a, b) => (Number(a.note?.order) || 0) - (Number(b.note?.order) || 0) || byCreated(a, b));
+  const i = ordered.findIndex((n) => n.id === id);
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (i < 0 || j < 0 || j >= ordered.length) return { ordered, moves: [] };
+  const next = [...ordered];
+  [next[i], next[j]] = [next[j], next[i]];
+  const moves = next.map((n, idx) => ({ id: n.id, order: idx })).filter((m) => (Number(ordered.find((n) => n.id === m.id).note?.order) || 0) !== m.order);
+  return { ordered: next, moves };
 }
 
 // ── Formatting (admin summaries) ────────────────────────────────────────────

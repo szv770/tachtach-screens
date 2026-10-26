@@ -6,7 +6,7 @@ import Collapsible from '../ui/Collapsible.jsx';
 import KiddushLevanaCard from './KiddushLevanaCard.jsx';
 import { DISPLAY_LABEL, LAYOUT_LABEL, STYLE_OPTIONS, minutesLabel, endOfDay, isoToLocalInput, localInputToIso } from './helpers.js';
 import {
-  status as statusOf, describeTiming, primaryText, archiveDaysFrom, formatWhen, layoutOf,
+  status as statusOf, describeTiming, primaryText, archiveDaysFrom, formatWhen, layoutOf, moveNote,
 } from '../../../shared/announcements.js';
 
 const TABS = [
@@ -100,10 +100,10 @@ function MiniPreview({ item }) {
   );
 }
 
-function ActionButton({ children, onClick, danger, title }) {
+function ActionButton({ children, onClick, danger, title, disabled }) {
   return (
-    <button type="button" onClick={onClick} title={title} style={{
-      ...buttonSecondary, padding: '6px 12px', minHeight: '38px', fontSize: '13px',
+    <button type="button" onClick={onClick} title={title} disabled={disabled} style={{
+      ...buttonSecondary, padding: '6px 12px', minHeight: '44px', fontSize: '13px', opacity: disabled ? 0.5 : 1,
       color: danger ? colors.danger : colors.text, borderColor: danger ? colors.danger : colors.border,
     }}>{children}</button>
   );
@@ -150,6 +150,17 @@ export default function AnnouncementsPanel({
     });
 
   const archiveDays = archiveDaysFrom(settings);
+
+  // Side notes: the screen shows at most two, in note.order (audit E-09). Up / Down renumbers only the notes that change.
+  const liveNotes = useMemo(() => withStatus.filter((r) => r.st === 'live' && r.item.display === 'note').map((r) => r.item), [withStatus]);
+  const noteRank = useMemo(() => new Map(moveNote(liveNotes, '', 'up').ordered.map((n, i) => [n.id, i])), [liveNotes]);
+  const [moving, setMoving] = useState(false);
+  const shiftNote = async (id, dir) => {
+    const { moves } = moveNote(liveNotes, id, dir);
+    if (!moves.length) return;
+    setMoving(true);
+    try { for (const m of moves) await onUpdate(m.id, { note: { order: m.order } }, 'Side note moved'); } finally { setMoving(false); }
+  };
 
   return (
     <div>
@@ -227,6 +238,15 @@ export default function AnnouncementsPanel({
               <ActionButton onClick={() => onOpenComposer(item)}>{st === 'draft' ? 'Edit / Post' : 'Edit'}</ActionButton>
               {(st === 'live' || st === 'scheduled') && (
                 <ActionButton onClick={() => onUpdate(item.id, { enabled: false }, 'Paused')}>Pause</ActionButton>
+              )}
+              {st === 'live' && item.display === 'note' && liveNotes.length > 1 && (
+                <>
+                  <ActionButton title="Show this side note earlier" onClick={() => shiftNote(item.id, 'up')} disabled={moving || noteRank.get(item.id) === 0}>Move up</ActionButton>
+                  <ActionButton title="Show this side note later" onClick={() => shiftNote(item.id, 'down')} disabled={moving || noteRank.get(item.id) === liveNotes.length - 1}>Move down</ActionButton>
+                  <span style={{ alignSelf: 'center', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim }}>
+                    Side note {(noteRank.get(item.id) ?? 0) + 1} of {liveNotes.length}{(noteRank.get(item.id) ?? 0) >= 2 ? ' (waits its turn: 2 show at once)' : ''}
+                  </span>
+                </>
               )}
               {st === 'paused' && <ActionButton onClick={() => onUpdate(item.id, { enabled: true }, 'Resumed')}>Resume</ActionButton>}
               {st !== 'draft' && <ActionButton onClick={() => setAgain(item)} title="Show it again from now">Again…</ActionButton>}
