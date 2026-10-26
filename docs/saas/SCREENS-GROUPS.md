@@ -494,3 +494,12 @@ SaaS-fit:
 ```
 
 No module-level org state: the per-screen state map and SSE pools are keyed by `(orgId, screenId)` once `ctx` exists (N14). No hard-coded site values: "Main screen" is neutral product wording.
+
+---
+
+## Owner decisions (2026-10-26)
+
+1. **Second screens before the cloud (Q5): YES, one narrow door.** A per-screen hashed device token through the existing tunnel, allowed to fetch ONLY its own screen's content (GET allow-list, like the live-view gate; no writes, no admin, no other screen's data). Needs its own security review, rate limits, revocation, and a CLAUDE.md update of the "deliberate public exceptions" rule when built (G3).
+2. **Groups (Q1):** keep it to ONE group per screen in normal use ("crazy busy" otherwise). BUT access scope is independent of groups: a person can be given access to specific screens (or any mix of groups + individual screens) without those screens being in any of their groups, e.g. a few principals may post to the Lobby screen only. So scope = list of groups and/or individual screens. A message can still target several groups and single screens.
+3. **Targeting (Q3): as much as possible, sketched and scoped, not all built now.** Build messages + slides first (G2-G4); document the extension path for schedule groups, daily content, freeze, themes, etc. as later phases in this doc's roadmap.
+4. **Limited editors (Q7): same abilities as a normal editor, but only for their screens.** Still never org-wide settings: people/team, roster/chazan (student names), org settings, and anything not tied to a screen stay out of reach unless the person also has an org-wide role; security review (G5) must test escalation (scope edit via direct API calls, IDs of other screens, bulk endpoints, undo/history, live-view).
