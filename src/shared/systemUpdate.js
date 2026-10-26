@@ -9,9 +9,9 @@ export const UPDATE_STATES = Object.freeze(['idle', 'running', 'success', 'faile
 export const REQUEST_FILE = 'update-request.json';
 export const STATUS_FILE = 'update-status.json';
 export const INSTALLED_FILE = 'update-installed.json';
-/** At most one request per this long, so a stolen session cannot hammer the Pi. */
+/** At most one request per this long, so a stolen session cannot hammer the server. */
 export const REQUEST_MIN_GAP_MS = 5 * 60 * 1000;
-/** A request file older than this is ignored by the Pi (and treated as gone here). */
+/** A request file older than this is ignored by the server (and treated as gone here). */
 export const REQUEST_MAX_AGE_MS = 10 * 60 * 1000;
 /** A 'running' status this old means the run died without saying so. */
 export const RUNNING_STALE_MS = 30 * 60 * 1000;

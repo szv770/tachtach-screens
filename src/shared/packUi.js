@@ -19,7 +19,7 @@ const longDate = (iso) => {
 
 /** { tone: ok|warn|bad|info, headline, detail } for the pack itself. */
 export function packSummary(pack) {
-  if (!pack?.present) return { tone: 'info', headline: 'No data pack installed', detail: 'Upload a pack file, or build one on this Pi, before you switch to Local.' };
+  if (!pack?.present) return { tone: 'info', headline: 'No data pack installed', detail: 'Upload a pack file, or build one on this server, before you switch to Local.' };
   const until = longDate(pack.to);
   if (pack.level === 'expired') return { tone: 'bad', headline: `Data pack ended on ${until}`, detail: 'Today is past the end of the pack. Refresh it now (Build / refresh on this Pi) or upload a newer one.' };
   if (pack.level === 'soon') return { tone: 'warn', headline: `Covers until ${until}`, detail: `Only ${pack.daysLeft} day${pack.daysLeft === 1 ? '' : 's'} left. Refresh it soon: it takes about an hour and does not disturb the screen.` };

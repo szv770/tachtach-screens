@@ -168,6 +168,6 @@ export function updateStateDir({ platform = process.platform, env = process.env,
   return path.win32.join(envGet(env, 'ProgramData') || 'C:\\ProgramData', 'TachTach', 'updater');
 }
 
-const NOT_INSTALLED_LINUX = 'Not set up on this Pi yet. Run deploy/update.sh once by hand, then try again.';
+const NOT_INSTALLED_LINUX = 'Not set up on this server yet. Run deploy/update.sh once by hand, then try again.';
 const NOT_INSTALLED_WINDOWS = 'Not set up on this computer yet. Run deploy\\windows\\install.ps1 as administrator, then try again.';
 export const updateNotInstalledMessage = ({ platform = process.platform } = {}) => (isWindows(platform) ? NOT_INSTALLED_WINDOWS : NOT_INSTALLED_LINUX);

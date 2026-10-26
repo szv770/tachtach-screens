@@ -651,7 +651,7 @@ router.get('/weather/preview', async (req, res) => {
       hi: w.today?.hi ?? null, lo: w.today?.lo ?? null, fetchedAt: w.fetchedAt,
     });
   } catch (err) {
-    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${networkReason(err)}. Check the zip code and that the Pi is online.` });
+    res.json({ ok: false, zip, error: `Couldn't get the weather for ${zip}: ${networkReason(err)}. Check the zip code and that the server is online.` });
   }
 });
 

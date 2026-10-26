@@ -165,7 +165,7 @@ function friendlyGitError(e) {
   const m = String(e?.stderr || e?.message || '');
   if (e?.killed || /timed? ?out/i.test(m)) return 'Could not reach the code host in time. Check the internet connection and try again.';
   if (/could not resolve|unable to access|network|connection/i.test(m)) return 'Could not reach the code host. Check the internet connection and try again.';
-  if (/authentication|permission denied|403|401/i.test(m)) return 'The code host did not accept this Pi\'s access. The update needs git access to be set up.';
+  if (/authentication|permission denied|403|401/i.test(m)) return 'The code host did not accept this server\'s access. The update needs git access to be set up.';
   return 'Could not check for updates right now.';
 }
 

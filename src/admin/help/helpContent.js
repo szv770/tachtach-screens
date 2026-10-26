@@ -77,17 +77,17 @@ export const TOPICS = [
   { id: 'health', title: 'Is everything working? (System health)', go: 'health',
     body: ['Home → System health. Green means fine, amber means keep an eye on it, red means do something.', 'It checks the screen is connected, the zmanim and other data are fresh, news feeds and photo albums synced, disk space, the clock and more, with a plain-English fix. Buttons only appear for fixes you are allowed to run.'] },
   { id: 'update-screen', title: 'How do I update the screen?', go: 'health',
-    body: ['Admins only: Home → System health → Software update. Press Check for updates, then Update now.', 'You type your password again (and the 6-digit code from your authenticator app). The Pi then downloads the new version, rebuilds and restarts: the screen goes blank for about a minute and this page follows along. If the new version fails to start, the old one is put back by itself.', 'Roll back to previous version undoes the last update. The very first time, the Pi must be updated by hand once (run deploy/update.sh on it) so this button gets installed; the card says so if that is still needed.'] },
+    body: ['Admins only: Home → System health → Software update. Press Check for updates, then Update now.', 'You type your password again (and the 6-digit code from your authenticator app). The server then downloads the new version, rebuilds and restarts: the screen goes blank for about a minute and this page follows along. If the new version fails to start, the old one is put back by itself.', 'Roll back to previous version undoes the last update. The very first time, the server must be updated by hand once (run deploy/update.sh on it) so this button gets installed; the card says so if that is still needed.'] },
   { id: 'team-activity', title: 'See who changed what', go: 'team',
     body: ['Team → Activity lists what each person did and when, newest first. Use the person box to see just one person.', 'Announcements also show "Posted by" and "edited by" under each message.', 'Remove or sign out someone from Team → Manage. Their access stops straight away.'] },
   { id: 'phone', title: 'Open the admin from my phone', go: 'this-screen',
-    body: ['On the same Wi-Fi, go to http://<the Pi\'s address>:3000/admin.', 'At the TV itself: tap the top-left corner 5 times quickly to get the login box.'] },
+    body: ['On the same Wi-Fi, go to http://<the server\'s address>:3000/admin.', 'At the TV itself: tap the top-left corner 5 times quickly to get the login box.'] },
   { id: 'tv-wrong', title: 'The TV looks wrong or stuck', go: 'this-screen',
-    body: ['Try Refresh Data under the preview first.', 'If the picture itself is broken, the screen restarts itself every few hours and also when it detects a graphics problem. You can force it with: sudo systemctl restart tachtach-kiosk (on the Pi).'] },
+    body: ['Try Refresh Data under the preview first.', 'If the picture itself is broken, the screen restarts itself every few hours and also when it detects a graphics problem. You can force it with: sudo systemctl restart tachtach-kiosk (on the Raspberry Pi; on a Windows PC use the TachTach Kiosk task).'] },
   { id: 'update', title: 'Get the newest version', go: 'this-screen',
-    body: ['On the Pi run: bash ~/tachtach-screens/deploy/update.sh. Your messages, schedule and settings are kept.'] },
+    body: ['On the server run: bash ~/tachtach-screens/deploy/update.sh. Your messages, schedule and settings are kept.'] },
   { id: 'password', title: 'I forgot the password or lost my authenticator', go: 'team',
-    body: ['If you are an admin and another admin is still signed in, they can use Team → Manage → Sign-in link / Reset 2-step for you. Editors: ask an admin.', 'If nobody can get in, on the Pi run: npm run reset-admin (inside the tachtach-screens folder). It resets the password and 2-step code without erasing anything.', 'Never run setup.js again: it wipes your data.'] },
+    body: ['If you are an admin and another admin is still signed in, they can use Team → Manage → Sign-in link / Reset 2-step for you. Editors: ask an admin.', 'If nobody can get in, on the server run: npm run reset-admin (inside the tachtach-screens folder). It resets the password and 2-step code without erasing anything.', 'Never run setup.js again: it wipes your data.'] },
 ];
 
 /** First-visit tour: short, with a button that jumps to each place. */

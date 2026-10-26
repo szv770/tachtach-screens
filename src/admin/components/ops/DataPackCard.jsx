@@ -146,7 +146,7 @@ export default function DataPackCard({ me }) {
           </div>
 
           <div style={{ display: 'grid', gap: '10px', paddingTop: '12px', borderTop: `1px solid ${colors.line}` }}>
-            <h3 style={h3}>Build / refresh on this Pi</h3>
+            <h3 style={h3}>Build / refresh on this server</h3>
             <div style={small}>Collects the texts from Chabad.org politely (one request at a time, with pauses; it can take an hour or more) and installs the result. It keeps what it already has and only fetches what is new, and you can stop it and carry on later. The screen keeps working meanwhile.</div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <label style={{ ...small, display: 'flex', alignItems: 'center', gap: 8 }}>Cover
@@ -156,7 +156,7 @@ export default function DataPackCard({ me }) {
               </label>
               {running
                 ? <button type="button" data-testid="pack-cancel" style={btn} onClick={cancel}>Stop</button>
-                : <button type="button" data-testid="pack-build" disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.55 : 1 }} onClick={startBuild}>Build / refresh on this Pi</button>}
+                : <button type="button" data-testid="pack-build" disabled={busy} style={{ ...btnPrimary, opacity: busy ? 0.55 : 1 }} onClick={startBuild}>Build / refresh on this server</button>}
             </div>
             {job && job.state !== 'idle' && (
               <div data-testid="pack-job" data-state={job.state} role="status" style={{ display: 'grid', gap: '6px' }}>

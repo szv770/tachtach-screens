@@ -66,12 +66,12 @@ button{width:100%;min-height:52px;border-radius:14px;border:0;background:var(--a
 .dot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#c0392b;margin-right:8px}small{color:var(--dim)}
 </style></head><body><main>
 <h1><span class="dot"></span>Can't reach the screen box</h1>
-<p>${reason === 'device' ? 'This phone has no internet right now.' : 'The TachTach box (the Raspberry Pi) isn\'t answering. The TV may be showing its last screen, or be off.'}</p>
+<p>${reason === 'device' ? 'This phone has no internet right now.' : 'The TachTach server isn\'t answering. The TV may be showing its last screen, or be off.'}</p>
 <button id="retry">Try again</button>
 <p style="margin-top:8px"><small id="st">Checking again every few seconds.</small></p>
 <div class="card"><h2>What to check</h2><ol>
-${reason === 'device' ? '<li>Turn on Wi-Fi or mobile data on this phone.</li>' : '<li>Is the Pi plugged in and the TV on? Try unplugging the Pi for 10 seconds.</li><li>Is the school Wi-Fi / internet up? (The Pi needs it for this link.)</li><li>Give it 2–3 minutes after a power cut. It starts by itself.</li>'}
-<li>Still nothing after 10 minutes? Ask whoever set up the Pi.</li></ol></div>
+${reason === 'device' ? '<li>Turn on Wi-Fi or mobile data on this phone.</li>' : '<li>Is the screen box plugged in and the TV on? Try unplugging the box for 10 seconds.</li><li>Is the Wi-Fi / internet up? (The server needs it for this link.)</li><li>Give it 2–3 minutes after a power cut. It starts by itself.</li>'}
+<li>Still nothing after 10 minutes? Ask whoever set up the server.</li></ol></div>
 ${snap ? `<div class="card"><h2>Last known${when ? ` (${esc(when)})` : ''}</h2>${facts.length ? '<ol style="list-style:none;padding:0">' + facts.map((f) => '<li>' + esc(f) + '</li>').join('') + '</ol>' : '<p>Nothing saved.</p>'}</div>` : ''}
 </main><script>
 async function ping(){try{const r=await fetch('/admin/?ping='+Date.now(),{cache:'no-store'});if(r.ok&&!/Cloudflare Tunnel error/.test(await r.clone().text()))location.reload();else throw 0}catch(e){document.getElementById('st').textContent='Still cannot reach it. Checked '+new Date().toLocaleTimeString([],{hour:'numeric',minute:'2-digit',second:'2-digit'})}}

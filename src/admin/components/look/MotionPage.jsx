@@ -16,9 +16,9 @@ export default function MotionPage({ settings = {}, onSave }) {
   const graphics = ['subtle', 'off'].includes(settings.graphics) ? settings.graphics : 'rich';
   const lt = longTextSettings(settings);
   return (
-    <Page intro="Kept light so the Raspberry Pi stays smooth. Changes apply as soon as you tap them.">
+    <Page intro="Kept light so the screen stays smooth. Changes apply as soon as you tap them.">
       <Collapsible id="look-motion" title="Motion" icon="play" summary={lbl(M, motion)}>
-        <Field label="How pages change" hint="Only page changes animate (nothing loops), so all three are easy on the Pi. Lively reveals items one by one.">
+        <Field label="How pages change" hint="Only page changes animate (nothing loops), so all three are easy on the screen box. Lively reveals items one by one.">
           <Choices ariaLabel="Motion" value={motion} onChange={(v) => apply({ motion: v }, 'Motion changed')} options={M} />
         </Field>
       </Collapsible>

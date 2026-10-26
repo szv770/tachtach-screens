@@ -125,7 +125,7 @@ test('a used 2-step code cannot be reused', async () => {
   } finally { t.close(); }
 });
 
-test('not set up on this Pi: friendly 409 and nothing written', async () => {
+test('not set up on this server: friendly 409 and nothing written', async () => {
   const t = await harness({ installed: false });
   try {
     const r = await t.call('POST', '/api/system/update', { action: 'update', password: PW, code: t.freshCode() });

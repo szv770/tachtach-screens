@@ -136,15 +136,15 @@ touched by this — pulls new code, keeps your content.
 
 ### Updating from the website (optional, admins only)
 
-After one update by hand (the command above), the admin site can update the Pi itself:
+After one update by hand (the command above), the admin site can update the server itself:
 **Home -> System health -> Software update -> Update now** (it asks for your password and your 2-step code again).
 The **first** update must still be run by hand: that run installs the small helper (a systemd path unit
 `tachtach-update.path`, a service `tachtach-update.service` and a root-owned copy of the wrapper in
-`/usr/local/lib/tachtach-update/`). Until then the card says "Not set up on this Pi yet".
+`/usr/local/lib/tachtach-update/`). Until then the card says "Not set up on this server yet".
 The screen goes blank for about a minute. If the new version fails to start, the old one is put back
 automatically, and **Roll back to previous version** undoes the last update by hand.
 Keep the git account that owns the repository protected (2-step login, no shared tokens): whatever is on the
-branch the Pi follows is what runs on it, with or without the website button.
+branch the server follows is what runs on it, with or without the website button.
 Check on the Pi: `systemctl status tachtach-update.path`, logs: `journalctl -u tachtach-update` and `~/tachtach-update-web.log`.
 To turn the button off: `sudo systemctl disable --now tachtach-update.path` and delete `data/update-installed.json`.
 
@@ -155,16 +155,16 @@ To turn the button off: `sudo systemctl disable --now tachtach-update.path` and 
 
 ## Architecture summary (why it's set up this way)
 
-- **Data lives on the Pi** (local JSON files) — no cloud database, no
+- **Data lives on the server** (local JSON files) — no cloud database, no
   dependency on a third-party service staying up or free.
-- **Remote admin** is just the Pi's own admin panel, reachable through a
+- **Remote admin** is just the server's own admin panel, reachable through a
   Cloudflare Tunnel — not a separate hosted system. Simple, zero recurring
   cost, reversible.
-- **The Mivtzah leaderboard is a live embed**, not a data sync — the Pi shows
+- **The Mivtzah leaderboard is a live embed**, not a data sync — the server shows
   whatever the mivtzah-app's `/live` page currently looks like. Fixing a
   glitch or changing the design only ever requires editing mivtzah-app and
-  pushing to Vercel; the Pi's own code never needs to change again for that.
-- **Tradeoff accepted**: since everything lives on the Pi, remote admin only
-  works when the Pi itself is online and reachable. If you ever expand to
+  pushing to Vercel; the server's own code never needs to change again for that.
+- **Tradeoff accepted**: since everything lives on the server, remote admin only
+  works when the server itself is online and reachable. If you ever expand to
   selling this to multiple schools, that's the point to revisit a
   cloud-hosted version — not before.

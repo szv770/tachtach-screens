@@ -48,7 +48,7 @@ router.get('/embed-probe', async (req, res) => {
       // null = could not tell (the server-side check hit a bot wall; the TV's browser usually gets through)
       framable: blockedByBotWall ? null : policy.framable,
       reason: blockedByBotWall
-        ? `The site answered the Pi's server check with a bot-protection page (HTTP ${status}), so framing could not be verified from here. The TV's browser may still load it fine; add the slide and look at the screen.`
+        ? `The site answered the server's check with a bot-protection page (HTTP ${status}), so framing could not be verified from here. The TV's browser may still load it fine; add the slide and look at the screen.`
         : policy.reason,
     });
   } catch (err) {

@@ -98,7 +98,7 @@ export function buildHealth(f = {}, now = Date.now()) {
     const off = seen != null ? now - seen : null;
     checks.push(row('screen-online', 'Screen', 'Screen connected', off != null && off < T.screenOfflineWarnMs ? 'warn' : 'bad',
       seen != null ? `No screen is connected. Last seen ${ago(off)}.` : 'No screen has connected since the server started.',
-      { help: 'Check the TV is on and the Pi is powered. The screen reconnects by itself; if it does not within a few minutes, restart the Pi.' }));
+      { help: 'Check the TV is on and the screen box is powered. The screen reconnects by itself; if it does not within a few minutes, restart the box.' }));
   }
   if (sc.online && sc.reportedAt) {
     const quiet = now - ts(sc.reportedAt);
@@ -112,7 +112,7 @@ export function buildHealth(f = {}, now = Date.now()) {
   const z = judgeAge(c.zmanimFetchedAt, now, T.zmanimWarnMs, T.zmanimBadMs);
   checks.push(row('zmanim', 'Data', 'Zmanim (daily times)', z.status,
     z.age == null ? 'The zmanim have never been fetched.' : `Refreshed ${ago(z.age)}.`,
-    z.status === 'ok' ? {} : { help: 'The screen is showing old times. Check the Pi is online, then refresh.', fix: REFRESH }));
+    z.status === 'ok' ? {} : { help: 'The screen is showing old times. Check the server is online, then refresh.', fix: REFRESH }));
 
   const today = c.today;
   const daily = [
@@ -186,7 +186,7 @@ export function buildHealth(f = {}, now = Date.now()) {
     else if (Math.abs(skew) >= T.clockWarnMs) { status = 'warn'; summary = `The server clock is ${durationLabel(Math.abs(skew))} ${skew > 0 ? 'ahead of' : 'behind'} this device.`; }
     if (f.clock.ntpSynced === false && status === 'ok') { status = 'warn'; summary = 'The server says its clock is not synchronised with the internet.'; }
     checks.push(row('clock', 'This computer', 'Clock', status, summary,
-      status === 'ok' || status === 'info' ? {} : { help: f.platform === 'win32' ? 'Zmanim and the schedule depend on the right time. Make sure the screen computer is online, that Windows has "Set time automatically" on, and that the Windows time zone matches Look & Settings > Location.' : 'Zmanim and the schedule depend on the right time. Make sure the Pi is online (it sets its clock from the internet) and the time zone is right under Look & Settings > Location.' }));
+      status === 'ok' || status === 'info' ? {} : { help: f.platform === 'win32' ? 'Zmanim and the schedule depend on the right time. Make sure the screen computer is online, that Windows has "Set time automatically" on, and that the Windows time zone matches Look & Settings > Location.' : 'Zmanim and the schedule depend on the right time. Make sure the server is online (it sets its clock from the internet) and the time zone is right under Look & Settings > Location.' }));
   }
   if (f.tls && f.tls.enabled) {
     const end = ts(f.tls.notAfter);
@@ -196,7 +196,7 @@ export function buildHealth(f = {}, now = Date.now()) {
       const status = left <= 0 ? 'bad' : left < T.certWarnMs ? 'warn' : 'ok';
       checks.push(row('tls', 'This computer', 'Screen security certificate', status,
         left <= 0 ? 'The screen\'s local certificate has expired.' : `Valid for ${Math.floor(left / DAY)} more days.`,
-        status === 'ok' ? {} : { help: f.platform === 'win32' ? 'Only web-page slides are affected. An admin can delete C:\\TachTach\\data\\tls on the screen computer and restart the TachTach Server task to make a new one.' : 'Only web-page slides are affected. An admin can delete data/tls on the Pi and restart the server to make a new one.' }));
+        status === 'ok' ? {} : { help: f.platform === 'win32' ? 'Only web-page slides are affected. An admin can delete C:\\TachTach\\data\\tls on the screen computer and restart the TachTach Server task to make a new one.' : 'Only web-page slides are affected. An admin can delete data/tls on the server and restart the server to make a new one.' }));
     }
   } else if (f.tls) {
     checks.push(row('tls', 'This computer', 'Screen security certificate', 'info', 'The local secure address is off, so web-page slides from sites that need https may not show.'));
@@ -214,7 +214,7 @@ export function buildHealth(f = {}, now = Date.now()) {
   if (f.poppler != null) {
     checks.push(row('poppler', 'This computer', 'PDF slides (poppler-utils)', f.poppler ? 'ok' : 'warn',
       f.poppler ? 'Installed. PDFs can be turned into slides.' : 'Not installed, so uploaded PDFs cannot become slides.',
-      f.poppler ? {} : { help: f.platform === 'win32' ? 'On the screen computer, run deploy\\windows\\install.ps1 again as administrator (it installs the PDF tool).' : 'On the Pi, run: sudo apt install poppler-utils' }));
+      f.poppler ? {} : { help: f.platform === 'win32' ? 'On the screen computer, run deploy\\windows\\install.ps1 again as administrator (it installs the PDF tool).' : 'On the server, run: sudo apt install poppler-utils' }));
   }
 
   // ── Alerts and security ──
@@ -224,7 +224,7 @@ export function buildHealth(f = {}, now = Date.now()) {
       on ? 'This account gets alerts on at least one phone.' : 'Alerts are off for your account. Turn them on under My account to hear when the screen goes offline.',
       on ? { fix: { action: 'push-test', label: 'Send a test alert', needs: null } } : { go: 'account' }));
   }
-  checks.push(row('audit', 'Alerts', 'Software updates', 'info', 'Dependency security checks are not run live here. Run "npm audit" on the Pi after updating, and see docs/security for the last review.'));
+  checks.push(row('audit', 'Alerts', 'Software updates', 'info', 'Dependency security checks are not run live here. Run "npm audit" on the server after updating, and see docs/security for the last review.'));
 
   const counts = { ok: 0, warn: 0, bad: 0, info: 0 };
   for (const k of checks) counts[k.status]++;

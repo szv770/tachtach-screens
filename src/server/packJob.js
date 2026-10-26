@@ -65,7 +65,7 @@ export function startJob(o = {}) {
         ...job, state: r.status === 'blocked' ? 'blocked' : 'done', phase: 'finished', finishedAt: new Date().toISOString(),
         report: { ...built.report, gaps },
         message: r.status === 'blocked'
-          ? 'Chabad.org stopped answering (it may be blocking this Pi for now). What was collected is installed; press Build again later to fill the gaps.'
+          ? 'Chabad.org stopped answering (it may be blocking this server for now). What was collected is installed; press Build again later to fill the gaps.'
           : (r.failed ? `Installed, but ${r.failed} request(s) failed; press Build again to retry them.` : 'Installed.'),
       };
     } catch (e) {

@@ -133,7 +133,7 @@ test('A4 update state folder: data/ on Linux, %ProgramData%\\TachTach\\updater o
   assert.equal(updateStateDir({ ...L, env: { TT_UPDATE_STATE_DIR: '/x' }, dataDir: '/d' }), '/d', 'Linux ignores the Windows override');
   assert.equal(updateStateDir({ ...W, env: { ProgramData: 'D:\\PD' }, dataDir: 'C:\\TachTach\\data' }), 'D:\\PD\\TachTach\\updater');
   assert.equal(updateStateDir({ ...W, env: {}, dataDir: 'x' }), 'C:\\ProgramData\\TachTach\\updater');
-  assert.equal(updateNotInstalledMessage(L), 'Not set up on this Pi yet. Run deploy/update.sh once by hand, then try again.');
+  assert.equal(updateNotInstalledMessage(L), 'Not set up on this server yet. Run deploy/update.sh once by hand, then try again.');
   assert.match(updateNotInstalledMessage(W), /install\.ps1/);
 });
 
@@ -166,11 +166,11 @@ test('A19 health: Linux help texts unchanged; Windows gets Windows instructions'
   const lin = buildHealth(facts(undefined), now);
   const lin2 = buildHealth(facts('linux'), now);
   const win = buildHealth(facts('win32'), now);
-  assert.equal(help(lin, 'poppler'), 'On the Pi, run: sudo apt install poppler-utils');
-  assert.equal(help(lin2, 'poppler'), 'On the Pi, run: sudo apt install poppler-utils');
+  assert.equal(help(lin, 'poppler'), 'On the server, run: sudo apt install poppler-utils');
+  assert.equal(help(lin2, 'poppler'), 'On the server, run: sudo apt install poppler-utils');
   assert.match(help(win, 'poppler'), /install\.ps1/);
-  assert.match(help(lin, 'clock'), /Make sure the Pi is online/);
+  assert.match(help(lin, 'clock'), /Make sure the server is online/);
   assert.match(help(win, 'clock'), /Windows time zone/);
-  assert.match(help(lin, 'tls'), /data\/tls on the Pi/);
+  assert.match(help(lin, 'tls'), /data\/tls on the server/);
   assert.match(help(win, 'tls'), /TachTach Server task/);
 });

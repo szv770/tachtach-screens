@@ -44,7 +44,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'look.change', group: 'Look and settings', label: 'Change the look', hint: 'Themes, fonts, logo, layout.' },
   { id: 'settings.change', group: 'Look and settings', label: 'Change settings', hint: 'Location, timezone, sources, clean-up.' },
   { id: 'team.manage', group: 'People', label: 'Manage people and security', hint: 'Always admins only.', adminOnly: true },
-  { id: 'system.update', group: 'System', label: 'Update the screen software', hint: 'Always admins only. Runs the update on the Pi.', adminOnly: true },
+  { id: 'system.update', group: 'System', label: 'Update the screen software', hint: 'Always admins only. Runs the update on the server.', adminOnly: true },
 ]);
 
 export const CAP_IDS = Object.freeze(CAPABILITIES.map((c) => c.id));

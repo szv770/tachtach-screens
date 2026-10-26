@@ -32,7 +32,7 @@ Open a web browser and go to:
 http://<your-pi-ip-address>:3000/admin
 ```
 
-Replace `<your-pi-ip-address>` with the actual IP address of your Raspberry Pi (e.g., `192.168.1.50`).
+Replace `<server-ip-address>` with the actual IP address of the server (your Raspberry Pi or Windows PC) (e.g., `192.168.1.50`).
 
 You will be prompted to sign in. The first person (set up by `node setup.js`) is the admin, username `admin`; once more people exist, the sign-in page also asks for a username. See [Team & Logins](#team--logins).
 
@@ -371,7 +371,7 @@ After connecting an album:
 
 ### How Syncing Works
 
-- Photos are downloaded and cached locally on the Pi
+- Photos are downloaded and cached locally on the server
 - The system periodically checks the album for new photos
 - You can trigger a manual sync from the Photos section
 - Cached photos are served locally for fast display
@@ -526,22 +526,22 @@ Everyone who edits the screens gets their own login, so you can see who posted w
 
 **Activity** (Team → Activity): a plain list of who changed what and when. Announcements also show "Posted by …".
 
-If the last admin is locked out, use the command line on the Pi: `npm run reset-admin -- --list` shows everyone, `npm run reset-admin -- --user <username> --reset-password` fixes a password.
+If the last admin is locked out, use the command line on the server: `npm run reset-admin -- --list` shows everyone, `npm run reset-admin -- --user <username> --reset-password` fixes a password.
 
 ---
 
 ## Updating the screen software (admins only)
 
-**Home -> System health -> Software update.** It shows the version running on the Pi and whether a newer one is waiting.
+**Home -> System health -> Software update.** It shows the version running on the server and whether a newer one is waiting.
 
 1. Press **Check for updates** to look now.
 2. Press **Update now**. A window lists what is coming. Type your password again and, because admins always use 2-step, the current 6-digit code from your authenticator app, then press the big button.
-3. The Pi downloads the new version, rebuilds and restarts. **The screen goes blank for about a minute.** A bar at the top of every admin page and the card show it is running; the page keeps trying to reach the Pi by itself.
+3. The server downloads the new version, rebuilds and restarts. **The screen goes blank for about a minute.** A bar at the top of every admin page and the card show it is running; the page keeps trying to reach the server by itself.
 4. When it is done you see **Updated to <version>** and the list of what changed, and your phone gets a "Software updated" alert if alerts are on.
 
-If the new version does not start, the Pi puts the old one back by itself and says so ("Update failed - rolled back"). **Roll back to previous version** (same password check) undoes the last update by hand. Your messages, schedule and photos are never touched.
+If the new version does not start, the server puts the old one back by itself and says so ("Update failed - rolled back"). **Roll back to previous version** (same password check) undoes the last update by hand. Your messages, schedule and photos are never touched.
 
-You can only ask for one update every 5 minutes, and only admins see this card. If the card says **Not set up on this Pi yet**, run `bash ~/tachtach-screens/deploy/update.sh` once on the Pi (the setup guide has the command); after that the button works.
+You can only ask for one update every 5 minutes, and only admins see this card. If the card says **Not set up on this server yet**, run `bash ~/tachtach-screens/deploy/update.sh` once on the server (the setup guide has the command); after that the button works.
 
 ---
 
@@ -618,4 +618,4 @@ sudo systemctl restart tachtach-server
 
 ### How do I access admin from outside the local network?
 
-By default, the admin panel is only accessible from devices on the same local network as the Pi. For remote access, you would need to set up a VPN, reverse proxy, or SSH tunnel. Direct exposure to the internet is not recommended without additional security measures.
+By default, the admin panel is only accessible from devices on the same local network as the server. For remote access, you would need to set up a VPN, reverse proxy, or SSH tunnel. Direct exposure to the internet is not recommended without additional security measures.

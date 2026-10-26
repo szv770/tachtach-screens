@@ -63,10 +63,10 @@ function ConfirmSheet({ mode, info, me, onClose, onDone }) {
     <Sheet open onClose={busy ? undefined : onClose} title={isRollback ? 'Roll back to the previous version?' : 'Update the screen software?'}>
       <form onSubmit={go} data-testid="update-sheet" style={{ display: 'grid', gap: '14px', fontSize: '15px', lineHeight: 1.5 }}>
         {isRollback ? (
-          <p style={{ margin: 0 }}>The Pi goes back to <b>{info.previous?.short}</b>{info.previous?.subject ? ` (${info.previous.subject})` : ''}. It does not touch your messages, schedule or photos.</p>
+          <p style={{ margin: 0 }}>The server goes back to <b>{info.previous?.short}</b>{info.previous?.subject ? ` (${info.previous.subject})` : ''}. It does not touch your messages, schedule or photos.</p>
         ) : (
           <>
-            <p style={{ margin: 0 }}>The Pi downloads the newest version, rebuilds, and restarts. <b>The screen goes blank for about a minute.</b> Your messages, schedule and photos are kept. If something goes wrong, the current version is put back by itself.</p>
+            <p style={{ margin: 0 }}>The server downloads the newest version, rebuilds, and restarts. <b>The screen goes blank for about a minute.</b> Your messages, schedule and photos are kept. If something goes wrong, the current version is put back by itself.</p>
             {info.check?.incoming?.length > 0 && (
               <div><div style={{ fontWeight: 800, fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>What is coming ({info.check.commitsBehind})</div><Subjects items={info.check.incoming} testid="update-incoming" /></div>
             )}
@@ -82,7 +82,7 @@ function ConfirmSheet({ mode, info, me, onClose, onDone }) {
         )}
         {err && <div role="alert" data-testid="update-error" style={{ color: colors.danger, fontSize: '14px' }}>{err}</div>}
         <button type="submit" disabled={!ready} data-testid="update-confirm" style={{ ...btnPrimary, minHeight: '52px', fontSize: '16px', opacity: ready ? 1 : 0.5 }}>
-          {busy ? 'Asking the Pi...' : isRollback ? 'Roll back now' : 'Update now'}
+          {busy ? 'Asking the server...' : isRollback ? 'Roll back now' : 'Update now'}
         </button>
         <button type="button" onClick={onClose} disabled={busy} style={{ ...btn, border: 'none', color: colors.dim }}>Cancel</button>
       </form>
@@ -96,7 +96,7 @@ export default function SoftwareUpdateCard({ me }) {
   const [error, setError] = useState('');
   const [checking, setChecking] = useState(false);
   const [sheet, setSheet] = useState(null); // 'update' | 'rollback'
-  const [asked, setAsked] = useState(null); // { at, action, baseline } while we wait for the Pi
+  const [asked, setAsked] = useState(null); // { at, action, baseline } while we wait for the server
   const [live, setLive] = useState(null); // light status while waiting
   const [offline, setOffline] = useState(false);
   const [result, setResult] = useState(null); // finished run we were watching
@@ -148,7 +148,7 @@ export default function SoftwareUpdateCard({ me }) {
   const onDone = (mode) => {
     setSheet(null); setResult(null); setLive(null);
     setAsked({ at: Date.now(), action: mode, baseline: info?.status?.runId || null });
-    notify(mode === 'rollback' ? 'Asked the Pi to roll back.' : 'Asked the Pi to update.', 'success');
+    notify(mode === 'rollback' ? 'Asked the server to roll back.' : 'Asked the server to update.', 'success');
   };
   const check = async () => { setChecking(true); await load(true); setChecking(false); };
 
@@ -167,7 +167,7 @@ export default function SoftwareUpdateCard({ me }) {
           <div style={{ fontWeight: 700 }}>Not set up on this computer yet</div>
           <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Run <code>deploy\windows\install.ps1</code> as administrator on the screen computer (see docs/windows/SETUP.md). That installs the small helper that lets this button work. After that, you can update from here.</div>
         </>) : (<>
-          <div style={{ fontWeight: 700 }}>Not set up on this Pi yet</div>
+          <div style={{ fontWeight: 700 }}>Not set up on this server yet</div>
           <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Run <code>deploy/update.sh</code> once by hand (see the setup guide). That installs the small helper that lets this button work. After that, you can update from here.</div>
         </>)}
         <div style={{ fontSize: '14px' }}>Running now: {version}</div>
@@ -182,7 +182,7 @@ export default function SoftwareUpdateCard({ me }) {
           <Icon name="refresh" size={22} style={{ color: colors.accent }} />
           {offline ? 'The screen is restarting...' : action === 'rollback' ? 'Going back to the earlier version...' : 'Updating... the screen restarts in about a minute.'}
         </div>
-        <div style={{ fontSize: '13px', color: colors.dim }}>{offline ? 'This page keeps trying to reach the Pi and carries on by itself. You can leave it open.' : (s?.message || 'Waiting for the Pi to start...')}</div>
+        <div style={{ fontSize: '13px', color: colors.dim }}>{offline ? 'This page keeps trying to reach the server and carries on by itself. You can leave it open.' : (s?.message || 'Waiting for the server to start...')}</div>
         <LogTail lines={(s || live)?.log || st?.log} />
       </div>
     );

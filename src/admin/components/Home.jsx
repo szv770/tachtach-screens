@@ -86,7 +86,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
     return slideLabel(s);
   }, [st?.slideId, slides, anns]);
 
-  // The box-unreachable page (public/sw.js) shows this when the Pi or the tunnel is down.
+  // The box-unreachable page (public/sw.js) shows this when the server or the tunnel is down.
   useEffect(() => {
     if (!st || screen.error) return;
     saveLastKnown({
