@@ -58,10 +58,8 @@ export function toBannerRow(item) {
     id: item.id,
     textHe: c.headlineHe || c.bodyHe || '',
     textEn: c.headlineEn || c.bodyEn || '',
-    bannerSize: item.banner?.size || undefined,
     bannerMode: item.banner?.mode || undefined,
     bannerSpeed: item.banner?.speed || undefined,
-    bannerRepeat: item.banner?.repeat || undefined,
   };
 }
 

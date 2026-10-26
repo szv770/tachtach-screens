@@ -124,7 +124,7 @@ export function toItem(style, layout, m, extra = {}) {
     c.letter = { dateHe: dl[0], date: dl[1] || '', salutation: m.sal, body: m.body, signature: m.close, source: m.source[0], sourceHe: m.source[1] };
   }
   return {
-    id: `t-${style}-${layout}`, status: 'published', display: 'takeover', enabled: true, hold: false, priority: 0,
+    id: `t-${style}-${layout}`, status: 'published', display: 'takeover', enabled: true, hold: false,
     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
     content: c, look: { layout: lay, style, animation: 'full', fit: 'auto', ...(extra.look || {}) },
     slide: { duration: 12, label: '' }, takeover: { group: null, rotateSec: 10 }, when: { startsAt: null, expiresAt: null, recurrence: null },

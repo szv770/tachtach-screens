@@ -112,14 +112,6 @@ await writeJSON('settings.json', {
     omer: true,
     pinnedNotes: true,
   },
-  dataSources: {
-    zmanim: true,
-    hayomYom: true,
-    limudim: true,
-    rambam1: true,
-    rambam3: true,
-    tanyaYomi: true,
-  },
 });
 console.log('  ✓ data/settings.json');
 

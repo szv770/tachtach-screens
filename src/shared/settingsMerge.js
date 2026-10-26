@@ -32,15 +32,13 @@ export const SETTINGS_KEYS = Object.freeze([
   'scheduleGroups',    // [{ id, name, nameHe?, short? }] groups watching one screen (src/shared/scheduleGroups.js); [] = off
   'announcements',     // { archiveDays }
   'kiddushLevana',     // { enabled, startAfterDays 3|7, endRule halfway|fifteen, skipCustoms, hebrew, overrides }
-  'dataSources',       // legacy, unused
   'showChabadCredit',  // false hides the small 'Courtesy of Chabad.org' line on the pages that show its content (default on)
   'dataSource',        // 'live' (default: Hebcal + Chabad.org) | 'local' (calculated here + data pack); see docs/DATA-PACK-PLAN.md
   // Theme / layout (kiosk)
   'theme', 'customTheme', 'themeAuto', 'orientation', 'portraitLayout', 'clockSide',
-  'visibility', 'fonts', 'hebrewFontScale', 'hebrewHeadingScale',
-  'banner', 'credit', 'language',
+  'visibility', 'fonts', 'hebrewFontScale',
+  'banner', 'credit',
   // Slides
-  'scheduleDisplayMode', 'scheduleScrollSpeed', 'scheduleScrollStart',
   'limudimLang', 'limudimItems', 'hayomYomLang', 'zmanimVisible',
   // Reserved for the 2026-10 kiosk rebuild (see screen-redesign brief):
   // rail.upNextMinutes, layout.railSide, motion, graphics, weather, and the
@@ -75,9 +73,22 @@ export const SETTING_SCOPE = Object.freeze({
   limudimLang: 'org', limudimItems: 'org', hayomYomLang: 'org', zmanimVisible: 'org',
   rail: 'org', layout: 'org', motion: 'org+box', graphics: 'org+box', longText: 'org', weather: 'org', zmanimLayout: 'org', scheduleLayout: 'org', scheduleView: 'org',
   fontRoles: 'org', themeVersion: 'legacy', announceFonts: 'org',
-  hebrewHeadingScale: 'legacy', language: 'legacy', scheduleDisplayMode: 'legacy', scheduleScrollSpeed: 'legacy', scheduleScrollStart: 'legacy',
-  dataSources: 'legacy', zipCode: 'legacy', chabadLocationId: 'legacy', trackA: 'legacy', trackBTime: 'legacy',
+  zipCode: 'legacy', chabadLocationId: 'legacy', trackA: 'legacy', trackBTime: 'legacy',
 });
+
+/**
+ * Keys older versions accepted but nothing ever read (audit 2026-10-26, E-19 to E-22). They are no longer
+ * settings: a PATCH naming one is refused like any unknown key, and `normalizeSettings()` (run at start-up,
+ * on every PUT and on every undo restore) deletes them from stored settings, so a saved file that still has
+ * one loads fine and is cleaned on the next boot. Nothing read them, so no behaviour changes.
+ * Do not reuse these names for a new setting without a new migration.
+ */
+export const RETIRED_SETTING_KEYS = Object.freeze([
+  'hebrewHeadingScale',   // only hebrewFontScale is read
+  'language',             // replaced by the per-page language switches
+  'scheduleDisplayMode', 'scheduleScrollSpeed', 'scheduleScrollStart',   // replaced by scheduleLayout / scheduleView
+  'dataSources',          // legacy toggle list, never read
+]);
 
 const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
 

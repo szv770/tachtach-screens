@@ -6,7 +6,7 @@ import { toBannerRow } from '../src/screen/lib/announcementView.js';
 
 test('banner model whitelists mode and speed', () => {
   const out = sanitizeInput({ display: 'banner', banner: { mode: 'scroll', speed: 'fast', size: 'huge', evil: 1 } });
-  assert.deepEqual(out.banner, { size: null, speed: 'fast', mode: 'scroll' });
+  assert.deepEqual(out.banner, { speed: 'fast', mode: 'scroll' }, 'size and repeat were retired: accepted nowhere');
   assert.equal(sanitizeInput({ banner: { mode: 'bounce' } }).banner.mode, null, 'unknown mode falls back to default (null)');
   assert.equal(defaultItem().banner.mode, null);
   const item = createItem(sanitizeInput({ display: 'banner', content: { headlineEn: 'Hi' }, banner: { mode: 'scroll', speed: 'slow' } }), { id: 'b' });

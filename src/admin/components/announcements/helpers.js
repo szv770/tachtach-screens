@@ -125,7 +125,7 @@ export function emptyItem(display = 'slide') {
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
-    banner: { size: null, speed: null, repeat: null, mode: null },
+    banner: { speed: null, mode: null },
     when: { startsAt: null, expiresAt: null, lastDurationMin: null, recurrence: null },
   };
 }

@@ -18,10 +18,8 @@ export { LAYOUTS };
 export const STYLE_NAMES = STYLE_IDS;
 export const TEMPLATES = ['headline', 'quote', 'info', 'announcement', 'board', 'pinned'];
 export const DISPLAYS = ['slide', 'banner', 'note', 'takeover'];
-const BANNER_SIZES = ['small', 'normal', 'large'];
 const BANNER_SPEEDS = ['slow', 'normal', 'fast'];
 const BANNER_MODES = ['still', 'scroll'];
-const BANNER_REPEATS = ['loop', 'wait'];
 const MAX_TEXT = 4000;
 
 export class ValidationError extends Error {}
@@ -61,10 +59,9 @@ export function defaultItem() {
     slide: { duration: 12, label: '' },
     note: { icon: null, order: 0 },
     takeover: { group: null, rotateSec: 10 },
-    banner: { size: null, speed: null, repeat: null, mode: null },
+    banner: { speed: null, mode: null },
     when: { startsAt: null, expiresAt: null, lastDurationMin: null, recurrence: null },
     enabled: true,
-    priority: 0,
   };
 }
 
@@ -141,7 +138,6 @@ export function sanitizeInput(body) {
   if ('status' in body) out.status = body.status === 'draft' ? 'draft' : 'published';
   if ('hold' in body) out.hold = body.hold === true;
   if ('enabled' in body) out.enabled = body.enabled !== false;
-  if ('priority' in body) out.priority = intIn(body.priority, -100, 100, 0);
   if (body.content && typeof body.content === 'object') {
     out.content = {};
     for (const k of CONTENT_KEYS) if (k in body.content) out.content[k] = str(body.content[k], k.startsWith('body') || k.startsWith('headline') ? MAX_TEXT : 300);
@@ -197,9 +193,7 @@ export function sanitizeInput(body) {
   }
   if (body.banner && typeof body.banner === 'object') {
     out.banner = {};
-    if ('size' in body.banner) out.banner.size = oneOf(body.banner.size, BANNER_SIZES);
     if ('speed' in body.banner) out.banner.speed = oneOf(body.banner.speed, BANNER_SPEEDS);
-    if ('repeat' in body.banner) out.banner.repeat = oneOf(body.banner.repeat, BANNER_REPEATS);
     if ('mode' in body.banner) out.banner.mode = oneOf(body.banner.mode, BANNER_MODES);
   }
   if (body.when && typeof body.when === 'object') {
@@ -213,6 +207,19 @@ export function sanitizeInput(body) {
 }
 
 const SUB_OBJECTS = ['content', 'look', 'slide', 'note', 'takeover', 'banner', 'when'];
+
+/**
+ * Fields older versions accepted but nothing ever read (audit 2026-10-26, E-16/E-17/E-18): banner.size,
+ * banner.repeat and priority. Saved announcements may still carry them, so they are dropped on the next
+ * save of that item (and nothing reads them meanwhile). Mutates and returns `item`.
+ */
+export function stripRetiredFields(item) {
+  if (item && typeof item === 'object') {
+    delete item.priority;
+    if (item.banner && typeof item.banner === 'object') { item.banner = { ...item.banner }; delete item.banner.size; delete item.banner.repeat; }
+  }
+  return item;
+}
 
 /** Merge a sanitized partial onto an item (sub-objects merge key by key). */
 export function mergeItem(existing, patch, nowIso = new Date().toISOString()) {
@@ -229,6 +236,7 @@ export function mergeItem(existing, patch, nowIso = new Date().toISOString()) {
   out.id = existing.id;
   out.createdAt = existing.createdAt;
   out.updatedAt = nowIso;
+  stripRetiredFields(out);
   // Remember the length of a timed run so "Again…" can offer the same.
   if (patch.when && ('expiresAt' in patch.when || 'startsAt' in patch.when) && !('lastDurationMin' in patch.when)) {
     const start = out.when.startsAt || (patch.when.expiresAt ? nowIso : out.createdAt);
@@ -270,7 +278,7 @@ function safeIso(v) {
 
 /** messages.json row (banner | board | takeover) → item. */
 export function messageToItem(m, nowIso = new Date().toISOString()) {
-  const used = ['id', 'timestamp', 'type', 'textHe', 'textEn', 'text', 'expiresAt', 'style', 'target', 'subtitle', 'blocking', 'bannerSize', 'bannerSpeed', 'bannerRepeat'];
+  const used = ['id', 'timestamp', 'type', 'textHe', 'textEn', 'text', 'expiresAt', 'style', 'target', 'subtitle', 'blocking', 'bannerSpeed'];
   const item = defaultItem();
   item.id = String(m.id);
   item.createdAt = safeIso(m.timestamp) || nowIso;
@@ -285,7 +293,7 @@ export function messageToItem(m, nowIso = new Date().toISOString()) {
   item.look.layout = 'classic';
   if (m.type === 'banner') {
     item.display = 'banner';
-    item.banner = { size: oneOf(m.bannerSize, BANNER_SIZES), speed: oneOf(m.bannerSpeed, BANNER_SPEEDS), repeat: oneOf(m.bannerRepeat, BANNER_REPEATS) };
+    item.banner = { speed: oneOf(m.bannerSpeed, BANNER_SPEEDS) };
   } else if (m.type === 'takeover') {
     item.display = 'takeover';
     item.look.style = normalizeStyleId(m.style) || 'classic';

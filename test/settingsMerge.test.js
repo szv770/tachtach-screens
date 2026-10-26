@@ -53,9 +53,26 @@ test('validateSettingsPatch whitelists top-level keys', () => {
   assert.match(bad.error, /thmee/);
   assert.equal(validateSettingsPatch([]).ok, false);
   assert.equal(validateSettingsPatch(null).ok, false);
-  for (const k of ['location', 'scheduler', 'language', 'customTheme', 'banner', 'announcements']) {
+  for (const k of ['location', 'scheduler', 'customTheme', 'banner', 'announcements']) {
     assert.ok(SETTINGS_KEYS.includes(k), k);
   }
+});
+
+test('retired keys are refused by PATCH, stripped from a stored file, and never come back', async () => {
+  const { RETIRED_SETTING_KEYS } = await import('../src/shared/settingsMerge.js');
+  const { normalizeSettings } = await import('../src/server/settings-migrate.js');
+  assert.deepEqual([...RETIRED_SETTING_KEYS].sort(), ['dataSources', 'hebrewHeadingScale', 'language', 'scheduleDisplayMode', 'scheduleScrollSpeed', 'scheduleScrollStart']);
+  for (const k of RETIRED_SETTING_KEYS) {
+    assert.ok(!SETTINGS_KEYS.includes(k), k);
+    assert.equal(validateSettingsPatch({ [k]: 1 }).ok, false, k);
+  }
+  const stored = { theme: 'midnight', language: 'en', dataSources: { zmanim: true }, scheduleDisplayMode: 'two-column', scheduleScrollSpeed: 'fast', scheduleScrollStart: 3, hebrewHeadingScale: 1.2, hebrewFontScale: 1.1 };
+  const { settings, changed } = normalizeSettings(stored);
+  assert.equal(changed, true);
+  for (const k of RETIRED_SETTING_KEYS) assert.equal(k in settings, false, `${k} removed`);
+  assert.equal(settings.theme, 'midnight', 'kept keys survive');
+  assert.equal(normalizeSettings(settings).changed, false, 'idempotent');
+  assert.deepEqual(Object.keys(stored).length, 8, 'input not mutated');
 });
 
 test('diffSettings returns only what changed', () => {

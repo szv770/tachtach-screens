@@ -2,6 +2,23 @@
 
 Question: **which built features have options that nothing in the admin can change?** (settings keys, slide fields, announcement fields, environment switches and hard-coded "knobs" that behave like settings). This is a first pass done by reading the code, not by running the app: every row cites the file and line it was found in, and every "no admin control" claim was checked with a search of `src/admin/` for the key (and for its UI wording). Shared rules and SaaS vocabulary: [README.md](README.md).
 
+## 0. Status (2026-10-26): bundles A-D built
+
+| Row | Result |
+|---|---|
+| E-01 candle minutes, coordinates, elevation | Built (Look > Location > Candle lighting / Calculated times). Hard limits 10-60 min enforced by the server; advice per time zone; example time from `GET /api/candle-preview`. In Live mode Chabad.org still decides: the page says so |
+| E-02, E-03 | Built (weather: second switch, own zip) |
+| E-38 time zone | Health warning when none is set, picker shows "Choose your time zone" (server fallback unchanged so old installs keep working). A hard "required" belongs to cloud onboarding |
+| E-05, E-08 | **Not built, finding corrected:** the kiosk never reads `look.maxFontPx` (`toLegacyTakeover` is unused) or `note.icon` (`PinnedNotes.jsx` draws no icon), so they were Dead, not Hidden. Kept in the allow-list until the kiosk is wired |
+| E-06, E-07, E-09 | Built (composer "Take turns", Move up / Move down on live side notes) |
+| E-10 | Built (`visibility.upNext`) |
+| E-11 | Built for 1 or 2 notes at once and 4-30 s; **3 deliberately not offered** (the rail has room for two cards; unverifiable without screenshots) |
+| E-12 | Built without a new key: Daily Story reading time follows the existing Look > Motion > Long text reading speed (Normal = old 140 wpm) |
+| E-16, E-17, E-18 | Removed: no longer accepted, dropped on the next save of an item (`stripRetiredFields`); old messages keep `bannerSize` in `legacy.extra` |
+| E-19 to E-22 | Retired (`RETIRED_SETTING_KEYS`): refused by PATCH, deleted from stored settings on load. The committed `data/settings.json` still lists some; the boot migration removes them (file not edited by hand) |
+| E-23 | Kept (aliases are still folded by `settings-migrate.js`) |
+| Section 6 test | `test/adminExposure.test.js` + `test/adminExposure.allow.json`; `test/settingScope.test.js` |
+
 ## 1. Method (repeatable; section 6 turns it into a test)
 
 1. **Inventory the places options can be defined**

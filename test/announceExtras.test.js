@@ -50,3 +50,18 @@ test('moveNote swaps with the neighbour, renumbers only what changes, and the sc
   r = moveNote(m, 'a', 'down');
   assert.deepEqual(r.moves.sort((x, y) => x.id.localeCompare(y.id)), [{ id: 'a', order: 1 }, { id: 'b', order: 0 }]);
 });
+
+test('retired announcement fields (banner.size, banner.repeat, priority) are no longer accepted and are dropped on the next save', async () => {
+  const { stripRetiredFields, mergeItem, defaultItem } = await import('../src/server/announcements-model.js');
+  const out = sanitizeInput({ display: 'banner', priority: 50, banner: { size: 'large', repeat: 'loop', speed: 'fast' } });
+  assert.equal('priority' in out, false);
+  assert.deepEqual(out.banner, { speed: 'fast' });
+  assert.equal('priority' in defaultItem(), false);
+  assert.deepEqual(defaultItem().banner, { speed: null, mode: null });
+  const old = { id: 'x', createdAt: '2026-01-01T00:00:00Z', display: 'banner', priority: 9, banner: { size: 'small', repeat: 'wait', speed: 'slow', mode: 'scroll' }, content: {}, when: {} };
+  const saved = mergeItem(old, { content: { headlineEn: 'Hi' } });
+  assert.equal('priority' in saved, false);
+  assert.deepEqual(saved.banner, { speed: 'slow', mode: 'scroll' }, 'real banner options survive');
+  assert.equal(old.priority, 9, 'the stored object passed in is not mutated');
+  assert.equal(stripRetiredFields(null), null);
+});

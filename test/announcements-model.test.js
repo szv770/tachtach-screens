@@ -70,8 +70,8 @@ test('legacy messages → items (lossless, look kept)', () => {
   assert.equal(banner.display, 'banner');
   assert.equal(banner.content.headlineHe, 'שלום');
   assert.equal(banner.createdAt, '2026-10-01T00:00:00.000Z');
-  assert.equal(banner.banner.size, 'large');
-  assert.deepEqual(banner.legacy.extra, { priority: 'high', bgColor: '#f00' });
+  assert.equal(banner.banner.size, undefined, 'banner size was never shown, so it is not kept as a setting');
+  assert.deepEqual(banner.legacy.extra, { priority: 'high', bgColor: '#f00', bannerSize: 'large' }, 'but the old value is still kept verbatim in legacy.extra');
   assert.equal(banner.look.layout, 'classic');
   assert.equal(banner.when.lastDurationMin, 1440);
   const board = messageToItem({ id: 'd', type: 'board', textEn: 'Board', target: 'Shiur Alef', subtitle: 'sub', blocking: true });

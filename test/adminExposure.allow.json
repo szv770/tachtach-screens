@@ -4,26 +4,6 @@
     "themeVersion": {
       "reason": "internal one-time migration marker (settings-migrate.js), not an option",
       "permanent": true
-    },
-    "dataSources": {
-      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
-      "expires": "2026-12-31"
-    },
-    "hebrewHeadingScale": {
-      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
-      "expires": "2026-12-31"
-    },
-    "scheduleDisplayMode": {
-      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
-      "expires": "2026-12-31"
-    },
-    "scheduleScrollSpeed": {
-      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
-      "expires": "2026-12-31"
-    },
-    "scheduleScrollStart": {
-      "reason": "dead legacy key (audit E-19/E-20/E-22), removed with a migration in the clean-up bundle",
-      "expires": "2026-12-31"
     }
   },
   "announcement": {
@@ -34,10 +14,6 @@
     "note.icon": {
       "reason": "audit E-08 said 'read', but PinnedNotes.jsx never draws the icon: a control would do nothing. Draw it on the kiosk first.",
       "expires": "2027-03-31"
-    },
-    "priority": {
-      "reason": "built, read by the kiosk, control comes with the composer bundle (audit E-05..E-09, E-18)",
-      "expires": "2026-12-31"
     }
   }
 }
