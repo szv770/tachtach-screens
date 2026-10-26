@@ -32,6 +32,7 @@ import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 import { withoutShabbosSlides } from '../shared/shabbosMode.js';
 import FrozenScreen from './components/FrozenScreen.jsx';
 import { toList, followTarget } from '../shared/rotationPosition.js';
+import { sideNotesLimits } from '../shared/railNotes.js';
 import { freezeInForce, coversScreen, isEmergencyTakeover } from '../shared/freeze.js';
 
 /**
@@ -573,7 +574,8 @@ function AppContent() {
   const onSchedulePage = (holdSlide || slideRotation.currentSlide)?.type === 'SCHEDULE';
   let upNext = null;
   // Owner rule: with the Schedule slide switched off, no schedule-driven updates.
-  if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !takeover) {
+  // visibility.upNext === false (Look & Settings > What shows) turns the card off altogether.
+  if (isScheduleSlideOn(state?.slides) && !onSchedulePage && !takeover && settings.visibility?.upNext !== false) {
     const nowM = nowDate.getHours() * 60 + nowDate.getMinutes();
     const next = (timerEntries || [])
       .filter((e) => e.enabled !== false)
@@ -610,7 +612,7 @@ function AppContent() {
   // Rail card 'Mincha chazan: Moshe' from railMinutes before that davening until it starts. Only when the rail has room
   // (no up-next card, and at most one other side note); never on a takeover.
   const chazanTimesToday = chazanTimes(effectiveSchedule.entries, effectiveSchedule.categories, toMinutes); // cheap: no hook after the freeze early return
-  const chazanNote = (!upNext && !takeover && ann.notes.length + (birthdayNote ? 1 : 0) < 2)
+  const chazanNote = (!upNext && !takeover && ann.notes.length + (birthdayNote ? 1 : 0) < sideNotesLimits(settings).max)
     ? chazanRailNote(state?.chazan, scheduleDateISO, nowDate.getHours() * 60 + nowDate.getMinutes(), chazanTimesToday, state?.customDays)
     : null;
 

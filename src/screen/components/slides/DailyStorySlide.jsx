@@ -3,7 +3,7 @@ import { Panel, F, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { textDir } from '../../../shared/bidi.js';
-import { pickDailyStory } from '../../../shared/dailyStories.js';
+import { pickDailyStory, readingSeconds } from '../../../shared/dailyStories.js';
 
 /**
  * Daily Story: a short story or thought to read, one a day (src/shared/dailyStories.js; the list is edited in
@@ -27,11 +27,6 @@ function dateLabel(iso) {
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
-/** Seconds a passer-by needs to read it: words at ~140 wpm (Hebrew a little slower) + a few seconds to look up. */
-export function readingSeconds(story) {
-  const words = (t, wpm) => (String(t || '').trim() ? String(t).trim().split(/\s+/).length * (60 / wpm) : 0);
-  return Math.round(Math.min(90, 4 + words(story?.text, 140) + words(story?.textHe, 110) * 0.5));
-}
 
 const label = {
   fontFamily: F.en, fontSize: 21, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase',
@@ -67,7 +62,7 @@ export default function DailyStorySlide({ dailyStories, dateISO, portrait: portr
   const design = useDesign();
   const portrait = portraitProp ?? design.portrait;
   const s = pickDailyStory(dailyStories, dateISO);
-  const want = s ? readingSeconds(s) : 0;
+  const want = s ? readingSeconds(s, design.longText?.speed) : 0;
   const base = Number(slide?.duration) || 0;
   useEffect(() => { if (want && onRequestDuration && want > (base || 25)) onRequestDuration(want); }, [s?.id, want]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!s) return null;

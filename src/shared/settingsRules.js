@@ -13,6 +13,7 @@
  * and means "use the default". Paths are 'key.sub'.
  */
 import { CANDLE_MIN, CANDLE_MAX } from './candleLighting.js';
+import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
@@ -31,6 +32,9 @@ export const SETTING_RULES = Object.freeze([
   { path: 'location.lon', label: 'Longitude', check: num(-180, 180) },
   { path: 'location.elevation', label: 'Elevation in metres', check: num(-450, 5000) },
   { path: 'location.timezone', label: 'Time zone', check: (v) => (typeof v === 'string' && v.length <= 64 && validZone(v) ? null : 'a real time zone such as America/New_York') },
+  { path: 'rail.sideNotesMax', label: 'Side notes shown at once', check: int(1, SIDE_NOTES_MAX_ALLOWED) },
+  { path: 'rail.sideNotesSeconds', label: 'Seconds between side notes', check: int(SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS) },
+  { path: 'visibility.upNext', label: 'Up next card in the side rail', check: bool },
   { path: 'weather.showInRail', label: 'Weather in the side rail', check: bool },
   { path: 'weather.zip', label: 'Weather zip code', check: (v) => (typeof v === 'string' && /^\d{5}$/.test(v) ? null : 'a 5-digit zip code') },
 ]);

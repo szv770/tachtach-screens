@@ -26,11 +26,9 @@ export default function MotionPage({ settings = {}, onSave }) {
         <Field label="When a text is too long" hint="Hayom Yom, Sichos and Letters. Text that fits is just shown. Longer text either scrolls slowly and smoothly on one slide (a short pause at the top, then at the end), or is split into pages. Minimal motion always uses pages.">
           <Choices ariaLabel="Long text" value={lt.mode} onChange={(v) => apply({ longText: { mode: v } }, 'Long text changed')} options={LT} />
         </Field>
-        {lt.mode === 'scroll' && (
-          <Field label="Reading speed" hint="About 120 words a minute on Normal for English; Hebrew Torah text is a little slower. The slide stays up long enough to scroll to the end.">
-            <Choices ariaLabel="Reading speed" value={lt.speed} onChange={(v) => apply({ longText: { speed: v } }, 'Reading speed changed')} options={LS} />
-          </Field>
-        )}
+        <Field label="Reading speed" hint={`About 120 words a minute on Normal for English; Hebrew Torah text is a little slower. ${lt.mode === 'scroll' ? 'The slide stays up long enough to scroll to the end. ' : ''}The Daily Story also stays up long enough to read at this speed.`}>
+          <Choices ariaLabel="Reading speed" value={lt.speed} onChange={(v) => apply({ longText: { speed: v } }, 'Reading speed changed')} options={LS} />
+        </Field>
       </Collapsible>
       <Collapsible id="look-graphics" title="Graphics" icon="image" summary={lbl(G, graphics)}>
         <Field label="Drawings on the screen" hint="Static drawings only: the sun arc, weather and category icons, Shabbos candles, a faint theme pattern and a day-phase sky tint.">

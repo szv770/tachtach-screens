@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, adminFonts } from '../../styles/admin-tokens.js';
 import Collapsible from '../ui/Collapsible.jsx';
+import { SIDE_NOTES_DEFAULT_MAX, SIDE_NOTES_DEFAULT_SECONDS, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS, sideNotesLimits } from '../../../shared/railNotes.js';
 import { Page, Field, Hint, SwitchRow, Choices, useInstant, fieldStyle } from './kit.jsx';
 
 const VIS = [
@@ -9,6 +10,7 @@ const VIS = [
   { key: 'parsha', label: 'Parsha', note: 'This week\'s Torah portion' },
   { key: 'omer', label: 'Omer counter', note: 'The Sefiras HaOmer count (only during the 49 days)' },
   { key: 'pinnedNotes', label: 'Side notes', note: 'Announcements shown as notes in the side rail' },
+  { key: 'upNext', label: 'Up-next card', note: 'The card that appears just before a schedule item starts (its timing is set below)' },
 ];
 const ITEMS = [
   { key: 'chumash', label: 'Chumash' },
@@ -39,6 +41,16 @@ export default function ShowsPage({ settings = {}, onSave }) {
     if (n !== savedMin) apply({ rail: { upNextMinutes: n } }, `Up-next now ${n} min`);
   };
 
+  const notesLim = sideNotesLimits(settings);
+  const [secs, setSecs] = useState(String(notesLim.seconds));
+  useEffect(() => { setSecs(String(notesLim.seconds)); }, [notesLim.seconds]);
+  const commitSecs = () => {
+    const n = Math.max(SIDE_NOTES_MIN_SECONDS, Math.min(SIDE_NOTES_MAX_SECONDS, Math.round(Number(secs) || notesLim.seconds)));
+    setSecs(String(n));
+    if (n !== notesLim.seconds) apply({ rail: { sideNotesSeconds: n } }, `Side notes now change every ${n} s`);
+  };
+  const upNextOn = vis.upNext !== false;
+
   return (
     <Page intro="What the screen shows around the slides, and the languages of the study pages. Changes apply as soon as you tap them.">
       <Collapsible id="set-visibility" title="Side rail items" icon="tile" summary={`${shownCount} of ${VIS.length} shown`}>
@@ -50,7 +62,21 @@ export default function ShowsPage({ settings = {}, onSave }) {
         ))}
       </Collapsible>
 
-      <Collapsible id="look-up-next" title="Up-next card" icon="clock" summary={`Appears ${savedMin} min before an item${settings.rail?.upNextCountdown ? ', live countdown' : ''}`}>
+      <Collapsible id="look-side-notes" title="Side notes" icon="tile" summary={vis.pinnedNotes === false ? 'Hidden' : `${notesLim.max} at once, change every ${notesLim.seconds} s`}>
+        <Field label="Notes shown at once" hint={`How many side notes the rail shows together (default ${SIDE_NOTES_DEFAULT_MAX}). More than this take turns. The rail has room for two.`}>
+          <Choices ariaLabel="Side notes shown at once" value={notesLim.max} onChange={(n) => apply({ rail: { sideNotesMax: n } }, `Showing ${n} side note${n === 1 ? '' : 's'} at once`)} options={[{ value: 1, label: '1' }, { value: 2, label: '2 (default)' }]} />
+        </Field>
+        <Field label="Seconds before the next note" htmlFor="tt-notes-secs" hint="Only matters when there are more notes than fit at once.">
+          <input
+            id="tt-notes-secs" type="number" inputMode="numeric" min={SIDE_NOTES_MIN_SECONDS} max={SIDE_NOTES_MAX_SECONDS} style={{ ...fieldStyle, maxWidth: '120px' }} value={secs}
+            onChange={(e) => setSecs(e.target.value)} onBlur={commitSecs} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          />
+          <span style={{ marginLeft: '10px', fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>seconds ({SIDE_NOTES_MIN_SECONDS} to {SIDE_NOTES_MAX_SECONDS}, default {SIDE_NOTES_DEFAULT_SECONDS})</span>
+        </Field>
+        <Hint>Which announcements are side notes, and their order, is set under Announcements.</Hint>
+      </Collapsible>
+
+      <Collapsible id="look-up-next" title="Up-next card" icon="clock" summary={upNextOn ? `Appears ${savedMin} min before an item${settings.rail?.upNextCountdown ? ', live countdown' : ''}` : 'Hidden'}>
         <Field label="Minutes before a schedule item" htmlFor="tt-upnext" hint="The card shows in the side rail only within this window, and never on the schedule page.">
           <input
             id="tt-upnext" type="number" inputMode="numeric" min="1" max="60" style={{ ...fieldStyle, maxWidth: '120px' }} value={mins}

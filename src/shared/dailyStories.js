@@ -11,6 +11,8 @@
  * Default order is 'shuffle': a fixed shuffle per cycle, so no story repeats until all of them have shown.
  */
 
+import { wpmFor } from './longText.js';
+
 export const KINDS = ['story', 'thought'];
 export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500 };
 export const HISTORY_LIMIT = 800;
@@ -227,3 +229,14 @@ Reply with ONLY a JSON list, no commentary. One object per entry:
   "source": "REQUIRED for a story: the exact, checkable source, e.g. 'Sichos Kodesh 5731 vol. 2 p. 114' or 'Told by Rabbi Y. Y. Jacobson, <where>'"
 }
 Do not repeat these titles already on the list: {EXISTING}.`;
+
+/**
+ * Seconds a passer-by needs to read it: words at ~140 wpm (Hebrew a little slower) + a few seconds to look up.
+ * `speed` is the screen's existing reading speed (Look & Settings > Motion > Long text: slow | normal | fast);
+ * Normal is exactly the old 140 / 110 wpm, so nothing changes until someone picks another speed.
+ */
+export function readingSeconds(story, speed = 'normal') {
+  const k = wpmFor(speed, 'en') / wpmFor('normal', 'en');
+  const words = (t, wpm) => (String(t || '').trim() ? String(t).trim().split(/\s+/).length * (60 / (wpm * k)) : 0);
+  return Math.round(Math.min(90, 4 + words(story?.text, 140) + words(story?.textHe, 110) * 0.5));
+}

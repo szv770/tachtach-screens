@@ -2,6 +2,7 @@ import React from 'react';
 import { sessionKicker } from '../../shared/stageStrings.js';
 import Clock from './Clock.jsx';
 import PinnedNotes from './PinnedNotes.jsx';
+import { sideNotesLimits } from '../../shared/railNotes.js';
 import { CreditContent, creditShown, creditSpot } from './Credit.jsx';
 import { F, he, Bidi } from '../design/ui.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
@@ -223,7 +224,7 @@ export default function Rail({
     <>
       <SessionBadge item={session} align={align} />
       <UpNextCard item={upNext} align={align} />
-      <PinnedNotes pinned={notes} visibility={vis} align={align} />
+      <PinnedNotes pinned={notes} visibility={vis} align={align} max={sideNotesLimits(settings).max} seconds={sideNotesLimits(settings).seconds} />
     </>
   );
 

@@ -31,7 +31,7 @@ export const SETTINGS_INDEX = [
   S('logo', 'Credit line', 'powered by footer credit text size position', { anchor: 'set-credit-line' }),
   S('logo', 'Logo (upload, look, size, position)', 'logo upload image brand blend plate svg', { anchor: 'look-logo' }),
   S('motion', 'Motion (smooth / minimal / lively)', 'animation transitions speed', { anchor: 'look-motion' }),
-  S('motion', 'Long text: scroll or pages, reading speed', 'hayom yom sicha sichos letter scroll auto-scroll pages long text reading speed wpm slow fast', { anchor: 'look-long-text' }),
+  S('motion', 'Long text: scroll or pages, reading speed (also the Daily Story reading time)', 'daily story reading pace hayom yom sicha sichos letter scroll auto-scroll pages long text reading speed wpm slow fast', { anchor: 'look-long-text' }),
   S('motion', 'Graphics (rich / subtle / off)', 'icons drawings patterns decoration', { anchor: 'look-graphics' }),
   // Look & Settings > Screen setup
   S('location', 'Location (zip code)', 'zip postal code city place zmanim chabad location id', { anchor: 'settings-location', match: 'Zip code' }),
@@ -44,6 +44,8 @@ export const SETTINGS_INDEX = [
   S('location', 'Weather readout in the side rail (keep the page, hide the readout)', 'weather rail readout hide temperature', { anchor: 'set-weather', match: 'Also show it in the side rail' }),
   S('location', 'Weather in the side rail (temperature, units, test)', 'temperature units fahrenheit celsius forecast rail readout', { anchor: 'set-weather' }),
   S('shows', 'What shows in the side rail (clock, date, parsha, omer, side notes)', 'visibility hide show toggle', { anchor: 'set-visibility' }),
+  S('shows', 'Hide the up-next card', 'up next card off hide remove rail schedule', { anchor: 'set-visibility', match: 'Up-next card' }),
+  S('shows', 'Side notes at once and how fast they change', 'side notes pinned notes how many rotate seconds rail', { anchor: 'look-side-notes' }),
   S('shows', 'Up-next card minutes', 'upcoming next schedule reminder rail', { anchor: 'look-up-next' }),
   S('shows', 'Daily study slide language and items', 'limudim chitas rambam chumash tehillim tanya hebrew english both', { anchor: 'set-daily-study-slide' }),
   S('shows', 'Hayom Yom language', 'hebrew english both', { anchor: 'set-hayom-yom-language' }),

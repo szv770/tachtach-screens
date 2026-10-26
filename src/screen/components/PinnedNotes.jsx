@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { F, he, bidiNodes } from '../design/ui.jsx';
 import { isHebrew } from '../design/time.js';
 import { textDir } from '../../shared/bidi.js';
+import { SIDE_NOTES_DEFAULT_MAX, SIDE_NOTES_DEFAULT_SECONDS } from '../../shared/railNotes.js';
 
 /**
  * Rail side notes (announcements shown as "Side note"), R2 §5.3: each is a
@@ -9,8 +10,7 @@ import { textDir } from '../../shared/bidi.js';
  * 3 lines. At most 2 are visible; more rotate in place every 8 s (a one-shot
  * fade, no looping animation).
  */
-const MAX_VISIBLE = 2;
-const ROTATE_MS = 8000;
+// Defaults; the admin can change both (settings.rail.sideNotesMax / sideNotesSeconds, src/shared/railNotes.js).
 
 /**
  * The lines of one note, English first (the primary language), then Hebrew as an extra line when
@@ -26,7 +26,9 @@ export function noteLines(n) {
 }
 export const noteText = (n) => noteLines(n)[0] || { text: '', he: false };
 
-export default function PinnedNotes({ pinned, visibility, align = 'left', style }) {
+export default function PinnedNotes({ pinned, visibility, align = 'left', style, max = SIDE_NOTES_DEFAULT_MAX, seconds = SIDE_NOTES_DEFAULT_SECONDS }) {
+  const MAX_VISIBLE = max;
+  const ROTATE_MS = seconds * 1000;
   const notes = (pinned || []).filter((p) => p.displayMode !== 'slide' && noteLines(p).length);
   const [start, setStart] = useState(0);
 
@@ -34,7 +36,7 @@ export default function PinnedNotes({ pinned, visibility, align = 'left', style 
     if (notes.length <= MAX_VISIBLE) { setStart(0); return undefined; }
     const id = setInterval(() => setStart((s) => (s + MAX_VISIBLE) % notes.length), ROTATE_MS);
     return () => clearInterval(id);
-  }, [notes.length]);
+  }, [notes.length, MAX_VISIBLE, ROTATE_MS]);
 
   if (visibility?.pinnedNotes === false || !notes.length) return null;
   const visible = [];
