@@ -7,6 +7,8 @@ import SegmentedControl from './ui/SegmentedControl.jsx';
 import ThemeSwitch from './ThemeSwitch.jsx';
 import FreezeBanner from './FreezeBanner.jsx';
 import UpdateBanner from './ops/UpdateBanner.jsx';
+import useSystemInfo from '../hooks/useSystemInfo.js';
+import { subtitleFor } from '../../shared/systemInfoUi.js';
 import { lockScroll } from './ui/scrollLock.js';
 
 export { navItems };
@@ -125,10 +127,13 @@ function pageTitle(section, area, siteName) {
   return info?.en || '';
 }
 
+const isAdminUser = (me) => !!me && me.role === 'admin';
+
 export default function AdminLayout({
   activeSection, onSectionChange, children, preview, me, siteName = 'My screen',
   onOpenSearch, onOpenNew, onOpenPreviewTab, canPost = true, hasSavebar = false,
 }) {
+  const sysInfo = useSystemInfo(isAdminUser(me));
   const wide = useMedia('(min-width: 900px)');
   const roomForPreview = useMedia('(min-width: 1280px)');
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -296,7 +301,7 @@ export default function AdminLayout({
           <img src="/icons/icon-192.png" alt="" width={36} height={36} style={{ borderRadius: '10px', flexShrink: 0 }} />
           <div style={{ minWidth: 0 }}>
             <div style={{ fontFamily: adminFonts.englishBody, fontWeight: 800, fontSize: '14px', color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{siteName}</div>
-            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted }}>TachTach screen</div>
+            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted }}>{(sysInfo && subtitleFor(sysInfo)) || 'TachTach screen'}</div>
           </div>
         </div>
 

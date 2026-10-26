@@ -10,6 +10,8 @@ export const opsApi = {
   health: () => apiFetch(`/api/health?clientNow=${Date.now()}`),
   /** Software update (admin only): what is installed + what is waiting; `refresh` asks the code host again. */
   updateInfo: (refresh = false) => apiFetch(`/api/system/update${refresh ? '?refresh=1' : ''}`),
+  /** This server's identity (admin only): platform, name, version, LAN addresses. */
+  systemInfo: () => apiFetch('/api/system/info'),
   /** Light and fast (no git): used while an update runs and by the shell banner. */
   updateStatus: () => apiFetch('/api/system/update/status'),
   /** action is exactly 'update' or 'rollback'; the server re-checks the password (+ 2-step code). */

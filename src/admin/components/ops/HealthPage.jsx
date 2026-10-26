@@ -16,6 +16,7 @@ import StatusChip from './StatusChip.jsx';
 import SoftwareUpdateCard from './SoftwareUpdateCard.jsx';
 import LiveLinkCard from './LiveLinkCard.jsx';
 import DataPackCard from './DataPackCard.jsx';
+import ThisServerCard from './ThisServerCard.jsx';
 import { ATTRIBUTION } from '../../../shared/packUi.js';
 
 const card = { background: colors.card, borderRadius: 'var(--r-lg)', boxShadow: 'var(--e1)', border: `1px solid ${colors.line}` };
@@ -75,6 +76,7 @@ export default function HealthPage({ me, onGo }) {
 
   return (
     <div data-testid="health-page" style={{ display: 'grid', gap: '16px', fontFamily: adminFonts.englishBody, color: colors.text }}>
+      <ThisServerCard me={me} />
       <SoftwareUpdateCard me={me} />
       <LiveLinkCard me={me} />
       <DataPackCard me={me} />

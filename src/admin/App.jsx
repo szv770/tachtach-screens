@@ -347,7 +347,7 @@ export default function App() {
       case 'security':
         return <SecurityPage onNavigate={setActiveSection} />;
       case 'this-screen':
-        return <ThisScreenPage settings={settings} onSave={updateSettings} />;
+        return <ThisScreenPage settings={settings} onSave={updateSettings} me={me} />;
       default:
         return null;
     }

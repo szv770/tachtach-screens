@@ -3,10 +3,13 @@ import { colors, adminFonts, buttonSecondary } from '../../styles/admin-tokens.j
 import Collapsible from '../ui/Collapsible.jsx';
 import SaveBar from '../ui/SaveBar.jsx';
 import { notify } from '../../hooks/useAdminState.js';
+import useSystemInfo from '../../hooks/useSystemInfo.js';
+import { oneLine } from '../../../shared/systemInfoUi.js';
 import { Page, Field, Hint, useSettingsForm, fieldStyle, getCsrfToken } from './kit.jsx';
 
 /** The screen's name (sidebar + Home) and the storage clean-up. */
-export default function ThisScreenPage({ settings = {}, onSave }) {
+export default function ThisScreenPage({ settings = {}, onSave, me }) {
+  const sys = useSystemInfo(!!me && me.role === 'admin');
   const form = useSettingsForm(settings, ['siteName'], onSave, 'This screen');
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(null);
@@ -27,10 +30,10 @@ export default function ThisScreenPage({ settings = {}, onSave }) {
   const freedMB = result?.freedBytes ? (result.freedBytes / (1024 * 1024)).toFixed(2) : null;
 
   return (
-    <Page intro="About this screen setup.">
+    <Page intro={sys ? `This server: ${oneLine(sys)}` : 'About this screen setup.'}>
       <Collapsible id="look-site-name" title="Screen name" icon="screen" edited={form.count > 0} summary={name ? name : 'Not set - shows "My screen"'}>
-        <Field label="Name" htmlFor="tt-site-name" hint="Shown at the top of the sidebar and on Home. For your own reference; it is not shown on the TV.">
-          <input id="tt-site-name" style={fieldStyle} maxLength={60} placeholder="My screen" value={name} onChange={(e) => form.set('siteName', e.target.value)} />
+        <Field label="Name" htmlFor="tt-site-name" hint="Name this screen or server, for example Library TV or Back-room PC. Shown at the top of the sidebar and on Home; it is not shown on the TV.">
+          <input id="tt-site-name" style={fieldStyle} maxLength={60} placeholder="Library TV" value={name} onChange={(e) => form.set('siteName', e.target.value)} />
         </Field>
       </Collapsible>
 

@@ -11,6 +11,7 @@ import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, local
 import teamRouter from './routes/team.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
 import { createDataPackRouter } from './routes/dataPack.js';
+import systemInfoRouter from './routes/systemInfo.js';
 import { refreshAfterPack } from './packRefresh.js';
 import pushRouter from './routes/push.js';
 import statusRouter from './routes/status.js';
@@ -498,6 +499,7 @@ export function createApp() {
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and
   // custom-slide shapes (translated) before routes/api.js sees them.
+  app.use('/api/system/info', systemInfoRouter); // admin-only: identity of this server (platform, name, version, LAN addresses)
   app.use('/api/system/live', liveAdminRouter); // admin-only (the /api/system area): public live view on/off + its word
   app.use('/api/system/data-pack', createDataPackRouter({ afterInstall: refreshAfterPack })); // admin-only: the offline data pack (upload / build on this Pi / status)
   app.use('/api', teamRouter);
