@@ -21,7 +21,7 @@ import { startUpdateMonitor } from './systemUpdate.js';
 import authRouter from './routes/auth.js';
 import apiRouter from './routes/api.js';
 import screenRouter from './routes/screen.js';
-import { liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState, getTouchFlags, viewerStateLimiter, viewerStreamLimiter } from './live.js';
+import { isViewer, liveRouter, liveAdminRouter, stateGate, kioskGate, viewerState, getTouchFlags, viewerStateLimiter, viewerStreamLimiter } from './live.js';
 import { homePage, HOME_CSP } from './homePage.js';
 import { cspMiddleware } from './csp.js';
 import { publicErrorMessage } from './safeError.js';
@@ -67,6 +67,22 @@ const DIST_DIR = path.join(PROJECT_ROOT, 'dist');
  * Create and configure the Express application.
  * @returns {import('express').Express}
  */
+/**
+ * Cached Google Photos images: the kiosk (loopback), a signed-in admin, or a live-view watcher, and a watcher only
+ * for albums the TV can actually show. Everyone else gets 404 (red-team 2026-10-26: these used to be public).
+ */
+const googlePhotosGate = async (req, res, next) => {
+  try {
+    if (await isViewer(req)) {
+      const dir = decodeURIComponent(String(req.path || '/').split('/')[1] || '');
+      const { viewerAlbumDirs } = await import('./google-photos.js');
+      if (dir && (await viewerAlbumDirs()).has(dir)) return next();
+      return res.status(404).end();
+    }
+  } catch { return res.status(404).end(); }
+  return localhostOrAuth(req, res, next);
+};
+
 export function createApp() {
   const app = express();
 
@@ -345,7 +361,13 @@ export function createApp() {
       const { getAlbumPhotos } = await import('./google-photos.js');
       const albums = (await readJSON('google-albums.json')) ?? [];
       const album = albums.find(a => a.id === req.params.id);
-      if (!album) return res.status(404).json({ error: 'Album not found.' });
+      if (!album || album.enabled === false) return res.status(404).json({ error: 'Album not found.' });
+      if (req.liveViewer) {
+        // a watcher only gets albums the TV can really show (not a switched-off or unused one)
+        const { viewerAlbumDirs } = await import('./google-photos.js');
+        const { extractAlbumId } = await import('../fetchers/google-photos.js');
+        if (!(await viewerAlbumDirs()).has(extractAlbumId(album.url))) return res.status(404).json({ error: 'Album not found.' });
+      }
       const photos = await getAlbumPhotos(album.url);
       res.json(photos);
     } catch (err) {
@@ -424,7 +446,7 @@ export function createApp() {
     }));
 
     // Serve Google Photos cached images
-    app.use('/google-photos', express.static(dataPath('google-photos'), {
+    app.use('/google-photos', googlePhotosGate, express.static(dataPath('google-photos'), {
       maxAge: '1d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -465,7 +487,7 @@ export function createApp() {
     }));
 
     // Serve Google Photos cached images (dev mode)
-    app.use('/google-photos', express.static(dataPath('google-photos'), {
+    app.use('/google-photos', googlePhotosGate, express.static(dataPath('google-photos'), {
       maxAge: '1d',
       setHeaders: (res) => {
         res.setHeader('X-Content-Type-Options', 'nosniff');

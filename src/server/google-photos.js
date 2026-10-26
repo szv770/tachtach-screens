@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { fetchGooglePhotosAlbum, extractAlbumId } from '../fetchers/google-photos.js';
 import { broadcast } from './sse.js';
 import { dataPath } from './dataDir.js';
-import { writeFileAtomic } from './storage.js';
+import { writeFileAtomic, readJSON } from './storage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -311,6 +311,22 @@ export async function getAlbumPhotos(albumUrl) {
     height: p.height,
     dominantColor: p.dominantColor,
   }));
+}
+
+/**
+ * Album folders a live-view WATCHER may see: only albums that are switched on AND used by a switched-on
+ * Google Photos slide (what the TV can actually show). A disabled or unused album stays private (red-team 2026-10-26).
+ * @returns {Promise<Set<string>>} cache folder names (extractAlbumId of each album url)
+ */
+export async function viewerAlbumDirs() {
+  const [albums, slides] = await Promise.all([readJSON('google-albums.json'), readJSON('slides.json')]);
+  const used = new Set((Array.isArray(slides) ? slides : [])
+    .filter((s) => s && s.type === 'GOOGLE_PHOTOS_SLIDE' && s.enabled !== false && s.googleAlbumId).map((s) => s.googleAlbumId));
+  const out = new Set();
+  for (const a of Array.isArray(albums) ? albums : []) {
+    if (a && a.url && a.enabled !== false && used.has(a.id)) out.add(extractAlbumId(a.url));
+  }
+  return out;
 }
 
 // ── Periodic sync timers ──────────────────────────────────────────────────
