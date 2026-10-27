@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { colors, adminFonts } from '../../styles/admin-tokens.js';
 import Collapsible from '../ui/Collapsible.jsx';
 import { SIDE_NOTES_DEFAULT_MAX, SIDE_NOTES_DEFAULT_SECONDS, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS, sideNotesLimits } from '../../../shared/railNotes.js';
+import { POST_STYLES, POST_STYLE_LABEL, DEFAULT_POST_STYLE, postStyle } from '../../../shared/postDefaults.js';
 import { Page, Field, Hint, SwitchRow, Choices, useInstant, fieldStyle } from './kit.jsx';
 
 const VIS = [
@@ -50,6 +51,7 @@ export default function ShowsPage({ settings = {}, onSave }) {
     if (n !== notesLim.seconds) apply({ rail: { sideNotesSeconds: n } }, `Side notes now change every ${n} s`);
   };
   const upNextOn = vis.upNext !== false;
+  const postMode = postStyle(settings);
 
   return (
     <Page intro="What the screen shows around the slides, and the languages of the study pages. Changes apply as soon as you tap them.">
@@ -89,6 +91,13 @@ export default function ShowsPage({ settings = {}, onSave }) {
           note="Shows the time left, switching to minutes and seconds ticking down in the last 3 minutes."
           onChange={() => apply({ rail: { upNextCountdown: !settings.rail?.upNextCountdown } }, `Up-next countdown ${settings.rail?.upNextCountdown ? 'off' : 'on'}`)}
         />
+      </Collapsible>
+
+      <Collapsible id="set-post-button" title="Post button" icon="bolt" summary={POST_STYLE_LABEL[postMode]}>
+        <Field label="Post button style" hint={`The + button (and New on a computer). "${POST_STYLE_LABEL.sheet}" opens one sheet: type, see how it will look, post. "${POST_STYLE_LABEL.classic}" is the older menu of Quick message, Announcement, Banner and Takeover. Default: ${POST_STYLE_LABEL[DEFAULT_POST_STYLE]}. You can switch back any time.`}>
+          <Choices ariaLabel="Post button style" value={postMode} onChange={(v) => apply({ post: { style: v } }, `Post button: ${POST_STYLE_LABEL[v]}`)} options={POST_STYLES.map((v) => ({ value: v, label: POST_STYLE_LABEL[v] }))} />
+        </Field>
+        <Hint>This applies to everyone on this screen. Everything the old cards could do is still there under More options.</Hint>
       </Collapsible>
 
       <Collapsible id="set-daily-study-slide" title="Daily study slide" icon="word" summary={`${langLabel(limLang)} - ${itemsOn.length} of ${ITEMS.length} items`}>

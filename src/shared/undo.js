@@ -87,7 +87,8 @@ export function announcementName(a) {
   const c = a?.content || {};
   const t = c.headlineEn || c.headlineHe || c.event?.title || c.event?.titleHe || c.quicktime?.name || c.quicktime?.nameHe
     || c.list?.heading || c.list?.headingHe || c.quote?.text || c.sicha?.title || c.bodyEn || c.bodyHe || a?.slide?.label || '';
-  return clip(t) || 'a message';
+  // History keeps at most 40 characters of a post's words: they can name a student (spec 01, Q2 B)
+  return clip(t, 40) || 'a message';
 }
 
 /** "Turned off X" / "Turned on Y" / "Reordered the slides" / "Changed N slides". */

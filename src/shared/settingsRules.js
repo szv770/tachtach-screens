@@ -13,6 +13,7 @@
  * and means "use the default". Paths are 'key.sub'.
  */
 import { CANDLE_MIN, CANDLE_MAX } from './candleLighting.js';
+import { POST_STYLES } from './postDefaults.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -27,6 +28,7 @@ const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
 
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
+  { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },
   { path: 'location.candleMinutes', label: 'Candle-lighting minutes before sunset', check: int(CANDLE_MIN, CANDLE_MAX) },
   { path: 'location.lat', label: 'Latitude', check: num(-90, 90) },
   { path: 'location.lon', label: 'Longitude', check: num(-180, 180) },

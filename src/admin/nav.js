@@ -21,7 +21,7 @@ export const navItems = [
   { key: 'logo', en: 'Logo & credit', desc: 'Credit line and your logo', area: 'look', group: 'look' },
   { key: 'motion', en: 'Motion & graphics', desc: 'Animation and drawings', area: 'look', group: 'look' },
   { key: 'location', en: 'Location & weather', desc: 'Zip, time zone, place name, weather', area: 'look', group: 'setup' },
-  { key: 'shows', en: 'What shows', desc: 'Side-rail items, up-next, study languages', area: 'look', group: 'setup' },
+  { key: 'shows', en: 'What shows', desc: 'Side-rail items, up-next, study languages, Post button', area: 'look', group: 'setup' },
   { key: 'schedule-display', en: 'Schedule display', desc: 'How the timetable looks; two tracks', area: 'look', group: 'setup' },
   { key: 'security', en: 'Security', desc: 'Trusted devices', area: 'look', group: 'system' },
   { key: 'this-screen', en: 'This screen', desc: 'Screen name and storage', area: 'look', group: 'system' },
