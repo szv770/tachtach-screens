@@ -41,6 +41,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             pointerEvents: 'auto',
             display: 'flex',
             alignItems: 'flex-start',
+            flexWrap: 'wrap',
             gap: '10px',
             padding: '12px 16px',
             borderRadius: '6px',
@@ -61,7 +62,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
 
           {/* Message */}
           <span style={{
-            flex: 1,
+            flex: '1 1 140px',
             fontFamily: adminFonts.englishBody,
             fontSize: '14px',
             color: '#fff',
@@ -71,18 +72,19 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             {toast.message}
           </span>
 
-          {toast.action && (
+          {[].concat(toast.action || []).map((a) => (
             <button
-              onClick={toast.action.onClick}
+              key={a.label}
+              onClick={a.onClick}
               style={{
                 background: 'rgba(255,255,255,.18)', border: '1px solid rgba(255,255,255,.6)', borderRadius: '5px',
                 color: '#fff', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600,
-                padding: '6px 14px', minHeight: '34px', cursor: 'pointer', flexShrink: 0, margin: '-4px 0',
+                padding: '6px 14px', minHeight: '44px', cursor: 'pointer', flexShrink: 0, margin: '-8px 0',
               }}
             >
-              {toast.action.label}
+              {a.label}
             </button>
-          )}
+          ))}
 
           {/* Dismiss button */}
           <button

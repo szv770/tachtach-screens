@@ -98,13 +98,14 @@ export default function useAdminState() {
   const toastTimers = useRef({});
 
   // Add a toast notification that auto-dismisses after 6 seconds
-  const addToast = useCallback((message, type = 'error', action = null) => {
+  // `action` is one { label, onClick } or a list of them (Undo + Edit); opts.duration overrides the 6 seconds.
+  const addToast = useCallback((message, type = 'error', action = null, opts = null) => {
     const id = ++toastIdCounter;
     setToasts(prev => [...prev, { id, message, type, action, timestamp: Date.now() }]);
     toastTimers.current[id] = setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
       delete toastTimers.current[id];
-    }, 6000);
+    }, opts?.duration || 6000);
     return id;
   }, []);
 
@@ -335,6 +336,21 @@ export default function useAdminState() {
     return created;
   }, [createAnnouncement, addToast, dismissToast, deleteAnnouncement]);
 
+  /**
+   * The Post sheet's post: one toast for every kind and length, with Undo (and Edit when the person may edit) for 15 seconds.
+   * The toast says what happened ("On the screen: banner until 6:00 PM"), never the message itself.
+   */
+  const postFromSheet = useCallback(async (data, { summary = 'Posted to screen', onEdit = null } = {}) => {
+    const created = await createAnnouncement(data, null);
+    if (created) {
+      const toastId = addToast(summary, 'success', [
+        { label: 'Undo', onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); } },
+        ...(onEdit ? [{ label: 'Edit', onClick: () => { dismissToast(toastId); onEdit(created); } }] : []),
+      ], { duration: 15000 });
+    }
+    return created;
+  }, [createAnnouncement, addToast, dismissToast, deleteAnnouncement]);
+
   const fetchShabbosEnd = useCallback(async () => {
     try { return await apiFetch('/api/announcements/shabbos-end'); } catch { return { available: false }; }
   }, []);
@@ -542,6 +558,7 @@ export default function useAdminState() {
     duplicateAnnouncement,
     deleteAnnouncement,
     quickPostAnnouncement,
+    postFromSheet,
     fetchShabbosEnd,
     createCustomDay,
     updateCustomDay,

@@ -98,7 +98,7 @@ export default function App() {
     toasts, dismissToast,
     updateSettings, updateSlides, createSlide, deleteSlide,
     createAnnouncement, updateAnnouncement, reactivateAnnouncement,
-    duplicateAnnouncement, deleteAnnouncement, quickPostAnnouncement, fetchShabbosEnd,
+    duplicateAnnouncement, deleteAnnouncement, quickPostAnnouncement, postFromSheet, fetchShabbosEnd,
     createCustomDay, updateCustomDay, deleteCustomDay,
     fetchSchedule, updateScheduleEntries, createScheduleEntry,
     updateScheduleEntry, deleteScheduleEntry, updateScheduleCategories,
@@ -397,7 +397,7 @@ export default function App() {
           cache={state?.cache || null} freeze={state?.freeze || null} meId={me?.id || null}
           fetchShabbosEnd={fetchShabbosEnd}
           onClose={() => setPostOpen(false)}
-          onPost={quickPostAnnouncement}
+          onPost={(body, opts) => postFromSheet(body, { ...opts, onEdit: can(myCaps, 'announcements.edit') ? setComposer : null })}
           onDraft={(body) => createAnnouncement(body, 'Draft saved')}
           onMore={(draft) => { setPostOpen(false); setComposer(draft); }}
           onManage={() => { setPostOpen(false); goSection('announcements', { tab: 'quick' }); }}

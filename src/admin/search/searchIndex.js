@@ -47,6 +47,7 @@ export const SETTINGS_INDEX = [
   S('shows', 'Hide the up-next card', 'up next card off hide remove rail schedule', { anchor: 'set-visibility', match: 'Up-next card' }),
   S('shows', 'Side notes at once and how fast they change', 'side notes pinned notes how many rotate seconds rail', { anchor: 'look-side-notes' }),
   S('shows', 'Up-next card minutes', 'upcoming next schedule reminder rail', { anchor: 'look-up-next' }),
+  S('shows', 'Post button style', 'plus new post sheet classic four cards quick message announcement banner takeover', { anchor: 'set-post-button' }),
   S('shows', 'Daily study slide language and items', 'limudim chitas rambam chumash tehillim tanya hebrew english both', { anchor: 'set-daily-study-slide' }),
   S('shows', 'Hayom Yom language', 'hebrew english both', { anchor: 'set-hayom-yom-language' }),
   S('schedule-display', 'Schedule layout (whole day / timeline / focus / auto-rotate)', 'full day two columns scroll timeline focus rotate timetable mode', { anchor: 'set-schedule-display', match: 'Layout' }),
