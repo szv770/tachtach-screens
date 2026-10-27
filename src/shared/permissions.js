@@ -13,7 +13,9 @@
  * Fail closed: for a non-admin, a request that changes data is allowed ONLY if
  * a rule below matches it AND the person holds that rule's capability. A route
  * nobody listed (including any added later) is admin-only until listed here.
- * Reading is allowed except the admin-only areas (team, activity).
+ * Reading is the same: every GET route must be listed in READ_ROUTES (below) with who may
+ * read it and how often; an unlisted GET is admin-only (test/readRoutes.test.js fails until it
+ * is listed). No GET is open just because it is a GET.
  *
  * Existing editors have no stored preset: that means DEFAULT_PRESET ('full'),
  * which is exactly what the old fixed "editor" role could do.
@@ -222,6 +224,108 @@ export const LOOK_SETTING_KEYS = Object.freeze([
 /** Settings keys that are part of the SCHEDULE (a patch made only of these needs schedule.edit, not settings.change). */
 export const SCHEDULE_SETTING_KEYS = Object.freeze(['scheduleGroups']);
 
+// ── Read routes (GET / HEAD / OPTIONS) ───────────────────────────────────────
+// ONE table for every GET under /api. Fail closed: a GET nobody listed is admin-only, and
+// test/readRoutes.test.js enumerates the real Express routes and fails if one is missing here.
+//
+//   route   the Express path (":name" = one segment). Lower case; matched after normalizeApiPath.
+//   who     'open'   any signed-in person (configuration the TV or the admin shell already shows)
+//           [caps]   holds AT LEAST ONE of these capabilities (sensitive or expensive reads)
+//   budget  how often one PERSON may call it (READ_BUDGETS; applied by src/server/readLimiter.js).
+//           Set it on anything that fans out to outbound fetches, runs a date/engine loop on
+//           request input, builds a report or sends a big payload.
+// What each route costs / reveals: docs/security/READ-ROUTES.md. A new GET route: add a line here.
+
+/** Requests per person per window for each class of expensive read. Per person AND per route. */
+export const READ_BUDGETS = Object.freeze({
+  heavy: Object.freeze({ max: 12, windowMs: 60_000 }),   // outbound fetches, headless browser, multi-date lookups
+  medium: Object.freeze({ max: 30, windowMs: 60_000 }),  // engines / reports / disk walks on request input
+  light: Object.freeze({ max: 120, windowMs: 60_000 }),  // enriched lists the admin polls every few seconds
+});
+
+const ANNOUNCE_CAPS = ['announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete'];
+const ALBUM_CAPS = ['feeds.edit', 'media.upload', 'media.delete', 'slides.edit'];
+const readRule = (route, who, budget = null) => Object.freeze({ route, who, budget });
+
+export const READ_ROUTES = Object.freeze([
+  // Shell + kiosk state (served by the TV too; the admin shell, Home and Live preview need them for every role)
+  readRule('/api/state', 'open'),
+  readRule('/api/screen/state', 'open'),
+  readRule('/api/screen/status', 'open'),
+  readRule('/api/freeze', 'open'),
+  readRule('/api/kiddush-levana/shown', 'open'),
+  readRule('/api/google-album/:id/photos', 'open'),
+  readRule('/api/rss/cache/:feedId', 'open'),
+  readRule('/api/me', 'open'),
+  readRule('/api/push/status', 'open'),
+  readRule('/api/history', 'open', 'medium'),            // already limited to what that person may see
+  readRule('/api/health', 'open', 'medium'),             // Home + Health page, every role
+  readRule('/api/preview-state', 'open', 'heavy'),       // "Preview a date" on Home, every role; outbound fetches per call
+  // Configuration shown on the TV
+  readRule('/api/settings', 'open'),
+  readRule('/api/slides', 'open'),
+  readRule('/api/custom-days', 'open'),
+  readRule('/api/schedule', 'open'),
+  readRule('/api/schedule/templates', 'open'),
+  readRule('/api/schedule/dates', 'open'),
+  readRule('/api/schedule/blocks', 'open'),
+  readRule('/api/announcements', 'open'),
+  readRule('/api/announcements/shabbos-end', 'open', 'medium'),
+  readRule('/api/messages', 'open'),
+  readRule('/api/pinned', 'open'),
+  readRule('/api/media', 'open'),
+  readRule('/api/fonts', 'open'),
+  // Needs the capability of the page that uses it
+  readRule('/api/quick-templates', ANNOUNCE_CAPS),
+  readRule('/api/saved-letters', ANNOUNCE_CAPS),
+  readRule('/api/kiddush-levana', ANNOUNCE_CAPS, 'medium'),
+  readRule('/api/kiddush-levana/months', ANNOUNCE_CAPS, 'medium'),
+  readRule('/api/daily-words', ['dailyWord.edit']),
+  readRule('/api/daily-stories', ['dailyWord.edit']),
+  readRule('/api/roster', ['roster.edit']),               // student names
+  readRule('/api/chazan', ['chazan.edit']),               // student names
+  readRule('/api/chazan/swap-options', ['chazan.edit'], 'medium'),
+  readRule('/api/google-albums', ALBUM_CAPS, 'light'),    // shared album links + a status look-up per album
+  readRule('/api/google-album/:id/status', ALBUM_CAPS, 'medium'),
+  readRule('/api/rss/feeds', ['feeds.edit', 'slides.edit']),
+  readRule('/api/embed-probe', ['slides.edit'], 'heavy'), // the Pi fetches an outside address (audit L1)
+  readRule('/api/weather/preview', ['settings.change', 'look.change'], 'heavy'),
+  readRule('/api/candle-preview', ['settings.change', 'look.change'], 'medium'),
+  readRule('/api/schedule/zmanim', ['schedule.edit'], 'heavy'),
+  // People, security, the box itself (adminOnly capabilities: only an admin can ever hold them)
+  readRule('/api/team', ['team.manage']),
+  readRule('/api/activity', ['team.manage'], 'medium'),
+  readRule('/api/system/info', ['system.update']),
+  readRule('/api/system/live', ['system.update']),
+  readRule('/api/system/update', ['system.update'], 'medium'),
+  readRule('/api/system/update/status', ['system.update']),
+  readRule('/api/system/data-pack', ['system.update']),
+  readRule('/api/system/data-pack/download', ['system.update'], 'medium'),
+]);
+
+const compileRoute = (route) => new RegExp('^' + route.split('/').map((seg) => (seg.startsWith(':') ? '[^/]+' : seg.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('/') + '$');
+const READ_COMPILED = Object.freeze(READ_ROUTES.map((e) => ({ ...e, re: compileRoute(e.route) })));
+
+/** The table entry for a path (any spelling), or null when nobody listed it. */
+export function readPolicy(path) {
+  const p = normalizeApiPath(path);
+  if (p.split('/').some((seg) => seg === '..' || seg === '.')) return null;
+  const e = READ_COMPILED.find((x) => x.re.test(p));
+  return e ? { route: e.route, who: e.who, budget: e.budget } : null;
+}
+
+/** May this person read this path? Admins: always. Everyone else: only what READ_ROUTES lists, for them. */
+export function canRead(who, path) {
+  const user = typeof who === 'string' ? { role: who } : who;
+  if (!user || !ROLES.includes(user.role)) return false;
+  if (user.role === 'admin') return true;
+  const e = readPolicy(path);
+  if (!e) return false;
+  if (e.who === 'open') return true;
+  const caps = new Set(effectiveCaps(user));
+  return e.who.some((c) => caps.has(c));
+}
+
 /** Normalise a request path so odd spellings cannot dodge the table. */
 export function normalizeApiPath(p) {
   let s = String(p || '').split('?')[0].split('#')[0];
@@ -257,18 +361,16 @@ export function canDo(who, method, path, body) {
   const user = typeof who === 'string' ? { role: who } : who;
   if (!user || !ROLES.includes(user.role)) return false;
   const p = normalizeApiPath(path);
+  const m = String(method || 'GET').toUpperCase();
+  // Reading goes through the READ_ROUTES table only: no GET is open just because it is a GET.
+  if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return canRead(user, p);
   if (SELF.test(p)) return true;
   if (user.role === 'admin') return true;
   // Dot segments never appear in a real request; refuse them rather than guess how a proxy resolves them.
   if (p.split('/').some((seg) => seg === '..' || seg === '.')) return false;
   const caps = new Set(effectiveCaps(user));
-  const m = String(method || 'GET').toUpperCase();
   if (ADMIN_AREA.test(p)) return caps.has('team.manage');
   if (SYSTEM_AREA.test(p)) return caps.has('system.update');
-  // The embed probe makes the Pi fetch an outside address: only people who edit slides may use it (audit L1).
-  const reading = m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
-  if (reading && /^\/api\/embed-probe$/.test(p)) return caps.has('slides.edit');
-  if (reading) return true;
   // The preview feed reaches every open admin panel: only people who change the screen may drive it.
   if (PREVIEW.test(p)) return ['slides.edit', 'screen.control', 'announcements.post', 'look.change'].some((c) => caps.has(c));
 

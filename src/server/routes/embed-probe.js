@@ -33,6 +33,7 @@ export async function fetchHeaders(startUrl, { guard, timeoutMs = 10000, ...rest
 const router = Router();
 
 router.get('/embed-probe', async (req, res) => {
+  if (typeof req.query.url !== 'string' || req.query.url.length > 2048) return res.status(400).json({ error: 'Enter a full web address, like https://example.com/page' });
   const url = normalizeWebUrl(req.query.url);
   if (!url) return res.status(400).json({ error: 'Enter a full web address, like https://example.com/page' });
   try {

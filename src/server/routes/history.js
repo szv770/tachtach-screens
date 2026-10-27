@@ -11,6 +11,7 @@
  * every signed-in role in permissions.js because the undo itself does that check per change.
  */
 import { Router } from 'express';
+import { boundedInt } from '../../shared/readBounds.js';
 import activity from '../activity.js';
 import { visibleTo, UNDO_KINDS } from '../../shared/undo.js';
 
@@ -18,9 +19,11 @@ const router = Router();
 const svc = async () => (await import('../undoRuntime.js')).undoService;
 
 router.get('/history', async (req, res) => {
+  const lim = boundedInt(req.query.limit, { min: 1, max: 200, def: 100 });
+  if (!lim.ok) return res.status(400).json({ error: 'limit must be a whole number from 1 to 200.' });
   try {
     const service = await svc();
-    const limit = Math.max(1, Math.min(200, parseInt(req.query.limit, 10) || 100));
+    const limit = lim.value;
     const [entries, records] = await Promise.all([activity.list({ limit: 500 }), service.store.load()]);
     const byId = new Map(records.map((r) => [r.id, r]));
     const rows = entries.filter((e) => visibleTo(e, req.user)).slice(0, limit).map((e) => {

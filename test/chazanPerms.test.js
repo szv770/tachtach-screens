@@ -21,8 +21,12 @@ test('chazan writes: full editor and admin yes; messages-only / view-only refuse
     assert.equal(canDo(msgs, m, p), false, `${m} ${p}`);
     assert.equal(canDo(view, m, p), false, `${m} ${p}`);
   }
-  assert.equal(canDo(view, 'GET', '/api/chazan'), true);
-  assert.equal(canDo(view, 'GET', '/api/chazan/swap-options'), true);
+  // reads need the capability too (student names): see READ_ROUTES / test/readRoutes.test.js
+  for (const p of ['/api/chazan', '/api/chazan/swap-options']) {
+    assert.equal(canDo(full, 'GET', p), true, p);
+    assert.equal(canDo(msgs, 'GET', p), false, p);
+    assert.equal(canDo(view, 'GET', p), false, p);
+  }
 });
 
 test('chazan routes are traversal-proof and the page needs the capability', () => {

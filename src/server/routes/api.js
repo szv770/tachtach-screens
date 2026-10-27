@@ -1,3 +1,4 @@
+import { isRealISODate, daysFromToday, boundedText, MAX_DATE_DAYS } from '../../shared/readBounds.js';
 import { clientError, isClientError, networkReason } from '../safeError.js';
 import express, { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
@@ -950,6 +951,7 @@ router.post('/google-album', async (req, res) => {
 
 router.get('/google-album/:id/status', async (req, res) => {
   try {
+    if (!boundedText(req.params.id, 128).ok) return res.status(400).json({ error: 'Bad album id.' });
     const albums = (await readJSON('google-albums.json')) ?? [];
     const album = albums.find(a => a.id === req.params.id);
     if (!album) {
@@ -965,6 +967,7 @@ router.get('/google-album/:id/status', async (req, res) => {
 
 router.get('/google-album/:id/photos', async (req, res) => {
   try {
+    if (!boundedText(req.params.id, 128).ok) return res.status(400).json({ error: 'Bad album id.' });
     const albums = (await readJSON('google-albums.json')) ?? [];
     const album = albums.find(a => a.id === req.params.id);
     if (!album) {
@@ -1313,25 +1316,14 @@ router.get('/rss/cache/:feedId', async (req, res) => {
 // Hebrew limudim) fall back to today's cached values.
 
 // Preview-state can make several outbound fetches (some with a headless browser) per call, and every signed-in role
-// may read it, so it gets its own small budget per person and a sane date window (red-team F6).
-const previewHits = new Map();
-function previewBudgetOk(key) {
-  const now = Date.now();
-  const hits = (previewHits.get(key) || []).filter((t) => now - t < 60_000);
-  if (hits.length >= 12) { previewHits.set(key, hits); return false; }
-  hits.push(now); previewHits.set(key, hits);
-  if (previewHits.size > 500) for (const [k, v] of previewHits) if (!v.some((t) => now - t < 60_000)) previewHits.delete(k);
-  return true;
-}
+// may read it, so READ_ROUTES gives it the 'heavy' per-person budget (src/server/readLimiter.js) and the date is bounded here (red-team F6).
 router.get('/preview-state', async (req, res) => {
   try {
     const dateStr = req.query.date;
-    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    if (!isRealISODate(dateStr)) {
       return res.status(400).json({ error: 'date query param required (YYYY-MM-DD)' });
     }
-    const dayDelta = Math.abs(Date.parse(`${dateStr}T12:00:00Z`) - Date.now()) / 86_400_000;
-    if (!Number.isFinite(dayDelta) || dayDelta > 800) return res.status(400).json({ error: 'Pick a date within about two years.' });
-    if (!previewBudgetOk(String(req.user?.id || req.ip || 'anon'))) return res.status(429).json({ error: 'Slow down a little: too many previews in a minute.' });
+    if (daysFromToday(dateStr) > MAX_DATE_DAYS) return res.status(400).json({ error: 'Pick a date within about two years.' });
 
     const [settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, currentCache, scheduleDates] = await Promise.all([
       readJSON('settings.json'),

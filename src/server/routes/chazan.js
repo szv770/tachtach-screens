@@ -14,6 +14,7 @@
  *   PUT    /chazan/can                { personId, tefilos: [...] }  (all three or none = can lead everything)
  */
 import express, { Router } from 'express';
+import { daysFromToday, MAX_DATE_DAYS } from '../../shared/readBounds.js';
 import { readView, mutate, buildView, FORECAST_DAYS } from '../chazanStore.js';
 import {
   normalizeSettings, setOrder, setSwap, clearSwap, setAway, setBack, clearAway, setCan, swapOptions, isISO, TEFILOS, addDays, LIMITS,
@@ -35,6 +36,7 @@ router.get('/chazan/swap-options', async (req, res) => {
   try {
     const { date, tefila } = req.query;
     if (!isISO(date) || !TEFILOS.includes(tefila)) return err(res, 400, 'Pick a date and a davening.');
+    if (daysFromToday(date) > MAX_DATE_DAYS) return err(res, 400, 'Pick a date within about two years.');
     const { state, ctx } = await readView();
     const o = swapOptions(state, date, tefila, ctx.customDays);
     res.json({ ...o, fill: o.rule }); // fill = the rule that applies to THIS slot (a published slot always uses 'furthest')

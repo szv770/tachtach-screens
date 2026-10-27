@@ -15,7 +15,7 @@ test('editor cannot touch settings, fonts, logo, security, team, activity, clean
 });
 
 test('editor can read non-admin data and use their own account endpoints', () => {
-  for (const p of ['/api/settings', '/api/slides', '/api/state', '/api/schedule', '/api/fonts', '/api/zmanim']) assert.equal(canDo('editor', 'GET', p), true, p);
+  for (const p of ['/api/settings', '/api/slides', '/api/state', '/api/schedule', '/api/fonts']) assert.equal(canDo('editor', 'GET', p), true, p);
   for (const [m, p] of [['GET', '/api/me'], ['POST', '/api/account/password'], ['POST', '/api/account/2fa/start'], ['PATCH', '/api/account']]) assert.equal(canDo('editor', m, p), true, m + p);
 });
 

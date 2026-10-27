@@ -12,6 +12,7 @@
  * alerts follow the per-date schedule immediately.
  */
 import express, { Router } from 'express';
+import { isRealISODate, daysFromToday } from '../../shared/readBounds.js';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
@@ -96,6 +97,8 @@ const cleanLabel = (v) => (typeof v === 'string' ? v.trim().slice(0, 120) : '');
 router.get('/dates', async (req, res) => {
   try {
     const { from, to } = req.query;
+    // from / to are optional, but when given they must be real dates (nothing else is quietly ignored)
+    for (const v of [from, to]) if (v !== undefined && v !== '' && !isRealISODate(v)) return res.status(400).json({ error: 'from and to must be dates like 2026-10-27.' });
     const dates = await readScheduleDates();
     const out = {};
     for (const [k, v] of Object.entries(dates)) {
@@ -416,10 +419,12 @@ router.delete('/blocks/:id', async (req, res) => {
 
 router.get('/zmanim', async (req, res) => {
   try {
-    const dates = String(req.query.dates || '').split(',').map((s) => s.trim()).filter(isISODate);
-    const today = toISODate(new Date());
-    const limit = addDaysISO(today, 400);
-    const wanted = [...new Set(dates)].filter((d) => d <= limit).slice(0, 14);
+    // Every date can mean an outside look-up: at most 14 real dates, within about a year either side of today.
+    const rawDates = req.query.dates;
+    if (typeof rawDates !== 'string' || rawDates.length > 300) return res.status(400).json({ error: 'dates=YYYY-MM-DD[,YYYY-MM-DD…] required (at most 14).' });
+    const asked = rawDates.split(',').map((s) => s.trim()).filter(Boolean);
+    if (asked.length > 14 || asked.some((d) => !isRealISODate(d) || daysFromToday(d) > 400)) return res.status(400).json({ error: 'Send at most 14 real dates, each within about a year of today.' });
+    const wanted = [...new Set(asked)];
     if (!wanted.length) return res.status(400).json({ error: 'dates=YYYY-MM-DD[,YYYY-MM-DD…] required.' });
     const settings = (await readJSON('settings.json')) ?? {};
     const { zmanim, parsha } = await getZmanimForDates(wanted);

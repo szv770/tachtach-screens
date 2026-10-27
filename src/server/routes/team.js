@@ -3,6 +3,7 @@
  * per-person "My account" endpoints every signed-in role may use.
  */
 import { Router } from 'express';
+import { boundedInt, boundedText } from '../../shared/readBounds.js';
 import users, { StoreError, validatePassword } from '../users.js';
 import activity from '../activity.js';
 import { ROLES, isAssignablePreset, accessLabel } from '../../shared/permissions.js';
@@ -127,9 +128,12 @@ router.post('/team/:id/reset-2fa', async (req, res) => {
 });
 
 router.get('/activity', async (req, res) => {
+  const lim = boundedInt(req.query.limit, { min: 1, max: 500, def: 100 });
+  const who = boundedText(req.query.user, 64);
+  if (!lim.ok || !who.ok) return res.status(400).json({ error: 'limit must be a whole number from 1 to 500 and user a short id.' });
   try {
-    const limit = Math.max(1, Math.min(500, parseInt(req.query.limit, 10) || 100));
-    const userId = typeof req.query.user === 'string' && req.query.user ? req.query.user : null;
+    const limit = lim.value;
+    const userId = who.value || null;
     res.json({ entries: await activity.list({ limit, userId }) });
   } catch (e) { fail(res, e, 'GET /activity'); }
 });

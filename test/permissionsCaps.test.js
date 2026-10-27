@@ -29,7 +29,10 @@ test('plain editors (no preset stored) behave exactly as the old fixed editor ro
     const path = `/api/${pre}${suf}`;
     for (const who of ['editor', { role: 'editor' }, { role: 'editor', preset: 'full', overrides: { grant: [], deny: [] } }]) {
       // push moved to "everyone's own endpoints"; for editors that is still allowed, as before
-      assert.equal(canDo(who, m, path), oldEditorCanDo(m, path), `${m} ${path}`);
+      if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') {
+        // Reads are now an explicit table (READ_ROUTES): never broader than the old blanket rule; the exact matrix is in readRoutes.test.js.
+        if (canDo(who, m, path)) assert.equal(oldEditorCanDo(m, path), true, `${m} ${path}`);
+      } else assert.equal(canDo(who, m, path), oldEditorCanDo(m, path), `${m} ${path}`);
       n++;
     }
   }
@@ -111,7 +114,8 @@ test('Messages only: posts and controls the screen, nothing else', () => {
 
 test('View only: can read, cannot change anything or drive the preview', () => {
   const w = P('view');
-  for (const p of ['/api/state', '/api/slides', '/api/settings', '/api/schedule', '/api/announcements', '/api/zmanim']) ok(w, 'GET', p);
+  for (const p of ['/api/state', '/api/slides', '/api/settings', '/api/schedule', '/api/announcements']) ok(w, 'GET', p);
+  for (const p of ['/api/roster', '/api/chazan', '/api/chazan/swap-options', '/api/team', '/api/activity', '/api/system/info', '/api/embed-probe', '/api/schedule/zmanim']) no(w, 'GET', p);
   ok(w, 'GET', '/api/me'); ok(w, 'PATCH', '/api/account', { name: 'x' }); ok(w, 'POST', '/api/account/password');
   for (const [m, p] of [['POST', '/api/preview'], ['POST', '/api/announcements'], ['POST', '/api/screen/pause'], ['POST', '/api/refresh'], ['PUT', '/api/slides'], ['DELETE', '/api/media/1'], ['PUT', '/api/schedule/weekly'], ['POST', '/api/upload'], ['PUT', '/api/settings']]) no(w, m, p, {});
   assert.equal(canOpenSection(w, 'home'), true);

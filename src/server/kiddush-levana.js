@@ -8,6 +8,7 @@
  * Nothing here writes to announcements.json: the banner / rail note / takeover are virtual items.
  */
 import { Router } from 'express';
+import { boundedInt } from '../shared/readBounds.js';
 import { readJSON, writeJSON } from './storage.js';
 import { broadcast } from './sse.js';
 import {
@@ -114,7 +115,9 @@ export async function monthsPreview(count = 14, now = new Date()) {
 }
 
 kiddushLevanaRouter.get('/kiddush-levana/months', async (req, res) => {
-  try { res.json(await monthsPreview(req.query.count)); } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not work out the months.' }); }
+  const c = boundedInt(req.query.count, { min: 1, max: 24, def: 14 });
+  if (!c.ok) return res.status(400).json({ error: 'count must be a whole number from 1 to 24.' });
+  try { res.json(await monthsPreview(c.value)); } catch (e) { console.error('[kiddush-levana]', e.message); res.status(500).json({ error: 'Could not work out the months.' }); }
 });
 
 /**

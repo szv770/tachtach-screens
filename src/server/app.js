@@ -41,6 +41,7 @@ import rosterRouter, { readRoster } from './routes/roster.js';
 import chazanRouter from './routes/chazan.js';
 import { readForKiosk as readChazanForKiosk } from './chazanStore.js';
 import { forKiosk as rosterForKiosk } from '../shared/roster.js';
+import { readBudget } from './readLimiter.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
 import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
@@ -529,7 +530,7 @@ export function createApp() {
     skip: (req) => ['GET', 'HEAD', 'OPTIONS'].includes(req.method),
     message: { error: 'Too many requests. Please slow down.' },
   });
-  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, enforceRole, logActivity);
+  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, enforceRole, readBudget(), logActivity); // readBudget: per-person limit on the expensive GETs listed in READ_ROUTES
 
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and

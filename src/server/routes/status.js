@@ -14,6 +14,9 @@ router.get('/screen/status', (_req, res) => {
 });
 
 router.get('/health', async (req, res) => {
+  // clientNow (the browser's clock, for the skew check) is a plain millisecond time or absent
+  const raw = req.query.clientNow;
+  if (raw !== undefined && !(typeof raw === 'string' && /^\d{1,16}$/.test(raw) && Number(raw) <= 8_640_000_000_000_000)) return res.status(400).json({ error: 'clientNow must be a time in milliseconds.' });
   try {
     const n = Number(req.query.clientNow);
     res.set('Cache-Control', 'no-store');
