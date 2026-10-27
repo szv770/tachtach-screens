@@ -65,6 +65,7 @@ Today `broadcast(type, data)` (`src/server/sse.js:88`) goes to every kiosk of th
 
 ### 7. Permissions: a capability in `src/shared/permissions.js`, fail closed
 - A new `/api/<area>` path needs a `rule(capId, methods, re)` in `RULES` (`src/shared/permissions.js:184`) or it is admin-only (correct default, but say so on purpose).
+- A new **GET** route needs a line in `READ_ROUTES` (same file): who may read it (`'open'` or a capability list), its privacy class, and a `budget` if it fans out to outbound fetches, loops over request-supplied dates/numbers or builds a big report. An unlisted GET is admin-only and `test/readRoutes.test.js` fails. Bound every query value with `src/shared/readBounds.js`. Detail: `docs/security/READ-ROUTES.md`.
 - A new kind of power gets a capability in `CAPABILITIES` (`:28`). Things only the box owner should do (update the box, local TLS, update channel) are `adminOnly` and later become **device** or **platform** powers, not org capabilities.
 - Roles and presets are **per org membership**, not per person (`CLOUD-PLAN.md` 14.4): never read `user.role` from anything other than the membership the request was authenticated for (today: the user record `requireAuth` attached; tomorrow: `req.membership`).
 

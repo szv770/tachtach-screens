@@ -15,7 +15,11 @@ export function boundedInt(raw, { min, max, def }) {
 }
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-export const isRealISODate = (s) => typeof s === 'string' && ISO.test(s) && new Date(`${s}T12:00:00Z`).toISOString().slice(0, 10) === s;
+export const isRealISODate = (s) => {
+  if (typeof s !== 'string' || !ISO.test(s)) return false;
+  const d = new Date(`${s}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; // toISOString throws on an invalid date, so check first
+};
 
 /** Days between an ISO date and now (absolute), or Infinity when it is not a real date. */
 export function daysFromToday(iso, now = Date.now()) {
