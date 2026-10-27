@@ -182,3 +182,16 @@ test('button and toast words never contain the message; History line is at most 
   assert.equal(name, historyText(long));
   assert.ok(zonedParts(THU, TZ).dow === 4);
 });
+
+test('classic path stays wired: App.jsx still renders the four-card menu and the quick sheet, switched by the setting', async () => {
+  const fs = await import('node:fs');
+  const app = fs.readFileSync(new URL('../src/admin/App.jsx', import.meta.url), 'utf8');
+  assert.match(app, /import NewSheet from/);
+  assert.match(app, /import QuickAnnounceSheet from/);
+  assert.match(app, /postStyle\(state\?\.settings\) === 'sheet'/);
+  assert.match(app, /<NewSheet open=\{newOpen && !sheetStyle\}/);
+  assert.match(app, /sheetStyle \? setPostOpen\(true\) : setNewOpen\(true\)/);
+  assert.match(app, /const openPost = \(\) => \{ if \(sheetStyle\) setPostOpen\(true\); else setQuickOpen\(true\); \}/);
+  const nsheet = fs.readFileSync(new URL('../src/admin/components/NewSheet.jsx', import.meta.url), 'utf8');
+  for (const k of ['quick', 'slide', 'banner', 'takeover']) assert.match(nsheet, new RegExp(`kind: '${k}'`));
+});

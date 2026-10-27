@@ -36,7 +36,7 @@ export function NoticePreview({ parts }) {
   );
 }
 
-function BlankInput({ blank, value, onChange, recents, autoFocus }) {
+export function BlankInput({ blank, value, onChange, recents, autoFocus }) {
   const chips = RECENT_TYPES.includes(blank.type) ? (recents?.[blank.type] || []) : [];
   const id = `qf-${blank.key}`;
   return (

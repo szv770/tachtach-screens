@@ -20,6 +20,8 @@ import { requestSlideOpen } from './components/slides/openRequest.js';
 import AnnouncePage from './components/announcements/AnnouncePage.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
+import PostSheet from './components/PostSheet.jsx';
+import { postStyle } from '../shared/postDefaults.js';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
 import ThemesPage from './components/look/ThemesPage.jsx';
 import FontsPage from './components/look/FontsPage.jsx';
@@ -85,18 +87,9 @@ export default function App() {
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickStart, setQuickStart] = useState(null); // a template to open straight into its fill step
   const [newOpen, setNewOpen] = useState(false);
+  const [postOpen, setPostOpen] = useState(false); // the one Post sheet (settings.post.style = 'sheet')
   const [changeDay, setChangeDay] = useState(null); // null | 'today' | 'tomorrow': the one-day schedule sheet (Home and Schedule)
   const [searchOpen, setSearchOpen] = useState(false);
-  // Home-screen icon shortcuts (public/manifest.webmanifest): /admin/?action=post | tomorrow.
-  useEffect(() => {
-    if (!meReady) return;
-    const act = readQueryParam('action');
-    if (!act) return;
-    writeQueryParam('action', null);
-    if (act === 'post' && can(myCaps, 'announcements.post')) setQuickOpen(true);
-    if (act === 'tomorrow' && can(myCaps, 'schedule.edit')) setChangeDay('tomorrow');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meReady]);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };
@@ -117,6 +110,19 @@ export default function App() {
   const siteName = state?.settings?.siteName || 'My screen';
   const canPost = canOpenSection(role, 'announcements');
   const myCaps = me ? (me.caps || []) : effectiveCaps({ role: 'editor' });
+  // The + button, New on a computer, the home-screen shortcut and search 'Quick message': one door, or the classic cards (Look & Settings > What shows > Post button).
+  const sheetStyle = postStyle(state?.settings) === 'sheet';
+  const openPost = () => { if (sheetStyle) setPostOpen(true); else setQuickOpen(true); };
+  // Home-screen icon shortcuts (public/manifest.webmanifest): /admin/?action=post | tomorrow.
+  useEffect(() => {
+    if (!meReady || !state) return; // wait for the settings too: the Post button style decides which door opens
+    const act = readQueryParam('action');
+    if (!act) return;
+    writeQueryParam('action', null);
+    if (act === 'post' && can(myCaps, 'announcements.post')) openPost();
+    if (act === 'tomorrow' && can(myCaps, 'schedule.edit')) setChangeDay('tomorrow');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meReady, !!state]);
 
   // "/" opens search from anywhere (unless typing in a field).
   useEffect(() => {
@@ -144,7 +150,7 @@ export default function App() {
       case 'go': setActiveSection(a.tab ? `${a.section}?tab=${a.tab}` : a.section); if (a.anchor || a.match) jumpTo({ anchor: a.anchor, match: a.match }); break;
       case 'slide-popup': if (setActiveSection(a.section || 'slides') !== false) requestSlideOpen(a.slide); break;
       case 'new': setComposer({ display: a.kind }); break;
-      case 'quick': setQuickOpen(true); break;
+      case 'quick': openPost(); break;
       case 'change-day': setChangeDay(a.when || 'tomorrow'); break;
       case 'command': screenCommand(a.name); break;
       case 'preview': window.open('/screen?preview=true', '_blank', 'noopener'); break;
@@ -210,7 +216,7 @@ export default function App() {
         return (
           <Home
             state={state} me={me} siteName={siteName}
-            onGo={setActiveSection} onQuick={() => setQuickOpen(true)} onCommand={screenCommand}
+            onGo={setActiveSection} onQuick={openPost} onCommand={screenCommand}
             onNew={(kind) => setComposer({ display: kind })} onRefreshData={refresh} onChangeDay={setChangeDay}
           />
         );
@@ -370,7 +376,7 @@ export default function App() {
         siteName={siteName}
         canPost={canPost && !tourOpen}
         onOpenSearch={() => setSearchOpen(true)}
-        onOpenNew={() => setNewOpen(true)}
+        onOpenNew={() => (sheetStyle ? setPostOpen(true) : setNewOpen(true))}
       >
         {renderSection()}
       </AdminLayout>
@@ -384,7 +390,20 @@ export default function App() {
         />
       )}
       {tourOpen && <WelcomeTour onClose={closeTour} onGo={setActiveSection} />}
-      <NewSheet open={newOpen} onClose={() => setNewOpen(false)} onPick={pickNew} />
+      <NewSheet open={newOpen && !sheetStyle} onClose={() => setNewOpen(false)} onPick={pickNew} />
+      {postOpen && sheetStyle && (
+        <PostSheet
+          caps={myCaps} settings={state?.settings || {}} announcements={state?.announcements || []} slides={state?.slides || []}
+          cache={state?.cache || null} freeze={state?.freeze || null} meId={me?.id || null}
+          fetchShabbosEnd={fetchShabbosEnd}
+          onClose={() => setPostOpen(false)}
+          onPost={quickPostAnnouncement}
+          onDraft={(body) => createAnnouncement(body, 'Draft saved')}
+          onMore={(draft) => { setPostOpen(false); setComposer(draft); }}
+          onManage={() => { setPostOpen(false); goSection('announcements', { tab: 'quick' }); }}
+          onGoHome={() => { setPostOpen(false); setActiveSection('home'); }}
+        />
+      )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} state={state} role={role} onRun={runAction} />
       {quickOpen && (
         <QuickAnnounceSheet

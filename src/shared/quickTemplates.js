@@ -114,6 +114,13 @@ export function formatValue(blank, value, lang = 'en') {
   return v;
 }
 
+/** Values for a live preview: every blank still empty shows as ‹Its label›, so the message reads as it will once filled. */
+export function previewValues(tpl, values) {
+  const out = {};
+  for (const b of tpl.blanks || []) out[b.key] = String(values?.[b.key] ?? '').trim() || `‹${b.label}›`;
+  return out;
+}
+
 /** Which blanks still have no value. */
 export function missingBlanks(tpl, values) {
   return (tpl.blanks || []).filter((b) => !String(values?.[b.key] ?? '').trim());
