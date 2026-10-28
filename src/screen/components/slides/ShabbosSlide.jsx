@@ -131,7 +131,7 @@ function Reminders({ list, portrait, onRequestDuration, base }) {
       <Fit key={`${key}|${at}|${per}|${portrait}`} wrap vcenter max={34} min={26} style={{ flex: 1, minHeight: 0, minWidth: 0, width: '100%', lineHeight: 1.3 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.55em' }}>
           {shown.map((r) => (
-            <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '.5em minmax(0, 1fr)', columnGap: '.6em', alignItems: 'start' }}>
+            <div key={r.id} dir={r.en && textDir(r.en) !== 'rtl' ? 'ltr' : 'rtl'} style={{ display: 'grid', gridTemplateColumns: '.5em minmax(0, 1fr)', columnGap: '.6em', alignItems: 'start' }}>
               <span aria-hidden style={{ width: '.42em', height: '.42em', borderRadius: '50%', background: 'var(--accentText)', marginTop: '.48em' }} />
               <div style={{ minWidth: 0 }}>
                 {r.en && <div dir={textDir(r.en)} style={{ fontFamily: textDir(r.en) === 'rtl' ? F.he : F.en, fontWeight: 600, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(r.en)}</div>}

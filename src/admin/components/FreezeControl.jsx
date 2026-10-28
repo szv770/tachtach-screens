@@ -96,6 +96,9 @@ function ScheduleEditor({ data, canEdit }) {
       <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.45 }}>
         The screen freezes by itself in these windows and comes back at the end. Tapping Resume skips the window that is running, once.
       </div>
+      <div style={{ fontSize: '14px', color: colors.dim, lineHeight: 1.45 }}>
+        Shabbos and Yom Tov follow candle lighting and nightfall, not a fixed clock time: to switch the screen off (or show one still Good Shabbos sign) for them, use Screen &gt; Shabbos &gt; During Shabbos. It switches back on by itself at nightfall.
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minHeight: '44px' }}>
         <ToggleSwitch on={on} onChange={() => canEdit && setOn((v) => !v)} label="Use off-hours windows" />
         <span style={{ fontSize: '15px', fontWeight: 700 }}>{on ? 'Off-hours windows are on' : 'Off-hours windows are off'}</span>
