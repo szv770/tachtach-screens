@@ -357,9 +357,10 @@ export function shabbosPageState(now, ctx = {}) {
       out.hero = { label: C.candle, min: p.candleMin, after: false };
       if (o.countdown) out.countdown = countdownText(secondsUntil(now, p.candleMin));
     }
+    // the candle time is the hero; the list adds the times around it (never the same time twice)
     out.rows = [['plag', 'plagHaMincha'], ['candle', 'candleLighting'], ['shkia', 'sunset']]
       .map(([c, k]) => ({ key: k, he: C[c].he, en: C[c].en, min: timeOf(k) }))
-      .filter((r) => r.min != null);
+      .filter((r) => r.min != null && !(out.hero && r.key === 'candleLighting'));
     out.reminders = o.remindersErev;
   } else if (p.phase === 'shabbos' && p.chain) {
     const nextKind = p.nextKind || 'yomtov';

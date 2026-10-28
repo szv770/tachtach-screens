@@ -174,7 +174,7 @@ test('page state: hero, countdown, rows from the zmanim only, reminders by phase
   assert.equal(s.phase, 'erev');
   assert.deepEqual(s.hero, { label: { he: 'הדלקת נרות', en: 'Candle lighting' }, min: 17 * 60 + 39, after: false });
   assert.equal(s.countdown, 'in 2 h 14 min');
-  assert.deepEqual(s.rows.map((r) => r.key), ['plagHaMincha', 'candleLighting', 'sunset']);
+  assert.deepEqual(s.rows.map((r) => r.key), ['plagHaMincha', 'sunset'], 'the candle time is the hero, not repeated');
   assert.deepEqual(s.reminders.map((r) => r.id), ['a']);
   assert.deepEqual(s.greeting, { he: 'שבת שלום', en: '' });
   const m = shabbosPageState(at(2026, 10, 31, 18, 30), { zmanim: SAT, settings });
