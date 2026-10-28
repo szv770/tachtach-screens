@@ -69,7 +69,7 @@ export const SETTING_SCOPE = Object.freeze({
   location: 'org', siteName: 'org', scheduleGroups: 'org', announcements: 'org', post: 'org', kiddushLevana: 'org', showChabadCredit: 'org',
   scheduler: 'platform',     // org on a self-hosted box; the cloud runs one platform tick
   dataSource: 'platform',    // org on a self-hosted box; sources are shared in the cloud
-  theme: 'org+box', customTheme: 'org', themeAuto: 'org', orientation: 'org+box', portraitLayout: 'org+box', clockSide: 'org+box',
+  theme: 'org+box', customTheme: 'org', themeAuto: 'org+box', orientation: 'org+box', portraitLayout: 'org+box', clockSide: 'org+box',
   visibility: 'org', fonts: 'org', hebrewFontScale: 'org', banner: 'org', credit: 'org',
   limudimLang: 'org', limudimItems: 'org', hayomYomLang: 'org', zmanimVisible: 'org',
   rail: 'org', layout: 'org', motion: 'org+box', graphics: 'org+box', longText: 'org', weather: 'org', zmanimLayout: 'org', scheduleLayout: 'org', scheduleView: 'org',
