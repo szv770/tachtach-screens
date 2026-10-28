@@ -14,6 +14,7 @@
  */
 import { CANDLE_MIN, CANDLE_MAX } from './candleLighting.js';
 import { POST_STYLES } from './postDefaults.js';
+import { DURING, GREETINGS, SPELLINGS, EREV_HOURS, MOTZEI_MINUTES, reminderListProblem } from './shabbosPage.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -29,6 +30,14 @@ const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
   { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },
+  { path: 'shabbos.during', label: 'During Shabbos / Yom Tov', check: (v) => (DURING.includes(v) ? null : 'rotate, sign or off') },
+  { path: 'shabbos.erevHours', label: 'Hours before candle lighting the Friday page starts', check: int(EREV_HOURS.min, EREV_HOURS.max) },
+  { path: 'shabbos.motzeiMinutes', label: 'Minutes after nightfall the Motzei page shows', check: int(MOTZEI_MINUTES.min, MOTZEI_MINUTES.max) },
+  { path: 'shabbos.greeting', label: 'Shabbos greeting', check: (v) => (GREETINGS.includes(v) ? null : 'both, hebrew, english or none') },
+  { path: 'shabbos.spelling', label: 'Shabbos spelling', check: (v) => (SPELLINGS.includes(v) ? null : 'shabbos or shabbat') },
+  { path: 'shabbos.countdown', label: 'Countdown to candle lighting', check: bool },
+  { path: 'shabbos.remindersErev', label: 'Friday reminder lines', check: reminderListProblem },
+  { path: 'shabbos.remindersMotzei', label: 'Motzei Shabbos reminder lines', check: reminderListProblem },
   { path: 'location.candleMinutes', label: 'Candle-lighting minutes before sunset', check: int(CANDLE_MIN, CANDLE_MAX) },
   { path: 'location.lat', label: 'Latitude', check: num(-90, 90) },
   { path: 'location.lon', label: 'Longitude', check: num(-180, 180) },

@@ -30,6 +30,8 @@ import { expandForTimers, sanitizeGroups } from '../shared/scheduleGroups.js';
 import StageBanner from './components/messages/StageBanner.jsx';
 import { isScheduleSlideOn } from '../shared/scheduleDays.js';
 import { withoutShabbosSlides } from '../shared/shabbosMode.js';
+import { phaseOf, rotationTypeFor, filterShabbosRows, screenModeFor, shabbosOptions, shabbosPageState, zmanimFresh } from '../shared/shabbosPage.js';
+import { ShabbosSign } from './components/slides/ShabbosSlide.jsx';
 import FrozenScreen from './components/FrozenScreen.jsx';
 import { toList, followTarget } from '../shared/rotationPosition.js';
 import { sideNotesLimits } from '../shared/railNotes.js';
@@ -98,7 +100,15 @@ const _isPreview = _searchParams.get('preview') === 'true' || /^\/live(\/|$)/.te
 function readFollowSetting() {
   try { return window.localStorage.getItem('tt.preview.follow') !== 'off'; } catch { return true; }
 }
-const _previewDate = _searchParams.get('previewDate');
+// ?previewAt=YYYY-MM-DDTHH:MM (admin preview of the Friday / Shabbos pages at a chosen time): ONLY with ?preview=true,
+// never on the real TV or the public live view. It also loads that date's own state (like ?previewDate=), and the
+// Shabbos rules then run on a clock that starts at that time and moves on with the real one.
+const _previewAtRaw = _searchParams.get('preview') === 'true' && !/^\/live(\/|$)/.test(window.location.pathname) ? _searchParams.get('previewAt') : null;
+const _previewAtMatch = typeof _previewAtRaw === 'string' ? _previewAtRaw.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/) : null;
+const _previewAtMs = _previewAtMatch ? new Date(+_previewAtMatch[1], +_previewAtMatch[2] - 1, +_previewAtMatch[3], +_previewAtMatch[4], +_previewAtMatch[5]).getTime() : null;
+const _previewAt = Number.isFinite(_previewAtMs) ? _previewAtMs : null;
+const _loadedAt = Date.now();
+const _previewDate = _searchParams.get('previewDate') || (_previewAt != null ? _previewAtRaw.slice(0, 10) : null);
 const _isDatePreview = Boolean(_previewDate);
 const _isErrorPage = window.location.pathname === '/error';
 const _errorMessage = _searchParams.get('msg');
@@ -149,19 +159,41 @@ function AppContent() {
   );
   // Daily Story: out of the rotation when every story is hidden.
   const hasStory = React.useMemo(() => !!pickDailyStory(state?.dailyStories, scheduleDateISO), [state?.dailyStories, scheduleDateISO]);
+  // Friday / Shabbos (src/shared/shabbosPage.js): one minute-clock for every Shabbos rule, so the Friday page leaves
+  // on the very minute 'hide on Shabbos' slides do. The admin preview's ?previewAt= moves this clock only.
+  const shabbosClock = _previewAt != null ? new Date(_previewAt + (clock.time.getTime() - _loadedAt)) : clock.time;
+  const shabbosMinute = Math.floor(shabbosClock.getTime() / 60000);
+  const zmanimToday = state?.cache?.zmanim?.today;
+  const zmanimFetchedAt = state?.cache?.zmanim?.fetchedAt;
+  const shabbosKey = JSON.stringify(state?.settings?.shabbos ?? null);
+  const shabbosNow = React.useMemo(() => {
+    const at = new Date(shabbosMinute * 60000);
+    const fresh = zmanimFresh(zmanimFetchedAt, at, { assumeFresh: _isDatePreview });
+    const o = shabbosOptions(state?.settings);
+    let rowType = null; let mode = 'normal';
+    try {
+      const p = phaseOf(at, zmanimToday, { erevHours: o.erevHours, motzeiMinutes: o.motzeiMinutes, fresh });
+      rowType = rotationTypeFor(p, { mins: at.getHours() * 60 + at.getMinutes(), erevHours: o.erevHours });
+      mode = screenModeFor(at, zmanimToday, state?.settings, { fresh });
+    } catch { /* fail safe: normal screen, no Shabbos rows */ }
+    return { at, fresh, rowType, mode };
+  }, [shabbosMinute, zmanimToday, zmanimFetchedAt, shabbosKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const allSlides = React.useMemo(
-    () => buildRotation(state?.slides || [], ann.slides)
+    () => filterShabbosRows(buildRotation(state?.slides || [], ann.slides), shabbosNow.rowType)
+      .map((sl) => (sl.type === 'SHABBOS' || sl.type === 'MOTZEI') && sl.hideOnShabbos ? { ...sl, hideOnShabbos: false } : sl)
       .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
       .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething)
       .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory],
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, shabbosNow.rowType],
   );
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
-  const shabbosMinute = Math.floor(clock.time.getTime() / 60000);
   const rotationSlides = React.useMemo(
-    () => withoutShabbosSlides(allSlides, new Date(shabbosMinute * 60000), state?.cache?.zmanim?.today),
-    [allSlides, shabbosMinute, state?.cache?.zmanim?.today],
+    () => withoutShabbosSlides(allSlides, shabbosNow.at, zmanimToday),
+    [allSlides, shabbosNow.at, zmanimToday],
   );
+  // During Shabbos itself (settings.shabbos.during): 'sign' = one still page, 'off' = blank, both only with exact
+  // zmanim and back to normal at nightfall by themselves; a manual Freeze still wins over them.
+  const shabbosCover = shabbosNow.mode === 'off' || shabbosNow.mode === 'sign' ? shabbosNow.mode : null;
   const birthdayNote = React.useMemo(
     () => (state?.roster?.birthdays?.rail === false ? null : railNote(birthdaysToday, state?.roster?.birthdays?.names)),
     [state?.roster, birthdaysToday],
@@ -172,14 +204,16 @@ function AppContent() {
   const freezeView = state?.freeze;
   const freezeActive = freezeInForce(freezeView, clock.time.getTime()) ? freezeView.active : null;
   const freezeOn = !!freezeActive;
-  const emergencyShows = freezeOn && !!freezeView.emergency && isEmergencyTakeover(ann.takeover);
-  const takeover = freezeOn && !emergencyShows ? null : ann.takeover;
+  // A Shabbos sign / screen-off covers like a freeze; an Emergency takeover still shows through when that setting is on.
+  const coverOn = freezeOn || !!shabbosCover;
+  const emergencyShows = coverOn && (freezeOn ? !!freezeView.emergency : freezeView?.emergency !== false) && isEmergencyTakeover(ann.takeover);
+  const takeover = coverOn && !emergencyShows ? null : ann.takeover;
 
   // Newest "pause everything else" slide replaces the slide area.
-  const holdSlide = React.useMemo(() => (!freezeOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, freezeOn]);
+  const holdSlide = React.useMemo(() => (!coverOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, coverOn]);
 
-  // Takeovers, holds and a freeze pause the rotation timer; banners never do.
-  const slideRotation = useSlideRotation(rotationSlides, { paused: !!takeover || !!holdSlide || freezeOn });
+  // Takeovers, holds, a freeze and the Shabbos sign / screen-off pause the rotation timer; banners never do.
+  const slideRotation = useSlideRotation(rotationSlides, { paused: !!takeover || !!holdSlide || coverOn });
 
   // Keep a ref to slideRotation so SSE handler always has the latest
   const slideRotationRef = useRef(slideRotation);
@@ -403,7 +437,7 @@ function AppContent() {
   // The server stamps its own clock and rebroadcasts it to the admin Live Preview as `screen-slide`.
   // Anything that restarts the slide timer (new slide, pause/resume, a takeover or freeze ending, a slide asking
   // for a longer duration, the slide list changing) is a new report, so the preview re-syncs and never drifts.
-  const heldBy = freezeOn ? 'freeze' : takeover ? 'takeover' : holdSlide ? 'hold' : null;
+  const heldBy = freezeOn ? 'freeze' : shabbosCover ? `shabbos-${shabbosCover}` : takeover ? 'takeover' : holdSlide ? 'hold' : null;
   const overlay = countdown ? 'countdown' : null;
   const rotationListKey = slideRotation.enabledSlides.map((s) => s.id).join('|');
   useEffect(() => {
@@ -567,6 +601,30 @@ function AppContent() {
     );
   }
 
+  // Shabbos sign / screen off: one full-screen view like a freeze (nothing else mounted, nothing animating).
+  if (shabbosCover) {
+    const signModel = shabbosCover === 'sign' ? shabbosPageState(shabbosClock, { zmanim: zmanimToday, fresh: shabbosNow.fresh, settings, parsha: state?.cache?.parsha, variant: 'sign' }) : null;
+    return (
+      <ScreenScaler portrait={isPortrait}>
+        <DesignRoot
+          settings={settings} fontsList={state?.fonts} themeId={active.themeId} phase={phase} portrait={isPortrait}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          {shabbosCover === 'sign'
+            ? <ShabbosSign model={signModel} portrait={isPortrait} />
+            : <FrozenScreen freeze={{ mode: 'blank' }} portrait={isPortrait} />}
+          {emergencyShows && <AnnouncementTakeover item={ann.takeover} tokens={tokens} clock={clock} />}
+          {_isPreview && (
+            <div style={{
+              position: 'absolute', top: 8, left: 8, zIndex: 9998, background: 'var(--accent)', color: 'var(--onAccent)',
+              fontFamily: 'var(--f-en)', fontSize: 14, fontWeight: 700, padding: '4px 12px', borderRadius: 8,
+            }}>{shabbosCover === 'sign' ? 'Preview: the Good Shabbos sign (until nightfall)' : 'Preview: screen off for Shabbos (back on at nightfall)'}</div>
+          )}
+        </DesignRoot>
+      </ScreenScaler>
+    );
+  }
+
   // Up-next card: only when a schedule item starts within rail.upNextMinutes
   // (default 5) of now, from the effective per-date schedule. Never on the
   // schedule page, which already shows the next item.
@@ -636,6 +694,10 @@ function AppContent() {
   // AutoScroll readers (Hayom Yom, long sicha/letter) stop while the rotation is paused (admin preview Pause),
   // frozen, or a takeover is on top: animation-play-state via [data-reader-hold] (src/screen/design/reader.js).
   const readerHold = slideRotation.isPaused || freezeOn || !!takeover;
+  const curType = (holdSlide || slideRotation.currentSlide)?.type;
+  const shabbosModel = curType === 'SHABBOS' || curType === 'MOTZEI'
+    ? shabbosPageState(shabbosClock, { zmanim: zmanimToday, fresh: shabbosNow.fresh, settings, parsha: state?.cache?.parsha })
+    : null;
   const rightColumn = (
     <div data-reader-hold={readerHold ? '1' : '0'} style={{ display: 'contents' }}>
     <SlideErrorBoundary
@@ -663,6 +725,7 @@ function AppContent() {
         roster={state?.roster}
         chazan={state?.chazan}
         customDays={state?.customDays}
+        shabbosModel={shabbosModel}
         dateISO={scheduleDateISO}
         portrait={isPortrait}
         portraitLayout={settings.portraitLayout || 'compact'}
@@ -730,7 +793,7 @@ function AppContent() {
             position: 'absolute', top: 0, left: 0, right: 0, zIndex: 9999, background: 'var(--accent)', color: 'var(--onAccent)',
             fontFamily: 'var(--f-en)', fontSize: 14, fontWeight: 700, textAlign: 'center', padding: '6px 16px',
           }}>
-            Preview — {_previewDate}
+            Preview — {_previewAt != null ? `${_previewAtRaw.replace('T', ' ')} (time runs from here)` : _previewDate}
           </div>
         )}
 

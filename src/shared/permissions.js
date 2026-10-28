@@ -40,6 +40,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
   { id: 'roster.edit', group: 'Screen', label: 'Edit the bochurim list and birthdays', hint: 'The shared list of names and Hebrew birthdays.' },
   { id: 'chazan.edit', group: 'Screen', label: 'Edit the chazan rotation', hint: 'Order, away dates, swaps and which davenings have a chazan.' },
+  { id: 'shabbos.edit', group: 'Screen', label: 'Edit the Shabbos page', hint: 'Friday and Motzei Shabbos reminder lines, when the pages show, and what the screen does during Shabbos.' },
   { id: 'screen.control', group: 'Screen', label: 'Pause, skip, freeze, blank or refresh the screen', hint: 'The real TV controls, including Freeze / Blank.' },
   { id: 'schedule.edit', group: 'Schedule', label: 'Edit the schedule', hint: 'Daily and weekly timetable, saved days, templates.' },
   { id: 'customDays.edit', group: 'Schedule', label: 'Edit custom days', hint: 'Mark special dates.' },
@@ -58,7 +59,7 @@ export const isGrantable = (id) => isCapability(id) && !CAP_BY_ID[id].adminOnly;
 
 const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
-  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'roster.edit', 'chazan.edit',
+  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
 ];
 
@@ -141,6 +142,7 @@ const SECTION_CAPS = Object.freeze({
   'daily-story': ['dailyWord.edit'],
   roster: ['roster.edit'],
   chazan: ['chazan.edit'],
+  shabbos: ['shabbos.edit'],
   'custom-days': ['customDays.edit'],
   images: ['media.upload', 'media.delete', 'feeds.edit'],
   'rss-feeds': ['feeds.edit'],
@@ -223,6 +225,8 @@ export const LOOK_SETTING_KEYS = Object.freeze([
 
 /** Settings keys that are part of the SCHEDULE (a patch made only of these needs schedule.edit, not settings.change). */
 export const SCHEDULE_SETTING_KEYS = Object.freeze(['scheduleGroups']);
+/** Settings keys of the Shabbos page (Screen > Shabbos): a patch made only of these needs shabbos.edit. */
+export const SHABBOS_SETTING_KEYS = Object.freeze(['shabbos']);
 
 // ── Read routes (GET / HEAD / OPTIONS) ───────────────────────────────────────
 // ONE table for every GET under /api. Fail closed: a GET nobody listed is admin-only, and
@@ -376,6 +380,8 @@ export function canDo(who, method, path, body) {
 
   if (/^\/api\/settings$/.test(p) && isLookOnlySettingsPatch(m, body) && caps.has('look.change')) return true;
   if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => SCHEDULE_SETTING_KEYS.includes(k)) && caps.has('schedule.edit')) return true;
+
+  if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => SHABBOS_SETTING_KEYS.includes(k)) && caps.has('shabbos.edit')) return true;
 
   // Undo of your own fresh post: a poster may DELETE an announcement; the route itself then checks it is
   // theirs and recent unless they also hold announcements.delete (see routes/announcements.js).

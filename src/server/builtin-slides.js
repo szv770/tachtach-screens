@@ -17,6 +17,10 @@ export const LATE_BUILTINS = [
   { id: 'chazan', type: 'CHAZAN', label: 'Chazan', duration: 15, enabled: false, order: 104 },
   // Off until the owner turns it on (Slides); the stories live in Screen > Daily Story.
   { id: 'daily-story', type: 'DAILY_STORY', label: 'Daily Story', duration: 25, enabled: false, order: 105 },
+  // Off until the owner turns them on. Only ever in the rotation inside their own window (src/shared/shabbosPage.js):
+  // Friday from a few hours before candle lighting, and Motzei Shabbos / Yom Tov after nightfall.
+  { id: 'shabbos', type: 'SHABBOS', label: 'Good Shabbos', duration: 20, enabled: false, order: 106 },
+  { id: 'motzei', type: 'MOTZEI', label: 'Shavua Tov', duration: 15, enabled: false, order: 107 },
 ];
 
 export function addMissingBuiltins(slides) {

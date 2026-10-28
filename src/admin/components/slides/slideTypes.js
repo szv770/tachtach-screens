@@ -51,6 +51,9 @@ export const SLIDE_TYPES = [
   { id: 'DAILY_STORY', label: 'Daily Story', group: 'builtin', icon: 'message', desc: 'A short story or thought to read, a new one every day.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'daily-story', label: 'Daily Story' }, defaults: { duration: 25 } },
   { id: 'BIRTHDAYS', label: 'Birthdays', group: 'builtin', icon: 'star', desc: 'Happy birthday to the bochurim whose Hebrew birthday it is. Only shows on those days.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'roster', label: 'Bochurim list' }, defaults: { duration: 15 } },
   { id: 'CHAZAN', label: 'Chazan', group: 'builtin', icon: 'star', desc: 'Who leads Shacharis, Mincha and Maariv today, tomorrow and the day after.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'chazan', label: 'Chazan rotation' }, defaults: { duration: 15 } },
+  // The Friday / Motzei Shabbos pages manage their own window (src/shared/shabbosPage.js), so no hide-on-Shabbos switch.
+  { id: 'SHABBOS', label: 'Good Shabbos', group: 'builtin', icon: 'star', desc: 'Friday: candle lighting, countdown, parsha and your reminder lines. Only shows in the hours before candle lighting.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'shabbos', label: 'Shabbos page' }, defaults: { duration: 20 }, ownWindow: true },
+  { id: 'MOTZEI', label: 'Shavua Tov', group: 'builtin', icon: 'star', desc: 'Motzei Shabbos: when Shabbos ended and your reminder lines. Only shows for a while after nightfall.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'shabbos', label: 'Shabbos page' }, defaults: { duration: 15 }, ownWindow: true },
   { id: 'SCHEDULE', label: 'Schedule / Seder', group: 'builtin', icon: 'calendar', desc: 'The day\'s timetable.', create: { kind: 'builtin' }, edit: ['schedule'], moreSettings: { section: 'schedule', label: 'Schedule' }, defaults: { duration: 20 } },
   { id: 'DAILY_QUOTE', label: 'Daily Quote', group: 'builtin', icon: 'message', desc: 'A daily vort or quote.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 12 } },
   { id: 'PARSHA_TIDBITS', label: 'Parsha Tidbits', group: 'builtin', icon: 'list', desc: 'Short points on the weekly parsha.', create: { kind: 'builtin' }, edit: [], defaults: { duration: 25 } },
@@ -72,6 +75,8 @@ const SECONDS_NOTE = {
   VIDEO_SLIDE: 'Seconds the video slot lasts. Use 0 to play the whole clip and then move on.',
   PDF_SLIDE: 'Total time is pages times seconds per page, worked out for you.',
   WEB_PAGE: 'How long the page stays up before the next slide.',
+  SHABBOS: 'The least time the page stays up. With more than 3 reminder lines it stays a little longer so every line is shown.',
+  MOTZEI: 'The least time the page stays up. With more than 3 reminder lines it stays a little longer so every line is shown.',
   DAILY_STORY: 'The least time the story stays up. A long story stays a little longer so it can be read.',
   MIVTZAH_LIVE_EMBED: 'How long the live page stays up before the next slide.',
 };
@@ -94,6 +99,7 @@ export function popupSpec(typeId) {
     secondsNote: SECONDS_NOTE[typeId] || 'How long this slide stays on the screen before the next one.',
     fullscreen: !own && typeId !== 'GOOGLE_PHOTOS_SLIDE',
     moreSettings: t?.moreSettings || null,
+    hideOnShabbos: !t?.ownWindow, // the 'Hide on Shabbos and Yom Tov' switch (not on pages that keep their own Shabbos window)
     deletable: !!t?.deletable || !t,
   };
 }

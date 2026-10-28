@@ -26,6 +26,8 @@ export function describeTv(status, { now = Date.now(), nameOf = (id) => String(i
   const pausedBy = status.heldBy === 'freeze' || frozen ? 'The screen is frozen'
     : status.heldBy === 'takeover' ? 'A takeover is showing'
     : status.heldBy === 'hold' ? 'A message is holding the screen'
+    : status.heldBy === 'shabbos-off' ? 'Off for Shabbos until nightfall'
+    : status.heldBy === 'shabbos-sign' ? 'Showing the Good Shabbos sign until nightfall'
     : status.paused ? 'Paused' : null;
   const extras = [pausedBy, status.overlay === 'countdown' ? 'A countdown is showing' : null].filter(Boolean);
 

@@ -37,6 +37,7 @@ import MediaPage from './components/media/MediaPage.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import DailyStoryPanel from './components/DailyStoryPanel.jsx';
+import ShabbosPanel from './components/ShabbosPanel.jsx';
 import RosterPanel from './components/RosterPanel.jsx';
 import ChazanPanel from './components/chazan/ChazanPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
@@ -290,6 +291,13 @@ export default function App() {
         return <DailyWordPanel />;
       case 'daily-story':
         return <DailyStoryPanel />;
+      case 'shabbos':
+        return (
+          <ShabbosPanel
+            settings={state?.settings || {}} onSave={updateSettings} slides={state?.slides || []} onUpdateSlides={updateSlides}
+            cache={state?.cache} canEdit={can(myCaps, 'shabbos.edit')} canEditSlides={can(myCaps, 'slides.edit')} onNavigate={setActiveSection}
+          />
+        );
       case 'roster':
         return <RosterPanel canEdit={can(myCaps, 'roster.edit')} onNavigate={setActiveSection} />;
       case 'chazan':

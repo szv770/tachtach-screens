@@ -12,7 +12,7 @@ let state = {
   // ordered enabled list [{id, ms}], and what is holding the rotation (freeze / takeover / hold) or overlaying it.
   startedAt: null, durationMs: null, slides: [], held: false, heldBy: null, overlay: null,
 };
-const HELD_BY = ['freeze', 'takeover', 'hold'];
+const HELD_BY = ['freeze', 'takeover', 'hold', 'shabbos-off', 'shabbos-sign'];
 // What the real screen last said about its own size ({ width, height, dpr, orientation, canvas, reportedAt }).
 // In memory only: the kiosk re-reports on load, on resize and every few minutes.
 let display = null;
