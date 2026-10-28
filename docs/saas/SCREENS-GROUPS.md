@@ -1,6 +1,6 @@
 # Screens, screen groups and per-screen targeting: the design
 
-Status: **design only, nothing built** (2026-10-26). Builds on `CLOUD-PLAN.md` 6.2 (`devices`), 10 (check + nudge), 11 (pairing, tokens), **11.6** (per-screen look overrides, owner decision), 14.4 (one login, per-org memberships), `FIT-RULES.md` (every rule applies), `STORAGE-INTERFACE.md` (`ctx`, document registry) and `NEXT-STEPS.md` N6 (`resolveSettings`), N11 (`buildState(ctx)`), N15 (identity/membership split).
+Status: **design; G1 (pure rules + tests) built, nothing wired yet** (see "G1 status" at the end). Design written 2026-10-26. Builds on `CLOUD-PLAN.md` 6.2 (`devices`), 10 (check + nudge), 11 (pairing, tokens), **11.6** (per-screen look overrides, owner decision), 14.4 (one login, per-org memberships), `FIT-RULES.md` (every rule applies), `STORAGE-INTERFACE.md` (`ctx`, document registry) and `NEXT-STEPS.md` N6 (`resolveSettings`), N11 (`buildState(ctx)`), N15 (identity/membership split).
 Audience: the owner first (sections 0, 1, 7, 13, 14), then whoever builds it.
 
 This replaces the "content stays org-wide unless a later 'screen groups' feature is added" line in CLOUD-PLAN 11.6 and answers CLOUD-PLAN **Q9** ("will any org need different content on different screens?": yes, the owner asked on 2026-10-26). CLOUD-PLAN R8 and section 24 ("per-screen different content: only if asked") are therefore now asked.
@@ -503,3 +503,35 @@ No module-level org state: the per-screen state map and SSE pools are keyed by `
 2. **Groups (Q1):** keep it to ONE group per screen in normal use ("crazy busy" otherwise). BUT access scope is independent of groups: a person can be given access to specific screens (or any mix of groups + individual screens) without those screens being in any of their groups, e.g. a few principals may post to the Lobby screen only. So scope = list of groups and/or individual screens. A message can still target several groups and single screens.
 3. **Targeting (Q3): as much as possible, sketched and scoped, not all built now.** Build messages + slides first (G2-G4); document the extension path for schedule groups, daily content, freeze, themes, etc. as later phases in this doc's roadmap.
 4. **Limited editors (Q7): same abilities as a normal editor, but only for their screens.** Still never org-wide settings: people/team, roster/chazan (student names), org settings, and anything not tied to a screen stay out of reach unless the person also has an org-wide role; security review (G5) must test escalation (scope edit via direct API calls, IDs of other screens, bulk endpoints, undo/history, live-view).
+
+
+---
+
+## G1 status (2026-10-28): pure rules built, nothing wired
+
+**What exists** (no route, UI, storage or kiosk code uses it yet, so live behaviour is unchanged):
+- `src/shared/screens.js`: the `screens.json` document (`implicitScreensDoc`, tolerant `normalizeScreensDoc`, strict `validateScreensDoc`, pure edits `addScreen/addGroup/moveScreen/retireScreen/deleteGroup`, limits 25 screens / 12 groups / names 1-40, one group per screen, ids never reused incl. `retiredGroupIds`); targeting (`appliesToScreen`, `audienceStatus`, `screensShowing`, `sanitizeAudience`, `audiencesOverlap`, `audienceLabel`); scope for people (`normalizeScope`, `sanitizeScope`, `reconcileScope`, `visibleScreens`, `visibleGroups`, `withinScope`, `postRefusal`/`canPostTo`, `canRetarget`, `visibleToScope`, `scopeLabel`); editor reduction (`SCOPABLE_CAPS`, `ORG_WIDE_CAPS`, `scopedCaps`, `applyScopeToUser`).
+- `src/shared/screenSettings.js`: `OVERRIDABLE_KEYS` (= every `SETTING_SCOPE` key tagged `'org+box'`, so tagging is the one act that makes a setting overridable), `resolveSettings(org, groupOverrides, screenOverrides)` (org < group < screen, whole key, fresh copy, returns `settings`, `differs`, `sources`), `sanitizeOverrides`.
+- `src/shared/settingsMerge.js`: one tag changed, `themeAuto` is now `'org+box'` (it was `'org'`; the owner listed it as overridable). No behaviour change.
+- `test/screens.test.js`: 31 tests incl. seeded property tests and the escalation list of section 13 that can be done without routes.
+
+**Rules the code pins** (all fail closed):
+- An audience is `null`/missing (All screens) or exactly `{ groups, screens }`. Anything else, both lists empty, unknown/retired/deleted ids, odd spelling, wildcards or wrong-typed lists shows **nowhere** and is flagged (`audienceStatus().flagged`). It never falls back to "all".
+- A scope is `null`/`'all'` (all screens) or `{ groups, screens }`, independent lists (a person may hold a screen that is in none of their groups). **Any other stored value reads as the empty scope (no screens), never as all.** Deleting a group/screen only shrinks a scope (`reconcileScope`); an empty result stays `{groups:[],screens:[]}`.
+- `withinScope`: All-screens (null) is out of scope for any scoped person; a screen-only scope cannot target the group its screen is in; one outside id spoils the audience. `canPostTo` refuses no target / all screens / empty scope / invalid target for a scoped person; for an org-wide person a missing target means All screens, but ids that are not this org's are refused for everyone.
+- `applyScopeToUser(user, scope)` adds every org-wide capability to `overrides.deny`, so today's `effectiveCaps`/`canDo` already give the reduced answer: G5 does not have to touch `canDo`.
+
+**Not done in G1 on purpose:** `screens.manage` is NOT yet in `CAPABILITIES` (adding it changes the admin permission lists and tests; add it with the Screens page, G3/G4; `SCREENS_MANAGE_CAP` is exported meanwhile). `scope` is not stored on any person. No `audience` field on announcements/slides yet (G2).
+
+**Ambiguities / contradictions found in this document** (decisions taken in G1 are in bold; flip them by changing one constant):
+1. **Field name**: section 3.4 says `audience`, the build brief said `item.screens`. G1 uses `audience` (functions take it as a parameter, so renaming is trivial).
+2. **Which keys are overridable**: 3.3 lists 19 keys (rail, layout, banner, visibility, fontRoles, longText, ... plus `language` and `hebrewHeadingScale`, both now in `RETIRED_SETTING_KEYS`), but `SETTING_SCOPE` (N6) tags only `theme, orientation, portraitLayout, clockSide, motion, graphics` as `org+box`, and N6/FIT-RULES say the scope tag is the source of truth. **G1 follows the tag** (7 keys with `themeAuto`). To allow more, retag them in `SETTING_SCOPE`; first check each is a look of one TV and not content.
+3. **`resolveSettings` home**: 3.3 says `src/shared/screenSettings.js` and `OVERRIDABLE_KEYS` in `settingsMerge.js`; the brief said `screens.js`. **`screenSettings.js`, re-exported from `screens.js`; `OVERRIDABLE_KEYS` derived from `SETTING_SCOPE`.**
+4. **`slides.delete` for scoped editors**: 6.3 drops it, owner decision 4 says "same abilities as a normal editor, but only for their screens" (and a slide with an `audience` is screen-bound). **Dropped (conservative).** Also `media.delete` dropped (uploads are shared files).
+5. **Mixed audience visibility** (Hallway + a screen outside the scope): 6.4 only covers "within scope" and "All screens". **Visible, read-only.** Items that reach no screen (deleted target) are hidden from scoped people, including their own, so the admin must be able to find and fix them ("Not showing anywhere" filter).
+6. **`appliesToScreen` signature**: needs the document to know that a screen is retired; **optional 4th parameter `doc`** (when given, an unknown/retired screen shows nothing, even All-screens items).
+7. **Overrides `null`**: 3.3 does not say whether `null` clears an override. **`null` is not an override and is refused on write; remove the key to "follow the others".**
+8. **Top-level enum values** (`orientation`, `theme`, ...) have no server value rule in `settingsRules.js` (it covers nested numbers/switches only), so `sanitizeOverrides` cannot refuse `orientation: 'sideways'`. Add rules there when the override PATCH route is built (G2/G4).
+9. 3.1 says ids are "never reused after deletion" but the document has no tombstones for groups. **Added optional `retiredGroupIds` (bounded to 200).**
+10. Scope on a role: 3.6 says admins are forced to `null`; `sanitizeScope(..., 'admin')` returns `null` silently rather than refusing.
+11. Section 12 G1 mentions "scope-aware `effectiveCaps` ... in `permissions.js`": **kept out of `permissions.js`** (new files only; `applyScopeToUser` gives the same result through the existing function).

@@ -51,7 +51,8 @@ function layerEntries(layer) {
  *   differs   the overridden keys whose value really differs from the org value (for the "this screen differs" chips)
  */
 export function resolveSettings(orgSettings, groupOverrides, screenOverrides) {
-  const settings = isObj(orgSettings) ? { ...orgSettings } : {};
+  let settings = {};
+  if (isObj(orgSettings)) { try { settings = structuredClone(orgSettings); } catch { settings = { ...orgSettings }; } }
   const sources = {};
   const differs = [];
   const apply = (layer, from) => {
