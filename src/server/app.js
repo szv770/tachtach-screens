@@ -80,8 +80,8 @@ const googlePhotosGate = async (req, res, next) => {
       const decoded = decodeURIComponent(String(req.path || '/'));
       if (isUnsafeAlbumPath(decoded)) return res.status(404).end();
       const dir = decoded.split('/')[1] || '';
-      const { viewerAlbumDirs } = await import('./google-photos.js');
-      if (dir && (await viewerAlbumDirs()).has(dir)) return next();
+      const { viewerAlbumDirsCached } = await import('./google-photos.js');
+      if (dir && (await viewerAlbumDirsCached()).has(dir)) return next();
       return res.status(404).end();
     }
   } catch { return res.status(404).end(); }

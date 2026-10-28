@@ -335,6 +335,25 @@ export async function viewerAlbumDirs() {
   return out;
 }
 
+let dirsCache = null; // { at, promise }
+/** How long the per-image gate may reuse the allowed-album answer. A switched-off album is refused to watchers within this long. */
+export const VIEWER_DIRS_TTL_MS = 3000;
+
+/**
+ * viewerAlbumDirs() for the per-image gate: a gallery page asks for a dozen photos in a row, and each answer re-read
+ * two JSON files. The answer is kept for a few seconds (and concurrent requests share one read); a failed read is
+ * never kept, so errors cannot widen or freeze access. forgetViewerAlbumDirs() drops it (tests, or after a save).
+ */
+export function viewerAlbumDirsCached(now = Date.now()) {
+  if (dirsCache && now - dirsCache.at < VIEWER_DIRS_TTL_MS && now >= dirsCache.at) return dirsCache.promise;
+  const promise = viewerAlbumDirs();
+  const entry = { at: now, promise };
+  dirsCache = entry;
+  promise.catch(() => { if (dirsCache === entry) dirsCache = null; });
+  return promise;
+}
+export function forgetViewerAlbumDirs() { dirsCache = null; }
+
 // ── Periodic sync timers ──────────────────────────────────────────────────
 
 /**

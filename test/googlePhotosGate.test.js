@@ -41,3 +41,28 @@ test('F1: dot segments, backslashes and NULs are refused, normal album paths are
   for (const bad of ['/live/../off/p.jpg', '/a/../b/p.jpg', '/..', '/a/./b', '/a/..', '\\a', '/a\\..\\b', '/a/b\0.jpg', '/./a']) assert.ok(isUnsafeAlbumPath(bad), bad);
   for (const ok of ['/album-abc/photo_1.jpg', '/album-abc/blur.v2.jpg', '/a/b.c.jpg', '/']) assert.ok(!isUnsafeAlbumPath(ok), ok);
 });
+
+test('per-image gate: the allowed set is reused for a few seconds, shared by concurrent calls, and refreshed after the TTL or a forget', async () => {
+  const { viewerAlbumDirsCached, forgetViewerAlbumDirs, VIEWER_DIRS_TTL_MS } = await import('../src/server/google-photos.js');
+  const { extractAlbumId } = await import('../src/fetchers/google-photos.js');
+  const a = { id: 'c1', url: 'https://photos.app.goo.gl/cachedAlbumOne', enabled: true };
+  write('google-albums.json', [a]);
+  write('slides.json', [{ id: 's', type: 'GOOGLE_PHOTOS_SLIDE', enabled: true, googleAlbumId: 'c1' }]);
+  forgetViewerAlbumDirs();
+  const t0 = 1_000_000;
+  const [x, y] = [viewerAlbumDirsCached(t0), viewerAlbumDirsCached(t0)];
+  assert.equal(x, y, 'concurrent calls share one read');
+  assert.ok((await x).has(extractAlbumId(a.url)));
+  // switched off on disk: still the cached answer inside the TTL ...
+  write('slides.json', []);
+  assert.ok((await viewerAlbumDirsCached(t0 + VIEWER_DIRS_TTL_MS - 1)).has(extractAlbumId(a.url)));
+  // ... gone once the TTL has passed, and at once after forgetViewerAlbumDirs()
+  assert.equal((await viewerAlbumDirsCached(t0 + VIEWER_DIRS_TTL_MS)).size, 0, 'refused after the TTL');
+  write('slides.json', [{ id: 's', type: 'GOOGLE_PHOTOS_SLIDE', enabled: true, googleAlbumId: 'c1' }]);
+  forgetViewerAlbumDirs();
+  assert.ok((await viewerAlbumDirsCached(t0 + VIEWER_DIRS_TTL_MS + 1)).has(extractAlbumId(a.url)));
+  // a clock that went backwards never serves a stale answer
+  write('slides.json', []);
+  assert.equal((await viewerAlbumDirsCached(t0)).size, 0);
+  forgetViewerAlbumDirs();
+});
