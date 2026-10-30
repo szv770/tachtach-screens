@@ -11,7 +11,8 @@ export function whatIsOnNow({ active = {}, freeze = null, slides = [] } = {}) {
   const banners = (active.banners || []).length;
   const notes = (active.notes || []).length;
   const posted = (active.slides || []).length + (active.holds || []).length;
-  const rotating = (slides || []).filter((s) => s && s.enabled !== false).length;
+  // Message rows are counted as posts above (the Slides page gives every post a row, drafts too), not as slides.
+  const rotating = (slides || []).filter((s) => s && s.enabled !== false && s.type !== 'ANNOUNCEMENT').length;
   const bits = [];
   if (frozen) bits.push('frozen');
   if (takeover) bits.push('1 takeover');

@@ -81,7 +81,7 @@ export async function logActivity(req, res, next) {
     let rec = null;
     try { rec = tracker ? await svc.finish(tracker, user) : null; } catch { /* history is best effort */ }
     activity.record({
-      user, action: describeAction(req.method, path), detail: rec?.label || '',
+      user, action: describeAction(req.method, path, req.body), detail: rec?.label || '',
       area: areaOf(path), kind: rec?.id ? rec.kind : undefined, undoId: rec?.id || undefined,
     }).catch((e) => console.error('[activity]', e.message));
   });

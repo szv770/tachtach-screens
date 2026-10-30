@@ -17,7 +17,7 @@ import FreezeControl from './FreezeControl.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { saveLastKnown } from '../lastKnown.js';
 import { openPost } from './announcements/postOpen.js';
-import { postStatus } from '../../shared/postList.js';
+import { postStatus, postIdFromSlideId } from '../../shared/postList.js';
 
 const card = { background: colors.card, borderRadius: 'var(--r-lg)', boxShadow: 'var(--e1)', border: `1px solid ${colors.line}` };
 const HOUR = 3600 * 1000;
@@ -57,7 +57,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
 
   const info = useMemo(() => {
     const t = new Date();
-    const on = slides.filter((s) => s.enabled).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+    const on = slides.filter((s) => s.enabled && s.type !== 'ANNOUNCEMENT').sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     const stat = (a) => announcementStatus(a, t, { tz });
     const live = anns.filter((a) => stat(a) === 'live');
     const scheduled = anns.filter((a) => stat(a) === 'scheduled');
@@ -79,6 +79,8 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
   const nowSlide = useMemo(() => {
     if (!st?.slideId) return null;
     const s = slides.find((x) => x.id === st.slideId);
+    const pid = !s && postIdFromSlideId(st.slideId);
+    if (pid) { const a = anns.find((x) => x.id === pid); return a ? announcementTitle(a) : 'A message'; }
     if (!s) return null;
     if (s.type === 'ANNOUNCEMENT') {
       const a = anns.find((x) => x.id === s.announcementId);

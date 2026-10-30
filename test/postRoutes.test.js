@@ -78,3 +78,16 @@ test('live view: ref rows of drafts / later posts are stripped; live ones stay',
   assert.deepEqual(out.announcements.map((a) => a.id), ['live']);
   assert.equal(out.announcements[0].createdBy, undefined, 'staff fields stay stripped');
 });
+
+test('History wording for post changes reads like what the person did (body shape only, never its text)', async () => {
+  const { describe } = await import('../src/server/activity.js');
+  assert.equal(describe('PUT', '/api/announcements/a1', { enabled: false }), 'Paused a post (turned it off)');
+  assert.equal(describe('PUT', '/api/announcements/a1', { enabled: true }), 'Turned a post back on');
+  assert.equal(describe('PUT', '/api/announcements/a1', { status: 'published' }), 'Posted a draft');
+  assert.equal(describe('PUT', '/api/announcements/a1', { enabled: false, when: {} }), 'Edited an announcement');
+  assert.equal(describe('POST', '/api/announcements', { status: 'draft' }), 'Saved a draft post');
+  assert.equal(describe('POST', '/api/announcements'), 'Posted an announcement');
+  assert.equal(describe('POST', '/api/announcements/a1/reactivate', {}), 'Showed a post again');
+  assert.equal(describe('POST', '/api/announcements/a1/duplicate'), 'Copied a post (as a draft)');
+  assert.equal(describe('POST', '/api/announcements/restore', { item: {} }), 'Brought back a deleted post (Undo)');
+});

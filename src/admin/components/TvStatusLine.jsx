@@ -5,6 +5,7 @@ import { opsApi } from '../api/ops.js';
 import { describeTv } from '../../shared/tvStatus.js';
 import { slideLabel, announcementTitle } from '../search/labels.js';
 import { freezeInForce } from '../../shared/freeze.js';
+import { postIdFromSlideId } from '../../shared/postList.js';
 
 const TONES = { live: colors.success, warn: colors.warn, off: colors.danger, unknown: colors.dim };
 
@@ -25,6 +26,8 @@ export default function TvStatusLine({ state, reloadSignal = 0, compact = false 
   const anns = state?.announcements || [];
   const nameOf = (id) => {
     const s = slides.find((x) => x.id === id);
+    const pid = !s && postIdFromSlideId(id);
+    if (pid) { const a = anns.find((x) => x.id === pid); return a ? announcementTitle(a) : 'A message'; }
     if (!s) return 'a slide';
     if (s.type === 'ANNOUNCEMENT') { const a = anns.find((x) => x.id === s.announcementId); return a ? announcementTitle(a) : 'A message'; }
     return slideLabel(s);

@@ -169,7 +169,7 @@ export default function AnnouncementsPanel({
         </button>
       </div>
 
-      <input type="search" value={filters.q} onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))} placeholder="Find a post by any word in it, or who posted it"
+      <input type="search" value={filters.q} onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))} placeholder="Search posts: any word or name"
         aria-label="Find a post" data-testid="posts-search" style={{ ...inputStyle, width: '100%', minHeight: '46px', boxSizing: 'border-box', fontSize: '16px' }} />
 
       <div role="group" aria-label="Show posts that are" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', margin: '10px 0' }}>

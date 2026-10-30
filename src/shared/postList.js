@@ -190,6 +190,12 @@ export function statusCounts(items, f = {}, now = new Date(), opts = {}) {
 /** The id the kiosk gives an appended (un-referenced) post slide; a materialized ref row uses the same id. */
 export const refRowId = (postId) => `ann-${postId}`;
 
+/** The post id behind a kiosk slide id of an appended post ('ann-<id>'), or null. */
+export function postIdFromSlideId(slideId) {
+  const m = /^ann-(.+)$/.exec(String(slideId || ''));
+  return m ? m[1] : null;
+}
+
 export function refRow(item) {
   return { id: refRowId(item.id), type: 'ANNOUNCEMENT', announcementId: item.id, enabled: true };
 }

@@ -36,7 +36,11 @@ export function areaOf(rawPath) {
   return (AREAS.find(([re]) => re.test(path)) || [null, path.split('/')[0] || 'something'])[1];
 }
 
-export function describe(method, rawPath) {
+/**
+ * @param {object} [body] only its SHAPE is read (which keys a post change carried), never logged, so 'Paused a post'
+ *   reads better than 'Edited an announcement' for a tap on the On/Off switch.
+ */
+export function describe(method, rawPath, body = null) {
   const path = String(rawPath || '').split('?')[0].replace(/^\/api\//, '').replace(/^\/+|\/+$/g, '');
   const area = (AREAS.find(([re]) => re.test(path)) || [null, path.split('/')[0] || 'something'])[1];
   const verb = { POST: 'Added or ran', PUT: 'Changed', PATCH: 'Changed', DELETE: 'Deleted' }[method] || 'Changed';
@@ -48,7 +52,15 @@ export function describe(method, rawPath) {
     if (sc) return { pause: 'Paused the TV', resume: 'Resumed the TV', advance: 'Moved the TV to the next slide', previous: 'Moved the TV to the previous slide', blank: 'Blanked the TV', refresh: 'Refreshed the TV' }[sc[1]];
     if (/^refresh\/?$/.test(path)) return 'Refreshed the screen data';
   }
-  if (method === 'POST' && /^announcements\/?$/.test(path)) return 'Posted an announcement';
+  if (method === 'POST' && /^announcements\/[^/]+\/reactivate$/.test(path)) return 'Showed a post again';
+  if (method === 'POST' && /^announcements\/[^/]+\/duplicate$/.test(path)) return 'Copied a post (as a draft)';
+  if (method === 'POST' && /^announcements\/restore$/.test(path)) return 'Brought back a deleted post (Undo)';
+  if (method === 'PUT' && /^announcements\/[^/]+$/.test(path) && body && typeof body === 'object' && !Array.isArray(body)) {
+    const keys = Object.keys(body);
+    if (keys.length === 1 && keys[0] === 'enabled') return body.enabled === false ? 'Paused a post (turned it off)' : 'Turned a post back on';
+    if (keys.length === 1 && keys[0] === 'status' && body.status === 'published') return 'Posted a draft';
+  }
+  if (method === 'POST' && /^announcements\/?$/.test(path)) return body?.status === 'draft' ? 'Saved a draft post' : 'Posted an announcement';
   if (method === 'DELETE' && /^announcements/.test(path)) return 'Deleted an announcement';
   if ((method === 'PUT' || method === 'PATCH') && /^announcements/.test(path)) return 'Edited an announcement';
   if (method === 'POST') return `Added to / updated ${area}`;
