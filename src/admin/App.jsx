@@ -21,7 +21,7 @@ import AnnouncePage from './components/announcements/AnnouncePage.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
 import PostManageSheet from './components/announcements/PostManageSheet.jsx';
-import { POST_OPEN_EVENT, openPost } from './components/announcements/postOpen.js';
+import { POST_OPEN_EVENT, openPost as openPostPopup } from './components/announcements/postOpen.js';
 import PostSheet from './components/PostSheet.jsx';
 import { postStyle } from '../shared/postDefaults.js';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
@@ -165,7 +165,7 @@ export default function App() {
       case 'command': screenCommand(a.name); break;
       case 'preview': window.open('/screen?preview=true', '_blank', 'noopener'); break;
       case 'edit-announcement': setComposer(a.item); break;
-      case 'manage-post': openPost(a.id); break;
+      case 'manage-post': openPostPopup(a.id); break;
       case 'toggle-announcement': updateAnnouncement(a.item.id, { enabled: a.enabled }, a.enabled ? 'Resumed' : 'Paused'); break;
       default: break;
     }
@@ -253,7 +253,7 @@ export default function App() {
             onEditAnnouncement={(item) => setComposer(item)}
             onDeleteAnnouncement={deleteAnnouncement}
             onToggleAnnouncement={(item, enabled) => updateAnnouncement(item.id, { enabled }, enabled ? 'Turned on' : 'Paused (off)')}
-            onOpenPost={(item) => openPost(item.id)}
+            onOpenPost={(item) => openPostPopup(item.id)}
           />
         );
       case 'schedule':
