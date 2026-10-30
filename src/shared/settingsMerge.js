@@ -30,7 +30,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'siteName',          // string: this screen's name in the admin (sidebar, Home)
   'scheduler',         // { trackA, trackBTime }
   'scheduleGroups',    // [{ id, name, nameHe?, short? }] groups watching one screen (src/shared/scheduleGroups.js); [] = off
-  'announcements',     // { archiveDays }
+  'announcements',     // { archiveDays, insertAt, startAs, defaultEndHours, defaultSeconds, showEnded } posting defaults (src/shared/postList.js postingDefaults)
   'kiddushLevana',     // { enabled, startAfterDays 3|7, endRule halfway|fifteen, skipCustoms, hebrew, overrides }
   'shabbos',           // Friday / Shabbos page + what the TV does during Shabbos (src/shared/shabbosPage.js); scope org
   'post',              // { style: 'sheet'|'classic' } the + / New button: one Post sheet (default) or the four cards; scope org (src/shared/postDefaults.js)

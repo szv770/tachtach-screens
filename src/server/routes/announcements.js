@@ -21,6 +21,7 @@ import {
 } from '../announcements-model.js';
 import { withLock, loadItems, saveItems, ensureMigrated, getTimezone } from '../announcements-store.js';
 import { zonedParts, addDays, zonedTimeToUtc, durationMinutes } from '../../shared/announcements.js';
+import { insertAtFrom, insertRefRow } from '../../shared/postList.js';
 
 const router = Router();
 
@@ -93,6 +94,19 @@ router.post('/announcements', async (req, res) => {
       applyResolve(item, items, req.body?.resolve);
       items.push(item);
       await saveItems(items);
+      // settings.announcements.insertAt = 'start': a new slide-style post gets a rotation row at the top.
+      // 'end' (default) writes nothing: the kiosk appends it after the other slides, exactly as before.
+      const insertAt = insertAtFrom(await readJSON('settings.json'));
+      if (insertAt !== 'end') {
+        let changed = false;
+        const slides = await updateJSON('slides.json', (list) => {
+          const next = insertRefRow(list, item, insertAt);
+          if (!next) return SKIP;
+          changed = true;
+          return next;
+        }, () => []);
+        if (changed) broadcast('slides-update', slides);
+      }
       return item;
     });
     res.status(201).json(created);

@@ -187,6 +187,9 @@ export function viewerState(state, now = new Date()) {
     out.announcements = viewerAnnouncements(out.announcements, now, tz);
     const live = new Set(out.announcements.map((i) => String(i.id)));
     for (const k of ['messages', 'pinned']) if (Array.isArray(out[k])) out[k] = out[k].filter((m) => live.has(String(m?.id))).map((m) => without(m, STAFF_FIELDS));
+    // Rotation ref rows of drafts / later / paused posts (the Slides page gives every post a row) would tell a viewer
+    // such a post exists: only rows of posts the viewer gets stay.
+    if (Array.isArray(out.slides)) out.slides = out.slides.filter((r) => r?.type !== 'ANNOUNCEMENT' || live.has(String(r.announcementId)));
   }
   if (out.cache && typeof out.cache === 'object') {
     // the school's place (zip, coordinates, Chabad location id) is withheld from settings; keep it out of the cache copies too (red-team F3)

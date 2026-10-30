@@ -15,6 +15,7 @@
 import { CANDLE_MIN, CANDLE_MAX } from './candleLighting.js';
 import { RANDOM_FROM } from './dailyToday.js';
 import { POST_STYLES } from './postDefaults.js';
+import { INSERT_AT, START_AS, SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from './postList.js';
 import { DURING, GREETINGS, SPELLINGS, EREV_HOURS, MOTZEI_MINUTES, reminderListProblem } from './shabbosPage.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
@@ -31,6 +32,12 @@ const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
   { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },
+  { path: 'announcements.archiveDays', label: 'Days to keep ended posts', check: int(1, 365) },
+  { path: 'announcements.insertAt', label: 'Where new message slides go in the rotation', check: (v) => (INSERT_AT.includes(v) ? null : 'end or start') },
+  { path: 'announcements.startAs', label: 'New posts start as', check: (v) => (START_AS.includes(v) ? null : 'live or draft') },
+  { path: 'announcements.defaultEndHours', label: 'How long a new post shows (hours, 0 = until turned off)', check: int(0, END_HOURS_MAX) },
+  { path: 'announcements.defaultSeconds', label: 'Seconds a new message slide stays on screen', check: int(SECONDS_MIN, SECONDS_MAX) },
+  { path: 'announcements.showEnded', label: 'Show ended posts in the lists', check: bool },
   { path: 'dailyPick.randomFrom', label: 'Show a different one picks from', check: (v) => (RANDOM_FROM.includes(v) ? null : 'unshown or all') },
   { path: 'shabbos.during', label: 'During Shabbos / Yom Tov', check: (v) => (DURING.includes(v) ? null : 'rotate, sign or off') },
   { path: 'shabbos.erevHours', label: 'Hours before candle lighting the Friday page starts', check: int(EREV_HOURS.min, EREV_HOURS.max) },
