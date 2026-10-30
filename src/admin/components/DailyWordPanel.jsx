@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import { apiFetch } from '../hooks/useAdminState.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
+import DailyTodayCard from './DailyTodayCard.jsx';
 import { useSnackbar, useCopy } from './schedule/scheduleShared.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { pickDailyWord, normalizeWord, upcomingWords, archiveRows, pinWord, addDaysISO, DAILY_WORD_PROMPT, LIMITS } from '../../shared/dailyWords.js';
@@ -24,7 +25,7 @@ const h3 = { fontFamily: adminFonts.englishBody, fontSize: '18px', fontWeight: 6
 const label = { display: 'flex', flexDirection: 'column', gap: '4px', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim };
 const small = { fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim };
 
-function WordForm({ initial, onSave, onCancel, busy }) {
+function WordForm({ initial, onSave, onCancel, busy, heading }) {
   const [w, setW] = useState(() => ({ ...blank(), ...initial, convo: [0, 1].map((i) => ({ text: initial?.convo?.[i]?.text || '' })), showOn: initial?.showOn || '' }));
   const rootRef = useRef(null);
   // Opened from anywhere in a long list: bring the form into view.
@@ -39,7 +40,7 @@ function WordForm({ initial, onSave, onCancel, busy }) {
   );
   return (
     <div ref={rootRef} style={{ ...card, borderColor: colors.gold, margin: '10px 0' }}>
-      <h3 style={h3}>{initial?.id ? 'Edit word' : 'Add a word'}</h3>
+      {heading !== '' && <h3 style={h3}>{heading ?? (initial?.id ? 'Edit word' : 'Add a word')}</h3>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
         {field('word', 'Word in Hebrew letters', { dir: 'rtl', style: { fontSize: '20px', fontFamily: adminFonts.hebrewPrimary }, placeholder: 'נחת' })}
         {field('transliteration', 'In English letters', { placeholder: 'nachas' })}
@@ -84,7 +85,7 @@ export default function DailyWordPanel() {
   const [editDate, setEditDate] = useState(null); // 'Coming up' row the edit form is open under (null = the list)
   const [confirmDel, setConfirmDel] = useState(null);
   const [filter, setFilter] = useState('');
-  const todayStr = toISODate(new Date());
+  const todayStr = file?.today || toISODate(new Date()); // the screen's own date (its time zone), from the server
   const [view, setView] = useState('upcoming'); // 'upcoming' | 'archive' | 'all'
   const [showAgain, setShowAgain] = useState(null); // { id, date } while choosing a day for an archived word
   const [pasteText, setPasteText] = useState('');
@@ -152,23 +153,33 @@ export default function DailyWordPanel() {
       <p style={{ ...small, margin: '0 0 16px' }}>A new word every day for the Daily Word slide (switch that slide on in Slides). {words.filter((w) => w.enabled !== false).length} words on the list.</p>
 
       <div style={card}>
-        <h3 style={h3}>Showing today</h3>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
-          {today ? (
-            <>
-              <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '34px', color: colors.text }}>{today.word}</span>
-              <span style={{ ...small, fontSize: '15px', color: colors.text }}>{today.transliteration} · {today.pronunciation}</span>
-              <span style={small}>{today.meaning}</span>
-            </>
-          ) : <span style={small}>No words are enabled yet.</span>}
-        </div>
+        <h3 style={h3}>Today's word</h3>
+        <DailyTodayCard
+          noun="word" endpoint="/api/daily-words" items={words} entry={today} manual={!!file.history?.[todayStr]?.manual}
+          busy={busy} setBusy={setBusy} onFile={setFile} show={show}
+          describe={(t) => (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+              <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '34px', color: colors.text }}>{t.word}</span>
+              <span style={{ ...small, fontSize: '15px', color: colors.text }}>{t.transliteration} · {t.pronunciation}</span>
+              <span style={small}>{t.meaning}</span>
+            </div>
+          )}
+          chooseLabel={(w) => `${w.word}  ${w.transliteration} (${w.meaning})`}
+          chooseSearch={(w) => [w.word, w.transliteration, w.meaning, ...(w.tags || [])].join(' ')}
+          renderOneOff={({ onSave, onCancel, busy: b }) => <WordForm heading="" initial={null} busy={b} onSave={onSave} onCancel={onCancel} />}
+          renderEdit={({ entry, onClose }) => (
+            <WordForm heading="" initial={entry} busy={busy} onCancel={onClose}
+              onSave={async (w) => { if (await save({ ...file, words: words.map((x) => (x.id === w.id ? w : x)) }, 'Word saved.')) onClose(); }} />
+          )}
+        >
         <label style={{ ...label, marginTop: '12px', maxWidth: '420px' }}>Order
           <select value={file.order} disabled={busy} onChange={(e) => save({ ...file, order: e.target.value }, 'Order saved.')} style={inputStyle}>
             <option value="sequential">In list order, one a day</option>
             <option value="shuffle">Shuffled (no repeats until every word was shown)</option>
           </select>
         </label>
-        <div style={{ ...small, marginTop: '8px' }}>A word moves to the Archive the day it is shown, and comes around again once the whole list has been shown.</div>
+        <div style={{ ...small, marginTop: '8px' }}>A word moves to the Archive the day it is shown (the archive keeps what really showed), and comes around again once the whole list has been shown.</div>
+        </DailyTodayCard>
       </div>
 
       <div style={{ display: 'flex', gap: '6px', margin: '0 0 14px', flexWrap: 'wrap' }} role="tablist">
@@ -262,7 +273,14 @@ export default function DailyWordPanel() {
         {shown.length === 0 && <div style={small}>Nothing matches.</div>}
         {shown.map(({ w, i }) => (editing && editing !== 'new' && !editDate && editing.id === w.id ? <React.Fragment key={w.id}>{renderForm(editing)}</React.Fragment> : (
           <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, opacity: w.enabled === false ? 0.5 : 1, flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-            <ToggleSwitch on={w.enabled !== false} label={`Show ${w.transliteration || w.word}`} onChange={(on) => save({ ...file, words: words.map((x) => (x.id === w.id ? { ...x, enabled: on } : x)) })} />
+            <ToggleSwitch on={w.enabled !== false} label={`Show ${w.transliteration || w.word}`} onChange={async (on) => {
+              if (!on && today?.id === w.id) { // switching off the word on screen now = Hide, so the screen changes at once
+                setBusy(true);
+                try { setFile(await apiFetch('/api/daily-words/today', { method: 'POST', body: JSON.stringify({ op: 'hide' }) })); show('Hidden. Showing another word.'); } catch (e) { show(e.message, 'error'); } finally { setBusy(false); }
+                return;
+              }
+              save({ ...file, words: words.map((x) => (x.id === w.id ? { ...x, enabled: on } : x)) });
+            }} />
             <span dir="rtl" style={{ fontFamily: adminFonts.hebrewPrimary, fontSize: '24px', minWidth: '110px', color: colors.text }}>{w.word}</span>
             <div style={{ flex: 1, minWidth: '160px' }}>
               <div style={{ ...small, color: colors.text, fontSize: '14px' }}>{w.transliteration} <span style={{ color: colors.dim }}>· {w.pronunciation}</span>{w.showOn && <span style={{ color: colors.gold }}> · pinned {w.showOn}</span>}{lastShown[w.id] && <span style={{ color: colors.dim }}> · last shown {lastShown[w.id]}</span>}</div>

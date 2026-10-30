@@ -97,6 +97,7 @@ export const SETTINGS_INDEX = [
   S('images', 'Web page reload and zoom', 'refresh reload seconds page size zoom', { tab: 'web', match: 'Your web pages' }),
   S('images', 'News feeds (RSS)', 'rss news feed refresh add feed preview mapping sync', { tab: 'feeds', anchor: 'media-feed-add' }),
   S('daily-word', 'Daily Word', 'yiddish word archive coming up import', { match: 'Daily Word' }),
+  S('daily-word', 'Today\'s word / story: show a different one, choose, write one just for today, hide, back to automatic', 'daily word story today change different random hide skip automatic one-off picks from unshown', { match: 'picks from' }),
   S('daily-story', 'Daily Story', 'story thought vort mashal inspiration archive coming up pin import', { match: 'Daily Story' }),
   S('slides', 'Daily Story slide: seconds on screen and name', 'story thought seconds duration pencil edit slide more settings', { slide: { kind: 'edit', type: 'DAILY_STORY' } }),
   S('shabbos', 'Shabbos page (Good Shabbos on Friday, Shavua Tov on Motzei Shabbos)', 'shabbos shabbat friday erev candle lighting candles countdown parsha good shabbos shavua tov motzei reminders mivtza mivtzoim', { match: 'The two pages' }),

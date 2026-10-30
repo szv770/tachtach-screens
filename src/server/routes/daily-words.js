@@ -9,7 +9,8 @@
 import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
-import { normalizeDailyWordsFile, normalizeWords, parseWordsText, recordShownWord, forKiosk, LIMITS } from '../../shared/dailyWords.js';
+import { normalizeDailyWordsFile, normalizeWords, parseWordsText, recordShownWord, changeTodaysWord, syncTodaysWord, forKiosk, LIMITS } from '../../shared/dailyWords.js';
+import { randomFrom } from '../../shared/dailyToday.js';
 import { SEED_WORDS } from '../../shared/dailyWordsSeed.js';
 
 export const FILE = 'daily-words.json';
@@ -65,7 +66,7 @@ const router = Router();
 router.use('/daily-words', express.json({ limit: '256kb' }));
 
 router.get('/daily-words', async (_req, res) => {
-  try { res.json(await readDailyWords()); } catch { res.status(500).json({ error: 'Failed to read the word list.' }); }
+  try { res.json({ ...(await readDailyWords()), today: await todayISO() }); } catch { res.status(500).json({ error: 'Failed to read the word list.' }); }
 });
 
 // Replace the whole list (admin edits, reorder, delete).
@@ -75,7 +76,8 @@ router.put('/daily-words', async (req, res) => {
     if (!Array.isArray(body.words)) return res.status(400).json({ error: 'words must be a list.' });
     const { words, errors } = normalizeWords(body.words);
     if (errors.length) return res.status(400).json({ error: `Word ${errors[0].index + 1}: ${errors[0].error}`, errors });
-    res.json(await withLock(async () => save({ order: body.order, words, history: (await readDailyWords()).history })));
+    const today = await todayISO();
+    res.json({ ...(await withLock(async () => save(recordShownWord(syncTodaysWord({ order: body.order, words, history: (await readDailyWords()).history }, today), today).file))), today });
   } catch { res.status(500).json({ error: 'Failed to save the word list.' }); }
 });
 
@@ -97,6 +99,26 @@ router.post('/daily-words/import', async (req, res) => {
     });
     res.json(out);
   } catch { res.status(500).json({ error: 'Import failed.' }); }
+});
+
+// Change what shows TODAY: { op: 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic', id?, entry? } (rules: src/shared/dailyToday.js).
+// Edits today's archive entry on purpose (the archive records what actually showed) and broadcasts, so the TV updates at once.
+router.post('/daily-words/today', async (req, res) => {
+  try {
+    const { op, id, entry } = req.body || {};
+    if (!['pick', 'random', 'oneoff', 'hide', 'automatic'].includes(op)) return res.status(400).json({ error: 'Unknown action.' });
+    const today = await todayISO();
+    let settings = null;
+    try { settings = await readJSON('settings.json'); } catch { /* default */ }
+    const out = await withLock(async () => {
+      const cur = await readDailyWords();
+      const r = changeTodaysWord(cur, today, op, { id: typeof id === 'string' ? id : undefined, entry, randomFrom: randomFrom(settings) });
+      if (r.error) return { error: r.error };
+      return { file: await save(r.file), pickedId: r.pickedId ?? null };
+    });
+    if (out.error) return res.status(400).json({ error: out.error });
+    res.json({ ...out.file, today, pickedId: out.pickedId });
+  } catch { res.status(500).json({ error: 'Could not change today.' }); }
 });
 
 export default router;

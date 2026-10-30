@@ -12,6 +12,7 @@
  */
 
 import { wpmFor } from './longText.js';
+import { changeToday, syncTodaySnapshot } from './dailyToday.js';
 
 export const KINDS = ['story', 'thought'];
 export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500 };
@@ -91,7 +92,7 @@ function normalizeHistory(h) {
   if (!h || typeof h !== 'object') return out;
   Object.keys(h).filter((k) => ISO.test(k)).sort().slice(-HISTORY_LIMIT).forEach((k) => {
     const r = normalizeStory(h[k]);
-    if (!r.error) out[k] = snapshotOf(r.story);
+    if (!r.error) out[k] = { ...snapshotOf(r.story), ...(h[k]?.manual === true ? { manual: true } : {}) };
   });
   return out;
 }
@@ -170,7 +171,11 @@ export function recordShownStory(file, iso) {
   let changed = false;
   let stories = file.stories;
   const history = { ...(file.history || {}) };
-  if (!history[iso]) {
+  // A story pinned to today wins even if today was archived already (a pin made after the day began is a hand pick).
+  const pinnedNow = stories.find((s) => s.enabled !== false && s.showOn === iso);
+  if (pinnedNow && history[iso]?.id !== pinnedNow.id) {
+    history[iso] = { ...snapshotOf(pinnedNow), manual: true }; changed = true;
+  } else if (!history[iso]) {
     const s = pickFromRotation(file, iso);
     if (s) { history[iso] = snapshotOf(s); changed = true; }
   }
@@ -182,6 +187,20 @@ export function recordShownStory(file, iso) {
   const keys = Object.keys(history).sort();
   keys.slice(0, Math.max(0, keys.length - HISTORY_LIMIT)).forEach((k) => delete history[k]);
   return { file: { ...file, stories, history }, changed: true };
+}
+
+export const STORY_ADAPTER = Object.freeze({
+  listKey: 'stories', itemKey: 'story', normalize: normalizeStory, snapshotOf, pickFromRotation, cap: LIMITS.stories,
+  needsSource: (s) => s.kind === 'story',
+});
+
+/** Change today's story: op = 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic' (see dailyToday.js). */
+export function changeTodaysStory(file, iso, op, opts) {
+  return changeToday(file, STORY_ADAPTER, iso, op, opts);
+}
+/** After a story was edited: today's archive copy follows it. */
+export function syncTodaysStory(file, iso) {
+  return syncTodaySnapshot(file, STORY_ADAPTER, iso);
 }
 
 /** The next `days` days: [{ date, story, pinned, locked }]. */

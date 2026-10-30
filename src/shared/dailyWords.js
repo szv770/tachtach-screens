@@ -18,6 +18,8 @@
  * restart show the same word, with no state to keep.
  */
 
+import { changeToday, syncTodaySnapshot } from './dailyToday.js';
+
 export const DEFAULT_LANGUAGE = 'Yiddish';
 export const LIMITS = { word: 60, transliteration: 60, pronunciation: 60, partOfSpeech: 30, meaning: 220, context: 320, convoLine: 200, tag: 24, tags: 8, words: 600 };
 
@@ -115,7 +117,8 @@ function normalizeHistory(h) {
     const e = h[k];
     if (e && typeof e === 'object' && (e.word || e.transliteration)) {
       out[k] = { id: str(e.id, 60), word: noRafe(str(e.word, LIMITS.word)), transliteration: chStyle(str(e.transliteration, LIMITS.transliteration)),
-        pronunciation: chStyle(str(e.pronunciation, LIMITS.pronunciation)), meaning: chStyle(str(e.meaning, LIMITS.meaning)), language: str(e.language, 30) || DEFAULT_LANGUAGE };
+        pronunciation: chStyle(str(e.pronunciation, LIMITS.pronunciation)), meaning: chStyle(str(e.meaning, LIMITS.meaning)), language: str(e.language, 30) || DEFAULT_LANGUAGE,
+        ...(e.manual === true ? { manual: true } : {}) };
     }
   });
   return out;
@@ -214,7 +217,11 @@ export function recordShownWord(file, iso) {
   let changed = false;
   let words = file.words;
   const history = { ...(file.history || {}) };
-  if (!history[iso]) {
+  // A word pinned to today wins even if today was archived already (a pin made after the day began is a hand pick).
+  const pinnedNow = words.find((w) => w.enabled !== false && w.showOn === iso);
+  if (pinnedNow && history[iso]?.id !== pinnedNow.id) {
+    history[iso] = { ...snapshotOf(pinnedNow), manual: true }; changed = true;
+  } else if (!history[iso]) {
     const w = pickFromRotation(file, iso);
     if (w) { history[iso] = snapshotOf(w); changed = true; }
   }
@@ -226,6 +233,19 @@ export function recordShownWord(file, iso) {
   const keys = Object.keys(history).sort();
   keys.slice(0, Math.max(0, keys.length - HISTORY_LIMIT)).forEach((k) => delete history[k]);
   return { file: { ...file, words, history }, changed: true };
+}
+
+export const WORD_ADAPTER = Object.freeze({
+  listKey: 'words', itemKey: 'word', normalize: normalizeWord, snapshotOf, pickFromRotation, cap: LIMITS.words,
+});
+
+/** Change today's word: op = 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic' (see dailyToday.js). */
+export function changeTodaysWord(file, iso, op, opts) {
+  return changeToday(file, WORD_ADAPTER, iso, op, opts);
+}
+/** After a word was edited: today's archive copy follows it. */
+export function syncTodaysWord(file, iso) {
+  return syncTodaySnapshot(file, WORD_ADAPTER, iso);
 }
 
 /** The next `days` days starting at `startISO`: [{ date, word, pinned, locked }]. */

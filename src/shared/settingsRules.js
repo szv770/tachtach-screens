@@ -13,6 +13,7 @@
  * and means "use the default". Paths are 'key.sub'.
  */
 import { CANDLE_MIN, CANDLE_MAX } from './candleLighting.js';
+import { RANDOM_FROM } from './dailyToday.js';
 import { POST_STYLES } from './postDefaults.js';
 import { DURING, GREETINGS, SPELLINGS, EREV_HOURS, MOTZEI_MINUTES, reminderListProblem } from './shabbosPage.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
@@ -30,6 +31,7 @@ const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
   { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },
+  { path: 'dailyPick.randomFrom', label: 'Show a different one picks from', check: (v) => (RANDOM_FROM.includes(v) ? null : 'unshown or all') },
   { path: 'shabbos.during', label: 'During Shabbos / Yom Tov', check: (v) => (DURING.includes(v) ? null : 'rotate, sign or off') },
   { path: 'shabbos.erevHours', label: 'Hours before candle lighting the Friday page starts', check: int(EREV_HOURS.min, EREV_HOURS.max) },
   { path: 'shabbos.motzeiMinutes', label: 'Minutes after nightfall the Motzei page shows', check: int(MOTZEI_MINUTES.min, MOTZEI_MINUTES.max) },

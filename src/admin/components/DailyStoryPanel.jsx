@@ -11,6 +11,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary, buttonDanger } from '../styles/admin-tokens.js';
 import { apiFetch } from '../hooks/useAdminState.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
+import DailyTodayCard from './DailyTodayCard.jsx';
 import { useSnackbar, useCopy } from './schedule/scheduleShared.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { pickDailyStory, normalizeStory, upcomingStories, archiveRows, pinStory, addDaysISO, DAILY_STORY_PROMPT, LIMITS } from '../../shared/dailyStories.js';
@@ -25,7 +26,7 @@ const small = { fontFamily: adminFonts.englishBody, fontSize: '12px', color: col
 const preview = (t, n = 120) => { const s = String(t || ''); return s.length > n ? `${s.slice(0, n).trim()}…` : s; };
 const dayName = (iso, opts) => new Date(`${iso}T12:00:00`).toLocaleDateString(undefined, opts);
 
-function StoryForm({ initial, onSave, onCancel, busy }) {
+function StoryForm({ initial, onSave, onCancel, busy, heading }) {
   const [s, setS] = useState(() => ({ ...blank(), ...initial, showOn: initial?.showOn || '' }));
   const rootRef = useRef(null);
   useEffect(() => { rootRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, []);
@@ -40,7 +41,7 @@ function StoryForm({ initial, onSave, onCancel, busy }) {
   );
   return (
     <div ref={rootRef} style={{ ...card, borderColor: colors.gold, margin: '10px 0' }}>
-      <h3 style={h3}>{initial?.id ? 'Edit story' : 'Add a story'}</h3>
+      {heading !== '' && <h3 style={h3}>{heading ?? (initial?.id ? 'Edit story' : 'Add a story')}</h3>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
         <label style={label}>Kind
           <select value={s.kind} onChange={(e) => set('kind', e.target.value)} style={inputStyle}>
@@ -88,7 +89,7 @@ export default function DailyStoryPanel() {
   const [pasteText, setPasteText] = useState('');
   const [importInfo, setImportInfo] = useState(null);
   const [promptN, setPromptN] = useState(20);
-  const todayStr = toISODate(new Date());
+  const todayStr = file?.today || toISODate(new Date()); // the screen's own date (its time zone), from the server
   const { show, node: snack } = useSnackbar();
   const { copy, modal } = useCopy(show);
 
@@ -151,20 +152,32 @@ export default function DailyStoryPanel() {
       <p style={{ ...small, margin: '0 0 16px' }}>A short story or thought to read, a new one every day, for the Daily Story slide (switch that slide on in Slides). {stories.filter((s) => s.enabled !== false).length} on the list.</p>
 
       <div style={card}>
-        <h3 style={h3}>Showing today</h3>
-        {today ? (
-          <div>
-            <div style={{ fontFamily: adminFonts.englishBody, fontSize: '20px', color: colors.text, fontWeight: 600 }}>{today.title || today.titleHe}</div>
-            <div style={{ ...small, fontSize: '14px', marginTop: '4px', lineHeight: 1.45 }}>{preview(today.text || today.textHe, 260)}</div>
-          </div>
-        ) : <span style={small}>Nothing is switched on yet.</span>}
+        <h3 style={h3}>Today's story</h3>
+        <DailyTodayCard
+          noun="story" endpoint="/api/daily-stories" items={stories} entry={today} manual={!!file.history?.[todayStr]?.manual}
+          busy={busy} setBusy={setBusy} onFile={setFile} show={show}
+          describe={(t) => (
+            <div>
+              <div style={{ fontFamily: adminFonts.englishBody, fontSize: '20px', color: colors.text, fontWeight: 600 }}>{t.title || t.titleHe}</div>
+              <div style={{ ...small, fontSize: '14px', marginTop: '4px', lineHeight: 1.45 }}>{preview(t.text || t.textHe, 260)}</div>
+            </div>
+          )}
+          chooseLabel={(x) => `${x.title || preview(x.text, 50)} · ${x.kind === 'thought' ? 'thought' : 'story'}`}
+          chooseSearch={(x) => [x.title, x.titleHe, x.text, x.source].join(' ')}
+          renderOneOff={({ onSave, onCancel, busy: b }) => <StoryForm heading="" initial={null} busy={b} onSave={onSave} onCancel={onCancel} />}
+          renderEdit={({ entry, onClose }) => (
+            <StoryForm heading="" initial={entry} busy={busy} onCancel={onClose}
+              onSave={async (x) => { if (await save({ ...file, stories: stories.map((y) => (y.id === x.id ? x : y)) }, 'Story saved.')) onClose(); }} />
+          )}
+        >
         <label style={{ ...label, marginTop: '12px', maxWidth: '420px' }}>Order
           <select value={file.order} disabled={busy} onChange={(e) => save({ ...file, order: e.target.value }, 'Order saved.')} style={inputStyle}>
             <option value="shuffle">Shuffled (no repeats until every story was shown)</option>
             <option value="sequential">In list order, one a day</option>
           </select>
         </label>
-        <div style={{ ...small, marginTop: '8px' }}>A story moves to the Archive the day it is shown, and comes around again once the whole list has been shown.</div>
+        <div style={{ ...small, marginTop: '8px' }}>A story moves to the Archive the day it is shown (the archive keeps what really showed), and comes around again once the whole list has been shown.</div>
+        </DailyTodayCard>
       </div>
 
       <div style={{ display: 'flex', gap: '6px', margin: '0 0 14px', flexWrap: 'wrap' }} role="tablist">
@@ -248,7 +261,14 @@ export default function DailyStoryPanel() {
             {shown.length === 0 && <div style={small}>Nothing matches.</div>}
             {shown.map(({ s, i }) => (editing && editing !== 'new' && !editDate && editing.id === s.id ? <React.Fragment key={s.id}>{renderForm(editing)}</React.Fragment> : (
               <div key={s.id} style={{ ...row, opacity: s.enabled === false ? 0.5 : 1 }}>
-                <ToggleSwitch on={s.enabled !== false} label={`Show ${s.title || 'this story'}`} onChange={(on) => save({ ...file, stories: stories.map((x) => (x.id === s.id ? { ...x, enabled: on } : x)) })} />
+                <ToggleSwitch on={s.enabled !== false} label={`Show ${s.title || 'this story'}`} onChange={async (on) => {
+                  if (!on && today?.id === s.id) { // switching off the story on screen now = Hide, so the screen changes at once
+                    setBusy(true);
+                    try { setFile(await apiFetch('/api/daily-stories/today', { method: 'POST', body: JSON.stringify({ op: 'hide' }) })); show('Hidden. Showing another story.'); } catch (e) { show(e.message, 'error'); } finally { setBusy(false); }
+                    return;
+                  }
+                  save({ ...file, stories: stories.map((x) => (x.id === s.id ? { ...x, enabled: on } : x)) });
+                }} />
                 {summary(s, s.showOn && <span style={{ color: colors.gold }}> · pinned {s.showOn}</span>)}
                 <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, -1)} disabled={busy || i === 0} title="Earlier in the order" aria-label="Move up">↑</button>
                 <button style={{ ...buttonSecondary, minHeight: '32px', padding: '2px 8px' }} onClick={() => move(i, 1)} disabled={busy || i === stories.length - 1} title="Later in the order" aria-label="Move down">↓</button>

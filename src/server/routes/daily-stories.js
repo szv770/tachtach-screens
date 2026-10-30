@@ -7,7 +7,8 @@
 import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
-import { normalizeDailyStoriesFile, normalizeStories, parseStoriesText, recordShownStory, forKiosk, LIMITS } from '../../shared/dailyStories.js';
+import { normalizeDailyStoriesFile, normalizeStories, parseStoriesText, recordShownStory, changeTodaysStory, syncTodaysStory, forKiosk, LIMITS } from '../../shared/dailyStories.js';
+import { randomFrom } from '../../shared/dailyToday.js';
 import { SEED_STORIES, RETIRED_SEED_IDS } from '../../shared/dailyStoriesSeed.js';
 import { todayISO } from './daily-words.js';
 
@@ -50,7 +51,7 @@ const router = Router();
 router.use('/daily-stories', express.json({ limit: '512kb' }));
 
 router.get('/daily-stories', async (_req, res) => {
-  try { res.json(await readDailyStories()); } catch { res.status(500).json({ error: 'Failed to read the story list.' }); }
+  try { res.json({ ...(await readDailyStories()), today: await todayISO() }); } catch { res.status(500).json({ error: 'Failed to read the story list.' }); }
 });
 
 router.put('/daily-stories', async (req, res) => {
@@ -59,7 +60,8 @@ router.put('/daily-stories', async (req, res) => {
     if (!Array.isArray(body.stories)) return res.status(400).json({ error: 'stories must be a list.' });
     const { stories, errors } = normalizeStories(body.stories);
     if (errors.length) return res.status(400).json({ error: `Story ${errors[0].index + 1}: ${errors[0].error}`, errors });
-    res.json(await withLock(async () => save({ order: body.order, stories, history: (await readDailyStories()).history })));
+    const today = await todayISO();
+    res.json({ ...(await withLock(async () => save(recordShownStory(syncTodaysStory({ order: body.order, stories, history: (await readDailyStories()).history }, today), today).file))), today });
   } catch { res.status(500).json({ error: 'Failed to save the story list.' }); }
 });
 
@@ -82,6 +84,26 @@ router.post('/daily-stories/import', async (req, res) => {
     });
     res.json(out);
   } catch { res.status(500).json({ error: 'Import failed.' }); }
+});
+
+// Change what shows TODAY: { op: 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic', id?, entry? } (rules: src/shared/dailyToday.js).
+// Edits today's archive entry on purpose (the archive records what actually showed) and broadcasts, so the TV updates at once.
+router.post('/daily-stories/today', async (req, res) => {
+  try {
+    const { op, id, entry } = req.body || {};
+    if (!['pick', 'random', 'oneoff', 'hide', 'automatic'].includes(op)) return res.status(400).json({ error: 'Unknown action.' });
+    const today = await todayISO();
+    let settings = null;
+    try { settings = await readJSON('settings.json'); } catch { /* default */ }
+    const out = await withLock(async () => {
+      const cur = await readDailyStories();
+      const r = changeTodaysStory(cur, today, op, { id: typeof id === 'string' ? id : undefined, entry, randomFrom: randomFrom(settings) });
+      if (r.error) return { error: r.error };
+      return { file: await save(r.file), pickedId: r.pickedId ?? null };
+    });
+    if (out.error) return res.status(400).json({ error: out.error });
+    res.json({ ...out.file, today, pickedId: out.pickedId });
+  } catch { res.status(500).json({ error: 'Could not change today.' }); }
 });
 
 export default router;

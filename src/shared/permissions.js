@@ -226,6 +226,8 @@ export const LOOK_SETTING_KEYS = Object.freeze([
 /** Settings keys that are part of the SCHEDULE (a patch made only of these needs schedule.edit, not settings.change). */
 export const SCHEDULE_SETTING_KEYS = Object.freeze(['scheduleGroups']);
 /** Settings keys of the Shabbos page (Screen > Shabbos): a patch made only of these needs shabbos.edit. */
+/** Settings keys of the Daily Word / Daily Story pages: a patch made only of these needs dailyWord.edit. */
+export const DAILY_SETTING_KEYS = Object.freeze(['dailyPick']);
 export const SHABBOS_SETTING_KEYS = Object.freeze(['shabbos']);
 
 // ── Read routes (GET / HEAD / OPTIONS) ───────────────────────────────────────
@@ -382,6 +384,8 @@ export function canDo(who, method, path, body) {
   if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => SCHEDULE_SETTING_KEYS.includes(k)) && caps.has('schedule.edit')) return true;
 
   if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => SHABBOS_SETTING_KEYS.includes(k)) && caps.has('shabbos.edit')) return true;
+
+  if (/^\/api\/settings$/.test(p) && m === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => DAILY_SETTING_KEYS.includes(k)) && caps.has('dailyWord.edit')) return true;
 
   // Undo of your own fresh post: a poster may DELETE an announcement; the route itself then checks it is
   // theirs and recent unless they also hold announcements.delete (see routes/announcements.js).
