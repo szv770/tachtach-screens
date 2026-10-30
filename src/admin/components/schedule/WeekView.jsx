@@ -55,12 +55,12 @@ function BlockCard({ entry, categories, onOpen, compact, groups, menuItems }) {
       <span style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: colors.dim }}>{time}</span>
       <span style={{ display: 'block', fontSize: compact ? '14px' : '16px', fontWeight: 700, overflowWrap: 'anywhere', lineHeight: 1.25 }}>{entry.name || entry.nameHe}</span>
       {entry.name && entry.nameHe && <span dir="rtl" style={{ display: 'block', fontSize: '13px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>{entry.nameHe}</span>}
-      {gchip && <span data-testid="group-chip" style={{ display: 'inline-block', marginTop: '4px', marginRight: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '11px', fontWeight: 700, color: colors.text, background: alpha(colors.gold, 18), border: `1px solid ${alpha(colors.gold, 50)}` }}>{gchip}</span>}
+      {gchip && <span data-testid="group-chip" style={{ display: 'inline-block', marginTop: '4px', marginRight: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '12px', fontWeight: 700, color: colors.text, background: alpha(colors.gold, 18), border: `1px solid ${alpha(colors.gold, 50)}` }}>{gchip}</span>}
       {missingEndTime(entry) && !off && (
-        <span data-testid="no-end-chip" style={{ display: 'inline-block', marginTop: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '11px', fontWeight: 700, color: colors.warn, border: `1px solid ${colors.warn}` }}>No end time</span>
+        <span data-testid="no-end-chip" style={{ display: 'inline-block', marginTop: '4px', padding: '1px 8px', borderRadius: 'var(--r-pill)', fontSize: '12px', fontWeight: 700, color: colors.warn, border: `1px solid ${colors.warn}` }}>No end time</span>
       )}
       {(r.lead > 0 || r.inSession) && (
-        <span style={{ display: 'block', fontSize: '11px', color: colors.dim, marginTop: '2px' }}>
+        <span style={{ display: 'block', fontSize: '12px', color: colors.dim, marginTop: '2px' }}>
           {r.lead > 0 ? `Countdown ${r.lead}m` : ''}{r.lead > 0 && r.inSession ? ' · ' : ''}{r.inSession ? 'In-session badge' : ''}
         </span>
       )}
@@ -118,7 +118,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
           {DAY_LONG.map((name, i) => (
             <section key={name} aria-label={name} data-testid={`day-col-${i}`} style={{ background: colors.card, border: `1px solid ${i === today ? colors.gold : colors.line}`, borderRadius: 'var(--r-md)', padding: '10px', boxShadow: 'var(--e1)', minWidth: 0 }}>
               <div style={{ fontFamily: 'var(--f-display)', fontSize: '17px', fontWeight: 600, marginBottom: '8px', color: colors.text }}>
-                {name}{i === today && <span style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.gold, marginLeft: '6px' }}>today</span>}
+                {name}{i === today && <span style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.gold, marginLeft: '6px' }}>today</span>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {blocksOnDay(entries, i).map((e) => <BlockCard key={e.id} entry={e} categories={categories} groups={groups} menuItems={menuFor(e, i)} compact onOpen={(en) => onOpenBlock(en, i)} />)}
@@ -140,7 +140,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
               <button key={c} type="button" role="tab" aria-selected={day === i} aria-label={DAY_LONG[i]} onClick={() => setDay(i)}
                 style={{ ...chip(day === i), flexDirection: 'column', gap: 0, padding: '4px 0', flex: '1 1 0', minWidth: 0, minHeight: '52px', justifyContent: 'center', position: 'relative' }}>
                 <span style={{ fontSize: '13px' }}>{dayShort(i)}</span>
-                <span style={{ fontSize: '11px', color: day === i ? colors.text : colors.muted, fontWeight: 600 }}>{count(i) || '-'}</span>
+                <span style={{ fontSize: '12px', color: day === i ? colors.text : colors.muted, fontWeight: 600 }}>{count(i) || '-'}</span>
                 {i === today && <span aria-hidden="true" style={{ position: 'absolute', top: 4, right: 4, width: 6, height: 6, borderRadius: '50%', background: colors.gold }} />}
               </button>
             ))}

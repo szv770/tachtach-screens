@@ -54,7 +54,7 @@ function Chip({ children, tone }) {
   const color = tone === 'good' ? colors.success : tone === 'warn' ? colors.gold : colors.dim;
   const bg = tone === 'good' ? colors.successBg : tone === 'warn' ? colors.goldBg : colors.surface;
   return (
-    <span style={{ display: 'inline-block', padding: '1px 8px', borderRadius: '999px', background: bg, color, border: `1px solid ${colors.border}`, fontFamily: adminFonts.englishBody, fontSize: '11px', fontWeight: 600, lineHeight: '16px', whiteSpace: 'nowrap' }}>
+    <span style={{ display: 'inline-block', padding: '1px 8px', borderRadius: '999px', background: bg, color, border: `1px solid ${colors.border}`, fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 600, lineHeight: '16px', whiteSpace: 'nowrap' }}>
       {children}
     </span>
   );

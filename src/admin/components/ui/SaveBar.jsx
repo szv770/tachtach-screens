@@ -8,6 +8,9 @@ import { colors, adminFonts } from '../../styles/admin-tokens.js';
 export default function SaveBar({ count = 0, onRevert, onSave, saving = false, error = '' }) {
   if (!count) return null;
   return (
+    <>
+    {/* The bar floats, so leave room under the page's last control while it shows (it would cover it otherwise). */}
+    <div aria-hidden="true" data-testid="save-bar-spacer" style={{ height: '84px' }} />
     <div role="region" aria-label="Unsaved changes" data-testid="save-bar" style={{
       position: 'fixed', left: '12px', right: '12px', zIndex: 850,
       bottom: 'calc(var(--tt-tabbar-h) + 12px + env(safe-area-inset-bottom))',
@@ -32,5 +35,6 @@ export default function SaveBar({ count = 0, onRevert, onSave, saving = false, e
         opacity: saving ? 0.7 : 1,
       }}>{saving ? 'Saving…' : 'Save'}</button>
     </div>
+    </>
   );
 }

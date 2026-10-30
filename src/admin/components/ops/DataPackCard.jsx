@@ -170,7 +170,7 @@ export default function DataPackCard({ me }) {
             <h3 style={h3}>Upload a data pack</h3>
             <div style={small}>Have a pack file made elsewhere? Choose it here. It is checked completely before it replaces anything.</div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <input ref={fileRef} data-testid="pack-file" type="file" accept=".json,.gz,application/json" disabled={busy || running} onChange={(e) => upload(e.target.files?.[0])} style={{ fontSize: 14, maxWidth: '100%' }} />
+              <input ref={fileRef} data-testid="pack-file" aria-label="Choose a data pack file" type="file" accept=".json,.gz,application/json" disabled={busy || running} onChange={(e) => upload(e.target.files?.[0])} style={{ fontSize: 16, maxWidth: "100%", minHeight: 44 }} />
               {pack?.present && <a href={`${API}/download`} style={{ ...btn, display: 'inline-flex', alignItems: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>Download the installed pack</a>}
             </div>
           </div>

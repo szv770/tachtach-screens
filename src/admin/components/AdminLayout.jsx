@@ -32,7 +32,7 @@ export function RoleChip({ role, style }) {
   return (
     <span style={{
       display: 'inline-block', padding: '1px 8px', borderRadius: '999px', fontFamily: adminFonts.englishBody,
-      fontSize: '11px', fontWeight: 700, letterSpacing: '0.3px', lineHeight: '16px',
+      fontSize: '12px', fontWeight: 700, letterSpacing: '0.3px', lineHeight: '16px',
       color: admin ? colors.edited : colors.dim, background: admin ? colors.editedSoft : colors.sunken,
       whiteSpace: 'nowrap', ...style,
     }}>
@@ -272,7 +272,7 @@ export default function AdminLayout({
               <button key={a.key} type="button" data-testid={`tab-${a.key}`} aria-current={on ? 'page' : undefined} onClick={() => (a.key === 'home' ? go('home') : goArea(a.key))} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '3px',
                 background: 'transparent', border: 'none', cursor: 'pointer', color: on ? colors.accent : colors.muted,
-                fontFamily: adminFonts.englishBody, fontSize: '11px', fontWeight: 700, padding: 0,
+                fontFamily: adminFonts.englishBody, fontSize: '12px', fontWeight: 700, padding: 0,
               }}>
                 <Icon name={a.icon} size={24} />{a.en}
               </button>

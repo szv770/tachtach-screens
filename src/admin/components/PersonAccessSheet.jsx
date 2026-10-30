@@ -97,6 +97,7 @@ export default function PersonAccessSheet({ person, onClose, onSaved }) {
             <p style={{ ...p, fontSize: '13px' }}>Changes apply straight away; {person.name.split(/\s+/)[0]} does not need to sign in again. Tabs they cannot use are hidden for them.</p>
           </div>
         )}
+        {!isAdmin && form.count > 0 && <div aria-hidden="true" style={{ height: '84px' }} />}
       </Sheet>
       {!isAdmin && <SaveBar count={form.count} onRevert={form.revert} onSave={form.save} saving={form.saving} error={form.error} />}
     </>

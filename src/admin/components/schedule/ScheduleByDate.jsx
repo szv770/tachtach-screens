@@ -80,7 +80,7 @@ export default function ScheduleByDate({
       >
         {weeks.map((days, w) => (
           <div key={days[0]} style={{ flexShrink: 0, scrollSnapAlign: 'start' }}>
-            <div style={{ ...sectionLabel, fontSize: '11px', marginBottom: '6px' }}>
+            <div style={{ ...sectionLabel, fontSize: '12px', marginBottom: '6px' }}>
               {w === 0 ? 'This week' : w === 1 ? 'Next week' : `Week of ${MONTHS[dateFromISO(days[0]).getMonth()]} ${dateFromISO(days[0]).getDate()}`}
             </div>
             <div style={{ display: 'flex', gap: '4px' }}>
@@ -106,7 +106,7 @@ export default function ScheduleByDate({
                       fontFamily: adminFonts.englishBody, padding: '4px 0', position: 'relative',
                     }}
                   >
-                    <span style={{ fontSize: '11px', opacity: 0.85 }}>{wd === 6 ? 'Shab' : DAY_CODES[wd]}</span>
+                    <span style={{ fontSize: '12px', opacity: 0.85 }}>{wd === 6 ? 'Shab' : DAY_CODES[wd]}</span>
                     <span style={{ fontSize: '17px', fontWeight: 600 }}>{dateFromISO(d).getDate()}</span>
                     <span aria-hidden style={{
                       width: '6px', height: '6px', borderRadius: '50%',

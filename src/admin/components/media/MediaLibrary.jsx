@@ -86,7 +86,7 @@ export default function MediaLibrary({ rec, slides = [], canUpload, canDelete, c
                 <Thumb item={it} />
                 <div style={{ padding: '10px 12px 4px', fontSize: '12px', color: colors.dim, lineHeight: 1.5 }}>
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, color: colors.text, textTransform: 'uppercase', fontSize: '11px' }}>{it.mediaType}</span>
+                    <span style={{ fontWeight: 700, color: colors.text, textTransform: 'uppercase', fontSize: '12px' }}>{it.mediaType}</span>
                     {used.length > 0
                       ? <span style={{ color: colors.success, fontWeight: 700 }}>On screen{used.length > 1 ? ` ×${used.length}` : ''}</span>
                       : <span>Not on screen</span>}

@@ -4,11 +4,11 @@
    hard-code colours: they use these variables (via `colors` in admin-tokens.js). */
 :root {
   --bg:#F4F1EA; --surface:#FFFFFF; --surface-2:#FAF8F3; --sunken:#ECE7DC;
-  --text:#1D1B17; --text-2:#5E5850; --text-3:#8F887C;
+  --text:#1D1B17; --text-2:#5E5850; --text-3:#6B645A;
   --line:rgba(29,27,23,.10); --line-strong:rgba(29,27,23,.18);
   --accent:#B4322A; --accent-ink:#FFFFFF; --accent-soft:#F6E3DF;
-  --gold:#A87B22; --gold-soft:#F3E8CF;
-  --ok:#2F7D4F; --ok-soft:#DDEEE3; --warn:#B46A12; --warn-soft:#F7E8D2; --danger:#C0362C; --danger-soft:#F8E2DF;
+  --gold:#85600F; --gold-soft:#F3E8CF;
+  --ok:#2F7D4F; --ok-soft:#DDEEE3; --warn:#955509; --warn-soft:#F7E8D2; --danger:#B3301F; --danger-soft:#F8E2DF;
   --scrim:rgba(29,27,23,.38);
   --e1:0 1px 2px rgba(40,30,15,.06),0 1px 1px rgba(40,30,15,.04);
   --e2:0 4px 14px rgba(40,30,15,.08),0 1px 3px rgba(40,30,15,.06);
@@ -19,7 +19,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
-    --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#7E776C;
+    --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#8F887C;
     --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
     --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
     --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
@@ -34,7 +34,7 @@
 }
 :root[data-theme="dark"] {
   --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
-  --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#7E776C;
+  --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#8F887C;
   --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
   --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
   --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
@@ -74,4 +74,9 @@ input::placeholder, textarea::placeholder { color: var(--text-3); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+/* Phone / touch (coarse pointer only; desktop mouse layout is untouched): segmented tabs reach the 44px tap size. */
+@media (pointer: coarse) {
+  .tt-seg button { min-height: 44px !important; }
 }

@@ -386,7 +386,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                       <div key={field} style={{ marginBottom: '4px' }}>
                         <span style={{
                           fontFamily: adminFonts.englishBody,
-                          fontSize: '10px',
+                          fontSize: '12px',
                           color: colors.gold,
                           textTransform: 'uppercase',
                           letterSpacing: '0.05em',
@@ -589,7 +589,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                 </div>
                 <div style={{
                   fontFamily: adminFonts.englishBody,
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: colors.muted,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -600,7 +600,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                 </div>
                 <div style={{
                   fontFamily: adminFonts.englishBody,
-                  fontSize: '11px',
+                  fontSize: '12px',
                   color: colors.dim,
                   marginTop: '2px',
                 }}>
@@ -654,7 +654,7 @@ export default function RSSManager({ onSlideCreated, slides = [], onUpdateSlides
                 {feedError?.id === feed.id && (
                   <span style={{
                     fontFamily: adminFonts.englishBody,
-                    fontSize: '11px',
+                    fontSize: '12px',
                     color: colors.danger,
                   }}>
                     {feedError.message}

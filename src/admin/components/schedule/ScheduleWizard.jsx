@@ -135,7 +135,7 @@ function BlockRow({ block, categories, onChange, onRemove, onAddNext, onCreateCa
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
         <button type="button" aria-expanded={catOpen} onClick={() => setCatOpen((o) => !o)} style={chip(!!cat, cat?.color)}>
-          <Dot color={cat?.color} /> {cat ? cat.name : 'Category'} <span aria-hidden="true" style={{ fontSize: '10px' }}>{catOpen ? '▴' : '▾'}</span>
+          <Dot color={cat?.color} /> {cat ? cat.name : 'Category'} <span aria-hidden="true" style={{ fontSize: '12px' }}>{catOpen ? '▴' : '▾'}</span>
         </button>
         {cat?.kind === 'davening' && (
           <select aria-label={`Block ${index + 1} is which davening`} value={block.extra?.tefila || ''} style={{ ...chip(false), minHeight: '44px' }}
@@ -285,7 +285,7 @@ function GroupTimesStep({ patterns, setPatterns, groups }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <span style={{ fontWeight: 700, fontSize: '13px', color: colors.dim, minWidth: '86px' }}>{formatTime12(b.time)}{b.endTime ? ` - ${formatTime12(b.endTime)}` : ''}</span>
                       <span style={{ flex: '1 1 120px', fontWeight: 600, overflowWrap: 'anywhere' }}>{b.name || b.nameHe}</span>
-                      {chipText && <span style={{ fontSize: '11px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}` }}>{chipText}</span>}
+                      {chipText && <span style={{ fontSize: '12px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}` }}>{chipText}</span>}
                       <button type="button" aria-expanded={isOpen} data-testid="wizard-group-toggle" onClick={() => setOpen(isOpen ? null : key)} style={{ ...chip(isOpen || !!chipText) }}>{chipText ? 'Edit group times' : 'Different for groups'}</button>
                     </div>
                     {chipText && !isOpen && splitSummary(e, groups, formatTime12) && <div style={{ fontSize: '12px', color: colors.dim, marginTop: '4px' }}>{splitSummary(e, groups, formatTime12)}</div>}
@@ -526,5 +526,5 @@ const note = { fontSize: '13px', lineHeight: 1.5, color: colors.dim, margin: '12
 const mini = { display: 'block', fontSize: '12px', fontWeight: 700, color: colors.dim, marginBottom: '4px' };
 const card = (on) => ({ background: colors.card, border: `1.5px solid ${on ? colors.gold : colors.line}`, borderRadius: 'var(--r-md)', padding: '14px', boxShadow: 'var(--e1)', color: colors.text, fontFamily: adminFonts.englishBody });
 const tick = (on) => ({ width: 26, height: 26, borderRadius: 8, border: `2px solid ${on ? colors.gold : colors.border}`, background: on ? colors.gold : 'transparent', color: colors.accentInk, display: 'grid', placeItems: 'center', flexShrink: 0 });
-const groupPill = { fontSize: '11px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}`, color: colors.text, whiteSpace: 'nowrap' };
+const groupPill = { fontSize: '12px', fontWeight: 700, padding: '1px 8px', borderRadius: 'var(--r-pill)', border: `1px solid ${colors.gold}`, color: colors.text, whiteSpace: 'nowrap' };
 const iconBtn = { width: 44, height: 44, minWidth: 44, border: 'none', background: 'transparent', color: colors.dim, cursor: 'pointer', display: 'grid', placeItems: 'center', borderRadius: '50%', flexShrink: 0 };

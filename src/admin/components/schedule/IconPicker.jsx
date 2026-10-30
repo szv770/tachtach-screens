@@ -95,7 +95,7 @@ export function IconPicker({ value, onChange, label = 'Icon' }) {
               {opt.value ? (
                 <ScheduleIcon iconKey={opt.value} size={20} color={value === opt.value ? colors.gold : colors.dim} />
               ) : (
-                <span style={{ fontSize: '11px' }}>{'\u2013'}</span>
+                <span style={{ fontSize: '12px' }}>{'\u2013'}</span>
               )}
             </button>
           ))}

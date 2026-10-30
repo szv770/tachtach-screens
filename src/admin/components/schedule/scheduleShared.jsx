@@ -316,8 +316,8 @@ export function CategoryPicker({ value, categories, onChange, onCreate, isNew = 
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {cat ? cat.name : value ? value : 'Category'}
         </span>
-        {isNew && <span style={{ fontSize: '10px', color: colors.gold }}>new</span>}
-        <span aria-hidden style={{ fontSize: '10px', color: colors.dim }}>▾</span>
+        {isNew && <span style={{ fontSize: '12px', color: colors.gold }}>new</span>}
+        <span aria-hidden style={{ fontSize: '12px', color: colors.dim }}>▾</span>
       </button>
       {open && !isMobile && (
         <div style={{

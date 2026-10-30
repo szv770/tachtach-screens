@@ -45,7 +45,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             gap: '10px',
             padding: '12px 16px',
             borderRadius: '6px',
-            background: toast.type === 'error' ? 'rgba(196,52,45,.92)' : 'rgba(76,175,80,.92)',
+            background: toast.type === 'error' ? 'rgba(196,52,45,.92)' : '#2E7D32',
             border: `1px solid ${toast.type === 'error' ? colors.danger : colors.success}`,
             boxShadow: '0 4px 24px rgba(0,0,0,.5)',
             animation: 'toastSlideIn 0.25s ease-out',
@@ -93,11 +93,11 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,.7)',
+              color: 'rgba(255,255,255,.9)',
               fontSize: '18px',
               cursor: 'pointer',
               // Padding + negative margin = bigger tap target, same visual size
-              padding: '10px',
+              padding: '10px', minWidth: '44px', minHeight: '44px',
               margin: '-10px -10px -10px 0',
               lineHeight: '1',
               flexShrink: 0,

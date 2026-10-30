@@ -1,11 +1,20 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { colors, adminFonts } from '../../styles/admin-tokens.js';
 
 /** Sunken pill track with a raised thumb on the selected option. Scrolls sideways if it must. */
 export default function SegmentedControl({ options, value, onChange, ariaLabel, style, fill = false }) {
+  const ref = useRef(null);
+  // A row wider than the phone scrolls sideways: bring the chosen option into view (inside the row only, never the page).
+  useEffect(() => {
+    const row = ref.current;
+    const on = row?.querySelector('[aria-pressed="true"]');
+    if (!row || !on || row.scrollWidth <= row.clientWidth + 2) return;
+    const left = on.offsetLeft - (row.clientWidth - on.offsetWidth) / 2;
+    row.scrollLeft = Math.max(0, left);
+  }, [value]);
   return (
-    <div role="group" aria-label={ariaLabel} className="tt-seg" style={{
-      display: fill ? 'flex' : 'inline-flex', maxWidth: '100%', overflowX: 'auto', scrollbarWidth: 'none',
+    <div ref={ref} role="group" aria-label={ariaLabel} className="tt-seg" style={{
+      display: fill ? 'flex' : 'inline-flex', maxWidth: '100%', overflowX: 'auto', overscrollBehaviorX: 'contain', scrollbarWidth: 'none', position: 'relative',
       background: colors.sunken, borderRadius: 'var(--r-pill)', padding: '3px', gap: '2px', ...style,
     }}>
       {options.map((o) => {

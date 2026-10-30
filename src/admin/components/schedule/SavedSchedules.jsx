@@ -60,7 +60,7 @@ export default function SavedSchedules({
                 style={textInput} />
             ) : (
               <div style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', fontWeight: 700, overflowWrap: 'anywhere' }}>
-                {t.name}{t.builtIn && <span style={{ fontSize: '11px', color: colors.gold, marginLeft: '8px', border: `1px solid ${colors.goldBd}`, borderRadius: '999px', padding: '1px 8px' }}>STARTER</span>}
+                {t.name}{t.builtIn && <span style={{ fontSize: '12px', color: colors.gold, marginLeft: '8px', border: `1px solid ${colors.goldBd}`, borderRadius: '999px', padding: '1px 8px' }}>STARTER</span>}
               </div>
             )}
             <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, margin: '2px 0 10px' }}>{(t.entries || []).length} blocks{t.createdAt ? ` · ${String(t.createdAt).slice(0, 10)}` : ''}</div>

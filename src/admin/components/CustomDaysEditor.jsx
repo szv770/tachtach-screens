@@ -118,6 +118,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
             <div style={{ flex: 1 }}>
               <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>Hebrew Month</label>
               <select
+                aria-label="Hebrew month"
                 value={form.hebrewMonth}
                 onChange={(e) => setForm(f => ({ ...f, hebrewMonth: e.target.value }))}
                 style={{ ...inputStyle, marginTop: '4px' }}
@@ -175,18 +176,20 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
             type="text"
             value={form.title}
             onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+            aria-label="Title"
             placeholder="Day title"
             style={{ ...inputStyle, marginTop: '4px' }}
           />
         </div>
         <div>
           <label style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-            Subtitle <span style={{ fontSize: '11px', color: colors.muted }}>optional</span>
+            Subtitle <span style={{ fontSize: '12px', color: colors.muted }}>optional</span>
           </label>
           <input
             type="text"
             value={form.subtitle}
             onChange={(e) => setForm(f => ({ ...f, subtitle: e.target.value }))}
+            aria-label="Subtitle (optional)"
             placeholder="Optional subtitle"
             style={{ ...inputStyle, marginTop: '4px' }}
           />
@@ -200,17 +203,17 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
         gap: isMobile ? '12px' : '16px',
         marginBottom: '24px',
       }}>
-        <label title="Recurring: this date repeats every year on the same Hebrew or Gregorian date. Uncheck for a one-time event." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '36px' }}>
+        <label title="Recurring: this date repeats every year on the same Hebrew or Gregorian date. Uncheck for a one-time event." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: isMobile ? '44px' : '36px' }}>
           <input
             type="checkbox"
             checked={form.recurring}
             onChange={(e) => setForm(f => ({ ...f, recurring: e.target.checked }))}
           />
           <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>
-            Repeat every year <span style={{ fontSize: '11px', color: colors.muted }}>(uncheck for a one-time event)</span>
+            Repeat every year <span style={{ fontSize: '12px', color: colors.muted }}>(uncheck for a one-time event)</span>
           </span>
         </label>
-        <label title="No chazan from the rotation on this day (the rotation does not use up anyone's turn)." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '36px' }}>
+        <label title="No chazan from the rotation on this day (the rotation does not use up anyone's turn)." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: isMobile ? '44px' : '36px' }}>
           <input type="checkbox" checked={!!form.noChazan} onChange={(e) => setForm(f => ({ ...f, noChazan: e.target.checked }))} />
           <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>No chazan this day</span>
         </label>

@@ -37,7 +37,7 @@ export default function ScreenControls({ onCommand, onRefresh }) {
   return (
     <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: `1px solid ${colors.muted}` }}>
       {/* Screen control buttons */}
-      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
+      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted, textTransform: 'uppercase', letterSpacing: '1.5px', marginBottom: '8px' }}>
         Real screen (the TV)
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: isMobile ? '8px' : '6px', marginBottom: '12px' }}>
@@ -93,7 +93,7 @@ export default function ScreenControls({ onCommand, onRefresh }) {
           rel="noopener"
           style={{
             fontFamily: adminFonts.englishBody,
-            fontSize: '11px',
+            fontSize: '12px',
             color: colors.muted,
             textDecoration: 'none',
             marginLeft: 'auto',
