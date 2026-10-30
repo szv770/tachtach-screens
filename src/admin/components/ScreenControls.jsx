@@ -69,6 +69,7 @@ export default function ScreenControls({ onCommand, onRefresh }) {
         </span>
         <input
           type="date"
+          aria-label="Date preview"
           value={previewDate}
           onChange={e => setPreviewDate(e.target.value)}
           style={{

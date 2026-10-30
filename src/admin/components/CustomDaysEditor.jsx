@@ -203,7 +203,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
         gap: isMobile ? '12px' : '16px',
         marginBottom: '24px',
       }}>
-        <label title="Recurring: this date repeats every year on the same Hebrew or Gregorian date. Uncheck for a one-time event." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: isMobile ? '44px' : '36px' }}>
+        <label title="Recurring: this date repeats every year on the same Hebrew or Gregorian date. Uncheck for a one-time event." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
           <input
             type="checkbox"
             checked={form.recurring}
@@ -213,7 +213,7 @@ export default function CustomDaysEditor({ customDays = [], onCreate, onUpdate, 
             Repeat every year <span style={{ fontSize: '12px', color: colors.muted }}>(uncheck for a one-time event)</span>
           </span>
         </label>
-        <label title="No chazan from the rotation on this day (the rotation does not use up anyone's turn)." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: isMobile ? '44px' : '36px' }}>
+        <label title="No chazan from the rotation on this day (the rotation does not use up anyone's turn)." style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', minHeight: '44px' }}>
           <input type="checkbox" checked={!!form.noChazan} onChange={(e) => setForm(f => ({ ...f, noChazan: e.target.checked }))} />
           <span style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim }}>No chazan this day</span>
         </label>

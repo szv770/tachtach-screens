@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { apiFetch } from '../../hooks/useAdminState.js';
 import { colors, adminFonts, inputStyle, buttonPrimary, buttonSecondary } from '../../styles/admin-tokens.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
+import { lockScroll } from '../ui/scrollLock.js';
 import { parseTimeRange, formatTime12 } from '../../../shared/schedulePaste.js';
 
 // ── API ────────────────────────────────────────────────────────────────────
@@ -78,7 +79,8 @@ export function CopyFallbackModal({ title, text, onClose }) {
     selectAll();
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    const unlock = lockScroll();
+    return () => { unlock(); document.removeEventListener('keydown', onKey); };
   }, [onClose]);
   return (
     <div role="presentation" onClick={onClose} style={overlayStyle}>
@@ -94,7 +96,7 @@ export function CopyFallbackModal({ title, text, onClose }) {
           readOnly
           value={text}
           onFocus={selectAll}
-          style={{ ...inputStyle, ...monoStyle, height: '50vh', resize: 'vertical' }}
+          style={{ ...inputStyle, ...monoStyle, height: '40dvh', resize: 'vertical' }}
         />
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '10px' }}>
           <button type="button" style={buttonSecondary} onClick={selectAll}>Select all</button>
@@ -135,6 +137,7 @@ export const overlayStyle = {
 export const sheetStyle = {
   background: colors.bg, border: `1px solid ${colors.goldBd}`, borderRadius: '10px',
   padding: '18px', width: '100%', maxWidth: '640px', boxShadow: '0 20px 60px rgba(0,0,0,.55)',
+  boxSizing: 'border-box', maxHeight: '92dvh', overflowY: 'auto', overscrollBehavior: 'contain',
 };
 
 export const smallButton = {
@@ -367,7 +370,7 @@ export function useSnackbar() {
     <div role="status" aria-live="polite" style={{
       position: 'fixed', left: '50%', transform: 'translateX(-50%)',
       bottom: 'calc(84px + env(safe-area-inset-bottom))', zIndex: 10000,
-      background: msg.type === 'error' ? '#3a1414' : colors.panel,
+      background: msg.type === 'error' ? 'color-mix(in srgb, var(--danger) 14%, var(--surface))' : colors.panel,
       border: `1px solid ${msg.type === 'error' ? colors.danger : colors.goldBd}`,
       color: colors.text, borderRadius: '10px', padding: '10px 14px',
       display: 'flex', alignItems: 'center', gap: '14px',

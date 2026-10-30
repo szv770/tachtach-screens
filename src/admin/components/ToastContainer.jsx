@@ -56,6 +56,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             fontSize: '16px',
             lineHeight: '1.4',
             flexShrink: 0,
+            color: '#fff',
           }}>
             {toast.type === 'error' ? '\u26A0' : '\u2713'}
           </span>
@@ -93,7 +94,7 @@ export default function ToastContainer({ toasts = [], onDismiss }) {
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'rgba(255,255,255,.9)',
+              color: '#fff',
               fontSize: '18px',
               cursor: 'pointer',
               // Padding + negative margin = bigger tap target, same visual size

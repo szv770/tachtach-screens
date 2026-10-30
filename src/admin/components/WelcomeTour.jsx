@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { colors, adminFonts, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { TOUR } from '../help/helpContent.js';
+import { lockScroll } from './ui/scrollLock.js';
 
 export default function WelcomeTour({ onClose, onGo }) {
   const [i, setI] = useState(0);
@@ -14,13 +15,14 @@ export default function WelcomeTour({ onClose, onGo }) {
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    const unlock = lockScroll();
+    return () => { unlock(); window.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
   return (
     <div role="dialog" aria-modal="true" aria-label="Welcome tour" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-      <div style={{ background: colors.panel, border: `1px solid ${colors.goldBd}`, borderRadius: '12px', maxWidth: '480px', width: '100%', padding: '24px', boxShadow: '0 20px 60px rgba(0,0,0,.5)' }}>
+      <div style={{ background: colors.panel, border: `1px solid ${colors.goldBd}`, borderRadius: '12px', maxWidth: '480px', width: '100%', padding: '24px', boxSizing: 'border-box', maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', overscrollBehavior: 'contain', boxShadow: '0 20px 60px rgba(0,0,0,.5)' }}>
         <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, marginBottom: '8px' }}>Step {i + 1} of {TOUR.length}</div>
         <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold, margin: '0 0 10px' }}>{step.title}</h2>
         <p style={{ fontFamily: adminFonts.englishBody, fontSize: '16px', color: colors.text, lineHeight: 1.55, margin: '0 0 18px' }}>{step.text}</p>

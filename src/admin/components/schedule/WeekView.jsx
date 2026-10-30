@@ -135,7 +135,7 @@ export default function WeekView({ entries, categories, canEdit, onOpenBlock, on
         </div>
       ) : (
         <div>
-          <div role="tablist" aria-label="Day of the week" style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+          <div role="tablist" aria-label="Day of the week" style={{ display: 'flex', gap: '2px', marginBottom: '12px' }}>
             {DAY_CODES.map((c, i) => (
               <button key={c} type="button" role="tab" aria-selected={day === i} aria-label={DAY_LONG[i]} onClick={() => setDay(i)}
                 style={{ ...chip(day === i), flexDirection: 'column', gap: 0, padding: '4px 0', flex: '1 1 0', minWidth: 0, minHeight: '52px', justifyContent: 'center', position: 'relative' }}>
