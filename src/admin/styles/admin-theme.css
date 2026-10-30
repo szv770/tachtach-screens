@@ -21,7 +21,7 @@
     --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
     --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#8F887C;
     --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
-    --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
+    --accent:#F0705F; --accent-ink:#1A0806; --accent-soft:rgba(240,112,95,.16);
     --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
     --ok:#5CC48A; --ok-soft:rgba(92,196,138,.14); --warn:#E5A04A; --warn-soft:rgba(229,160,74,.15); --danger:#F06A5E; --danger-soft:rgba(240,106,94,.15);
     --scrim:rgba(0,0,0,.55);
@@ -36,7 +36,7 @@
   --bg:#121110; --surface:#1C1A18; --surface-2:#232120; --sunken:#0C0B0A;
   --text:#F3EEE4; --text-2:#B5AD9F; --text-3:#8F887C;
   --line:rgba(243,238,228,.09); --line-strong:rgba(243,238,228,.17);
-  --accent:#E5574B; --accent-ink:#1A0806; --accent-soft:rgba(229,87,75,.16);
+  --accent:#F0705F; --accent-ink:#1A0806; --accent-soft:rgba(240,112,95,.16);
   --gold:#D9AE57; --gold-soft:rgba(217,174,87,.14);
   --ok:#5CC48A; --ok-soft:rgba(92,196,138,.14); --warn:#E5A04A; --warn-soft:rgba(229,160,74,.15); --danger:#F06A5E; --danger-soft:rgba(240,106,94,.15);
   --scrim:rgba(0,0,0,.55);

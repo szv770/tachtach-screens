@@ -10,15 +10,38 @@ import { lockScroll } from './scrollLock.js';
 export default function Sheet({ open, onClose, title, children, zIndex = 1100, maxWidth = 560, label }) {
   const [drag, setDrag] = useState(0);
   const startY = useRef(null);
+  const dialogRef = useRef(null);
   const wide = typeof window !== 'undefined' && window.innerWidth >= 900;
 
   useEffect(() => {
     if (!open) return undefined;
     const unlock = lockScroll();
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') { onClose?.(); return; }
+      if (e.key !== 'Tab') return;
+      // Keep Tab / screen-reader focus inside the topmost sheet (it is aria-modal).
+      const all = [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')];
+      const d = dialogRef.current;
+      if (!d || all[all.length - 1] !== d) return;
+      const f = [...d.querySelectorAll('button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter((el) => !el.disabled && el.offsetParent !== null);
+      if (!f.length) { e.preventDefault(); return; }
+      const first = f[0]; const last = f[f.length - 1];
+      if (!d.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+      else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
     window.addEventListener('keydown', onKey);
     return () => { unlock(); window.removeEventListener('keydown', onKey); };
   }, [open, onClose]);
+
+  // Move focus into the sheet when it opens and give it back to whatever opened it when it closes.
+  useEffect(() => {
+    if (!open) return undefined;
+    const before = typeof document !== 'undefined' ? document.activeElement : null;
+    const d = dialogRef.current;
+    if (d && !d.contains(document.activeElement)) d.focus({ preventScroll: true });
+    return () => { try { if (before && before.isConnected && typeof before.focus === 'function') before.focus({ preventScroll: true }); } catch { /* ignore */ } };
+  }, [open]);
 
   if (!open) return null;
   const down = (e) => { startY.current = e.clientY; e.currentTarget.setPointerCapture?.(e.pointerId); };
@@ -30,7 +53,7 @@ export default function Sheet({ open, onClose, title, children, zIndex = 1100, m
       position: 'fixed', inset: 0, zIndex, background: colors.scrim, display: 'flex',
       alignItems: wide ? 'center' : 'flex-end', justifyContent: 'center',
     }}>
-      <div role="dialog" aria-modal="true" aria-label={label || title} onClick={(e) => e.stopPropagation()} style={{
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={label || title} onClick={(e) => e.stopPropagation()} style={{ outline: 'none',
         width: '100%', maxWidth, maxHeight: '92dvh', overflowY: 'auto', overflowX: 'hidden', overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch', touchAction: 'pan-y', boxSizing: 'border-box', background: colors.card, color: colors.text,
         borderRadius: wide ? 'var(--r-xl)' : 'var(--r-xl) var(--r-xl) 0 0', boxShadow: 'var(--e3)',
         padding: `8px 16px calc(24px + env(safe-area-inset-bottom))`, transform: `translateY(${drag}px)`,
