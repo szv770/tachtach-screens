@@ -388,7 +388,7 @@ export default function AnnouncementComposer({
 
   const layoutPicker = usesLayout && (
     <Section title="Layout">
-      <div role="radiogroup" aria-label="Layout" style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px', WebkitOverflowScrolling: 'touch' }}>
+      <div role="radiogroup" aria-label="Layout" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(104px, 1fr))', gap: '8px' }}>
         {LAYOUT_OPTIONS.map((o) => (
           <button
             key={o.value}
@@ -398,7 +398,7 @@ export default function AnnouncementComposer({
             onClick={() => set('look.layout', o.value)}
             title={o.explain}
             style={{
-              flex: '0 0 auto', width: '104px', padding: '6px', borderRadius: '8px', cursor: 'pointer',
+              minWidth: 0, padding: '6px', borderRadius: '8px', cursor: 'pointer',
               border: `1px solid ${layout === o.value ? colors.gold : colors.border}`,
               background: layout === o.value ? colors.goldBg : colors.surface,
             }}

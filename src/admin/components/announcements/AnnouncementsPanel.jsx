@@ -13,6 +13,7 @@ import { can } from '../../../shared/permissions.js';
 import { PostStatusChip } from './PostBits.jsx';
 import PostingOptions from './PostingOptions.jsx';
 import { openPost } from './postOpen.js';
+import { lockScroll } from '../ui/scrollLock.js';
 
 
 const DISPLAY_TINT = { slide: '#6aa0d8', banner: '#c89040', note: '#7bb07b', takeover: '#d06060' };
@@ -49,6 +50,7 @@ function ShowAsChip({ item }) {
 /** "Again…" — put an item back on screen for a new length of time. */
 function AgainMenu({ item, onPick, onClose, shabbos, tz }) {
   const [custom, setCustom] = useState(isoToLocalInput(endOfDay().toISOString()));
+  useEffect(() => lockScroll(), []);
   const last = item.when?.lastDurationMin;
   const opts = [
     ...(last ? [{ key: 'same', label: `Same length as last time (${minutesLabel(last)})`, body: { durationMin: last } }] : []),

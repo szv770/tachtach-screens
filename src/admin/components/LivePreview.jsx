@@ -80,7 +80,7 @@ export default function LivePreview({ state }) {
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       <div style={{
         fontFamily: adminFonts.englishBody,
-        fontSize: '11px',
+        fontSize: '12px',
         color: colors.muted,
         textTransform: 'uppercase',
         letterSpacing: '1.5px',
@@ -144,7 +144,7 @@ export default function LivePreview({ state }) {
               <button type="button" style={btn} onClick={() => send('prev')} aria-label="Previous slide">‹ Prev</button>
               <button type="button" style={btn} onClick={() => send(info.paused ? 'resume' : 'pause')}>{info.paused ? 'Play' : 'Pause'}</button>
               <button type="button" style={btn} onClick={() => send('next')} aria-label="Next slide">Next ›</button>
-              <span style={{ marginLeft: 'auto', fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.muted, whiteSpace: 'nowrap' }}>
+              <span style={{ marginLeft: 'auto', fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.muted, whiteSpace: 'nowrap' }}>
                 {Math.min(info.index + 1, info.slides.length)} / {info.slides.length}
               </span>
             </div>

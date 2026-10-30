@@ -56,7 +56,7 @@ function WordForm({ initial, onSave, onCancel, busy, heading }) {
         </label>
       </div>
       <label style={{ ...label, marginTop: '10px' }}>What it means
-        <input value={w.meaning} onChange={(e) => set('meaning', e.target.value)} style={inputStyle} maxLength={LIMITS.meaning} placeholder="Quiet pride and joy, especially from children or students." />
+        <input value={w.meaning} onChange={(e) => set('meaning', e.target.value)} style={inputStyle} maxLength={LIMITS.meaning} aria-label="What it means" placeholder="Quiet pride and joy, especially from children or students." />
       </label>
       <label style={{ ...label, marginTop: '10px' }}>Where it comes from / how it feels (optional)
         <textarea value={w.context} onChange={(e) => set('context', e.target.value)} style={{ ...inputStyle, minHeight: '56px', resize: 'vertical' }} maxLength={LIMITS.context} />
@@ -64,6 +64,7 @@ function WordForm({ initial, onSave, onCancel, busy, heading }) {
       <div style={{ ...small, margin: '10px 0 4px' }}>Using it in conversation. Put the word in *asterisks* to highlight it.</div>
       {[0, 1].map((i) => (
         <input key={i} value={w.convo[i].text} onChange={(e) => setLine(i, e.target.value)} style={{ ...inputStyle, marginBottom: '6px' }} maxLength={LIMITS.convoLine}
+          aria-label={i === 0 ? 'Example conversation, first line' : 'Example conversation, reply'}
           placeholder={i === 0 ? 'How was your son’s bar mitzvah?' : 'We’re *shepping* so much *nachas*.'} />
       ))}
       {check.error && (w.word || w.transliteration || w.meaning) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>{check.error}</div>}

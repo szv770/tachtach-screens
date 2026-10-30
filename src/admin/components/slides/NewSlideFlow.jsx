@@ -30,7 +30,7 @@ function GroupCard({ group, onPick }) {
         <span style={{ display: 'block', fontSize: '12.5px', color: colors.dim, marginTop: '2px', lineHeight: 1.35 }}>{group.blurb}</span>
         {group.big && (
           <span style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
-            {types.map((t) => <span key={t.id} style={{ fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-pill)', background: colors.sunken, color: colors.dim }}>{t.variant || t.label}</span>)}
+            {types.map((t) => <span key={t.id} style={{ fontSize: '12px', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-pill)', background: colors.sunken, color: colors.dim }}>{t.variant || t.label}</span>)}
           </span>
         )}
       </span>

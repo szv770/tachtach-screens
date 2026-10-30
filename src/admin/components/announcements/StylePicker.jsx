@@ -42,7 +42,7 @@ function Tile({ option, selected, onPick, item, layout }) {
         <StageBox item={it} mode="fit" showClock={false} entrance={false} />
       </div>
       <div style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: selected ? colors.gold : colors.text, marginTop: '5px', fontWeight: 600 }}>{option.label}</div>
-      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '11px', color: colors.dim, lineHeight: 1.3 }}>{option.desc}</div>
+      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '12px', color: colors.dim, lineHeight: 1.3 }}>{option.desc}</div>
     </button>
   );
 }
@@ -77,7 +77,7 @@ export default function StylePicker({ value, onChange, item: liveItem, layout, s
 
   return (
     <div>
-      <div role="tablist" aria-label="Style groups" style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '8px', WebkitOverflowScrolling: 'touch' }}>
+      <div role="tablist" aria-label="Style groups" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', paddingBottom: '6px', marginBottom: '8px' }}>
         {chip('theme', 'Theme')}
         {STYLE_PICKER_GROUPS.map((g) => chip(g.id, g.label, g.ids.length))}
       </div>

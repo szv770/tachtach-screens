@@ -35,6 +35,8 @@ export default function DailyTodayCard({
   const [confirmHide, setConfirmHide] = useState(false);
   const [rf, setRf] = useState(DEFAULT_RANDOM_FROM);
   const live = entry?.id ? items.find((x) => x.id === entry.id) : null;
+  // Same rule as the server (dailyToday.js 'random'): needs another switched-on entry. Say why instead of letting the button answer 400.
+  const hasOther = items.some((x) => x.enabled !== false && x.id !== entry?.id);
 
   useEffect(() => {
     let off = false;
@@ -70,13 +72,14 @@ export default function DailyTodayCard({
       </div>
       {entry ? describe(entry) : <span style={small}>{`No ${noun}s are switched on yet.`}</span>}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '14px' }}>
-        <button type="button" style={btn(true)} disabled={busy} data-testid="today-random" onClick={() => run('random', {}, `Showing a different ${noun} now.`)}>Show a different one</button>
+        <button type="button" style={btn(true)} disabled={busy || !hasOther} aria-describedby={hasOther ? undefined : `today-random-why-${noun}`} data-testid="today-random" onClick={() => run('random', {}, `Showing a different ${noun} now.`)}>Show a different one</button>
         <button type="button" style={btn()} disabled={busy} data-testid="today-choose" onClick={() => { setQ(''); setSheet('choose'); }}>Choose from the list…</button>
         <button type="button" style={btn()} disabled={busy} data-testid="today-oneoff" onClick={() => setSheet('oneoff')}>{`Write one just for today`}</button>
         {live && <button type="button" style={btn()} disabled={busy} data-testid="today-edit" onClick={() => setSheet('edit')}>Edit this one</button>}
         {entry && <button type="button" style={btn()} disabled={busy} data-testid="today-hide" onClick={() => setConfirmHide(true)}>Hide this one (skip it)</button>}
         <button type="button" style={btn()} disabled={busy || (!manual && !entry)} data-testid="today-auto" onClick={() => run('automatic', {}, 'Back to automatic.')}>Go back to automatic</button>
       </div>
+      {!hasOther && <div id={`today-random-why-${noun}`} style={{ ...small, marginTop: '8px' }}>{`There is no other ${noun} switched on to show. Add or switch on another one first.`}</div>}
       <label style={{ ...small, display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '14px', maxWidth: '420px' }}>
         {`“Show a different one” picks from`}
         <select value={rf} onChange={(e) => saveRf(e.target.value)} style={{ ...inputStyle, minHeight: '44px' }} data-testid="today-random-from">
