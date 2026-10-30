@@ -20,6 +20,8 @@ import { requestSlideOpen } from './components/slides/openRequest.js';
 import AnnouncePage from './components/announcements/AnnouncePage.jsx';
 import AnnouncementComposer from './components/announcements/AnnouncementComposer.jsx';
 import QuickAnnounceSheet from './components/QuickAnnounceSheet.jsx';
+import PostManageSheet from './components/announcements/PostManageSheet.jsx';
+import { POST_OPEN_EVENT, openPost } from './components/announcements/postOpen.js';
 import PostSheet from './components/PostSheet.jsx';
 import { postStyle } from '../shared/postDefaults.js';
 import CustomDaysEditor from './components/CustomDaysEditor.jsx';
@@ -91,6 +93,13 @@ export default function App() {
   const [postOpen, setPostOpen] = useState(false); // the one Post sheet (settings.post.style = 'sheet')
   const [changeDay, setChangeDay] = useState(null); // null | 'today' | 'tomorrow': the one-day schedule sheet (Home and Schedule)
   const [searchOpen, setSearchOpen] = useState(false);
+  // One post's popup (PostManageSheet), over any page: 'Open it' on a toast, Home, search, Slides, Announcements.
+  const [managePostId, setManagePostId] = useState(null);
+  useEffect(() => {
+    const on = (e) => { if (e.detail?.id) { setComposer(null); setManagePostId(e.detail.id); } };
+    window.addEventListener(POST_OPEN_EVENT, on);
+    return () => window.removeEventListener(POST_OPEN_EVENT, on);
+  }, []);
   // First visit in this browser: show the welcome tour once (remembered in localStorage).
   const [tourOpen, setTourOpen] = useState(() => { try { return !localStorage.getItem(TOUR_KEY); } catch { return false; } });
   const closeTour = () => { setTourOpen(false); try { localStorage.setItem(TOUR_KEY, '1'); } catch { /* ignore */ } };
@@ -156,6 +165,7 @@ export default function App() {
       case 'command': screenCommand(a.name); break;
       case 'preview': window.open('/screen?preview=true', '_blank', 'noopener'); break;
       case 'edit-announcement': setComposer(a.item); break;
+      case 'manage-post': openPost(a.id); break;
       case 'toggle-announcement': updateAnnouncement(a.item.id, { enabled: a.enabled }, a.enabled ? 'Resumed' : 'Paused'); break;
       default: break;
     }
@@ -242,7 +252,8 @@ export default function App() {
             onNewMessage={() => setComposer({ display: 'slide' })}
             onEditAnnouncement={(item) => setComposer(item)}
             onDeleteAnnouncement={deleteAnnouncement}
-            onToggleAnnouncement={(item, enabled) => updateAnnouncement(item.id, { enabled }, enabled ? 'Resumed' : 'Paused')}
+            onToggleAnnouncement={(item, enabled) => updateAnnouncement(item.id, { enabled }, enabled ? 'Turned on' : 'Paused (off)')}
+            onOpenPost={(item) => openPost(item.id)}
           />
         );
       case 'schedule':
@@ -274,6 +285,7 @@ export default function App() {
         return (
           <AnnouncePage
             caps={myCaps}
+            me={me}
             onUseQuick={(t) => { setQuickStart(t); setQuickOpen(true); }}
             onPostLetter={quickPostAnnouncement}
             announcements={state?.announcements || []}
@@ -410,6 +422,19 @@ export default function App() {
           onMore={(draft) => { setPostOpen(false); setComposer(draft); }}
           onManage={() => { setPostOpen(false); goSection('announcements', { tab: 'quick' }); }}
           onGoHome={() => { setPostOpen(false); setActiveSection('home'); }}
+        />
+      )}
+      {managePostId && (
+        <PostManageSheet
+          item={(state?.announcements || []).find((a) => a.id === managePostId) || null}
+          caps={myCaps} settings={state?.settings || {}} slides={state?.slides || []} announcements={state?.announcements || []}
+          onClose={() => setManagePostId(null)}
+          onUpdate={updateAnnouncement}
+          onUpdateSlides={updateSlides}
+          onOpenComposer={(item) => { setManagePostId(null); setComposer(item); }}
+          onDuplicate={duplicateAnnouncement}
+          onReactivate={reactivateAnnouncement}
+          onDelete={deleteAnnouncement}
         />
       )}
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} state={state} role={role} onRun={runAction} />

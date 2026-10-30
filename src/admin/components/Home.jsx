@@ -16,6 +16,8 @@ import { RoleChip } from './AdminLayout.jsx';
 import FreezeControl from './FreezeControl.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { saveLastKnown } from '../lastKnown.js';
+import { openPost } from './announcements/postOpen.js';
+import { postStatus } from '../../shared/postList.js';
 
 const card = { background: colors.card, borderRadius: 'var(--r-lg)', boxShadow: 'var(--e1)', border: `1px solid ${colors.line}` };
 const HOUR = 3600 * 1000;
@@ -70,7 +72,6 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
   }, [slides, anns, entries, scheduleDates, tz, state?.scheduleCategories]);
 
   const liveBy = (d) => info.live.filter((a) => a.display === d);
-  const banner = liveBy('banner')[0];
   const takeover = liveBy('takeover')[0];
   const totalSec = info.on.reduce((n, s) => n + (Number(s.duration) || 0), 0);
 
@@ -207,11 +208,16 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
                 text={online ? (nowSlide ? `${nowSlide}${st.paused ? ' (paused)' : ''}` : st.paused ? 'Paused' : 'Waiting for the screen to report') : 'Nothing: the screen is not connected'}
                 onClick={() => onGo('slides')} />
             )}
-            {takeover && <Row icon="takeover" label="Takeover" text={announcementTitle(takeover)} onClick={() => onGo('announcements')} />}
-            {banner && <Row icon="banner" label="Banner" text={announcementTitle(banner)} onClick={() => onGo('announcements')} />}
-            {liveBy('slide').slice(0, 3).map((a) => <Row key={a.id} icon="message" label="Message slide" text={announcementTitle(a)} onClick={() => onGo('announcements')} />)}
-            {liveBy('note').slice(0, 2).map((a) => <Row key={a.id} icon="list" label="Side note" text={announcementTitle(a)} onClick={() => onGo('announcements')} />)}
+            {/* Each live post opens its own popup (on/off, when, seconds, place); 'All posts' opens the full list. */}
+            {takeover && <Row icon="takeover" label="Takeover · live now" testid="home-post" text={announcementTitle(takeover)} onClick={() => openPost(takeover.id)} />}
+            {liveBy('banner').slice(0, 2).map((a) => <Row key={a.id} icon="banner" label="Banner · live now" testid="home-post" text={announcementTitle(a)} onClick={() => openPost(a.id)} />)}
+            {liveBy('slide').slice(0, 3).map((a) => <Row key={a.id} icon="message" label={a.hold ? 'Message · holds the screen' : 'Message slide · live now'} testid="home-post" text={announcementTitle(a)} onClick={() => openPost(a.id)} />)}
+            {liveBy('note').slice(0, 2).map((a) => <Row key={a.id} icon="list" label="Side note · live now" testid="home-post" text={announcementTitle(a)} onClick={() => openPost(a.id)} />)}
+            {info.scheduled.slice(0, 2).map((a) => <Row key={a.id} icon="clock" label={postStatus(a, now, { tz }).label} testid="home-post" text={announcementTitle(a)} onClick={() => openPost(a.id)} />)}
             {!info.live.length && <Row icon="check" label="Messages" text="No announcements are live" />}
+            {canOpenSection(role, 'announcements') && (info.live.length + info.scheduled.length > 0) && (
+              <Row icon="megaphone" label="All posts" testid="home-all-posts" text={`${info.live.length} live${info.scheduled.length ? ` · ${info.scheduled.length} scheduled` : ''} · see, find and manage every post`} onClick={() => onGo('announcements')} />
+            )}
             <Row icon="screen" label="Rotation" text={`${info.on.slice(0, 4).map(slideLabel).join(' · ') || 'No slides on'}${info.on.length > 4 ? ` +${info.on.length - 4} more` : ''}${totalSec ? ` · about ${Math.round(totalSec / 60)} min per round` : ''}`} onClick={() => onGo('slides')} last />
           </section>
 

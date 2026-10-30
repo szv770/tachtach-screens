@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { SCREEN_COMMAND_DONE } from '../../shared/screenCommands.js';
 import { deepMerge } from '../../shared/settingsMerge.js';
+import { openPost } from '../components/announcements/postOpen.js';
 
 function getCsrfToken() {
   const match = document.cookie.match(/(?:^|;\s*)_csrf=([^;]*)/);
@@ -254,15 +255,22 @@ export default function useAdminState() {
     } catch { /* keep optimistic state */ }
   }, []);
 
+  // 'Open it' on every post toast: the post's own popup (on/off, when, seconds, place), so nothing posted is ever lost.
+  const toastWithOpenIt = useCallback((message, id) => {
+    let toastId = null;
+    toastId = addToast(message, 'success', { label: 'Open it', onClick: () => { dismissToast(toastId); openPost(id); } }, { duration: 10000 });
+  }, [addToast, dismissToast]);
+
   const createAnnouncement = useCallback(async (data, successMsg = 'Posted') => {
     let created;
     const ok = await withErrorHandling('Save announcement', async () => {
       created = await apiFetch('/api/announcements', { method: 'POST', body: JSON.stringify(data) });
       upsertAnnouncement(created);
       if (data.resolve) await resyncAnnouncements();
-    }, successMsg);
+    }, null);
+    if (ok && successMsg) toastWithOpenIt(successMsg, created.id);
     return ok ? created : null;
-  }, [withErrorHandling, upsertAnnouncement, resyncAnnouncements]);
+  }, [withErrorHandling, upsertAnnouncement, resyncAnnouncements, toastWithOpenIt]);
 
   const updateAnnouncement = useCallback(async (id, data, successMsg = 'Saved') => {
     let updated;
@@ -279,9 +287,10 @@ export default function useAdminState() {
     const ok = await withErrorHandling('Show again', async () => {
       updated = await apiFetch(`/api/announcements/${encodeURIComponent(id)}/reactivate`, { method: 'POST', body: JSON.stringify(body || {}) });
       upsertAnnouncement(updated);
-    }, successMsg);
+    }, null);
+    if (ok && successMsg) toastWithOpenIt(successMsg, id);
     return ok ? updated : null;
-  }, [withErrorHandling, upsertAnnouncement]);
+  }, [withErrorHandling, upsertAnnouncement, toastWithOpenIt]);
 
   const duplicateAnnouncement = useCallback(async (id) => {
     let copy;
@@ -328,10 +337,10 @@ export default function useAdminState() {
   const quickPostAnnouncement = useCallback(async (data) => {
     const created = await createAnnouncement(data, null);
     if (created) {
-      const toastId = addToast('Posted to screen', 'success', {
-        label: 'Undo',
-        onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); },
-      });
+      const toastId = addToast('Posted to screen', 'success', [
+        { label: 'Undo', onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); } },
+        { label: 'Open it', onClick: () => { dismissToast(toastId); openPost(created.id); } },
+      ], { duration: 15000 });
     }
     return created;
   }, [createAnnouncement, addToast, dismissToast, deleteAnnouncement]);
@@ -345,6 +354,7 @@ export default function useAdminState() {
     if (created) {
       const toastId = addToast(summary, 'success', [
         { label: 'Undo', onClick: () => { dismissToast(toastId); deleteAnnouncement(created.id); } },
+        { label: 'Open it', onClick: () => { dismissToast(toastId); openPost(created.id); } },
         ...(onEdit ? [{ label: 'Edit', onClick: () => { dismissToast(toastId); onEdit(created); } }] : []),
       ], { duration: 15000 });
     }

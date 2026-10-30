@@ -12,6 +12,7 @@ import {
   emptyItem, withDefaults, LAYOUT_LABEL,
 } from './helpers.js';
 import { findTakeoverConflicts, hasText, formatWhen, recurrenceLabel, describeTiming, TAKEOVER_TURNS_GROUP, DEFAULT_TAKEOVER_ROTATE_SEC, MIN_TAKEOVER_ROTATE_SEC, MAX_TAKEOVER_ROTATE_SEC } from '../../../shared/announcements.js';
+import { postingDefaults } from '../../../shared/postList.js';
 import { NumberField } from '../ui.jsx';
 import { lockScroll } from '../ui/scrollLock.js';
 
@@ -226,13 +227,25 @@ export default function AnnouncementComposer({
 }) {
   const isMobile = useIsMobile();
   const editing = !!initial?.id;
-  const [item, setItem] = useState(() => (editing ? withDefaults(initial) : { ...emptyItem(initial?.display || 'slide'), ...(initial || {}), look: { ...emptyItem().look, ...(initial?.look || {}) }, ...(initial?.display ? { display: initial.display } : {}) }));
+  // Posting options (Announce > Posts): seconds and length for a brand-new post, and whether the big button posts or saves a draft.
+  // A preset that already carries its own timing (Post sheet 'More options', a duplicate) keeps it.
+  const defaults = postingDefaults(settings);
+  const fresh = !editing && !initial?.when && !initial?.slide;
+  const [item, setItem] = useState(() => {
+    if (editing) return withDefaults(initial);
+    const base = { ...emptyItem(initial?.display || 'slide'), ...(initial || {}), look: { ...emptyItem().look, ...(initial?.look || {}) }, ...(initial?.display ? { display: initial.display } : {}) };
+    if (fresh) {
+      base.slide = { ...base.slide, duration: defaults.defaultSeconds };
+      if (defaults.defaultEndHours) base.when = { ...base.when, expiresAt: new Date(Date.now() + defaults.defaultEndHours * 3600000).toISOString() };
+    }
+    return base;
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [conflicts, setConflicts] = useState(null);
   const [pendingStatus, setPendingStatus] = useState(null);
   const [shabbos, setShabbos] = useState(null);
-  const [endMode, setEndMode] = useState(() => (initial?.when?.expiresAt ? 'at' : 'never'));
+  const [endMode, setEndMode] = useState(() => (initial?.when?.expiresAt || (fresh && defaults.defaultEndHours) ? 'at' : 'never'));
   const [startMode, setStartMode] = useState(() => (initial?.when?.startsAt ? 'at' : 'now'));
   const [repeatOn, setRepeatOn] = useState(() => !!initial?.when?.recurrence);
   const tz = settings?.location?.timezone || 'America/New_York';
@@ -770,6 +783,7 @@ export default function AnnouncementComposer({
   );
 
   const isDraft = initial?.status === 'draft';
+  const draftFirst = defaults.startAs === 'draft' && (!editing || isDraft);
   const footer = (
     <div style={{
       display: 'flex', gap: '10px', justifyContent: 'flex-end', alignItems: 'center', flexWrap: 'wrap',
@@ -777,12 +791,23 @@ export default function AnnouncementComposer({
       borderTop: `1px solid ${colors.border}`, background: colors.panel,
     }}>
       {error && <span role="alert" style={{ flex: '1 1 100%', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.danger }}>{error}</span>}
-      {(!editing || isDraft) && (
-        <button type="button" disabled={saving} onClick={() => submit('draft')} style={{ ...buttonSecondary, minHeight: '44px', flex: isMobile ? 1 : undefined }}>Save draft</button>
+      {draftFirst ? (
+        <>
+          <button type="button" disabled={saving} onClick={() => submit('published')} style={{ ...buttonSecondary, minHeight: '44px', flex: isMobile ? 1 : undefined }}>Post now</button>
+          <button type="button" disabled={saving} onClick={() => submit('draft')} style={{ ...buttonPrimary, minHeight: '44px', flex: isMobile ? 1.4 : undefined, opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving…' : 'Save as draft'}
+          </button>
+        </>
+      ) : (
+        <>
+          {(!editing || isDraft) && (
+            <button type="button" disabled={saving} onClick={() => submit('draft')} style={{ ...buttonSecondary, minHeight: '44px', flex: isMobile ? 1 : undefined }}>Save draft</button>
+          )}
+          <button type="button" disabled={saving} onClick={() => submit('published')} style={{ ...buttonPrimary, minHeight: '44px', flex: isMobile ? 1.4 : undefined, opacity: saving ? 0.6 : 1 }}>
+            {saving ? 'Saving…' : editing && !isDraft ? 'Save changes' : 'Post'}
+          </button>
+        </>
       )}
-      <button type="button" disabled={saving} onClick={() => submit('published')} style={{ ...buttonPrimary, minHeight: '44px', flex: isMobile ? 1.4 : undefined, opacity: saving ? 0.6 : 1 }}>
-        {saving ? 'Saving…' : editing && !isDraft ? 'Save changes' : 'Post'}
-      </button>
     </div>
   );
 

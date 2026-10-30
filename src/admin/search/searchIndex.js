@@ -9,6 +9,7 @@ import { canOpenSection } from '../../shared/permissions.js';
 import { areaOfSection, areaInfo, sectionInfo } from '../nav.js';
 import { TOPICS, GLOSSARY } from '../help/helpContent.js';
 import { status as announcementStatus } from '../../shared/announcements.js';
+import { postSearchText, postStatus, kindOf, KIND_LABEL } from '../../shared/postList.js';
 import { slideLabel, announcementTitle, formatTime12 } from './labels.js';
 
 const S = (section, title, keywords, extra = {}) => ({ section, title, keywords, ...extra });
@@ -133,7 +134,9 @@ export const SETTINGS_INDEX = [
   S('announcements', 'Saved letters library (post a letter again)', 'letter sicha saved library repost again igros kodesh', { tab: 'letters', match: 'Letters and sicha' }),
   S('announcements', 'New letter or sicha (paste the whole letter, or fill from an AI chat)', 'letter sicha paste whole split ai prompt json claude chatgpt copy prompt pages preview', { tab: 'letters', match: 'New letter' }),
   S('announcements', 'Kiddush Levana (automatic): on/off, 3 or 7 days, end rule, this month', 'kiddush levana lvanah moon molad sanctification new moon banner window halfway chatzi chodesh tisha bav automatic', { tab: 'posts', anchor: 'announce-kiddush-levana' }),
-  S('announcements', 'Archive: delete old announcements after days', 'auto delete archived history', { match: 'Archive' }),
+  S('announcements', 'Archive: delete old announcements after days', 'auto delete archived history ended keep days', { tab: 'posts', anchor: 'announce-posting-options', needs: 'settings' }),
+  S('announcements', 'Posting options: where new message slides go, start as draft, default length and seconds, show ended posts', 'insert start end top bottom rotation order draft default expiry length hours seconds duration ended hide show posting defaults', { tab: 'posts', anchor: 'announce-posting-options', needs: 'settings' }),
+  S('announcements', 'Find a post (search, Live / Scheduled / Paused / Drafts / Ended, kind, mine, date)', 'find lost message where is my post filter search status mine everyone ended draft restore repost again', { tab: 'posts', match: 'Announcements' }),
   S('announcements', 'Announcements (slide, banner, side note, takeover)', 'message post live scheduled drafts paused', { match: 'Announcements' }),
 ];
 
@@ -264,14 +267,13 @@ export function search(query, { state = {}, role } = {}) {
     for (const a of state.announcements || []) {
       const title = announcementTitle(a);
       const st = announcementStatus(a, new Date(), { tz });
-      if (st === 'archived') continue;
-      const c = a.content || {};
-      const s = score(tokens, { title, keywords: [c.bodyEn, c.bodyHe, c.subtitle, c.event?.place, a.display].filter(Boolean).join(' ') });
+      // Every post, ended ones too (nothing a person posted can be lost), found by ANY of its text; it opens the post's popup.
+      const s = score(tokens, { title, keywords: `${postSearchText(a)} ${a.display || 'slide'} post message` });
       if (s) {
         const paused = st === 'paused';
         push('content', {
-          id: `ann-${a.id}`, title, sub: `Announcement · ${a.display || 'slide'} · ${st}`, icon: 'megaphone',
-          action: { type: 'edit-announcement', item: a },
+          id: `ann-${a.id}`, title, sub: `Post · ${KIND_LABEL[kindOf(a)]} · ${postStatus(a, new Date(), { tz }).label}`, icon: 'megaphone',
+          action: { type: 'manage-post', id: a.id },
           inline: st === 'live' || st === 'paused' || st === 'scheduled' ? { label: paused ? 'Resume' : 'Pause', action: { type: 'toggle-announcement', item: a, enabled: paused } } : null,
         }, s + 1);
       }

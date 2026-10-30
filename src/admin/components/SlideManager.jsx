@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { colors, adminFonts, buttonPrimary, buttonSecondary } from '../styles/admin-tokens.js';
 import { ToggleSwitch, ConfirmDialog } from './ui.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
-import { status as announcementStatus, selectActive, primaryText } from '../../shared/announcements.js';
+import { primaryText } from '../../shared/announcements.js';
+import { rotationEntries, moveEntry, layerGroups, postStatus, postingDefaults, LAYER_KINDS, LAYER_LABEL } from '../../shared/postList.js';
+import { PostStatusChip } from './announcements/PostBits.jsx';
 import { can } from '../../shared/permissions.js';
 import { notify } from '../hooks/useAdminState.js';
 import Icon from './ui/Icon.jsx';
@@ -11,8 +13,6 @@ import SlideEditSheet from './slides/SlideEditSheet.jsx';
 import { SLIDE_OPEN_EVENT, takeSlideOpen } from './slides/openRequest.js';
 import { slideTitle, isDeletable, isEmbedType, typeInfo } from './slides/slideTypes.js';
 import Sheet from './ui/Sheet.jsx';
-
-const STATUS_TEXT = { draft: 'Draft', scheduled: 'Scheduled', paused: 'Paused', archived: 'Ended' };
 
 const Pencil = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" /></svg>
@@ -27,7 +27,7 @@ const iconBtn = { width: 44, height: 44, flexShrink: 0, display: 'grid', placeIt
  */
 export default function SlideManager({
   slides = [], onUpdate, onCreate, onDelete, settings = {}, onSaveSettings, onNavigate,
-  announcements = [], onNewMessage, onEditAnnouncement, onToggleAnnouncement, onDeleteAnnouncement, caps = [],
+  announcements = [], onNewMessage, onEditAnnouncement, onToggleAnnouncement, onDeleteAnnouncement, onOpenPost, caps = [],
 }) {
   const isMobile = useIsMobile();
   const canEdit = can(caps, 'slides.edit');
@@ -44,11 +44,21 @@ export default function SlideManager({
 
   const slidesRef = useRef(slides);
   slidesRef.current = slides;
+  const annRef = useRef(announcements);
+  annRef.current = announcements;
   const annById = new Map(announcements.map((a) => [a.id, a]));
   const tz = settings?.location?.timezone || undefined;
-  const referenced = new Set(slides.filter((s) => s.type === 'ANNOUNCEMENT').map((s) => s.announcementId));
-  const appended = selectActive(announcements, new Date(), { tz }).slides.filter((a) => !referenced.has(a.id));
+  const now = new Date();
+  const { showEnded } = postingDefaults(settings);
+  // Every slide-style post is a row here (a post without a rotation row yet shows where the screen plays it: after the
+  // others, oldest first). Banners, side notes, takeovers and 'holds the screen' posts are in 'Always-on layers' below.
+  const entries = rotationEntries(slides, announcements)
+    .filter((e) => showEnded || !e.item || postStatus(e.item, now, { tz }).key !== 'ended');
+  const layers = layerGroups(announcements, { showEnded }, now, { tz });
+  const layerCount = LAYER_KINDS.reduce((n, k) => n + layers[k].length, 0);
   const title = (s) => slideTitle(s, { announcementsById: annById });
+  const entryTitle = (e) => (e.row ? title(e.row) : String(primaryText(e.item) || '').split('\n')[0] || 'Message');
+  const openPost = (item) => (onOpenPost ? onOpenPost(item) : onEditAnnouncement?.(item));
 
   // Instant on/off with an Undo toast.
   const toggle = (id) => {
@@ -61,12 +71,22 @@ export default function SlideManager({
     });
   };
 
+  // Moving any row (also a post that had no rotation row yet) saves the whole list; the screen plays the same order it shows.
   const move = (from, to) => {
-    if (to < 0 || to >= slides.length || from === to) return;
-    const next = [...slides];
-    const [m] = next.splice(from, 1);
-    next.splice(to, 0, m);
-    onUpdate(next);
+    const e = entries[from];
+    const target = entries[to];
+    if (!e || !target || from === to) return;
+    const all = rotationEntries(slidesRef.current, annRef.current);
+    const next = moveEntry(slidesRef.current, annRef.current, e.key, all.findIndex((x) => x.key === target.key));
+    if (next) onUpdate(next);
+  };
+  // A post's on/off is the post's own switch (the same one the Announcements page shows); an old row switched off is switched back on with it.
+  const togglePost = (e) => {
+    const ann = e.item;
+    if (!ann) return;
+    const turnOn = ann.enabled === false || e.row?.enabled === false;
+    if (turnOn && e.row?.enabled === false) onUpdate(slidesRef.current.map((s) => (s.id === e.row.id ? { ...s, enabled: true } : s)));
+    if (turnOn ? ann.enabled === false : true) onToggleAnnouncement?.(ann, turnOn);
   };
   const dragEnd = () => {
     const from = dragIdx; const to = dragOverIdx;
@@ -103,15 +123,8 @@ export default function SlideManager({
   const editing = editId ? slides.find((s) => s.id === editId) : null;
   const subtitle = (s) => {
     const bits = [];
-    if (s.type === 'ANNOUNCEMENT') {
-      const a = annById.get(s.announcementId);
-      const st = a ? announcementStatus(a, new Date(), { tz }) : null;
-      bits.push('Message');
-      if (st && st !== 'live') bits.push(STATUS_TEXT[st] || st);
-    } else {
-      if (s.duration) bits.push(`${s.duration} s`);
-      if (s.fullscreen) bits.push('Fullscreen');
-    }
+    if (s.duration) bits.push(`${s.duration} s`);
+    if (s.fullscreen) bits.push('Fullscreen');
     return bits.join(' · ');
   };
 
@@ -122,7 +135,7 @@ export default function SlideManager({
           <h2 style={{ fontFamily: adminFonts.englishBody, fontSize: '24px', fontWeight: 600, color: colors.gold, margin: 0 }}>Slides</h2>
           <p style={{ fontSize: '13px', color: colors.dim, margin: '4px 0 0' }}>
             {canEdit
-              ? 'Turn slides on or off, put them in order, and tap the pencil for a slide\'s own options.'
+              ? 'Everything that takes turns on the screen, in order: built-in slides and your message slides. Turn any on or off, move it, and tap the pencil for its own options.'
               : 'What plays on the screen, in order. You can look but not change the slides.'}
           </p>
         </div>
@@ -132,21 +145,25 @@ export default function SlideManager({
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-        {slides.map((slide, idx) => {
-          const isAnn = slide.type === 'ANNOUNCEMENT';
-          const ann = isAnn ? annById.get(slide.announcementId) : null;
-          const on = isAnn ? !!ann && ann.enabled !== false : slide.enabled !== false;
-          const needsSetup = isEmbedType(slide.type) && !slide.embedUrl;
-          const sub = subtitle(slide);
+        {entries.map((e, idx) => {
+          const slide = e.row;
+          const ann = e.item;
+          const isAnn = !slide || slide.type === 'ANNOUNCEMENT';
+          const on = isAnn ? !!ann && ann.enabled !== false && slide?.enabled !== false : slide.enabled !== false;
+          const needsSetup = !isAnn && isEmbedType(slide.type) && !slide.embedUrl;
+          const sub = isAnn ? '' : subtitle(slide);
+          const ps = isAnn && ann ? postStatus(ann, now, { tz }) : null;
+          const name = entryTitle(e);
           return (
             <div
-              key={slide.id || idx}
+              key={e.key}
               className="tt-row"
               data-testid="slide-row"
+              data-kind={isAnn ? 'post' : 'slide'}
               draggable={canEdit && !isMobile && dragIdx === idx}
               onDragEnter={canEdit && !isMobile && dragIdx !== null ? () => setDragOverIdx(idx) : undefined}
               onDragEnd={canEdit && !isMobile ? dragEnd : undefined}
-              onDragOver={canEdit && !isMobile ? (e) => e.preventDefault() : undefined}
+              onDragOver={canEdit && !isMobile ? (ev) => ev.preventDefault() : undefined}
               onMouseUp={canEdit && !isMobile ? () => setDragIdx(null) : undefined}
               style={{
                 display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px', padding: isMobile ? '6px 8px' : '6px 12px', minHeight: '60px',
@@ -159,64 +176,95 @@ export default function SlideManager({
                   style={{ color: colors.muted, fontSize: '20px', cursor: 'grab', userSelect: 'none', padding: '0 4px', width: 28, textAlign: 'center' }}>{'≡'}</span>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-                  {[['up', -1, '▲', 'Move slide up', idx === 0], ['down', 1, '▼', 'Move slide down', idx === slides.length - 1]].map(([k, d, ch, lab, dis]) => (
-                    <button key={k} type="button" onClick={() => move(idx, idx + d)} disabled={dis} aria-label={`${lab}: ${title(slide)}`}
-                      style={{ background: 'transparent', border: 'none', color: colors.dim, fontSize: '13px', lineHeight: 1, width: 36, height: 28, opacity: dis ? 0.25 : 1, cursor: dis ? 'default' : 'pointer', padding: 0 }}>{ch}</button>
+                  {[['up', -1, '▲', 'Move slide up', idx === 0], ['down', 1, '▼', 'Move slide down', idx === entries.length - 1]].map(([k, d, ch, lab, dis]) => (
+                    <button key={k} type="button" onClick={() => move(idx, idx + d)} disabled={dis} aria-label={`${lab}: ${name}`}
+                      style={{ background: 'transparent', border: 'none', color: colors.dim, fontSize: '13px', lineHeight: 1, width: 44, height: 30, opacity: dis ? 0.25 : 1, cursor: dis ? 'default' : 'pointer', padding: 0 }}>{ch}</button>
                   ))}
                 </div>
               ))}
 
               <div style={{ flex: 1, minWidth: 0, padding: '2px 0' }}>
-                <div dir="auto" style={{ fontSize: '15px', fontWeight: 600, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title(slide)}</div>
-                {(sub || needsSetup) && (
+                <div dir="auto" style={{ fontSize: '15px', fontWeight: 600, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</div>
+                {isAnn ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', minWidth: 0, overflow: 'hidden' }}>
+                    <span data-testid="message-badge" style={{ flexShrink: 0, padding: '0 7px', borderRadius: '999px', border: `1px solid ${colors.line}`, fontSize: '11.5px', fontWeight: 700, color: colors.dim }}>Message</span>
+                    {ps ? <PostStatusChip status={ps} /> : <span style={{ fontSize: '12px', color: colors.danger }}>Deleted</span>}
+                    {ann?.slide?.duration && <span style={{ flexShrink: 0, fontSize: '12px', color: colors.dim }}>{ann.slide.duration} s</span>}
+                  </div>
+                ) : (sub || needsSetup) && (
                   <div style={{ fontSize: '12px', color: needsSetup ? colors.danger : colors.dim, marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {needsSetup ? 'Needs a web address' : sub}
                   </div>
                 )}
               </div>
 
-              {(isAnn ? canEditAnn : canEdit) ? (
+              {(isAnn ? canEditAnn && !!ann && ps?.key !== 'draft' && ps?.key !== 'ended' : canEdit) ? (
                 <ToggleSwitch
                   on={on}
-                  label={`${title(slide)}: ${on ? 'on, tap to turn off' : 'off, tap to turn on'}`}
-                  onChange={() => (isAnn ? ann && onToggleAnnouncement?.(ann, ann.enabled === false) : toggle(slide.id))}
+                  label={`${name}: ${on ? 'on, tap to turn off' : 'off, tap to turn on'}`}
+                  onChange={() => (isAnn ? togglePost(e) : toggle(slide.id))}
                 />
               ) : (
-                <span style={{ fontSize: '12px', fontWeight: 700, color: on ? colors.accent : colors.dim, padding: '0 6px' }}>{on ? 'On' : 'Off'}</span>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: on ? colors.accent : colors.dim, padding: '0 6px' }}>{isAnn && ps && (ps.key === 'draft' || ps.key === 'ended') ? '' : on ? 'On' : 'Off'}</span>
               )}
 
               {isAnn
-                ? (ann && canEditAnn && (
-                  <button type="button" style={iconBtn} onClick={() => onEditAnnouncement?.(ann)} aria-label={`Edit message: ${title(slide)}`} title="Edit this message" data-testid="slide-pencil"><Pencil /></button>
+                ? (ann && (
+                  <button type="button" style={iconBtn} onClick={() => openPost(ann)} aria-label={`Open message: ${name}`} title="This message's options" data-testid="slide-pencil"><Pencil /></button>
                 ))
                 : !canEdit && canDelete && isDeletable(slide)
-                  ? <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmDelete(slide)} aria-label={`Delete ${title(slide)}`} title="Delete this slide" data-testid="slide-delete-inline">{'\u00D7'}</button>
+                  ? <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmDelete(slide)} aria-label={`Delete ${name}`} title="Delete this slide" data-testid="slide-delete-inline">{'\u00D7'}</button>
                   : (canEdit && (
-                  <button type="button" style={iconBtn} onClick={() => openEdit(slide)} aria-label={`Edit ${title(slide)}`} title={"This slide's options"} data-testid="slide-pencil"><Pencil /></button>
+                  <button type="button" style={iconBtn} onClick={() => openEdit(slide)} aria-label={`Edit ${name}`} title={"This slide's options"} data-testid="slide-pencil"><Pencil /></button>
                 ))}
+              {isAnn && !ann && slide && canDelete && (
+                <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => onDelete(slide.id)} aria-label={`Remove row: ${name}`} title="Remove this empty row" data-testid="slide-delete-inline">{'\u00D7'}</button>
+              )}
               {isAnn && ann && canDeleteAnn && (
-                <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(ann)} aria-label={`Delete message: ${title(slide)}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>
+                <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(ann)} aria-label={`Delete message: ${name}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>
               )}
             </div>
           );
         })}
-        {slides.length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: colors.dim, fontSize: '14px' }}>No slides yet.{canEdit && ' Tap "+ New slide".'}</div>}
+        {entries.length === 0 && <div style={{ padding: '24px', textAlign: 'center', color: colors.dim, fontSize: '14px' }}>No slides yet.{canEdit && ' Tap "+ New slide".'}</div>}
       </div>
 
-      {appended.length > 0 && (
-        <div style={{ marginTop: '12px', padding: '10px 12px', borderRadius: 'var(--r-md)', border: `1px dashed ${colors.border}` }}>
-          <div style={{ fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Also in the rotation, after these slides (from Announcements):</div>
-          {appended.map((a) => (
-            <div key={a.id} data-testid="appended-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-              <span dir="auto" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px', color: colors.text }}>
-                {primaryText(a).split('\n')[0] || 'Message'}
-              </span>
-              {canEditAnn && <button type="button" onClick={() => onEditAnnouncement?.(a)} style={{ ...buttonSecondary, padding: '4px 12px', minHeight: '44px', fontSize: '13px' }}>Edit</button>}
-              {canDeleteAnn && <button type="button" style={{ ...iconBtn, color: colors.danger }} onClick={() => setConfirmMsg(a)} aria-label={`Delete message: ${primaryText(a).split('\n')[0] || 'Message'}`} title="Delete this message" data-testid="message-delete">{'\u00D7'}</button>}
+      <section data-testid="layers" style={{ marginTop: '22px' }}>
+        <h3 style={{ fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text, margin: '0 0 2px' }}>Always-on layers</h3>
+        <p style={{ fontSize: '13px', color: colors.dim, margin: '0 0 10px' }}>
+          Posts that show on top of the slideshow instead of taking turns in it. Banners and side notes never stop the slides; takeovers and “holds the screen” posts pause them while they show.
+        </p>
+        {layerCount === 0 && (
+          <div style={{ padding: '14px', borderRadius: 'var(--r-md)', border: `1px dashed ${colors.border}`, fontSize: '14px', color: colors.dim }}>
+            No banners, side notes or takeovers right now.{onNewMessage && can(caps, 'announcements.post') && <> <button type="button" onClick={onNewMessage} style={{ ...buttonSecondary, minHeight: '44px', marginLeft: '6px' }}>+ New message</button></>}
+          </div>
+        )}
+        {LAYER_KINDS.filter((k) => layers[k].length).map((k) => (
+          <div key={k} style={{ marginBottom: '12px' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: colors.dim, margin: '0 0 6px' }}>{LAYER_LABEL[k]}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {layers[k].map((a) => {
+                const ps = postStatus(a, now, { tz });
+                const nm = String(primaryText(a) || '').split('\n')[0] || 'Message';
+                const canToggle = canEditAnn && ps.key !== 'draft' && ps.key !== 'ended';
+                return (
+                  <div key={a.id} className="tt-row" data-testid="layer-row" data-kind={k} style={{
+                    display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 8px 6px 12px', minHeight: '60px',
+                    background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-md)', opacity: a.enabled === false ? 0.7 : 1,
+                  }}>
+                    <button type="button" onClick={() => openPost(a)} style={{ flex: 1, minWidth: 0, background: 'transparent', border: 'none', padding: '2px 0', textAlign: 'left', cursor: 'pointer', color: 'inherit', fontFamily: 'inherit' }}>
+                      <span dir="auto" style={{ display: 'block', fontSize: '15px', fontWeight: 600, color: colors.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nm}</span>
+                      <span style={{ display: 'flex', gap: '6px', marginTop: '2px', minWidth: 0, overflow: 'hidden' }}><PostStatusChip status={ps} /></span>
+                    </button>
+                    {canToggle && <ToggleSwitch on={a.enabled !== false} label={`${nm}: ${a.enabled !== false ? 'on, tap to turn off' : 'off, tap to turn on'}`} onChange={() => onToggleAnnouncement?.(a, a.enabled === false)} />}
+                    <button type="button" style={iconBtn} onClick={() => openPost(a)} aria-label={`Open: ${nm}`} title="This post's options" data-testid="layer-pencil"><Pencil /></button>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </section>
 
       {canEdit && (
         <NewSlideFlow

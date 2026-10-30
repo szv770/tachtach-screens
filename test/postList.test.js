@@ -178,3 +178,11 @@ test('posting defaults are bounded, and where-it-shows is All screens until scre
   assert.equal(whereLabel(post('a', { audience: { screens: ['x'] } }), { screensDoc: {}, audienceLabel: () => 'Hallway' }), 'Hallway');
   assert.equal(postStatusKey(post('a'), NOW, { tz }), 'live');
 });
+
+test('settings rules: the posting options are range-checked on the server', async () => {
+  const { validateSettingValues, sanitizeSettingValues } = await import('../src/shared/settingsRules.js');
+  assert.deepEqual(validateSettingValues({ announcements: { insertAt: 'start', startAs: 'draft', defaultEndHours: 24, defaultSeconds: 20, showEnded: false, archiveDays: 30 } }), []);
+  assert.equal(validateSettingValues({ announcements: { insertAt: 'middle', startAs: 'x', defaultEndHours: 9999, defaultSeconds: 1, showEnded: 'yes', archiveDays: 0 } }).length, 6);
+  const { settings } = sanitizeSettingValues({ announcements: { insertAt: 'middle', archiveDays: 14 } });
+  assert.deepEqual(settings.announcements, { archiveDays: 14 });
+});
