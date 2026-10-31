@@ -99,6 +99,7 @@ export const TOUR = [
   { title: 'Schedule: the day\'s times', text: 'Build your weekly schedule once with the wizard, then change single dates or paste from Claude. Reminders count down on screen before each item.', go: 'schedule', goLabel: 'Show me Schedule' },
   { title: 'Daily Word', text: 'A new word every day, with how to say it and how to use it. See what is coming up, browse the archive of past words, and pin a word to a special day.', go: 'daily-word', goLabel: 'Show me Daily Word' },
   { title: 'Daily Story', text: 'A short story or thought to read, a new one every day. It starts with 60 stories; add your own, hide any, and pin one to a special day.', go: 'daily-story', goLabel: 'Show me Daily Story' },
+  { title: 'Menu', text: 'What is for breakfast, lunch and dinner: today and the week, in big print with tags. Import the kitchen\'s spreadsheet (or a PDF via Claude), change today\'s menu in two taps, and choose when the Menu shows.', go: 'menu', goLabel: 'Show me Menu' },
   { title: 'Good Shabbos page', text: 'On Friday afternoon a Good Shabbos page with candle lighting, a countdown, the parsha and your own reminder lines; on Motzei Shabbos a Shavua Tov page. You also choose what the screen does during Shabbos: keep rotating, one still Good Shabbos sign, or switch off until nightfall.', go: 'shabbos', goLabel: 'Show me Shabbos' },
   { title: 'Help is always here', text: 'The Help tab has a get-started checklist, plain-English answers to common questions, and what to do if something looks wrong.', go: 'help', goLabel: 'Open Help' },
 ];

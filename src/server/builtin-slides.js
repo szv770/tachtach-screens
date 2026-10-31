@@ -21,6 +21,8 @@ export const LATE_BUILTINS = [
   // Friday from a few hours before candle lighting, and Motzei Shabbos / Yom Tov after nightfall.
   { id: 'shabbos', type: 'SHABBOS', label: 'Good Shabbos', duration: 20, enabled: false, order: 106 },
   { id: 'motzei', type: 'MOTZEI', label: 'Shavua Tov', duration: 15, enabled: false, order: 107 },
+  // Off until the owner turns it on (Slides); the meals live in Screen > Menu. Only in the rotation when there is a menu and it is inside its schedule.
+  { id: 'menu', type: 'MENU', label: 'Menu', duration: 14, enabled: false, order: 108 },
 ];
 
 export function addMissingBuiltins(slides) {

@@ -40,6 +40,7 @@ import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import DailyStoryPanel from './components/DailyStoryPanel.jsx';
 import ShabbosPanel from './components/ShabbosPanel.jsx';
+import MenuPanel from './components/MenuPanel.jsx';
 import RosterPanel from './components/RosterPanel.jsx';
 import ChazanPanel from './components/chazan/ChazanPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
@@ -303,6 +304,8 @@ export default function App() {
         return <DailyWordPanel />;
       case 'daily-story':
         return <DailyStoryPanel />;
+      case 'menu':
+        return <MenuPanel canEdit={can(myCaps, 'menu.edit')} slides={state?.slides || []} onUpdateSlides={updateSlides} canEditSlides={can(myCaps, 'slides.edit')} onNavigate={setActiveSection} />;
       case 'shabbos':
         return (
           <ShabbosPanel

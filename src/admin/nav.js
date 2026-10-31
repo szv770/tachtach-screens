@@ -9,6 +9,7 @@ export const navItems = [
   { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen', group: 'main' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen', group: 'daily' },
   { key: 'daily-story', en: 'Daily Story', desc: 'A short story or thought every day', area: 'screen', group: 'daily' },
+  { key: 'menu', en: 'Menu', desc: 'Meals: today, the week, dishes and tags', area: 'screen', group: 'daily' },
   { key: 'shabbos', en: 'Shabbos', desc: 'Friday and Motzei Shabbos pages, reminders, the screen during Shabbos', area: 'screen', group: 'daily' },
   { key: 'roster', en: 'Bochurim', desc: 'The list of names, and the birthday slide', area: 'screen', group: 'daily' },
   { key: 'chazan', en: 'Chazan', desc: 'Who leads Shacharis, Mincha and Maariv', area: 'screen', group: 'daily' },

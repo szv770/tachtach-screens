@@ -37,6 +37,8 @@ import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './rout
 import { forKiosk } from '../shared/dailyWords.js';
 import dailyStoriesRouter, { readDailyStories, startDailyStoryRecorder } from './routes/daily-stories.js';
 import { forKiosk as storiesForKiosk } from '../shared/dailyStories.js';
+import menuRouter from './routes/menu.js';
+import { menuForKiosk } from './menuStore.js';
 import rosterRouter, { readRoster } from './routes/roster.js';
 import chazanRouter from './routes/chazan.js';
 import { readForKiosk as readChazanForKiosk } from './chazanStore.js';
@@ -256,7 +258,7 @@ export function createApp() {
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
   app.use((req, res, next) => (
-    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|roster|chazan|saved-letters|slides|announcements)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
+    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|roster|chazan|saved-letters|slides|announcements)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
   ));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
@@ -301,7 +303,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', stateGate, viewerStateLimiter, csrfProtection, async (req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories, menu] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -316,6 +318,7 @@ export function createApp() {
         readRoster(),
         readChazanForKiosk(),
         readDailyStories(),
+        menuForKiosk().catch(() => null), // P0 (food): a window of days around today; the kiosk resolves what shows with src/shared/menu.js
       ]);
       const body = {
         cache: cache ?? {},
@@ -334,6 +337,7 @@ export function createApp() {
         dailyWords: forKiosk(dailyWords),
         // Daily Story list ({ order, stories }); the kiosk picks today's story from it.
         dailyStories: storiesForKiosk(dailyStories),
+        menu,
         // The roster (bochurim + birthday settings); the kiosk works out who has a birthday today.
         roster: rosterForKiosk(roster),
         // The chazan rotation (rules + names + computed days); the kiosk runs the same pure engine on it.
@@ -550,6 +554,7 @@ export function createApp() {
   app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', dailyStoriesRouter);
+  app.use('/api', menuRouter);
   app.use('/api', rosterRouter);
   app.use('/api', chazanRouter);
   app.use('/api', embedProbeRouter);

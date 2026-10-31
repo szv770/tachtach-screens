@@ -10,6 +10,8 @@ import { useSlideRotation } from './hooks/useSlideRotation.js';
 import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
 import { pickDailyStory } from '../shared/dailyStories.js';
+import { menuVisible } from '../shared/menu.js';
+import { zonedTimeToUtc } from '../shared/announcements.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
 import { AnnouncementTakeover } from './components/slides/AnnouncementSlide.jsx';
@@ -159,6 +161,16 @@ function AppContent() {
   );
   // Daily Story: out of the rotation when every story is hidden.
   const hasStory = React.useMemo(() => !!pickDailyStory(state?.dailyStories, scheduleDateISO), [state?.dailyStories, scheduleDateISO]);
+  // Menu (src/shared/menu.js): in the rotation only when there is a menu to show AND it is inside the admin's schedule
+  // window ('always', around the meals, or fixed hours). Re-checked each minute; the admin preview's ?previewAt= moves it.
+  const menuTz = state?.settings?.location?.timezone;
+  const menuClock = _previewAt != null ? new Date(_previewAt + (clock.time.getTime() - _loadedAt))
+    : _previewDate ? zonedTimeToUtc(_previewDate, '11:00', menuTz || undefined) : clock.time; // ?previewDate= shows that day at 11:00
+  const menuMinute = Math.floor(menuClock.getTime() / 60000);
+  const menuNow = React.useMemo(() => new Date(menuMinute * 60000), [menuMinute]);
+  const hasMenu = React.useMemo(() => {
+    try { return menuVisible(state?.menu, menuNow, menuTz); } catch { return false; }
+  }, [state?.menu, menuNow, menuTz]);
   // Friday / Shabbos (src/shared/shabbosPage.js): one minute-clock for every Shabbos rule, so the Friday page leaves
   // on the very minute 'hide on Shabbos' slides do. The admin preview's ?previewAt= moves this clock only.
   const shabbosClock = _previewAt != null ? new Date(_previewAt + (clock.time.getTime() - _loadedAt)) : clock.time;
@@ -183,8 +195,9 @@ function AppContent() {
       .map((sl) => (sl.type === 'SHABBOS' || sl.type === 'MOTZEI') && sl.hideOnShabbos ? { ...sl, hideOnShabbos: false } : sl)
       .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
       .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething)
-      .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, shabbosNow.rowType],
+      .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory)
+      .filter((sl) => sl.type !== 'MENU' || hasMenu),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, shabbosNow.rowType],
   );
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
   const rotationSlides = React.useMemo(
@@ -358,6 +371,9 @@ function AppContent() {
         break;
       case 'daily-stories-update':
         setState(prev => prev ? { ...prev, dailyStories: data } : prev);
+        break;
+      case 'menu-update':
+        setState(prev => prev ? { ...prev, menu: data } : prev);
         break;
       case 'chazan-update':
         setState(prev => prev ? { ...prev, chazan: data } : prev);
@@ -722,6 +738,9 @@ function AppContent() {
         rssFeeds={state?.rssFeeds || []}
         dailyWords={state?.dailyWords}
         dailyStories={state?.dailyStories}
+        menu={state?.menu}
+        menuNow={menuNow}
+        menuTz={menuTz}
         roster={state?.roster}
         chazan={state?.chazan}
         customDays={state?.customDays}

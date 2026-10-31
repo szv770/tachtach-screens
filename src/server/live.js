@@ -131,7 +131,7 @@ function scrub(v) {
 // new key added to /api/state never reaches viewers until it is added on purpose. Owner decisions kept:
 // birthday names and chazan names are shown (like the TV), nothing else about students.
 const VIEWER_KEYS = ['cache', 'settings', 'slides', 'announcements', 'messages', 'pinned', 'customDays', 'googleAlbums', 'schedule',
-  'rssFeeds', 'fonts', 'scheduleDates', 'dailyWords', 'dailyStories', 'roster', 'chazan', 'countdown', 'screenDisplay', 'freeze', 'touch'];
+  'rssFeeds', 'fonts', 'scheduleDates', 'dailyWords', 'dailyStories', 'menu', 'roster', 'chazan', 'countdown', 'screenDisplay', 'freeze', 'touch'];
 const STAFF_FIELDS = ['createdBy', 'createdById', 'updatedBy', 'updatedById'];
 const without = (o, keys) => { const c = { ...o }; for (const k of keys) delete c[k]; return c; };
 const isoOf = (now, tz) => zonedParts(now, tz).date;

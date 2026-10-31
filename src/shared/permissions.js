@@ -38,6 +38,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'media.delete', group: 'Screen', label: 'Delete pictures and videos', hint: '' },
   { id: 'feeds.edit', group: 'Screen', label: 'Manage news feeds and Google Photos albums', hint: '' },
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
+  { id: 'menu.edit', group: 'Screen', label: 'Edit the Menu', hint: 'Meals, dishes and tags for the Menu slide, one-day changes, and when the Menu shows.' },
   { id: 'roster.edit', group: 'Screen', label: 'Edit the bochurim list and birthdays', hint: 'The shared list of names and Hebrew birthdays.' },
   { id: 'chazan.edit', group: 'Screen', label: 'Edit the chazan rotation', hint: 'Order, away dates, swaps and which davenings have a chazan.' },
   { id: 'shabbos.edit', group: 'Screen', label: 'Edit the Shabbos page', hint: 'Friday and Motzei Shabbos reminder lines, when the pages show, and what the screen does during Shabbos.' },
@@ -59,7 +60,7 @@ export const isGrantable = (id) => isCapability(id) && !CAP_BY_ID[id].adminOnly;
 
 const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
-  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
+  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
 ];
 
@@ -140,6 +141,7 @@ const SECTION_CAPS = Object.freeze({
   announcements: ['announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete'],
   'daily-word': ['dailyWord.edit'],
   'daily-story': ['dailyWord.edit'],
+  menu: ['menu.edit'],
   roster: ['roster.edit'],
   chazan: ['chazan.edit'],
   shabbos: ['shabbos.edit'],
@@ -202,6 +204,7 @@ const RULES = Object.freeze([
   rule('media.upload', ANY, /^\/api\/(upload|images|media)(\/|$)/),
   rule('feeds.edit', ANY, /^\/api\/(rss|google-album)(\/|$)/),
   rule('dailyWord.edit', ANY, /^\/api\/daily-(words|stories)(\/|$)/),
+  rule('menu.edit', ANY, /^\/api\/menu(\/|$)/),
   rule('roster.edit', ANY, /^\/api\/roster(\/|$)/),
   rule('chazan.edit', ANY, /^\/api\/chazan(\/|$)/),
   rule('screen.control', ANY, /^\/api\/(screen|refresh|freeze)(\/|$)/),
@@ -288,6 +291,7 @@ export const READ_ROUTES = Object.freeze([
   readRule('/api/kiddush-levana/months', ANNOUNCE_CAPS, 'medium'),
   readRule('/api/daily-words', ['dailyWord.edit']),
   readRule('/api/daily-stories', ['dailyWord.edit']),
+  readRule('/api/menu', ['menu.edit']),                   // P0 (food), whole document incl. overrides
   readRule('/api/roster', ['roster.edit']),               // student names
   readRule('/api/chazan', ['chazan.edit']),               // student names
   readRule('/api/chazan/swap-options', ['chazan.edit'], 'medium'),

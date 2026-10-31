@@ -10,6 +10,7 @@ import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
 import { normalizeWebUrl } from '../../shared/embedCheck.js';
 import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
+import { readMenu } from '../menuStore.js';
 import { readRoster } from './roster.js';
 import { normalizeTefilaTag } from '../../shared/chazan.js';
 import { readForKiosk as readChazanForKiosk } from '../chazanStore.js';
@@ -1469,6 +1470,7 @@ router.get('/preview-state', async (req, res) => {
       chazan: await readChazanForKiosk(),
       dailyWords: await readDailyWords(), // full history, so a past date previews the word that really showed
       dailyStories: await readDailyStories(), // same: a past date previews the story that really showed
+      menu: await readMenu(), // the whole document, so any preview date resolves
       _previewDate: dateStr,
     });
   } catch (err) {

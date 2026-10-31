@@ -28,6 +28,7 @@ Privacy classes (from `docs/saas/FIT-RULES.md`): public, org, names (student nam
 | `/api/quick-templates`, `/api/saved-letters` | Messages, Full, Admin | any announcements.* | owner-filtered list | none | names (recents, letters) |
 | `/api/kiddush-levana`, `/api/kiddush-levana/months` | Messages, Full, Admin | any announcements.* | astronomy table, up to 24 months | medium | public |
 | `/api/daily-words`, `/api/daily-stories` | Full, Admin | dailyWord.edit | up to ~20 kB list | none | org |
+| `/api/menu` | Full, Admin | menu.edit | one file read (<= 256 kB) + dish suggestions | none | P0 (food and meal names, never a person) |
 | `/api/roster` | Full, Admin | roster.edit | list | none | **names** (students, birthdays) |
 | `/api/chazan` | Full, Admin | chazan.edit | forecast walk | none | **names** |
 | `/api/chazan/swap-options` | Full, Admin | chazan.edit | day loop, capped at 800 days, date must be within 800 days of today | medium | **names** |
