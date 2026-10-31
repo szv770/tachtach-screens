@@ -11,6 +11,8 @@ import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import DailyStorySlide from './slides/DailyStorySlide.jsx';
 import MenuSlide from './slides/MenuSlide.jsx';
+import ShiurimSlide from './slides/ShiurimSlide.jsx';
+import SpeakerSlide from './slides/SpeakerSlide.jsx';
 import ShabbosSlide from './slides/ShabbosSlide.jsx';
 import BirthdaysSlide from './slides/BirthdaysSlide.jsx';
 import ChazanSlide from './slides/ChazanSlide.jsx';
@@ -62,7 +64,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dailyStories, menu, menuNow, menuTz, dateISO, roster, chazan, customDays, shabbosModel,
+  dailyWords, dailyStories, menu, menuNow, menuTz, shiurim, shiurimCtx, shiurTags, dateISO, roster, chazan, customDays, shabbosModel,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -86,6 +88,8 @@ export default function SlideCarousel({
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} settings={settings} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
+      case 'SHIURIM': return <ShiurimSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} schedule={shiurimCtx?.schedule} scheduleDates={shiurimCtx?.scheduleDates} groups={shiurimCtx?.groups} />;
+      case 'SPEAKER': return <SpeakerSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'MENU': return <MenuSlide menu={menu} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'SHABBOS':
       case 'MOTZEI': return <ShabbosSlide model={shabbosModel} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
@@ -105,7 +109,7 @@ export default function SlideCarousel({
       case 'MIVTZAH_LEADERBOARD': return <MivtzahLeaderboardSlide cache={cache} tokens={tokens} />;
       case 'MIVTZAH_LIVE_EMBED': return <MivtzahLiveEmbedSlide slide={slide} tokens={tokens} />;
       case 'WEB_PAGE': return <WebPageSlide slide={slide} />;
-      case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} slide={slide} onRequestDuration={onRequestDuration} chazan={chazan} customDays={customDays} dateISO={dateISO} />;
+      case 'SCHEDULE': return <ScheduleSlide schedule={schedule} tokens={tokens} settings={settings} slide={slide} onRequestDuration={onRequestDuration} chazan={chazan} customDays={customDays} dateISO={dateISO} shiurTags={shiurTags} />;
       case 'COUNTDOWN': return <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={onCountdownComplete} embedded />;
       case 'ANNOUNCEMENT': return <AnnouncementSlide item={slide._ann} onRequestDuration={onRequestDuration} />;
       default: return null;

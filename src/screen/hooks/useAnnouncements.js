@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { selectActive } from '../../shared/announcements.js';
 import { autoItemsFor } from '../../shared/kiddushLevana.js';
+import { guestTakeoverItems } from '../../shared/shiurim.js';
 
 /**
  * What the kiosk shows from data/announcements.json right now. Re-evaluated
@@ -34,7 +35,11 @@ export function useAnnouncements(items, tz, auto) {
     return () => { alive = false; clearInterval(id); };
   }, [klOn]);
   const extra = klOn ? autoItemsFor({ settings: auto.settings, cache: auto.cache, kiddushLevanaShown: shown }, now) : [];
-  const sel = selectActive(extra.length ? [...(items || []), ...extra] : (items || []), now, { tz: tz || undefined });
+  // a guest speaker's day banner / one-time takeover (src/shared/shiurim.js): virtual, never stored, same selectActive() as real posts
+  let guest = [];
+  try { guest = auto?.shiurim ? guestTakeoverItems(auto.shiurim, now, tz || undefined) : []; } catch { guest = []; }
+  const more = guest.length ? [...extra, ...guest] : extra;
+  const sel = selectActive(more.length ? [...(items || []), ...more] : (items || []), now, { tz: tz || undefined });
   const ref = useRef(null);
   if (!ref.current || ref.current.activeKey !== sel.activeKey) ref.current = sel;
   return ref.current;

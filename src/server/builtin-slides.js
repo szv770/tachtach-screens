@@ -23,6 +23,10 @@ export const LATE_BUILTINS = [
   { id: 'motzei', type: 'MOTZEI', label: 'Shavua Tov', duration: 15, enabled: false, order: 107 },
   // Off until the owner turns it on (Slides); the meals live in Screen > Menu. Only in the rotation when there is a menu and it is inside its schedule.
   { id: 'menu', type: 'MENU', label: 'Menu', duration: 14, enabled: false, order: 108 },
+  // Both off until the owner turns them on (Slides); the data lives in Screen > Shiurim. SHIURIM is only in the rotation when there is a shiur to show
+  // (and inside its 'when it shows' window), SPEAKER only while a guest speaker is announced (src/shared/shiurim.js).
+  { id: 'shiurim', type: 'SHIURIM', label: "Today's shiurim", duration: 14, enabled: false, order: 109 },
+  { id: 'speaker', type: 'SPEAKER', label: 'Guest speaker', duration: 15, enabled: false, order: 110 },
 ];
 
 export function addMissingBuiltins(slides) {

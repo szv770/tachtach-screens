@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { toMinutes, fmt12, isHebrew } from '../../../design/time.js';
 import { isEntryActiveOn } from '../../../../shared/scheduleDays.js';
 import { tefilaOfEntry } from '../../../../shared/chazan.js';
+import { rowTag } from '../../../../shared/shiurim.js';
 
 /**
  * Schedule rows for the three views (Whole day / Timeline / Focus), built once per schedule change.
@@ -12,7 +13,7 @@ import { tefilaOfEntry } from '../../../../shared/chazan.js';
 
 export const DEFAULT_HUE = '#9AA3AE';
 
-export function useScheduleItems(schedule, rowsFor, chazanNames = null) {
+export function useScheduleItems(schedule, rowsFor, chazanNames = null, shiurTags = null) {
   return useMemo(() => {
     const cats = Object.fromEntries((schedule?.categories || []).map((c) => [c.id, c]));
     const today = new Date();
@@ -35,13 +36,15 @@ export function useScheduleItems(schedule, rowsFor, chazanNames = null) {
           secondary: en && heName ? heName : '',
           v: first.v, end: first.end, slots: sl, split: split && split.length > 1 ? split : null,
           hue: cat?.color || DEFAULT_HUE, icon: e.icon || null, catIcon: cat?.icon || null, kind: cat?.kind || 'other',
-          chazan: (chazanNames && chazanNames[tefilaOfEntry(e, schedule?.categories)]) || null, // today's chazan for a davening row
+          // today's chazan for a davening row; else the rebbe + place of a shiur linked to this block (Screen > Shiurim), drawn the same way
+          chazan: (chazanNames && chazanNames[tefilaOfEntry(e, schedule?.categories)]) || rowTag(shiurTags, e) || null,
+          byline: !(chazanNames && chazanNames[tefilaOfEntry(e, schedule?.categories)]) && !!rowTag(shiurTags, e),
           candle: /candle|הדלקת נרות/i.test(`${e.name} ${e.nameHe}`),
         };
       })
       .filter(Boolean)
       .sort((a, b) => a.v - b.v || (a.end ?? a.v) - (b.end ?? b.v));
-  }, [schedule?.entries, schedule?.categories, schedule?.resolvedFor, rowsFor, chazanNames]);
+  }, [schedule?.entries, schedule?.categories, schedule?.resolvedFor, rowsFor, chazanNames, shiurTags]);
 }
 
 /** "7:15" (no am/pm) — the row's own column carries am/pm. */

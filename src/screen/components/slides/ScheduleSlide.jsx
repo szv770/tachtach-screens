@@ -26,7 +26,7 @@ import FocusView from './schedule/FocusView.jsx';
 
 const VIEW_CSS = '@keyframes ttSchedIn{from{opacity:0;transform:translate3d(0,10px,0)}to{opacity:1;transform:none}}';
 
-export default function ScheduleSlide({ schedule, settings, slide, onRequestDuration, chazan, customDays, dateISO }) {
+export default function ScheduleSlide({ schedule, settings, slide, onRequestDuration, chazan, customDays, dateISO, shiurTags }) {
   const { light, portrait, motion } = useDesign();
   const nowD = useNow(15000);
   const now = nowMinutes(nowD);
@@ -38,7 +38,7 @@ export default function ScheduleSlide({ schedule, settings, slide, onRequestDura
   }, [groupsKey]); // eslint-disable-line react-hooks/exhaustive-deps
   // the chazan's name on each davening row (Settings > Chazan > 'Show chazan names on the schedule')
   const chazanNames = useMemo(() => namesByTefila(chazan, dateISO, customDays), [chazan, dateISO, customDays]);
-  const items = useScheduleItems(schedule, rowsFor, chazanNames);
+  const items = useScheduleItems(schedule, rowsFor, chazanNames, shiurTags);
   const states = useMemo(() => rowStates(items, now), [items, now]);
   const sv = scheduleViewSettings(settings);
   const lt = longTextSettings(settings);

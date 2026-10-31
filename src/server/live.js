@@ -14,6 +14,7 @@ import activity from './activity.js';
 import { isActive, zonedParts, DEFAULT_TZ } from '../shared/announcements.js';
 import { birthdaysFor, addDays as rosterAddDays } from '../shared/roster.js';
 import { assignments, addDays as chazanAddDays } from '../shared/chazan.js';
+import { forViewer as shiurimForViewer } from '../shared/shiurim.js';
 
 /**
  * Live view: a read-only copy of the screen for anyone holding the "live word"
@@ -131,7 +132,7 @@ function scrub(v) {
 // new key added to /api/state never reaches viewers until it is added on purpose. Owner decisions kept:
 // birthday names and chazan names are shown (like the TV), nothing else about students.
 const VIEWER_KEYS = ['cache', 'settings', 'slides', 'announcements', 'messages', 'pinned', 'customDays', 'googleAlbums', 'schedule',
-  'rssFeeds', 'fonts', 'scheduleDates', 'dailyWords', 'dailyStories', 'menu', 'roster', 'chazan', 'countdown', 'screenDisplay', 'freeze', 'touch'];
+  'rssFeeds', 'fonts', 'scheduleDates', 'dailyWords', 'dailyStories', 'menu', 'shiurim', 'roster', 'chazan', 'countdown', 'screenDisplay', 'freeze', 'touch'];
 const STAFF_FIELDS = ['createdBy', 'createdById', 'updatedBy', 'updatedById'];
 const without = (o, keys) => { const c = { ...o }; for (const k of keys) delete c[k]; return c; };
 const isoOf = (now, tz) => zonedParts(now, tz).date;
@@ -191,6 +192,8 @@ export function viewerState(state, now = new Date()) {
     // such a post exists: only rows of posts the viewer gets stay.
     if (Array.isArray(out.slides)) out.slides = out.slides.filter((r) => r?.type !== 'ANNOUNCEMENT' || live.has(String(r.announcementId)));
   }
+  // Shiurim (P1, adults): guests only inside their window, photos only when the admin's 'photos on the live link' switch is on, no notes
+  if (out.shiurim) out.shiurim = shiurimForViewer(out.shiurim, now, tz);
   if (out.cache && typeof out.cache === 'object') {
     // the school's place (zip, coordinates, Chabad location id) is withheld from settings; keep it out of the cache copies too (red-team F3)
     out.cache = { ...out.cache };

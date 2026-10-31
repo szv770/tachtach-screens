@@ -6,6 +6,8 @@ import { readJSON } from './storage.js';
 import { dataDir } from './dataDir.js';
 import { uploadFilesFromSettings, isFileReferenced } from '../shared/uploadRefs.js';
 import { purgeArchived } from './announcements-store.js';
+import { shiurimPhotoIds } from './shiurimStore.js';
+import { photoFile } from '../shared/shiurim.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +27,8 @@ const DAY_MS = 24 * HOUR_MS;
 async function getReferencedUploadFiles() {
   const slides = (await readJSON('slides.json')) ?? [];
   const referenced = new Set(uploadFilesFromSettings(await readJSON('settings.json')));
+  // photos of rebbeim / guest speakers (src/server/speakerPhoto.js): spk-<id>.jpg and spk-<id>-t.jpg, kept while a person or guest points at them
+  try { for (const id of await shiurimPhotoIds()) referenced.add(photoFile(id).replace(/\.jpg$/, '')); } catch { /* a missing list never blocks the clean-up */ }
 
   for (const slide of slides) {
     // filename and blurFilename are stored as bare filenames

@@ -54,7 +54,7 @@ function Hero({ s, role, now, running, portrait }) {
       <Fit max={nameMax} min={34} dir={s.primaryHe ? 'rtl' : 'ltr'} style={{ height: Math.round(nameMax * 1.22), marginTop: 4, fontFamily: s.primaryHe ? F.heD : F.enD, fontWeight: 650, letterSpacing: s.primaryHe ? 0 : '-.02em', lineHeight: 1.18, textAlign: 'left' }}>
         {s.primary}
       </Fit>
-      {s.chazan && <div data-ch="" style={{ fontFamily: F.en, fontSize: 32, fontWeight: 650, color: dim, lineHeight: 1.25, overflowWrap: 'anywhere' }}>Chazan: {s.chazan}</div>}
+      {s.chazan && <div data-ch="" style={{ fontFamily: F.en, fontSize: 32, fontWeight: 650, color: dim, lineHeight: 1.25, overflowWrap: 'anywhere' }}>{s.byline ? '' : 'Chazan: '}{s.chazan}</div>}
       {s.secondary && <Bidi as="div" text={s.secondary} fallback="rtl" style={{ fontFamily: F.heD, fontSize: heSize(34), fontWeight: 500, color: dim, textAlign: 'left', lineHeight: 1.25 }} />}
       <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginTop: 12 }}>
         <span className="tt-num" style={{ fontSize: portrait ? 38 : 42, fontWeight: 650, letterSpacing: '-.03em', whiteSpace: 'nowrap', lineHeight: 1 }}>

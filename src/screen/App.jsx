@@ -11,6 +11,7 @@ import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
 import { pickDailyStory } from '../shared/dailyStories.js';
 import { menuVisible } from '../shared/menu.js';
+import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.js';
 import { zonedTimeToUtc } from '../shared/announcements.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
@@ -131,7 +132,7 @@ function AppContent() {
 
   // Announcements (slides, banners, side notes, takeovers) — what's live now,
   // re-evaluated every second by the shared isActive() rules.
-  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone, { settings: state?.settings, cache: state?.cache });
+  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone, { settings: state?.settings, cache: state?.cache, shiurim: state?.shiurim });
 
   // The schedule that applies today (or on ?previewDate=): that date's own
   // schedule from schedule-dates.json, else the weekly one. `clock` ticks
@@ -171,6 +172,20 @@ function AppContent() {
   const hasMenu = React.useMemo(() => {
     try { return menuVisible(state?.menu, menuNow, menuTz); } catch { return false; }
   }, [state?.menu, menuNow, menuTz]);
+  // Shiurim + Guest speaker (src/shared/shiurim.js): SHIURIM is in the rotation only when there is a shiur to show (today's list or the
+  // week, inside the admin's 'when it shows' window), SPEAKER only while a guest is announced. Same minute clock as the Menu, so the
+  // admin preview's ?previewAt= / ?previewDate= move them too. The schedule link needs the RAW weekly schedule + per-date overrides.
+  const shiurimCtx = React.useMemo(() => ({ schedule: state?.schedule, scheduleDates: state?.scheduleDates, groups: scheduleGroups }), [state?.schedule, state?.scheduleDates, scheduleGroups]);
+  const hasShiurim = React.useMemo(() => {
+    try { return shiurimVisible(state?.shiurim, menuNow, menuTz, shiurimCtx); } catch { return false; }
+  }, [state?.shiurim, menuNow, menuTz, shiurimCtx]);
+  const hasSpeaker = React.useMemo(() => {
+    try { return guestsActive(state?.shiurim, menuNow, menuTz).length > 0; } catch { return false; }
+  }, [state?.shiurim, menuNow, menuTz]);
+  // a linked shiur's 'Rabbi X · Place' under its row on the Schedule page (Screen > Shiurim > 'Show the rebbe's name on the schedule')
+  const shiurTags = React.useMemo(() => {
+    try { return state?.shiurim ? scheduleTagMap(state.shiurim, scheduleDateISO, shiurimCtx) : null; } catch { return null; }
+  }, [state?.shiurim, scheduleDateISO, shiurimCtx]);
   // Friday / Shabbos (src/shared/shabbosPage.js): one minute-clock for every Shabbos rule, so the Friday page leaves
   // on the very minute 'hide on Shabbos' slides do. The admin preview's ?previewAt= moves this clock only.
   const shabbosClock = _previewAt != null ? new Date(_previewAt + (clock.time.getTime() - _loadedAt)) : clock.time;
@@ -196,8 +211,10 @@ function AppContent() {
       .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
       .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething)
       .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory)
-      .filter((sl) => sl.type !== 'MENU' || hasMenu),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, shabbosNow.rowType],
+      .filter((sl) => sl.type !== 'MENU' || hasMenu)
+      .filter((sl) => sl.type !== 'SHIURIM' || hasShiurim)
+      .filter((sl) => sl.type !== 'SPEAKER' || hasSpeaker),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, shabbosNow.rowType],
   );
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
   const rotationSlides = React.useMemo(
@@ -374,6 +391,9 @@ function AppContent() {
         break;
       case 'menu-update':
         setState(prev => prev ? { ...prev, menu: data } : prev);
+        break;
+      case 'shiurim-update':
+        setState(prev => prev ? { ...prev, shiurim: data } : prev);
         break;
       case 'chazan-update':
         setState(prev => prev ? { ...prev, chazan: data } : prev);
@@ -741,6 +761,9 @@ function AppContent() {
         menu={state?.menu}
         menuNow={menuNow}
         menuTz={menuTz}
+        shiurim={state?.shiurim}
+        shiurimCtx={shiurimCtx}
+        shiurTags={shiurTags}
         roster={state?.roster}
         chazan={state?.chazan}
         customDays={state?.customDays}
