@@ -36,11 +36,14 @@ const body = (req) => (req.body && typeof req.body === 'object' && !Array.isArra
 
 /** The document plus what the admin needs to draw itself: today, the schedule blocks to link to, the groups, what needs attention. */
 async function view(file) {
-  const [today, tz, schedule, groups] = await Promise.all([shiurimStore.today(), shiurimStore.tz(), shiurimStore.schedule(), shiurimStore.groups()]);
+  const [today, tz, schedule, scheduleDates, groups] = await Promise.all([shiurimStore.today(), shiurimStore.tz(), shiurimStore.schedule(), shiurimStore.scheduleDates(), shiurimStore.groups()]);
   const blocks = (schedule?.entries || []).filter((e) => e && e.enabled !== false).slice(0, 400)
     .map((e) => ({ id: e.id || '', name: String(e.name || ''), nameHe: String(e.nameHe || ''), days: e.days || null, time: e.time || '', endTime: e.endTime || '' }));
   const places = [...new Set([...(file.shiurim || []).map((s) => s.place), ...(file.guests || []).map((g) => g.place)].filter(Boolean))].slice(0, 20);
-  return { ...file, today, tz, blocks, groups, places, attention: S.attention(file, schedule) };
+  // what the Today card shows: every shiur of the screen's own today, including ones the schedule removed or that were cancelled
+  const todayRows = S.shiurimOn(file, today, { schedule, scheduleDates, groups, includeHidden: true })
+    .map((r) => ({ id: r.id, start: r.start, end: r.end, cancelled: r.cancelled, reason: r.reason, moved: r.moved, linked: r.linked, note: r.note, place: r.place, placeHe: r.placeHe }));
+  return { ...file, today, tz, blocks, groups, places, todayRows, attention: S.attention(file, schedule) };
 }
 const send = async (res, saved, extra = {}) => res.json({ ...(await view(saved)), ...extra });
 

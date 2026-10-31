@@ -26,6 +26,8 @@ import GroupsPanel, { groupsSummary } from './schedule/GroupsPanel.jsx';
 import { primaryBtn, secondaryBtn, subtleBtn } from './schedule/scheduleFields.jsx';
 import { scheduleApi, useCopy, useSnackbar } from './schedule/scheduleShared.jsx';
 import { toISODate } from '../../shared/scheduleResolution.js';
+import { linkedBlock, personName } from '../../shared/shiurim.js';
+import { apiFetch } from '../hooks/useAdminState.js';
 import { findCategory, newCategoryId, formatWeeklyText } from '../../shared/schedulePaste.js';
 import { copyDay, splitForDay } from '../../shared/scheduleWeek.js';
 import { can } from '../../shared/permissions.js';
@@ -47,6 +49,21 @@ export default function ScheduleSection(props) {
   const [selectedDate, setSelectedDate] = useState(() => toISODate(new Date()));
   const [wizard, setWizard] = useState(() => canEdit && entries.length === 0);
   const [sheet, setSheet] = useState(null); // { entry, dayIdx, key }
+  // 'Given by Rabbi X' on a block a shiur follows (Screen > Shiurim). Only people who may read /api/shiurim see it; everyone else gets nothing.
+  const [givenBy, setGivenBy] = useState([]);
+  useEffect(() => {
+    setGivenBy([]);
+    const e = sheet?.entry;
+    if (!e) return undefined;
+    let alive = true;
+    apiFetch('/api/shiurim').then((f) => {
+      if (!alive) return;
+      const names = (f.shiurim || []).filter((s) => s.when?.kind === 'linked' && linkedBlock(s.when, { entries: [e] }))
+        .map((s) => personName((f.people || []).find((p) => p.id === s.personId))).filter(Boolean);
+      setGivenBy([...new Set(names)]);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [sheet?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [saving, setSaving] = useState(false);
   const [importKind, setImportKind] = useState('week');
   const snack = useSnackbar();
@@ -219,7 +236,7 @@ export default function ScheduleSection(props) {
           onSaveTemplate={props.onSaveTemplate} onCreateCategory={createCategory} notify={notify} copy={copy} />
       )}
       {sheet && (
-        <BlockSheet key={sheet.key} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving} groups={groups} otherEntries={entries} focus={sheet.focus}
+        <BlockSheet key={sheet.key} givenBy={givenBy} onOpenShiurim={givenBy.length && onNavigate ? () => onNavigate('shiurim') : undefined} open entry={sheet.entry} dayIdx={sheet.dayIdx} categories={categories} readOnly={!canEdit} saving={saving} groups={groups} otherEntries={entries} focus={sheet.focus}
           onClose={() => setSheet(null)} onSave={saveBlock} onDelete={deleteBlock} onCreateCategory={createCategory} />
       )}
       {modal}

@@ -29,7 +29,7 @@ const toForm = (entry, dayIdx, defaultDays) => ({
   scope: 'all', dayIdx,
 });
 
-export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false, groups = [], otherEntries = [], focus = '' }) {
+export default function BlockSheet({ open, entry, dayIdx, categories, onClose, onSave, onDelete, onCreateCategory, readOnly = false, saving = false, groups = [], otherEntries = [], focus = '', givenBy = [], onOpenShiurim }) {
   const isNew = !entry;
   const initial = useMemo(() => toForm(entry, dayIdx, dayIdx != null ? [dayIdx] : undefined), [entry, dayIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   const [f, setF] = useState(focus === 'onlyday' ? { ...initial, scope: 'this' } : initial);
@@ -68,6 +68,11 @@ export default function BlockSheet({ open, entry, dayIdx, categories, onClose, o
           <Field label={hasGroups && Object.keys(f.groupTimes).length ? 'Starts (everyone else)' : 'Starts'}><TimeField value={f.time} onCommit={(t) => set({ time: t })} ariaLabel="Start time" style={{ minHeight: '44px', fontSize: '16px' }} /></Field>
           <Field label="Ends (optional)"><TimeField value={f.endTime} onCommit={(t) => set({ endTime: t })} allowEmpty placeholder="optional" ariaLabel="End time" style={{ minHeight: '44px', fontSize: '16px' }} /></Field>
         </div>
+        {givenBy.length > 0 && (
+          <div data-testid="block-given-by" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.dim, margin: '-4px 0 12px' }}>
+            Given by {givenBy.join(', ')}. This block's time is what the shiur follows.{onOpenShiurim ? <> <button type="button" onClick={onOpenShiurim} style={{ background: 'none', border: 'none', padding: 0, color: colors.accent, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>Edit</button></> : null}
+          </div>
+        )}
         {timeBad && <div role="alert" style={{ fontFamily: adminFonts.englishBody, fontSize: '13px', color: colors.danger, margin: '-6px 0 12px' }}>It ends before it starts - check AM/PM.</div>}
         {hasGroups && (
           <div ref={gRef}><GroupTimesEditor defaultOn={focus === 'groups'} groups={groups} value={f} readOnly={readOnly} issues={issues} onChange={(patch) => set(patch)} /></div>

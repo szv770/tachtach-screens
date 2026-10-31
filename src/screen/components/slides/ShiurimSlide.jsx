@@ -46,9 +46,9 @@ function Header({ en, heText, portrait, sufEn, sufHe }) {
   );
 }
 
-const TextPair = ({ a, b, size, weight = 600, color = 'var(--ink)', heRatio = 0.92, style }) => (
+const TextPair = ({ a, b, size, weight = 600, color = 'var(--ink)', heRatio = 0.92, style, k }) => (
   <>
-    {a && <div dir={textDir(a)} style={{ fontFamily: textDir(a) === 'rtl' ? F.he : F.en, fontSize: textDir(a) === 'rtl' ? he(size) : size, fontWeight: weight, lineHeight: 1.18, color, overflowWrap: 'anywhere', minWidth: 0, ...style }}>{bidiNodes(a)}</div>}
+    {a && <div data-k={k} dir={textDir(a)} style={{ fontFamily: textDir(a) === 'rtl' ? F.he : F.en, fontSize: textDir(a) === 'rtl' ? he(size) : size, fontWeight: weight, lineHeight: 1.18, color, overflowWrap: 'anywhere', minWidth: 0, ...style }}>{bidiNodes(a)}</div>}
     {b && <div dir="rtl" className="tt-he" style={{ ...heBox, fontSize: he(Math.round(size * heRatio)), fontWeight: Math.min(weight, 600), color, overflowWrap: 'anywhere', minWidth: 0 }}>{b}</div>}
   </>
 );
@@ -66,27 +66,27 @@ function Row({ r, T, marks, settings, portrait, photos }) {
   const who = r.person && (n1 || n2) && (
     <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
       {showPhoto && <Avatar photo={r.person.photo} name={personName(r.person, 'en') || personName(r.person, 'he')} size={T.photo} />}
-      <div style={{ minWidth: 0 }}><TextPair a={n1} b={n2} size={T.name} weight={650} color={ink} heRatio={0.85} /></div>
+      <div style={{ minWidth: 0 }}><TextPair a={n1} b={n2} size={T.name} weight={650} color={ink} heRatio={0.9} k="name" /></div>
     </div>
   );
   const where = (p1 || p2) && (
-    <div style={{ minWidth: 0, textAlign: 'start' }}><TextPair a={p1} b={p2} size={T.place} weight={560} color={ink} heRatio={0.9} /></div>
+    <div style={{ minWidth: 0, textAlign: 'start' }}><TextPair a={p1} b={p2} size={T.place} weight={560} color={ink} heRatio={1} k="place" /></div>
   );
   return (
     <div data-srow="" style={{
-      boxSizing: 'border-box', display: 'grid', alignItems: 'center', columnGap: 28, rowGap: 10, padding: '12px 22px', borderRadius: 22, flex: '1 1 auto', maxHeight: 220,
+      boxSizing: 'border-box', display: 'grid', alignItems: 'center', columnGap: 28, rowGap: 10, padding: '12px 22px', borderRadius: 22, flex: 'none',
       gridTemplateColumns: portrait ? 'auto minmax(0, 1fr)' : `auto minmax(0, 1fr)${who ? ' fit-content(34%)' : ''}${where ? ' fit-content(24%)' : ''}`,
       border: `${isNow ? 4 : 2}px solid ${isNow ? 'var(--accentText)' : isNext ? 'var(--line)' : 'transparent'}`,
       background: isNow ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
     }}>
-      <div style={{ minWidth: 0 }}>
-        <TimeText mins={r.start} size={T.time} weight={750} ampmColor={ink} color={ink} />
+      <div data-k="time" style={{ minWidth: 0 }}>
+        <TimeText mins={r.start} size={T.time} weight={750} ampmSize={Math.max(26, Math.round(T.time * 0.5))} ampmColor={ink} color={ink} />
         {r.end != null && <div className="tt-num" style={{ fontFamily: F.num, fontSize: 26, fontWeight: 600, color: ink, whiteSpace: 'nowrap', marginTop: 4 }}>{`– ${fmt12(r.end)}`}</div>}
       </div>
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', minWidth: 0 }}>
           <div style={{ minWidth: 0, textDecoration: r.cancelled ? 'line-through' : 'none', textDecorationThickness: 3 }}>
-            <TextPair a={t1} b={t2} size={T.title} weight={680} color={ink} />
+            <TextPair a={t1} b={t2} size={T.title} weight={680} color={ink} k="title" />
           </div>
           {isNow && <Pill kind="now" />}
           {isNext && <Pill kind="next" />}
@@ -126,8 +126,8 @@ function TodayBody({ rows, marks, settings, portrait, page, onPages }) {
           position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: 6, overflow: 'hidden',
           opacity: i === at ? 1 : 0, visibility: i === at ? 'visible' : 'hidden',
         }}>
-          {list.map((r, ri) => (
-            <div key={r.id} style={{ display: 'flex', flexDirection: 'column', flex: '1 1 auto', maxHeight: 220, ...(ri === 0 ? { marginTop: 'auto' } : null), ...(ri === list.length - 1 ? { marginBottom: 'auto' } : null) }}>
+          {list.map((r) => (
+            <div key={r.id} style={{ display: 'flex', flexDirection: 'column', flex: 'none', margin: 'auto 0' }}>
               <Row r={r} T={T} marks={marks} settings={settings} portrait={portrait} photos={photos} />
             </div>
           ))}
@@ -151,7 +151,7 @@ function Card({ c, CT, settings, portrait }) {
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 18, minWidth: 0 }}>
           {photos && <Avatar photo={c.person.photo} name={personName(c.person, 'en') || personName(c.person, 'he')} size={CT.photo} />}
           <div style={{ minWidth: 0, flex: 1 }}>
-            <TextPair a={settings.language === 'he' && dayCard ? n2 || n1 : n1} b={settings.language === 'he' && dayCard ? '' : n2} size={CT.name} weight={720} heRatio={0.8} />
+            <TextPair a={settings.language === 'he' && dayCard ? n2 || n1 : n1} b={settings.language === 'he' && dayCard ? '' : n2} size={CT.name} weight={720} heRatio={0.9} />
             {c.parts > 1 && <div className="tt-num" style={{ fontFamily: F.num, fontSize: 26, color: 'var(--ink)', marginTop: 2 }}>{`${c.part}/${c.parts}`}</div>}
           </div>
           {c.today && <Pill kind="now" />}
@@ -161,7 +161,7 @@ function Card({ c, CT, settings, portrait }) {
         {c.lines.map((l) => (
           <div key={l.key} style={{ minWidth: 0 }}>
             <div className="tt-num" style={{ fontFamily: F.num, fontSize: CT.line, fontWeight: 750, color: 'var(--accentText)', lineHeight: 1.2 }}>{[l.lead, l.time].filter(Boolean).join('  ·  ')}</div>
-            <TextPair a={l.t1} b={l.t2} size={CT.line} weight={620} heRatio={0.92} />
+            <TextPair a={l.t1} b={l.t2} size={CT.line} weight={620} heRatio={1} />
             {(l.meta || l.meta2 || l.groupLabel) && <div dir={textDir(l.meta || l.meta2)} style={{ fontFamily: textDir(l.meta || l.meta2) === 'rtl' ? F.he : F.en, fontSize: CT.line - 2, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.25, overflowWrap: 'anywhere' }}>{bidiNodes([l.meta, l.groupLabel].filter(Boolean).join(' · ') || l.meta2)}</div>}
             {l.note && <div dir={textDir(l.note)} style={{ fontFamily: F.en, fontSize: CT.line - 2, fontStyle: 'italic', color: 'var(--ink)', lineHeight: 1.25 }}>{bidiNodes(l.note)}</div>}
           </div>

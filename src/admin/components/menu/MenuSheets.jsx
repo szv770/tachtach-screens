@@ -125,7 +125,7 @@ export function MealSheet({ ctx, file, open, onClose, onSave, busy }) {
 
 // ── import ────────────────────────────────────────────────────────────────────
 
-async function readFileRows(f) {
+export async function readFileRows(f) {
   if (/\.xlsx$/i.test(f.name)) {
     const { readSheet } = await import('read-excel-file/browser'); // only loaded when someone picks a spreadsheet
     return (await readSheet(f)).map((r) => r.map((c) => (c == null ? '' : c instanceof Date ? c.toISOString().slice(0, 10) : String(c))));
