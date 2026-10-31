@@ -53,7 +53,9 @@ No page had horizontal page overflow at 360, 390, 412 or 768. No 403/404 was ret
 | Sheets, Android keyboard | The sheet is `92dvh` and Chrome Android keeps the layout viewport when the keyboard opens, so the sheet is not resized; the browser scrolls the focused field into view. Checked only by shrinking the viewport (all sheets either scroll or kept every field in view) | Low | Adding `interactive-widget=resizes-content` would also lift the tab bar above the keyboard on Chrome and change iOS not at all. Two reasonable behaviours; left as is. Say if you want it, it is one meta tag |
 | Edit slide sheet (not a bug) | After changing a value, Escape asks to discard instead of closing | Info | The unsaved-changes guard, as designed. Noted because the audit first read it as "cannot close" |
 
-## Issues in files owned by others (not edited)
+## Issues in files owned by others (FIXED 2026-10-31 in commit e2ca9b1, not re-run on a phone)
+
+Fixed: Layout picker is now a wrapping grid (no sideways scroller); Style groups tabs wrap and the 11px description is 12px; the Announcements 'Show again' overlay uses `ui/scrollLock.js`; Slides > New slide labels 12px; Daily Word's two example inputs have labels; 'Show a different one' (Daily Word and Daily Story) is disabled with a one-line reason when there is no other entry; Live Preview labels 12px. The table below is the original finding list.
 
 | File | Page | What | Sev |
 |---|---|---|---|
