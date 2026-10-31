@@ -1,6 +1,6 @@
 # Spec 6 — Speaker / Shiurim slides
 
-Status: SPEC (not built). Shared rules: [README.md](README.md) (C1-C9). Photos use the private image store from [04-PHOTO-WALL.md](04-PHOTO-WALL.md) section 2.4.
+Status: **BUILT 2026-10-31** (see docs/claude/FEATURES.md 'Shiurim and Guest speaker'). Shared rules: [README.md](README.md) (C1-C9). Deviations from this spec, all owner-approved by 'easy, most options, admin choice': (1) photos use the existing upload area (`spk-<id>.jpg`, asset id only) because the private image store (spec 4) is not built yet, so they can move later; (2) the admin page is **Screen > Shiurim** (not under Schedule) with a Today card and tabs Shiurim / Guests / People; (3) a person can be left out of a shiur, weeks can be shown by day as well as by rebbe, and about 15 display choices are admin settings inside `shiurim.json`; (4) the Post-sheet quick path for a guest is NOT built; (5) a QR/link for a guest IS built (https only), plus a day banner and a takeover with its own minutes and time.
 
 ## 0. What exists today
 
