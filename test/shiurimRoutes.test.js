@@ -22,6 +22,7 @@ async function setup() {
   const events = [];
   sse.addClient({ writeHead() {}, setHeader() {}, flushHeaders() {}, write(c) { events.push(String(c)); return true; }, on() {}, end() {}, writableEnded: false }, false, false, null);
   const app = express();
+  app.use((req, _res, next) => { req.user = { id: 'u1', name: 'Tester', role: 'admin' }; next(); }); // the real app signs people in before these routes
   app.use('/api', router.default);
   const server = await new Promise((ok) => { const sv = app.listen(0, '127.0.0.1', () => ok(sv)); });
   const base = `http://127.0.0.1:${server.address().port}/api`;

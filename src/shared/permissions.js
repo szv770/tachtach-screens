@@ -359,15 +359,25 @@ function isLookOnlySettingsPatch(method, body) {
   return method === 'PATCH' && isObj(body) && Object.keys(body).length > 0 && Object.keys(body).every((k) => LOOK_SETTING_KEYS.includes(k));
 }
 
-/** Does this write create or turn something into a full-screen takeover? */
-function writesTakeover(path, body) {
+/** Is this stored/incoming post a full-screen takeover? (odd-shaped values that mention takeover count too) */
+export function isTakeoverItem(item) {
+  if (!item || typeof item !== 'object') return false;
+  const raw = (v) => v !== undefined && v !== null && String(v).trim().toLowerCase().includes('takeover');
+  return raw(item.display) || raw(item.type);
+}
+
+/**
+ * Does this write create or turn something into a full-screen takeover, judging by the REQUEST only?
+ * The STORED post matters too (publish / re-show / copy a takeover that is already saved): routes/announcements.js
+ * checks that after loading it (red-team 2026-11-01 F2). A write whose body was never parsed (body === undefined)
+ * is treated as a takeover write: it fails closed instead of "not a takeover" (F1: the parser used to run after this check).
+ */
+function writesTakeover(m, path, body) {
   if (!/^\/api\/(announcements|messages|pinned)(\/|$)/.test(path)) return false;
+  if (body === undefined && ['POST', 'PUT', 'PATCH'].includes(m)) return true;
   if (!isObj(body)) return false;
-  const isTk = (v) => typeof v === 'string' && v.trim().toLowerCase() === 'takeover';
-  if (path === '/api/announcements/restore') return isTk(body.item?.display) || isTk(body.item?.type);
-  // anything that mentions takeover as its display/type (also the odd-shaped value) counts
-  const raw = (v) => (v !== undefined && v !== null && typeof v !== 'string' ? String(v).toLowerCase().includes('takeover') : isTk(v));
-  return raw(body.display) || raw(body.type);
+  if (path === '/api/announcements/restore') return isTakeoverItem(body.item);
+  return isTakeoverItem(body);
 }
 
 /**
@@ -403,8 +413,11 @@ export function canDo(who, method, path, body) {
   // theirs and recent unless they also hold announcements.delete (see routes/announcements.js).
   if (m === 'DELETE' && /^\/api\/announcements\/[^/]+$/.test(p) && caps.has('announcements.post')) return true;
 
+  // Kiddush Levana settings switch on timed full-screen takeovers: same capability as any takeover.
+  if (/^\/api\/kiddush-levana(\/|$)/.test(p) && !caps.has('announcements.takeover')) return false;
+
   const r = RULES.find((x) => (x.methods === ANY || x.methods.includes(m)) && x.re.test(p));
   if (!r || !caps.has(r.cap)) return false;
-  if (r.cap.startsWith('announcements.') && writesTakeover(p, body) && !caps.has('announcements.takeover')) return false;
+  if (r.cap.startsWith('announcements.') && writesTakeover(m, p, body) && !caps.has('announcements.takeover')) return false;
   return true;
 }

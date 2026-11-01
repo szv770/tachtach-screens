@@ -94,6 +94,9 @@ const googlePhotosGate = async (req, res, next) => {
   return localhostOrAuth(req, res, next);
 };
 
+/** The /api paths that take bodies bigger than 16 kB (they get a 256 kB parser instead of the global one). */
+const BIG_BODY_PATHS = /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/;
+
 export function createApp() {
   const app = express();
 
@@ -261,9 +264,7 @@ export function createApp() {
   // is ~20 kB, so the 16 kB cap here made every edit fail with "request entity
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
-  app.use((req, res, next) => (
-    /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/.test(req.path) ? next() : smallJson(req, res, next)
-  ));
+  app.use((req, res, next) => (BIG_BODY_PATHS.test(req.path) ? next() : smallJson(req, res, next)));
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
   app.use(cookieParser());
@@ -542,7 +543,14 @@ export function createApp() {
     skip: (req) => ['GET', 'HEAD', 'OPTIONS'].includes(req.method),
     message: { error: 'Too many requests. Please slow down.' },
   });
-  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, enforceRole, readBudget(), logActivity); // readBudget: per-person limit on the expensive GETs listed in READ_ROUTES
+  // /api/announcements is the one path the 16 kB parser skips whose ROLE CHECK reads the body (is it a takeover?). Its 256 kB
+  // parser used to live inside the router, i.e. AFTER enforceRole, which therefore saw `undefined` and let "Messages only" post
+  // a takeover (red-team 2026-11-01 F1). It runs here: after sign-in + CSRF + the mutation limiter (so nobody unauthenticated
+  // can make the server buffer 256 kB), before enforceRole. Body-parser skips an already parsed request, so the router's own
+  // express.json() stays harmless. A write that still reaches enforceRole unparsed fails closed in canDo (writesTakeover).
+  const bigJson = express.json({ limit: '256kb' });
+  const parseBigBodies = (req, res, next) => (/^\/api\/announcements(\/|$)/.test(req.baseUrl + req.path) ? bigJson(req, res, next) : next());
+  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, parseBigBodies, enforceRole, readBudget(), logActivity); // readBudget: per-person limit on the expensive GETs listed in READ_ROUTES
 
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and

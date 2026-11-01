@@ -9,7 +9,7 @@
  */
 
 import express, { Router } from 'express';
-import { effectiveCaps, can } from '../../shared/permissions.js';
+import { effectiveCaps, can, isTakeoverItem } from '../../shared/permissions.js';
 import { stampCreator, canUndoOwn } from '../ownPost.js';
 import { v4 as uuidv4 } from 'uuid';
 import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
@@ -38,6 +38,23 @@ function fail(res, err, what) {
   return res.status(500).json({ error: `Failed to ${what}.` });
 }
 
+/** 403 as a thrown error (fail() turns it into a response). */
+function forbid(message) {
+  const e = new Error(message);
+  e.status = 403; e.expose = true;
+  return e;
+}
+
+/**
+ * The takeover rule, on the REAL post (red-team 2026-11-01 F1/F2): whoever lacks 'Use full-screen takeovers' may not
+ * create, edit, publish, re-show, copy or restore a takeover, whatever the request body says. Pass the stored post and/or
+ * the post about to be saved: either one being a takeover is enough (editing a stored takeover, or turning a slide into one).
+ */
+function requireTakeover(req, ...items) {
+  if (!items.some(isTakeoverItem)) return;
+  if (!can(effectiveCaps(req.user), 'announcements.takeover')) throw forbid('Your role can’t use full-screen takeovers. Ask an admin.');
+}
+
 function notFound() {
   const e = new Error('Announcement not found. It may have been deleted.');
   e.status = 404;
@@ -51,11 +68,13 @@ function notFound() {
  *   share   — all of them join one share group and rotate full screen
  *   queue   — this one starts when the latest of the others ends
  */
-function applyResolve(item, items, resolve) {
+function applyResolve(item, items, resolve, req) {
   if (!resolve || item.display !== 'takeover') return;
   const ids = new Set(Array.isArray(resolve.ids) ? resolve.ids.map(String) : []);
   const others = items.filter((i) => ids.has(i.id) && i.id !== item.id && i.display === 'takeover');
   if (!others.length) return;
+  // Pausing / regrouping OTHER people's takeovers is editing them (red-team F1: a poster silenced an admin's takeover).
+  if (req && !can(effectiveCaps(req.user), 'announcements.edit')) throw forbid('Changing other takeovers needs “Edit existing announcements”. Ask an admin.');
   const now = new Date().toISOString();
   if (resolve.action === 'replace') {
     for (const o of others) { o.enabled = false; o.updatedAt = now; }
@@ -91,7 +110,8 @@ router.post('/announcements', async (req, res) => {
       const items = await loadItems();
       const item = createItem(patch, { id: uuidv4() });
       stampCreator(item, req.user);
-      applyResolve(item, items, req.body?.resolve);
+      requireTakeover(req, item);
+      applyResolve(item, items, req.body?.resolve, req);
       items.push(item);
       await saveItems(items);
       // settings.announcements.insertAt = 'start': a new slide-style post gets a rotation row at the top.
@@ -125,7 +145,8 @@ router.put('/announcements/:id', async (req, res) => {
       // Creator fields are immutable: nothing in a request body can change who made a post.
       if (items[idx].createdBy) item.createdBy = items[idx].createdBy;
       if (items[idx].createdById) item.createdById = items[idx].createdById; else delete item.createdById;
-      applyResolve(item, items, req.body?.resolve);
+      requireTakeover(req, items[idx], item); // the stored post counts too (F2)
+      applyResolve(item, items, req.body?.resolve, req);
       items[idx] = item;
       await saveItems(items);
       return item;
@@ -155,6 +176,7 @@ router.post('/announcements/:id/reactivate', async (req, res) => {
       }
       if (expiresAt && Date.parse(expiresAt) <= now.getTime()) throw new ValidationError('That end time has already passed.');
       const cur = items[idx];
+      requireTakeover(req, cur);
       const rec = cur.when?.recurrence;
       const today = zonedParts(now, await getTimezone()).date;
       const recurrence = rec && rec.until && rec.until < today ? { ...rec, until: null } : (rec || null);
@@ -179,6 +201,7 @@ router.post('/announcements/:id/duplicate', async (req, res) => {
       const items = await loadItems();
       const src = items.find((i) => i.id === req.params.id);
       if (!src) throw notFound();
+      requireTakeover(req, src); // a copy of a takeover is a takeover (F2)
       const nowIso = new Date().toISOString();
       const dup = JSON.parse(JSON.stringify(src));
       dup.id = uuidv4();
@@ -226,31 +249,41 @@ router.delete('/announcements/:id', async (req, res) => {
   } catch (err) { fail(res, err, 'delete announcement'); }
 });
 
-/** Undo a delete: put the item (same id) and its rotation refs back. */
+/** An ISO time that is not in the future (a restored post must not sort itself above every other post: red-team F3b). */
+function pastIsoOrNow(v) {
+  const t = typeof v === 'string' ? Date.parse(v) : NaN;
+  return Number.isFinite(t) && t <= Date.now() + 60_000 ? new Date(t).toISOString() : new Date().toISOString();
+}
+
+/**
+ * Undo a delete: put the item (same id) and its rotation row back.
+ * What the body may decide is small on purpose (red-team 2026-11-01 F3b): the post's fields (sanitised like any new
+ * post), its id (a plain id that is not in use) and WHERE its single rotation row goes. Row ids, extra rows,
+ * a future createdAt and a free-form `legacy` blob are never taken from the body, so this route cannot rewrite or flood the rotation.
+ */
 router.post('/announcements/restore', async (req, res) => {
   try {
     const src = req.body?.item;
     if (!src?.id || typeof src.id !== 'string') throw new ValidationError('Nothing to restore.');
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(src.id)) throw new ValidationError('Nothing to restore.');
     const restored = await withLock(async () => {
       const items = await loadItems();
       if (items.some((i) => i.id === src.id)) throw new ValidationError('That announcement already exists.');
-      const item = createItem(sanitizeInput(src), { id: src.id, nowIso: typeof src.createdAt === 'string' ? src.createdAt : undefined });
-      if (src.legacy && typeof src.legacy === 'object') item.legacy = src.legacy;
+      const item = createItem(sanitizeInput(src), { id: src.id, nowIso: pastIsoOrNow(src.createdAt) });
+      requireTakeover(req, src, item); // restoring a takeover needs the takeover permission, however the body names it
       // Never trust creator fields from the body; restoring needs announcements.delete, so the restorer owns the copy.
       stampCreator(item, req.user);
       items.push(item);
       await saveItems(items);
-      const refs = Array.isArray(req.body?.refs) ? req.body.refs : [];
-      if (refs.length) {
+      const first = Array.isArray(req.body?.refs) ? req.body.refs.find((r) => r && typeof r === 'object') : null;
+      if (first) {
         const slides = await updateJSON('slides.json', (list) => {
-          for (const r of [...refs].sort((a, b) => a.index - b.index)) {
-            if (list.some((s) => s.id === r.row?.id)) continue;
-            const row = refRowFor(item, { id: typeof r.row?.id === 'string' ? r.row.id : item.id });
-            list.splice(Math.min(Math.max(0, Number(r.index) || 0), list.length), 0, row);
-          }
+          const row = refRowFor(item, { id: `ann-${item.id}` });
+          if (list.some((s) => s.id === row.id || (s.type === 'ANNOUNCEMENT' && s.announcementId === item.id))) return SKIP;
+          list.splice(Math.min(Math.max(0, Math.trunc(Number(first.index)) || 0), list.length), 0, row);
           return list;
         }, () => []);
-        broadcast('slides-update', slides);
+        if (slides !== SKIP) broadcast('slides-update', slides);
       }
       return item;
     });
@@ -335,6 +368,7 @@ router.post('/messages', async (req, res) => {
     if (!req.body?.textHe && !req.body?.textEn) return res.status(400).json({ error: 'Message text (Hebrew or English) is required.' });
     const item = messageToItem({ ...req.body, id: uuidv4(), timestamp: new Date().toISOString() });
     delete item.legacy;
+    requireTakeover(req, item);
     await withLock(async () => {
       const items = await loadItems();
       items.push(item);
@@ -367,6 +401,7 @@ router.post('/pinned', async (req, res) => {
     const base = req.body.displayMode === 'slide' ? { display: 'slide', look: { layout: 'classic', template: 'pinned', fit: 'fixed' } } : { display: 'note', look: { layout: 'classic', fit: 'fixed' } };
     const patch = legacyPinnedPatch(req.body);
     const item = createItem({ ...base, ...patch, look: { ...base.look, ...(patch.look || {}) } }, { id: uuidv4() });
+    requireTakeover(req, item);
     await withLock(async () => {
       const items = await loadItems();
       items.push(item);
@@ -383,7 +418,9 @@ router.put('/pinned/:id', async (req, res) => {
       const items = await loadItems();
       const idx = items.findIndex((i) => i.id === req.params.id);
       if (idx === -1) throw notFound();
+      requireTakeover(req, items[idx]); // the old pinned-note route can address any post id
       items[idx] = mergeItem(items[idx], legacyPinnedPatch(req.body || {}));
+      requireTakeover(req, items[idx]);
       await saveItems(items);
       return items[idx];
     });
@@ -419,13 +456,15 @@ router.post('/slides', async (req, res, next) => {
   } catch (err) { fail(res, err, 'create slide'); }
 });
 
-// Deleting an ANNOUNCEMENT row in the Slides tab deletes the announcement
-// too; routes/api.js then removes the row itself.
+// Deleting an ANNOUNCEMENT row in the Slides tab deletes the announcement too; routes/api.js then removes the row itself.
+// Only for people who may delete posts (red-team 2026-11-01 F3a: 'Delete slides' alone used to delete anybody's post, and the Undo
+// of the slide could not bring it back). Everyone else removes just the row, which puts the post back at the end of the rotation.
+// The undo tracker (src/server/undo.js) records this as the post's own delete, so Undo restores the post AND its row.
 router.delete('/slides/:id', async (req, res, next) => {
   try {
     const slides = (await readJSON('slides.json')) ?? [];
     const row = slides.find((s) => s.id === req.params.id);
-    if (row?.type === 'ANNOUNCEMENT' && row.announcementId) await deleteById(row.announcementId);
+    if (row?.type === 'ANNOUNCEMENT' && row.announcementId && can(effectiveCaps(req.user), 'announcements.delete')) await deleteById(row.announcementId);
   } catch (err) {
     console.error('[announcements] slide-ref delete error:', err.message);
   }

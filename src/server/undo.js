@@ -70,7 +70,8 @@ const announcements = {
   },
   replay(rec) {
     if (rec.kind === 'announcement.create') return ['DELETE', `/api/announcements/${rec.ctx.id}`, null];
-    if (rec.kind === 'announcement.edit') return ['PUT', `/api/announcements/${rec.ctx.id}`, { display: rec.before?.display, type: rec.before?.type }];
+    // either side being a takeover needs the takeover permission to undo (the stored post counts, not only what is put back)
+    if (rec.kind === 'announcement.edit') return ['PUT', `/api/announcements/${rec.ctx.id}`, { display: rec.before?.display === 'takeover' || rec.after?.display === 'takeover' ? 'takeover' : rec.before?.display, type: rec.before?.type }];
     return ['POST', '/api/announcements/restore', { item: { display: rec.before?.item?.display } }];
   },
   async revert(rec, io) {
@@ -119,7 +120,12 @@ const slides = {
     const list = await io.readSlides();
     if (ctx.op === 'save') return { list: clone(list) };
     const index = list.findIndex((s) => s.id === ctx.id);
-    return index === -1 ? null : { slide: clone(list[index]), index };
+    if (index === -1) return null;
+    const row = list[index];
+    // A post's row: deleting it deletes the post too (for people who may), so Undo needs the post and ALL its rows (red-team F3a).
+    const post = row.type === 'ANNOUNCEMENT' && row.announcementId ? (await io.announcements.load()).find((i) => i.id === row.announcementId) : null;
+    const refs = post ? list.map((r, i) => ({ index: i, row: r })).filter((x) => x.row.type === 'ANNOUNCEMENT' && x.row.announcementId === post.id) : [];
+    return { slide: clone(row), index, post: post ? clone(post) : null, refs: clone(refs) };
   },
   async finish(ctx, pre, io) {
     if (!pre) return null;
@@ -127,6 +133,10 @@ const slides = {
     if (ctx.op === 'save') {
       if (same(pre.list, list)) return null;
       return { kind: 'slides.save', label: slidesChangeLabel(pre.list, list), ctx: {}, before: pre.list, after: clone(list) };
+    }
+    if (pre.post) {
+      if ((await io.announcements.load()).some((i) => i.id === pre.post.id)) return null; // only the row went (no delete permission): nothing to undo as a post
+      return { kind: 'announcement.delete', label: `Deleted “${announcementName(pre.post)}”`, ctx: { id: pre.post.id }, before: { item: pre.post, refs: pre.refs }, after: null };
     }
     if (slideHasFile(pre.slide) || list.some((s) => s.id === pre.slide.id)) return null; // its picture may be deleted with it: not undoable
     return { kind: 'slide.delete', label: `Deleted the ${slideName(pre.slide)} slide`, ctx: { id: pre.slide.id, index: pre.index }, before: pre.slide, after: null };

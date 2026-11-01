@@ -12,6 +12,7 @@ import { shiurimStore } from '../shiurimStore.js';
 import * as S from '../../shared/shiurim.js';
 import { photoUpload, storePhoto, removePhoto, photoExists, MAX_BYTES } from '../speakerPhoto.js';
 import { isClientError } from '../safeError.js';
+import { effectiveCaps, can } from '../../shared/permissions.js';
 
 const router = Router();
 router.use('/shiurim', (req, res, next) => (req.path === '/photo' ? next() : express.json({ limit: '128kb' })(req, res, next)));
@@ -46,6 +47,24 @@ async function view(file) {
   return { ...file, today, tz, blocks, groups, places, todayRows, attention: S.attention(file, schedule) };
 }
 const send = async (res, saved, extra = {}) => res.json({ ...(await view(saved)), ...extra });
+
+/**
+ * Guest takeovers (a full-screen takeover on the day) need 'Use full-screen takeovers', not just 'Edit the shiurim' (red-team F8).
+ * `tk(req, fn)` wraps a store mutation: for someone without the permission the result's guests keep their STORED takeover setting
+ * (a new guest: off). `refuseTakeover` answers 403 when such a person's body asks for one outright.
+ */
+const mayTakeover = (req) => can(effectiveCaps(req.user), 'announcements.takeover');
+const tk = (req, fn) => (mayTakeover(req) ? fn : (f, t) => {
+  const r = fn(f, t);
+  return r && typeof r === 'object' && 'file' in r && !('guests' in r) ? { ...r, file: S.keepGuestTakeovers(f, r.file) } : S.keepGuestTakeovers(f, r);
+});
+function refuseTakeover(req, res) {
+  const asked = (g) => g && typeof g === 'object' && g.takeover && typeof g.takeover === 'object' && g.takeover.on === true;
+  const b = body(req);
+  if (mayTakeover(req) || !(asked(b) || (b.upsert?.guests || []).some?.(asked))) return false;
+  res.status(403).json({ error: 'Your role can’t put a guest on a full-screen takeover. Ask an admin.' });
+  return true;
+}
 
 /** A photo id in a body must be one this server made (the file exists); anything else is dropped. */
 function checkPhoto(input) {
@@ -104,13 +123,17 @@ router.delete('/shiurim/shiurim/:id', async (req, res) => {
 // Guest speakers
 router.post('/shiurim/guests', guestPost, async (req, res) => {
   try {
+    if (refuseTakeover(req, res)) return;
     const input = checkPhoto(body(req));
-    const r = await shiurimStore.mutateWith(undefined, (f) => S.upsertGuest(f, input));
+    const r = await shiurimStore.mutateWith(undefined, tk(req, (f) => S.upsertGuest(f, input)));
     await send(res, r.file, { id: r.id });
   } catch (e) { fail(res, e); }
 });
 router.put('/shiurim/guests/:id', async (req, res) => {
-  try { await send(res, (await shiurimStore.mutateWith(undefined, (f) => S.upsertGuest(f, checkPhoto(body(req)), req.params.id))).file); } catch (e) { fail(res, e); }
+  try {
+    if (refuseTakeover(req, res)) return;
+    await send(res, (await shiurimStore.mutateWith(undefined, tk(req, (f) => S.upsertGuest(f, checkPhoto(body(req)), req.params.id)))).file);
+  } catch (e) { fail(res, e); }
 });
 router.delete('/shiurim/guests/:id', async (req, res) => {
   try { await send(res, await shiurimStore.mutate(undefined, (f) => S.removeGuest(f, req.params.id))); } catch (e) { fail(res, e); }
@@ -153,7 +176,10 @@ router.post('/shiurim/today', async (req, res) => {
 
 // Put records back (Undo): { upsert: { people, shiurim, guests, changes }, remove: { people, shiurim, guests } }
 router.post('/shiurim/restore', async (req, res) => {
-  try { await send(res, await shiurimStore.mutate(undefined, (f) => S.restoreRecords(f, { upsert: body(req).upsert, remove: body(req).remove }))); } catch (e) { fail(res, e); }
+  try {
+    if (refuseTakeover(req, res)) return;
+    await send(res, await shiurimStore.mutate(undefined, tk(req, (f) => S.restoreRecords(f, { upsert: body(req).upsert, remove: body(req).remove }))));
+  } catch (e) { fail(res, e); }
 });
 
 // Paste / spreadsheet import: { text | rows, mode?: 'replace'|'add', dryRun?: boolean }. The server parses again on apply.
@@ -165,7 +191,7 @@ router.post('/shiurim/import', importReal, importDry, async (req, res) => {
     const summary = { errors: parsed.errors, warnings: parsed.warnings, counts: parsed.counts, people: parsed.people.filter((p) => !p.existingId).map((p) => p.name || p.nameHe) };
     const first = parsed.errors[0];
     if (b.dryRun === true || first) return res.status(first && b.dryRun !== true ? 400 : 200).json({ ...summary, dryRun: b.dryRun === true, error: first ? `${first.line ? `Line ${first.line}: ` : ''}${first.message}` : undefined });
-    const saved = await shiurimStore.mutate(undefined, (f) => S.applyImport(f, parsed, { mode: b.mode === 'add' ? 'add' : 'replace' }));
+    const saved = await shiurimStore.mutate(undefined, tk(req, (f) => S.applyImport(f, parsed, { mode: b.mode === 'add' ? 'add' : 'replace' })));
     res.json({ ...summary, ...(await view(saved)) });
   } catch (e) { fail(res, e); }
 });

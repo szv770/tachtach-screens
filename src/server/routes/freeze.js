@@ -11,6 +11,7 @@
  */
 import { Router } from 'express';
 import freeze, { FreezeError } from '../freeze.js';
+import { effectiveCaps, can } from '../../shared/permissions.js';
 
 const router = Router();
 
@@ -31,7 +32,18 @@ router.delete('/freeze', async (_req, res) => {
 });
 
 router.put('/freeze/schedule', async (req, res) => {
-  try { res.json(await freeze.saveSchedule(req.body || {})); } catch (err) { fail(res, err, 'save the off-hours schedule'); }
+  try {
+    // "Emergency announcements still show" is a safety switch, not a screen control: turning it OFF (or changing it) needs the
+    // takeover or settings permission, so Messages-only people (screen.control) cannot silence emergencies (red-team 2026-11-01 C1).
+    const body = req.body || {};
+    if ('emergency' in body && (body.emergency === true) !== (freeze._config()?.emergency !== false)) {
+      const caps = effectiveCaps(req.user);
+      if (!can(caps, 'announcements.takeover') && !can(caps, 'settings.change')) {
+        return res.status(403).json({ error: 'Your role can’t change whether emergency announcements show through a freeze. Ask an admin.' });
+      }
+    }
+    res.json(await freeze.saveSchedule(body));
+  } catch (err) { fail(res, err, 'save the off-hours schedule'); }
 });
 
 export default router;

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir } from 'fs/promises';
 import multer from 'multer';
 import { readJSON, writeJSON, updateJSON, SKIP } from '../storage.js';
+import { effectiveCaps, can } from '../../shared/permissions.js';
 import { normalizeWebUrl } from '../../shared/embedCheck.js';
 import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
@@ -291,10 +292,20 @@ router.put('/slides', async (req, res) => {
     }
     // Sanitize each slide to only allowed fields (preserve id)
     const sanitized = slides.map((s) => cleanPdfFields({ id: s?.id, ...pick(s, SLIDE_FIELDS) }));
-    await updateJSON('slides.json', () => sanitized); // under the file lock, so it cannot interleave with a post being published
-    broadcast('slides-update', sanitized);
+    // Switching a POST on or off is "Edit existing announcements", not "Change the slides" (red-team 2026-11-01 F3c): without it the
+    // stored `enabled` of every post row stays (a brand-new post row starts on). Under the file lock, so it cannot interleave with a post being published.
+    const mayEditPosts = can(effectiveCaps(req.user), 'announcements.edit');
+    let saved = sanitized;
+    await updateJSON('slides.json', (cur) => {
+      if (!mayEditPosts) {
+        const was = new Map((Array.isArray(cur) ? cur : []).map((r) => [r?.id, r]));
+        saved = sanitized.map((r) => (r.type === 'ANNOUNCEMENT' ? { ...r, enabled: was.get(r.id)?.type === 'ANNOUNCEMENT' ? was.get(r.id).enabled : true } : r));
+      }
+      return saved;
+    }, () => []);
+    broadcast('slides-update', saved);
     reinitCountdownsForSlides();
-    res.json(sanitized);
+    res.json(saved);
   } catch (err) {
     console.error('[api] PUT /slides error:', err.message);
     res.status(500).json({ error: 'Failed to save slides.' });

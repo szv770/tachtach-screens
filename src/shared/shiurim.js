@@ -756,6 +756,19 @@ export function upsertGuest(file, input, id) {
   return { file: f, id: g.id };
 }
 
+/**
+ * Guest-speaker takeovers need the takeover permission (red-team 2026-11-01 F8). For a person without it, put every
+ * guest's `takeover` back to what was stored before (a new guest: off), whatever the request said, so an edit by them
+ * neither turns one on nor silently removes an admin's.
+ */
+export function keepGuestTakeovers(before, after) {
+  if (!after || !Array.isArray(after.guests)) return after;
+  const was = new Map((before?.guests || []).map((g) => [g.id, g.takeover]));
+  const out = clone(after);
+  for (const g of out.guests) g.takeover = was.has(g.id) ? clone(was.get(g.id)) : { on: false, minutes: 10, at: null };
+  return out;
+}
+
 export function removeGuest(file, id) {
   const f = clone(file);
   need(f.guests, id, 'guest speaker');
