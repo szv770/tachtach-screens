@@ -134,12 +134,12 @@ function Name({ name, size = 'side', align = 'center', k = '' }) {
     <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
       {name.he && (
         <Fit key={`nh|${k}|${size}`} wrap vcenter dir="rtl" max={S.he[0]} min={S.he[1]} className="tt-he" style={{
-          flex: 'none', width: '100%', height: S.he[2], fontFamily: F.heD, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2, textAlign: align,
+          flex: 'none', width: '100%', height: S.he[2], overflow: 'visible', fontFamily: F.heD, fontWeight: 800, color: 'var(--ink)', lineHeight: 1.2, textAlign: align,
         }}>{name.he}</Fit>
       )}
       {name.en && (
         <Fit key={`ne|${k}|${size}`} wrap vcenter dir={textDir(name.en)} max={S.en[0]} min={S.en[1]} style={{
-          flex: 'none', width: '100%', height: S.en[2], fontFamily: F.enD, fontWeight: 750, letterSpacing: '-.01em', color: name.he ? 'var(--inkDim)' : 'var(--ink)', lineHeight: 1.1, textAlign: align,
+          flex: 'none', width: '100%', height: S.en[2], overflow: 'visible', fontFamily: F.enD, fontWeight: 750, letterSpacing: '-.01em', color: name.he ? 'var(--inkDim)' : 'var(--ink)', lineHeight: 1.1, textAlign: align,
         }}>{name.en}</Fit>
       )}
     </div>
@@ -147,16 +147,20 @@ function Name({ name, size = 'side', align = 'center', k = '' }) {
 }
 
 function DateLine({ m, center }) {
-  const parts = [];
-  if (m.hebrewDate?.he) parts.push(<span key="h" className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(34), fontWeight: 600 }}>{m.hebrewDate.he}</span>);
-  if (m.hebrewDate?.en) parts.push(<span key="e">{m.hebrewDate.en}</span>);
-  if (m.civilDate?.en) parts.push(<span key="c">{m.civilDate.en}</span>);
-  else if (m.civilDate?.he) parts.push(<span key="ch" dir="rtl">{m.civilDate.he}</span>);
-  if (m.days > 1 && !m.dayIndex) parts.push(<span key="d">{m.days} {COPY.days.en}</span>);
-  if (!parts.length) return null;
+  const en = [];
+  if (m.hebrewDate?.en) en.push(m.hebrewDate.en);
+  if (m.civilDate?.en) en.push(m.civilDate.en);
+  if (m.days > 1 && !m.dayIndex) en.push(`${m.days} ${COPY.days.en}`);
+  const heText = m.hebrewDate?.he || (!m.civilDate?.en ? m.civilDate?.he : '') || '';
+  if (!en.length && !heText) return null;
   return (
-    <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', gap: '6px 0', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', fontFamily: F.en, fontSize: 30, fontWeight: 550, color: 'var(--inkDim)', lineHeight: 1.3 }}>
-      {parts.map((p, i) => <React.Fragment key={i}>{i > 0 && <span aria-hidden style={{ margin: '0 16px', color: 'var(--line)' }}>•</span>}{p}</React.Fragment>)}
+    <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 2, lineHeight: 1.3 }}>
+      {heText && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(34), fontWeight: 600, color: 'var(--inkDim)' }}>{heText}</span>}
+      {en.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', fontFamily: F.en, fontSize: 30, fontWeight: 550, color: 'var(--inkDim)' }}>
+          {en.map((t, i) => <span key={i} style={{ whiteSpace: 'nowrap' }}>{i > 0 && <span aria-hidden style={{ margin: '0 14px', color: 'var(--line)' }}>•</span>}{t}</span>)}
+        </div>
+      )}
     </div>
   );
 }
@@ -216,7 +220,7 @@ function Coming({ list, portrait }) {
           <div key={c.key} style={{ minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', justifyContent: portrait ? 'space-between' : 'flex-start' }}>
             <span style={{ display: 'flex', gap: 12, alignItems: 'baseline', minWidth: 0, flexWrap: 'wrap' }}>
               {c.name.en && <span style={{ fontFamily: F.en, fontSize: 30, fontWeight: 700, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{bidiNodes(c.name.en)}</span>}
-              {c.name.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(30), fontWeight: 600, color: c.name.en ? 'var(--inkDim)' : 'var(--ink)' }}>{c.name.he}</span>}
+              {c.name.he && (portrait || !c.name.en) && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(30), fontWeight: 600, color: c.name.en ? 'var(--inkDim)' : 'var(--ink)' }}>{c.name.he}</span>}
             </span>
             <span className="tt-num" style={{ fontFamily: F.en, fontSize: 26, fontWeight: 600, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>{c.when.en || c.when.he}</span>
           </div>
@@ -238,31 +242,35 @@ function Kicker({ pager }) {
 /** Zero: a finite burst of confetti (falls out of the panel and is gone), then the greeting stays. */
 function ZeroView({ m, portrait, design }) {
   const z = m.zero || {};
+  const dense = !portrait && (isLong(m.name) || [...(m.event?.en || '')].length + [...(m.event?.he || '')].length > 100);
   return (
     <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 18 : 10, textAlign: 'center' }}>
-      {design.graphics !== 'off' && <Ornament size={portrait ? 84 : 60} style={{ color: 'var(--accentText)', flex: 'none' }} />}
+      {design.graphics !== 'off' && !dense && <Ornament size={portrait ? 84 : 60} style={{ color: 'var(--accentText)', flex: 'none' }} />}
       {z.he && (
-        <Fit key={`zh|${m.key}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 200 : 160} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 300 : 206, fontFamily: F.heD, fontWeight: 800, color: 'var(--accentText)', lineHeight: 1.2, textAlign: 'center' }}>{z.he}</Fit>
+        <Fit key={`zh|${m.key}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 200 : dense ? 130 : 160} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 300 : dense ? 168 : 206, overflow: 'visible', fontFamily: F.heD, fontWeight: 800, color: 'var(--accentText)', lineHeight: 1.2, textAlign: 'center' }}>{z.he}</Fit>
       )}
       {z.en && (
-        <Fit key={`ze|${m.key}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 112 : 90} min={48} style={{ '--t': '500ms', flex: 'none', width: '100%', height: portrait ? 190 : 132, fontFamily: F.enD, fontWeight: 800, color: z.he ? 'var(--ink)' : 'var(--accentText)', lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>
+        <Fit key={`ze|${m.key}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 112 : dense ? 72 : 90} min={48} style={{ '--t': '500ms', flex: 'none', width: '100%', height: portrait ? 190 : dense ? 104 : 132, overflow: 'visible', fontFamily: F.enD, fontWeight: 800, color: z.he ? 'var(--ink)' : 'var(--accentText)', lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>
       )}
       <div className="tt-bd-up" style={{ '--t': '800ms', width: '100%', flex: 'none' }}><Name name={m.name} size="small" k={m.key} /></div>
-      <div className="tt-bd-up" style={{ '--t': '1100ms', width: '100%', flex: 'none', display: 'flex', justifyContent: 'center' }}><EventLine ev={m.event} center /></div>
+      <div className="tt-bd-up" style={{ '--t': '1100ms', width: '100%', flex: 'none', display: 'flex', justifyContent: 'center' }}><EventLine ev={m.event} center size={dense ? 30 : 36} /></div>
     </div>
   );
 }
 
 function DayView({ m, portrait, coming, art }) {
   const di = m.dayIndex;
+  // a long name or a long event line: smaller name sizes so everything fits without cutting anything
+  const dense = isLong(m.name) || [...(m.event?.en || '')].length + [...(m.event?.he || '')].length > 100;
+  const nameSize = portrait ? (dense ? 'port' : 'dayPort') : (dense ? 'wide' : 'day');
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: portrait ? 14 : 8, textAlign: 'center' }}>
       <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 14 : 8 }}>
         <div style={{ flex: 'none', display: 'flex', alignItems: 'baseline', gap: 22, justifyContent: 'center' }}>
-          {m.dayLabel?.en && <span style={{ fontFamily: F.en, fontSize: 44, fontWeight: 650, color: 'var(--accentText)' }}>{m.dayLabel.en}</span>}
-          {m.dayLabel?.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(46), fontWeight: 600, color: 'var(--accentText)' }}>{m.dayLabel.he}</span>}
+          {m.dayLabel?.en && <span style={{ fontFamily: F.en, fontSize: dense ? 36 : 44, fontWeight: 650, color: 'var(--accentText)' }}>{m.dayLabel.en}</span>}
+          {m.dayLabel?.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(dense ? 38 : 46), fontWeight: 600, color: 'var(--accentText)' }}>{m.dayLabel.he}</span>}
         </div>
-        <Name name={m.name} size={portrait ? 'dayPort' : isLong(m.name) ? 'wide' : 'day'} k={m.key} />
+        <Name name={m.name} size={nameSize} k={m.key} />
         {di && (
           <div className="tt-num" style={{ flex: 'none', display: 'inline-flex', gap: 18, alignItems: 'baseline', padding: '6px 26px 8px', borderRadius: 999, border: '2px solid var(--line)' }}>
             <span style={{ fontFamily: F.en, fontSize: 32, fontWeight: 700, color: 'var(--ink)' }}>{COPY.dayOf.en} {di.k} {COPY.of.en} {di.n}</span>
@@ -270,8 +278,8 @@ function DayView({ m, portrait, coming, art }) {
           </div>
         )}
         <DateLine m={m} center />
-        {art && !m.event && <Ornament size={52} style={{ color: 'var(--accentText)', marginTop: 8, flex: 'none' }} />}
-        <EventLine ev={m.event} center size={portrait ? 40 : 36} />
+        {art && !m.event && !dense && <Ornament size={52} style={{ color: 'var(--accentText)', marginTop: 8, flex: 'none' }} />}
+        <EventLine ev={m.event} center size={dense ? 30 : portrait ? 40 : 36} />
       </div>
       <div style={{ width: '100%', flex: 'none' }}><Coming list={coming} portrait={portrait} /></div>
     </div>
@@ -316,8 +324,8 @@ function VortView({ m, ex, portrait }) {
   const nm = [m.name.he, m.name.en].filter(Boolean);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-      <Fit key={`vn|${m.key}|${portrait}`} max={portrait ? 64 : 58} min={32} style={{ flex: 'none', width: '100%', height: portrait ? 84 : 74, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: 'var(--ink)', marginTop: 6 }}>
-        {nm.map((t, i) => <span key={i} dir={textDir(t)} className={textDir(t) === 'rtl' ? 'tt-he' : ''} style={{ fontFamily: textDir(t) === 'rtl' ? F.heD : F.enD, color: i ? 'var(--inkDim)' : 'var(--ink)', marginLeft: i ? '.6em' : 0, unicodeBidi: 'isolate' }}>{bidiNodes(t)}</span>)}
+      <Fit key={`vn|${m.key}|${portrait}`} wrap vcenter max={portrait ? 60 : 54} min={30} style={{ flex: 'none', width: '100%', height: portrait ? 120 : 100, overflow: 'visible', fontWeight: 800, color: 'var(--ink)', lineHeight: 1.15, textAlign: 'center', marginTop: 6 }}>
+        {nm.map((t, i) => <span key={i} dir={textDir(t)} className={textDir(t) === 'rtl' ? 'tt-he' : ''} style={{ fontFamily: textDir(t) === 'rtl' ? F.heD : F.enD, color: i ? 'var(--inkDim)' : 'var(--ink)', unicodeBidi: 'isolate' }}>{i ? ' · ' : ''}{bidiNodes(t)}</span>)}
       </Fit>
       <div className="tt-num" style={{ flex: 'none', display: 'flex', gap: '4px 18px', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', color: 'var(--accentText)', marginTop: 2 }}>
         {line ? (
