@@ -10,6 +10,7 @@ import { fetchGooglePhotosAlbum, extractAlbumId } from '../fetchers/google-photo
 import { broadcast } from './sse.js';
 import { dataPath } from './dataDir.js';
 import { writeFileAtomic, readJSON } from './storage.js';
+import { safeSharp, readHeader, mediaGate } from './imageLimits.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,21 +86,20 @@ async function downloadAndProcessPhoto(url, albumDir) {
   const buffer = res.body;
   const id = uuidv4();
 
-  // Resize to fit 1920x1080
+  // Header first (a photo over the pixel budget is skipped before any decoding), then ONE bounded decode (red-team F6).
+  const metadata = await readHeader(buffer);
   const filename = `${id}.jpg`;
-  const image = sharp(buffer);
-  const metadata = await image.metadata();
-  const { dominant } = await image.stats();
-  const dominantColor = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
-
-  await sharp(buffer)
+  const fitted = await mediaGate.run(() => sharp(buffer, safeSharp({ limitInputPixels: metadata.maxPixels }))
     .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
-    .toFile(path.join(albumDir, filename));
+    .toBuffer());
+  const { dominant } = await sharp(fitted).stats();
+  const dominantColor = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
+  await writeFile(path.join(albumDir, filename), fitted);
 
   // Blur placeholder
   const blurFilename = `${id}-blur.jpg`;
-  await sharp(buffer)
+  await sharp(fitted)
     .resize(64, 36, { fit: 'cover' })
     .blur(8)
     .jpeg({ quality: 60 })

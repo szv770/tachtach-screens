@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import sharp from 'sharp';
 import { PDF_MAX_PAGES, PDF_MAX_BYTES, isPdfBuffer, parsePageCount, pdfScaleTo, pageFilename } from '../shared/pdfPages.js';
 import { popplerTool, pdfToolsMissingMessage } from './platform.js';
+import { pdfGate, BusyError, MAX_INPUT_PIXELS, safeSharp } from './imageLimits.js';
 
 const run = promisify(execFile);
 const TIMEOUT_MS = 90_000;
@@ -30,17 +31,33 @@ export async function pdfToolsAvailable() {
 }
 export const _resetToolsCache = () => { toolsOk = null; };
 
-// One conversion at a time: it is heavy on a Raspberry Pi.
-let chain = Promise.resolve();
+// One conversion at a time (pdfGate in imageLimits.js, with a short bounded queue): it is heavy on a Raspberry Pi.
+// Pictures INSIDE a PDF are what costs: a 148 kB PDF drawing a 12000 x 12000 image on each of 30 pages pinned every core for minutes
+// (red-team 2026-11-01 F6). `pdfimages -list` reads their sizes without decoding anything, and the PDF is refused over the budget.
+export const PDF_MAX_IMAGE_PIXELS = MAX_INPUT_PIXELS;       // one embedded picture
+export const PDF_MAX_TOTAL_PIXELS = 300_000_000;            // all embedded pictures together
+
+/** Sum / max of the pixel sizes in `pdfimages -list` output (pure, tested). */
+export function embeddedImagePixels(listing) {
+  let max = 0; let total = 0;
+  for (const line of String(listing).split('\n').slice(2)) {
+    const f = line.trim().split(/\s+/);
+    const w = Number(f[3]); const h = Number(f[4]);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) continue;
+    max = Math.max(max, w * h); total += w * h;
+  }
+  return { max, total };
+}
 
 /**
  * Convert an uploaded PDF. Writes <id>.jpg (page 1) and <id>-pNN.jpg into `uploadDir`.
  * Returns { id, filename, pages, width, height, mediaType: 'pdf', pageFilenames }.
  */
 export function processPdf(buffer, box, uploadDir) {
-  const job = chain.then(() => convert(buffer, box, uploadDir));
-  chain = job.catch(() => {});
-  return job;
+  return pdfGate.run(() => convert(buffer, box, uploadDir)).catch((e) => {
+    if (e instanceof BusyError) throw new PdfError(e.message, 503);
+    throw e;
+  });
 }
 
 async function convert(buffer, box, uploadDir) {
@@ -63,6 +80,16 @@ async function convert(buffer, box, uploadDir) {
     if (!pages) throw new PdfError('This PDF has no pages that can be shown.');
     if (pages > PDF_MAX_PAGES) throw new PdfError(`This PDF has ${pages} pages. The limit is ${PDF_MAX_PAGES}. Split it into smaller PDFs.`);
 
+    // No picture inside may be bigger than the budget (checked from the listing, before pdftoppm decodes anything).
+    try {
+      const listing = (await run(popplerTool('pdfimages'), ['-list', input], { timeout: 30_000, maxBuffer: 8 << 20 })).stdout;
+      const px = embeddedImagePixels(listing);
+      if (px.max > PDF_MAX_IMAGE_PIXELS || px.total > PDF_MAX_TOTAL_PIXELS) throw new PdfError('This PDF contains a picture that is too large to show. Make the PDF smaller (export it at a lower quality) and try again.');
+    } catch (e) {
+      if (e instanceof PdfError) throw e;
+      if (e?.code !== 'ENOENT') throw new PdfError('This PDF could not be checked. It may be damaged.'); // no pdfimages installed: the other limits still apply
+    }
+
     const prefix = path.join(dir, 'page');
     try {
       await run(popplerTool('pdftoppm'), ['-jpeg', '-jpegopt', 'quality=88', '-scale-to', String(pdfScaleTo(box)), '-l', String(PDF_MAX_PAGES), input, prefix], { timeout: TIMEOUT_MS, maxBuffer: 1 << 20 });
@@ -81,7 +108,7 @@ async function convert(buffer, box, uploadDir) {
       for (let i = 0; i < files.length; i++) {
         const name = pageFilename(id, i + 1);
         pageFilenames.push(name);
-        const out = await sharp(path.join(dir, files[i])).resize(box.width, box.height, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(path.join(uploadDir, name));
+        const out = await sharp(path.join(dir, files[i]), safeSharp()).resize(box.width, box.height, { fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 85 }).toFile(path.join(uploadDir, name));
         if (i === 0) { width = out.width; height = out.height; }
       }
     } catch (e) {

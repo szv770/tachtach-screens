@@ -19,6 +19,7 @@ import { existsSync } from 'fs';
 import { dataPath } from './dataDir.js';
 import { clientError, isClientError } from './safeError.js';
 import { photoFile } from '../shared/shiurim.js';
+import { mediaGate } from './imageLimits.js';
 
 export const MAX_BYTES = 10 * 1024 * 1024;
 const FULL = 800, THUMB = 160;
@@ -45,6 +46,10 @@ export const photoExists = (id) => existsSync(photoPath(id));
 /** Re-encode and store; returns { id }. Throws a client error for anything that is not a plain picture. */
 export async function storePhoto(buffer) {
   if (!sniffPhoto(buffer)) throw clientError('Use a JPEG, PNG or WebP picture.');
+  return mediaGate.run(() => storePhotoNow(buffer)); // same bounded queue as every other decode (red-team F6)
+}
+
+async function storePhotoNow(buffer) {
   const id = uuidv4();
   let img;
   try {

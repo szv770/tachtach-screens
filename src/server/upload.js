@@ -7,6 +7,7 @@ import { dataPath } from './dataDir.js';
 import { fileURLToPath } from 'url';
 import { mkdir, unlink, readdir, writeFile, stat } from 'fs/promises';
 import { extraPagesIn } from '../shared/pdfPages.js';
+import { safeSharp, readHeader, mediaGate } from './imageLimits.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -44,22 +45,27 @@ export function getMediaType(mimetype) {
 /**
  * Process an uploaded image — resize, create blur placeholder.
  */
-export async function processImage(buffer, mimetype, box = { width: 1920, height: 1080 }) {
+export function processImage(buffer, mimetype, box = { width: 1920, height: 1080 }) {
+  return mediaGate.run(() => convertImage(buffer, mimetype, box));
+}
+
+async function convertImage(buffer, mimetype, box) {
   const id = uuidv4();
   const ext = mimetype === 'image/png' ? 'png' : mimetype === 'image/webp' ? 'webp' : 'jpg';
-  const image = sharp(buffer);
-  const metadata = await image.metadata();
-  const { dominant } = await image.stats();
-  const dominantColor = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
-
+  // Size from the header first (no pixels decoded): a picture over the 40 MP budget is refused before any work (red-team F6).
+  const metadata = await readHeader(buffer);
   const filename = `${id}.${ext}`;
-  await sharp(buffer)
+  // ONE full decode: the screen-size copy. The colour and the blur placeholder come from that small copy, not from the original again.
+  const fitted = await sharp(buffer, safeSharp({ limitInputPixels: metadata.maxPixels }))
     .resize(box.width, box.height, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 })
-    .toFile(path.join(UPLOAD_DIR, filename));
+    .toBuffer();
+  const { dominant } = await sharp(fitted).stats();
+  const dominantColor = `rgb(${dominant.r},${dominant.g},${dominant.b})`;
+  await writeFile(path.join(UPLOAD_DIR, filename), fitted);
 
   const blurFilename = `${id}-blur.jpg`;
-  await sharp(buffer)
+  await sharp(fitted)
     .resize(64, 36, { fit: 'cover' })
     .blur(8)
     .jpeg({ quality: 60 })
@@ -70,32 +76,27 @@ export async function processImage(buffer, mimetype, box = { width: 1920, height
 
 /**
  * Process an uploaded GIF — store as-is (no sharp resize, it kills animation).
+ * A GIF whose frame is over the 40 MP budget is refused (the browser would decode every frame of it on the Pi).
  */
 export async function processGif(buffer) {
   const id = uuidv4();
   const filename = `${id}.gif`;
+  const meta = await readHeader(buffer);
   await writeFile(path.join(UPLOAD_DIR, filename), buffer);
 
   // Create a static blur placeholder from the first frame
   const blurFilename = `${id}-blur.jpg`;
   try {
-    await sharp(buffer, { animated: false })
+    await mediaGate.run(() => sharp(buffer, safeSharp({ animated: false }))
       .resize(64, 36, { fit: 'cover' })
       .blur(8)
       .jpeg({ quality: 60 })
-      .toFile(path.join(UPLOAD_DIR, blurFilename));
+      .toFile(path.join(UPLOAD_DIR, blurFilename)));
   } catch {
     // If sharp can't handle the GIF, skip blur
   }
 
-  let width, height;
-  try {
-    const meta = await sharp(buffer, { animated: false }).metadata();
-    width = meta.width;
-    height = meta.height;
-  } catch { /* ignore */ }
-
-  return { id, filename, blurFilename, width, height, mediaType: 'gif' };
+  return { id, filename, blurFilename, width: meta.width, height: meta.height, mediaType: 'gif' };
 }
 
 /**

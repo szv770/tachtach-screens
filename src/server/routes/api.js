@@ -857,6 +857,7 @@ router.post('/upload', (req, res, next) => {
     res.status(201).json(result);
   } catch (err) {
     if (err instanceof PdfError) return res.status(err.status).json({ error: err.message });
+    if (isClientError(err)) return res.status(err.status || 400).json({ error: err.message }); // too many pixels, unreadable picture, or the converter is busy (503)
     console.error('[api] POST /upload error:', err.message, err.stack);
     const msg = 'Image processing failed. The file may be corrupted or in an unsupported format.';
     res.status(500).json({ error: msg });
