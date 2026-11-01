@@ -49,7 +49,7 @@ function Header({ en, heText, portrait, sufEn, sufHe }) {
 const TextPair = ({ a, b, size, weight = 600, color = 'var(--ink)', heRatio = 0.92, style, k }) => (
   <>
     {a && <div data-k={k} dir={textDir(a)} style={{ fontFamily: textDir(a) === 'rtl' ? F.he : F.en, fontSize: textDir(a) === 'rtl' ? he(size) : size, fontWeight: weight, lineHeight: 1.18, color, overflowWrap: 'anywhere', minWidth: 0, ...style }}>{bidiNodes(a)}</div>}
-    {b && <div dir="rtl" className="tt-he" style={{ ...heBox, fontSize: he(Math.round(size * heRatio)), fontWeight: Math.min(weight, 600), color, overflowWrap: 'anywhere', minWidth: 0 }}>{b}</div>}
+    {b && <div dir="rtl" className="tt-he" style={{ ...heBox, fontSize: he(Math.round(size * heRatio)), fontWeight: Math.min(weight, 600), color, overflowWrap: 'anywhere', minWidth: 0, textAlign: 'left' }}>{b}</div>}
   </>
 );
 
@@ -75,7 +75,7 @@ function Row({ r, T, marks, settings, portrait, photos }) {
   return (
     <div data-srow="" style={{
       boxSizing: 'border-box', display: 'grid', alignItems: 'center', columnGap: 28, rowGap: 10, padding: '12px 22px', borderRadius: 22, flex: 'none',
-      gridTemplateColumns: portrait ? 'auto minmax(0, 1fr)' : `auto minmax(0, 1fr)${who ? ' fit-content(34%)' : ''}${where ? ' fit-content(24%)' : ''}`,
+      gridTemplateColumns: portrait ? 'auto minmax(0, 1fr)' : `auto minmax(0, 1fr)${who ? ' fit-content(40%)' : ''}${where ? ' fit-content(22%)' : ''}`,
       border: `${isNow ? 4 : 2}px solid ${isNow ? 'var(--accentText)' : isNext ? 'var(--line)' : 'transparent'}`,
       background: isNow ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
     }}>
