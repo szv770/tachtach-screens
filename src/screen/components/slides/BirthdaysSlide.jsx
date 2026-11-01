@@ -62,7 +62,7 @@ const TONES = [
 ];
 
 /** Falling confetti over the whole panel. Every piece ends below the bottom edge (opacity 0), so nothing is left mid-screen. */
-function Confetti({ graphics, motion }) {
+export function Confetti({ graphics, motion }) {
   const ref = useRef(null);
   const [fall, setFall] = useState(0);
   useLayoutEffect(() => {

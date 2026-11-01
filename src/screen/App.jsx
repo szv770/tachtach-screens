@@ -12,6 +12,7 @@ import Layout from './components/Layout.jsx';
 import { pickDailyStory } from '../shared/dailyStories.js';
 import { menuVisible } from '../shared/menu.js';
 import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.js';
+import { occasionVisible, ctxFrom as occasionCtx } from '../shared/occasions.js';
 import { zonedTimeToUtc } from '../shared/announcements.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
@@ -132,7 +133,10 @@ function AppContent() {
 
   // Announcements (slides, banners, side notes, takeovers) — what's live now,
   // re-evaluated every second by the shared isActive() rules.
-  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone, { settings: state?.settings, cache: state?.cache, shiurim: state?.shiurim });
+  // the admin preview's ?previewAt= / ?previewDate= moves the Countdown's clock (and its virtual rail card / banner / takeover) too
+  const occasionOffset = _previewAt != null ? _previewAt - _loadedAt
+    : _previewDate ? zonedTimeToUtc(_previewDate, '11:00', state?.settings?.location?.timezone || undefined).getTime() - _loadedAt : 0;
+  const ann = useAnnouncements(state?.announcements, state?.settings?.location?.timezone, { settings: state?.settings, cache: state?.cache, shiurim: state?.shiurim, occasions: state?.occasions, slides: state?.slides, occasionOffset });
 
   // The schedule that applies today (or on ?previewDate=): that date's own
   // schedule from schedule-dates.json, else the weekly one. `clock` ticks
@@ -182,6 +186,11 @@ function AppContent() {
   const hasSpeaker = React.useMemo(() => {
     try { return guestsActive(state?.shiurim, menuNow, menuTz).length > 0; } catch { return false; }
   }, [state?.shiurim, menuNow, menuTz]);
+  // Countdown (src/shared/occasions.js): in the rotation only while an occasion is inside its window (or pinned), re-checked
+  // each minute on the same clock as the Menu (so ?previewAt= moves it).
+  const hasOccasion = React.useMemo(() => {
+    try { return occasionVisible(state?.occasions, menuNow, occasionCtx(state?.settings, state?.cache, menuNow)); } catch { return false; }
+  }, [state?.occasions, state?.settings, state?.cache, menuNow]);
   // a linked shiur's 'Rabbi X · Place' under its row on the Schedule page (Screen > Shiurim > 'Show the rebbe's name on the schedule')
   const shiurTags = React.useMemo(() => {
     try { return state?.shiurim ? scheduleTagMap(state.shiurim, scheduleDateISO, shiurimCtx) : null; } catch { return null; }
@@ -213,8 +222,9 @@ function AppContent() {
       .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory)
       .filter((sl) => sl.type !== 'MENU' || hasMenu)
       .filter((sl) => sl.type !== 'SHIURIM' || hasShiurim)
-      .filter((sl) => sl.type !== 'SPEAKER' || hasSpeaker),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, shabbosNow.rowType],
+      .filter((sl) => sl.type !== 'SPEAKER' || hasSpeaker)
+      .filter((sl) => sl.type !== 'OCCASION' || hasOccasion),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, hasOccasion, shabbosNow.rowType],
   );
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
   const rotationSlides = React.useMemo(
@@ -394,6 +404,9 @@ function AppContent() {
         break;
       case 'shiurim-update':
         setState(prev => prev ? { ...prev, shiurim: data } : prev);
+        break;
+      case 'occasions-update':
+        setState(prev => prev ? { ...prev, occasions: data } : prev);
         break;
       case 'chazan-update':
         setState(prev => prev ? { ...prev, chazan: data } : prev);
@@ -764,6 +777,8 @@ function AppContent() {
         shiurim={state?.shiurim}
         shiurimCtx={shiurimCtx}
         shiurTags={shiurTags}
+        occasions={state?.occasions}
+        occasionOffset={occasionOffset}
         roster={state?.roster}
         chazan={state?.chazan}
         customDays={state?.customDays}

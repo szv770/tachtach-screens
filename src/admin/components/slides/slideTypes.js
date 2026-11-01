@@ -53,6 +53,7 @@ export const SLIDE_TYPES = [
   { id: 'CHAZAN', label: 'Chazan', group: 'builtin', icon: 'star', desc: 'Who leads Shacharis, Mincha and Maariv today, tomorrow and the day after.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'chazan', label: 'Chazan rotation' }, defaults: { duration: 15 } },
   { id: 'SHIURIM', label: "Today's shiurim", group: 'builtin', icon: 'list', desc: "Who gives which shiur, where and when: today's list and the week. Only shows when there is a shiur to show.", create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'shiurim', label: 'Shiurim' }, defaults: { duration: 14 } },
   { id: 'SPEAKER', label: 'Guest speaker', group: 'builtin', icon: 'user', desc: 'A guest speaker announced a few days ahead, with photo, topic, time and place. Only shows while a guest is announced.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'shiurim', label: 'Shiurim' }, defaults: { duration: 15 } },
+  { id: 'OCCASION', label: 'Countdown', group: 'builtin', icon: 'clock', desc: 'A countdown to the next Chassidic or Jewish day or school event: its name, Hebrew date and a countdown that changes as it gets close. Only shows when one is near.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'occasions', label: 'Occasions' }, defaults: { duration: 15 } },
   { id: 'MENU', label: 'Menu', group: 'builtin', icon: 'list', desc: 'What is for breakfast, lunch and dinner: today, the week, or both. Only shows when there is a menu.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'menu', label: 'Menu' }, defaults: { duration: 14 } },
   // The Friday / Motzei Shabbos pages manage their own window (src/shared/shabbosPage.js), so no hide-on-Shabbos switch.
   { id: 'SHABBOS', label: 'Good Shabbos', group: 'builtin', icon: 'star', desc: 'Friday: candle lighting, countdown, parsha and your reminder lines. Only shows in the hours before candle lighting.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'shabbos', label: 'Shabbos page' }, defaults: { duration: 20 }, ownWindow: true },
@@ -82,6 +83,7 @@ const SECONDS_NOTE = {
   MOTZEI: 'The least time the page stays up. With more than 3 reminder lines it stays a little longer so every line is shown.',
   SHIURIM: 'The least time the shiurim stay up. With several pages (many shiurim) or both Today and the week it stays longer so every shiur is shown.',
   SPEAKER: 'The least time a guest speaker stays up. Two guests show side by side; more take turns.',
+  OCCASION: 'The least time the Countdown stays up. When a few take turns it stays longer so each one is shown.',
   MENU: 'The least time the menu stays up. With several pages (very long menus) or both Today and Week it stays longer so every dish is shown.',
   DAILY_STORY: 'The least time the story stays up. A long story stays a little longer so it can be read.',
   MIVTZAH_LIVE_EMBED: 'How long the live page stays up before the next slide.',

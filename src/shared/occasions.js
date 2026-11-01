@@ -620,7 +620,7 @@ function upcomingRaw(file, now, ctx, { horizonDays = 400, includeOff = false } =
   const t = now.getTime();
   const rows = [];
   for (const o of f.occasions) {
-    if (!o.on && !includeOff) continue;
+    if (o.on === false && !includeOff) continue;
     // look back 10 days so a multi-day occasion that is running now is found
     const list = occurrencesBetween(o, addDaysISO(today, -10), addDaysISO(today, horizonDays));
     for (const occ of list) {
@@ -659,7 +659,7 @@ export const windowDays = (row, settings) => (row.occasion.showDays > 0 ? row.oc
  */
 export function pickFor(file, now, ctx) {
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
-  const s = f.settings || SETTINGS_DEFAULTS;
+  const s = normalizeSettings(f.settings);
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
   const all = upcoming(f, now, { ...ctx, today });
   const running = all.filter((r) => r.running).sort((a, b) => b.begin.ms - a.begin.ms);
@@ -847,7 +847,7 @@ export function heroModel(row, now, ctx) {
 /** The slide model: { rows: [heroModel...], coming: [{ key, name, when }], title, approx }. */
 export function slideModel(file, now, ctx) {
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
-  const s = f.settings;
+  const s = normalizeSettings(f.settings);
   const p = pickFor(f, now, ctx);
   const c = { ...ctx, settings: s, today: p.today };
   const lang = s.language;
@@ -876,7 +876,7 @@ const baseItem = (id, startMs) => ({
 export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
   if (!slideOn || !file) return [];
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
-  const s = f.settings;
+  const s = normalizeSettings(f.settings);
   if (!s.rail && !s.banner && !s.takeover) return [];
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
   const rows = upcoming(f, now, { ...ctx, today }, { horizonDays: Math.max(s.railDays, 2) + 2 });
@@ -887,7 +887,7 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
   const t = now.getTime();
   // rail: the nearest not-yet-begun one inside railDays
   if (s.rail) {
-    const r = rows.find((x) => !x.running && x.occasion.rail && daysUntil(x, today) <= s.railDays);
+    const r = rows.find((x) => !x.running && x.occasion.rail !== false && daysUntil(x, today) <= s.railDays);
     if (r) {
       const d = daysUntil(r, today);
       const nm = r.nameEn || r.nameHe; const nmHe = r.nameHe;
@@ -909,7 +909,7 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
     const o = r.occasion;
     const nm = r.nameEn || r.nameHe;
     const z = zeroWordsFor(o, s) || { en: r.begin.evening ? 'Tonight' : 'Today', he: r.begin.evening ? 'הלילה' : 'היום' };
-    if (s.banner && o.banner && r.running) {
+    if (s.banner && o.banner !== false && r.running) {
       const ev = o.eventEn ? ` · ${o.eventEn}` : ''; const evHe = o.eventHe ? ` · ${o.eventHe}` : '';
       const evening = today < r.startISO;
       out.push({
@@ -919,7 +919,7 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
         updatedAt: `${r.id}:${r.startISO}:b:${evening}:${o.eventEn}:${o.eventHe}:${lang}`,
       });
     }
-    if (s.takeover && o.takeover && r.begin.exact) {
+    if (s.takeover && o.takeover !== false && r.begin.exact) {
       const until = Math.min(r.begin.ms + s.takeoverMinutes * 60000, r.end.ms);
       if (t < until) {
         out.push({
@@ -941,7 +941,7 @@ export function forKiosk(file) {
   const f = normalizeFile(file);
   return { version: 1, settings: f.settings, occasions: f.occasions.filter((o) => o.on) };
 }
-export const forViewer = (doc) => (doc && Array.isArray(doc.occasions) ? { ...doc, occasions: doc.occasions.filter((o) => o.on) } : doc);
+export const forViewer = (doc) => (doc && Array.isArray(doc.occasions) ? { ...doc, occasions: doc.occasions.filter((o) => o.on !== false) } : doc);
 
 /** A location for the sun maths from the screen's settings + cache (settings.location first, then the weather's geocode). */
 export function locationOf(settings, cache) {

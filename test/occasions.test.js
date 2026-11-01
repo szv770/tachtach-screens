@@ -365,3 +365,15 @@ test('kiosk / viewer copies leave switched-off occasions out', () => {
   assert.deepEqual(O.forKiosk(f).occasions.map((o) => o.id), ['a']);
   assert.deepEqual(O.forViewer(f).occasions.map((o) => o.id), ['a']);
 });
+
+test('kiosk lint: OccasionSlide.jsx has no infinite animation, blur, blend, hex colour or font literal', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../src/screen/components/slides/OccasionSlide.jsx', import.meta.url), 'utf8');
+  for (const bad of [/infinite/, /blur\(/, /backdrop-filter|backdropFilter/, /mix-blend-mode|mixBlendMode/, /#[0-9a-fA-F]{3,8}\b/, /fontFamily:\s*['"]/, /font-family:/, /dangerouslySetInnerHTML/, /@keyframes|animation:/]) {
+    assert.doesNotMatch(src, bad);
+  }
+  // dim text (--inkDim) is only used at 28px or more
+  for (const m of src.matchAll(/fontSize: (?:he\()?(\d+)[^}]*?color: [^,}]*var\(--inkDim\)/g)) assert.ok(Number(m[1]) >= 28, `inkDim at ${m[1]}px`);
+  // every literal font size is at least the 24 px floor
+  for (const m of src.matchAll(/fontSize: (?:he\()?(\d+)\b/g)) assert.ok(Number(m[1]) >= 24, `font ${m[1]}px`);
+});

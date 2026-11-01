@@ -11,6 +11,7 @@ import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import DailyStorySlide from './slides/DailyStorySlide.jsx';
 import MenuSlide from './slides/MenuSlide.jsx';
+import OccasionSlide from './slides/OccasionSlide.jsx';
 import ShiurimSlide from './slides/ShiurimSlide.jsx';
 import SpeakerSlide from './slides/SpeakerSlide.jsx';
 import ShabbosSlide from './slides/ShabbosSlide.jsx';
@@ -64,7 +65,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dailyStories, menu, menuNow, menuTz, shiurim, shiurimCtx, shiurTags, dateISO, roster, chazan, customDays, shabbosModel,
+  dailyWords, dailyStories, menu, menuNow, menuTz, shiurim, shiurimCtx, shiurTags, occasions, occasionOffset = 0, dateISO, roster, chazan, customDays, shabbosModel,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -90,6 +91,7 @@ export default function SlideCarousel({
       case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'SHIURIM': return <ShiurimSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} schedule={shiurimCtx?.schedule} scheduleDates={shiurimCtx?.scheduleDates} groups={shiurimCtx?.groups} />;
       case 'SPEAKER': return <SpeakerSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
+      case 'OCCASION': return <OccasionSlide occasions={occasions} settings={settings} cache={cache} clockOffset={occasionOffset} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'MENU': return <MenuSlide menu={menu} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'SHABBOS':
       case 'MOTZEI': return <ShabbosSlide model={shabbosModel} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
