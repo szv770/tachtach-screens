@@ -26,3 +26,15 @@ Everything was tested on throwaway copies in a sandbox (unit tests ~540, Playwri
 
 ## Next: the slow polish passes (owner request 2026-10-20)
 Go through the site ONE SMALL AREA AT A TIME (not a page — a section/component), look at it critically with real screenshots (seed sample data on a throwaway copy), list what to clean up / add / smooth, show the owner the list, then fix and ship to `main`. No rush; quality over speed. Queue and process in `docs/BACKLOG.md` ("Polish queue").
+
+## Session hand-off (2026-11-01, stopped at a usage limit)
+
+**On `main` (tested, verified in a clean copy before each push):** everything up to the Menu and Shiurim + Guest speaker slides, Shabbos page, Post sheet, posts-as-slides, Daily Word/Story 'today', read-route table + limiter, red-team rounds 1-2 fixes (round 2 partly, see below), Windows kit + `docs/windows/HANDOFF.md`, SaaS docs (`docs/saas/*`, FIT-RULES is a non-negotiable rule in CLAUDE.md).
+
+**Unfinished / next, in order:**
+1. **Red-team round 2 fixes** (`docs/security/REDTEAM-2026-11-01.md`, has reproduction + fix per finding). DONE on the branch: F1+F2+F8+F3 (takeover permission on the stored post and parsed body, posts/slides crossovers, emergency switch) and F6 (picture/PDF pixel budget + bounded concurrency). STILL OPEN: **F11** (viewer/View-only/Messages-only `/api/state` leaks roster names, chazan, album links, feed URLs), **F5** (live view shows switched-off slides/stories/shiurim and their `/uploads` pictures stay downloadable), **F12** (viewer gets school coordinates through `settings.location`), F9 (legacy `PUT /api/settings` accepts unknown keys), F10 (pin GitHub Actions to commit SHAs), F4 (fix the false claim in `docs/saas/SCREENS-GROUPS.md`; G5 must change `canDo`), F7 (Windows kit: SYSTEM runs whatever `node.exe` it found first, verify ACL). Fix them with a test that fails before / passes after, against the real Express app.
+2. **Occasions countdown** (`OCCASION` slide + Screen > Occasions; chassidishe yom tov countdown): rules, store, routes, kiosk slide and a 195/195 kiosk audit exist; remaining: finish layout polish, admin panel check at phone width (`scripts/occasions-admin-audit.mjs`), docs, then report the exact on-screen wording to the owner. Content rule: explanation text only with a source.
+3. **Mazel Tov + private image store** (paused by the owner, nothing built): spec `docs/specs/03-MAZEL-TOV.md`, `04-PHOTO-WALL.md` section 7. Then Photo Wall phase 1.
+4. **Screens/groups G2-G5** (`docs/saas/SCREENS-GROUPS.md`; owner approved one narrow device-token door for second screens; scope independent of groups).
+5. Owner still has to: run the Windows checklist (`docs/windows/`), run the Chabad.org data-pack probe/build on the box, send sourced Daily Stories, set a new live word, test on a phone: Post sheet, Today cards, Menu, Shiurim, Shabbos preview.
+**Process lessons:** an interrupt by the owner kills running agents (resume with SendMessage; limit pauses are resumable); always commit WIP snapshots; gate `main` pushes on a clean-copy full test run (`scratchpad/ship.sh` pattern: archive HEAD worktree, tests, build, audit, then push only if green).
