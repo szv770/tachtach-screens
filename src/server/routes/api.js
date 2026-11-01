@@ -12,6 +12,7 @@ import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
 import { readMenu } from '../menuStore.js';
 import { readShiurim } from '../shiurimStore.js';
+import { occasionsForKiosk } from '../occasionsStore.js';
 import { readRoster } from './roster.js';
 import { normalizeTefilaTag } from '../../shared/chazan.js';
 import { readForKiosk as readChazanForKiosk } from '../chazanStore.js';
@@ -1473,6 +1474,7 @@ router.get('/preview-state', async (req, res) => {
       dailyStories: await readDailyStories(), // same: a past date previews the story that really showed
       menu: await readMenu(), // the whole document, so any preview date resolves
       shiurim: await readShiurim(), // likewise (a preview date can be any day)
+      occasions: await occasionsForKiosk(), // the calendar is the same whatever the date
       _previewDate: dateStr,
     });
   } catch (err) {

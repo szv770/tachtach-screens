@@ -27,6 +27,9 @@ export const LATE_BUILTINS = [
   // (and inside its 'when it shows' window), SPEAKER only while a guest speaker is announced (src/shared/shiurim.js).
   { id: 'shiurim', type: 'SHIURIM', label: "Today's shiurim", duration: 14, enabled: false, order: 109 },
   { id: 'speaker', type: 'SPEAKER', label: 'Guest speaker', duration: 15, enabled: false, order: 110 },
+  // Off until the owner turns it on (Slides or Screen > Occasions). Only in the rotation when an occasion is inside its window
+  // (src/shared/occasions.js); it is also the one switch for the occasions' rail card / banner / takeover.
+  { id: 'occasion', type: 'OCCASION', label: 'Countdown', duration: 15, enabled: false, order: 111 },
 ];
 
 export function addMissingBuiltins(slides) {

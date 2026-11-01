@@ -20,6 +20,7 @@ const AREAS = [
   [/^daily-stories/, 'Daily Story list'],
   [/^menu/, 'menu'],
   [/^shiurim/, 'shiurim'],
+  [/^occasions/, 'occasions'],
   [/^roster/, 'bochurim list'],
   [/^chazan/, 'chazan rotation'],
   [/^schedule/, 'schedule'],

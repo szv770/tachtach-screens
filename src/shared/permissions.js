@@ -40,6 +40,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
   { id: 'menu.edit', group: 'Screen', label: 'Edit the Menu', hint: 'Meals, dishes and tags for the Menu slide, one-day changes, and when the Menu shows.' },
   { id: 'shiurim.edit', group: 'Screen', label: 'Edit the shiurim and guest speakers', hint: 'Rebbeim, weekly shiurim, one-day cancellations, guest speakers and their photos, and when the Shiurim slide shows.' },
+  { id: 'occasions.edit', group: 'Screen', label: 'Edit the occasions countdown', hint: 'The calendar of days the Countdown slide counts down to, their explanations and sources, and when it shows.' },
   { id: 'roster.edit', group: 'Screen', label: 'Edit the bochurim list and birthdays', hint: 'The shared list of names and Hebrew birthdays.' },
   { id: 'chazan.edit', group: 'Screen', label: 'Edit the chazan rotation', hint: 'Order, away dates, swaps and which davenings have a chazan.' },
   { id: 'shabbos.edit', group: 'Screen', label: 'Edit the Shabbos page', hint: 'Friday and Motzei Shabbos reminder lines, when the pages show, and what the screen does during Shabbos.' },
@@ -61,7 +62,7 @@ export const isGrantable = (id) => isCapability(id) && !CAP_BY_ID[id].adminOnly;
 
 const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
-  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'shiurim.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
+  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'shiurim.edit', 'occasions.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
 ];
 
@@ -144,6 +145,7 @@ const SECTION_CAPS = Object.freeze({
   'daily-story': ['dailyWord.edit'],
   menu: ['menu.edit'],
   shiurim: ['shiurim.edit'],
+  occasions: ['occasions.edit'],
   roster: ['roster.edit'],
   chazan: ['chazan.edit'],
   shabbos: ['shabbos.edit'],
@@ -208,6 +210,7 @@ const RULES = Object.freeze([
   rule('dailyWord.edit', ANY, /^\/api\/daily-(words|stories)(\/|$)/),
   rule('menu.edit', ANY, /^\/api\/menu(\/|$)/),
   rule('shiurim.edit', ANY, /^\/api\/shiurim(\/|$)/),
+  rule('occasions.edit', ANY, /^\/api\/occasions(\/|$)/),
   rule('roster.edit', ANY, /^\/api\/roster(\/|$)/),
   rule('chazan.edit', ANY, /^\/api\/chazan(\/|$)/),
   rule('screen.control', ANY, /^\/api\/(screen|refresh|freeze)(\/|$)/),
@@ -295,6 +298,7 @@ export const READ_ROUTES = Object.freeze([
   readRule('/api/daily-words', ['dailyWord.edit']),
   readRule('/api/daily-stories', ['dailyWord.edit']),
   readRule('/api/menu', ['menu.edit']),                   // P0 (food), whole document incl. overrides
+  readRule('/api/occasions', ['occasions.edit']),         // P0 (names of days, the school's own events), whole document incl. switched-off rows
   readRule('/api/shiurim', ['shiurim.edit']),             // P1 (rebbeim and guest speakers: adults, no students), whole document + the schedule blocks to link to
   readRule('/api/roster', ['roster.edit']),               // student names
   readRule('/api/chazan', ['chazan.edit']),               // student names

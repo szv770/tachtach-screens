@@ -124,6 +124,7 @@ const MATRIX = {
   '/api/daily-stories':                   [1, 1, 0, 0],
   '/api/menu':                            [1, 1, 0, 0],
   '/api/shiurim':                         [1, 1, 0, 0],
+  '/api/occasions':                       [1, 1, 0, 0],
   '/api/roster':                          [1, 1, 0, 0],
   '/api/chazan':                          [1, 1, 0, 0],
   '/api/chazan/swap-options?date=2026-10-27&tefila=Shacharis': [1, 1, 0, 0],
