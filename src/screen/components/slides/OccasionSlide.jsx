@@ -42,24 +42,25 @@ function Name({ name, L, size, align, k }) {
   const [hMax, hMin, hBox, eMax, eMin, eBox] = size;
   const he1 = heOn ? (
     <Fit key={`nh|${k}|${hMax}|${hBox}`} wrap vcenter dir="rtl" max={scaled(hMax, L)} min={hMin} className="tt-he" style={{
-      flex: 'none', width: '100%', height: scaled(hBox, L), overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.25, textAlign: ta,
+      flex: '0 1 auto', minHeight: Math.min(scaled(hBox, L), Math.round(hMin * 3.9)), width: '100%', height: scaled(hBox, L), overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.25, textAlign: ta,
     }}>{name.he}</Fit>
   ) : null;
   const en1 = enOn ? (
     <Fit key={`ne|${k}|${eMax}|${eBox}|${heOn}`} wrap vcenter dir={textDir(name.en)} max={scaled(heOn ? eMax : hMax * 0.8, L)} min={eMin} style={{
-      flex: 'none', width: '100%', height: scaled(heOn ? eBox : hBox, L), overflow: 'visible', fontFamily: F.enD,
+      flex: '0 1 auto', minHeight: Math.min(scaled(heOn ? eBox : hBox, L), Math.round(eMin * 3.5)), width: '100%', height: scaled(heOn ? eBox : hBox, L), overflow: 'visible', fontFamily: F.enD,
       fontWeight: heOn ? 400 : 700, letterSpacing: heOn ? '.005em' : '-.01em', color: heOn ? SOFT_INK : 'var(--ink)', lineHeight: 1.12, textAlign: ta,
     }}>{name.en}</Fit>
   ) : null;
-  return <div data-occ-name="" style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>{he1}{en1}</div>;
+  // the boxes may shrink (down to two lines at the smallest size) when the column is crowded; Fit re-fits on resize
+  return <div data-occ-name="" style={{ flex: '0 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>{he1}{en1}</div>;
 }
 
 /** Name boxes (canvas px): [Hebrew max, min, box height, English max, min, box height]. Long names get two-line boxes. */
 const NAME = {
   side: [118, 46, 160, 50, 32, 70],
   sideLong: [92, 40, 210, 44, 30, 108],
-  port: [124, 48, 180, 56, 34, 80],
-  portLong: [100, 44, 250, 46, 30, 118],
+  port: [116, 46, 160, 52, 32, 72],
+  portLong: [96, 42, 220, 44, 30, 108],
   day: [168, 56, 220, 64, 36, 92],
   dayLong: [112, 46, 260, 50, 32, 116],
   dayPort: [176, 56, 260, 66, 36, 100],
@@ -81,22 +82,24 @@ function DateLine({ m, center }) {
   return (
     <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 2, lineHeight: 1.3 }}>
       {heText && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: 'var(--ink)' }}>{heText}</span>}
-      {en.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK }}>
-          {en.map((t, i) => <span key={i} style={{ whiteSpace: 'nowrap' }}>{i > 0 && <span aria-hidden style={{ margin: '0 14px', color: 'var(--line)' }}>/</span>}{t}</span>)}
-        </div>
-      )}
+      {en.length > 0 && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK, textAlign: center ? 'center' : 'start' }}>{en.join('  ·  ')}</span>}
     </div>
   );
 }
 
+/** 'Begins Saturday evening · Shkia 4:30 PM': the when as a small-caps label, the zman and time large under it. */
+const splitWhen = (t) => { const i = String(t || '').lastIndexOf(' · '); return i < 0 ? ['', String(t || '')] : [t.slice(0, i), t.slice(i + 3)]; };
 function Begins({ m, center }) {
   if (!m.begins) return null;
+  const [enA, enB] = splitWhen(m.begins.en);
+  const [heA, heB] = splitWhen(m.begins.he);
+  const jc = center ? 'center' : 'flex-start';
   return (
-    <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 2, lineHeight: 1.3 }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start' }}>
-        {m.begins.en && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 32, fontWeight: 600, color: 'var(--accentText)' }}>{m.begins.en}</span>}
-        {m.begins.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(32), fontWeight: 500, color: 'var(--accentText)' }}>{m.begins.he}</span>}
+    <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 4, lineHeight: 1.25 }}>
+      {(enA || heA) && <Label en={enA} heText={heA} style={{ justifyContent: jc }} />}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: jc }}>
+        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 38, fontWeight: 600, color: 'var(--accentText)' }}>{enB}</span>}
+        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: 'var(--accentText)' }}>{heB}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={COPY.approx.he} />}
     </div>
@@ -180,7 +183,7 @@ function FlipRow({ cells, font, portrait, center, L, lang }) {
       {cells.map((c) => (
         <div key={c.k} data-occ-cell={c.k} style={{ flex: '1 1 0', minWidth: 0, maxWidth: Math.round(h * (c.v.length > 2 ? 1.5 : 1.15)), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
           <div style={{ position: 'relative', width: '100%', height: h, borderRadius: 14, border: '2px solid var(--line)', background: 'color-mix(in srgb, var(--ink) 5%, transparent)', overflow: 'hidden', padding: '0 9%' }}>
-            <BigNum text={c.v} max={Math.round(h * 0.84)} min={30} height={h} font={font} align="center" flip />
+            <BigNum text={c.v} max={Math.round(h * 0.84)} min={30} height={h - 8} font={font} align="center" flip />
             <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% - 1px)', height: 2, background: 'var(--panel)' }} />
           </div>
           <Label en={label(c.label).en} heText={label(c.label).he} size={24} color={SOFT_INK} style={{ justifyContent: 'center', textAlign: 'center' }} />
@@ -245,7 +248,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
       </div>
     );
   }
-  const numH = scaled(portrait ? 420 : compact ? 260 : 330, L);
+  const numH = scaled(portrait ? 360 : compact ? 260 : 330, L);
   const n = m.form === 'far' ? (m.lead?.days || FAR_DAYS) : m.form === 'days' ? FAR_DAYS : m.form === 'hours' ? 24 : 60;
   const left = m.form === 'far' ? (c.days || 0) : m.form === 'days' ? c.days : m.form === 'hours' ? c.hours + (c.minutes > 0 ? 1 : 0) : c.minutes + ((c.seconds || 0) > 0 ? 1 : 0);
   const ticksOn = m.form === 'far' || m.form === 'days' ? shows(L, 'pips') : shows(L, 'bar') && !c.approx;
@@ -318,7 +321,7 @@ function DayView({ m, L, portrait, coming }) {
   const keys = orderedBlocks(L).filter((k) => k !== 'name' && k !== 'begins');
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
+      <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
         <Label en={m.dayLabel?.en} heText={m.dayLabel?.he} color="var(--accentText)" size={28} />
         <Name name={m.name} L={L} size={size} align={L.align} k={m.key} />
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap', justifyContent: center ? 'center' : 'flex-start', margin: '6px 0' }}>
@@ -351,7 +354,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
         <div style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
-        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'inherit', gap: 14 }}>
+        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: 'inherit', gap: 14 }}>
           {before.length > 0 && <Rule center={center} />}
           <Count m={m} L={L} portrait font={font} center={center} nowMs={nowMs} fast={fast} lang={lang} />
         </div>
@@ -362,7 +365,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
   }
   const countLeft = L.side === 'left';
   const info = (
-    <div style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: center ? 'center' : 'flex-start', gap: 18, textAlign: center ? 'center' : 'start' }}>
+    <div style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 18, textAlign: center ? 'center' : 'start' }}>
       {blocks.map((k, i) => (k === 'name'
         ? <React.Fragment key={k}><Name name={m.name} L={L} size={long ? NAME.sideLong : NAME.side} align={L.align} k={m.key} />{i < blocks.length - 1 && <Rule center={center} />}</React.Fragment>
         : <Details key={k} m={m} keys={[k]} center={center} />))}

@@ -46,10 +46,12 @@ const YT = starter({ id: 'yt', nameEn: 'Yud-Tes Kislev', nameHe: 'י״ט כסל�
 const CH = { id: 'ch', nameEn: 'Chanukah', nameHe: 'חנוכה', rule: { kind: 'hebrew', month: 9, day: 25 }, days: 8, zeroKey: 'chanukah' };
 const BIG = { id: 'big', nameEn: LONG_EN, nameHe: LONG_HE, rule: { kind: 'gregorian', month: 11, day: 10 }, beginsAt: 'shkia', explainEn: X_EN, explainHe: X_HE, explainChecked: true, source: SRC, eventEn: EV_EN, eventHe: EV_HE, zeroKey: 'here' };
 const BIG_CO = (i) => ({ id: `bc${i}`, nameEn: `Shemini Atzeres & Simchas Torah ${i}`, nameHe: 'שמיני עצרת ושמחת תורה', rule: { kind: 'gregorian', month: 11, day: 12 + i } });
-// an exact 6 PM start (no zmanim needed): Thursday 19 Nov 2026, 18:00 New York
+// an exact 6 PM start (no zmanim needed): the evening before 19 Nov 2026 (Wed 18 Nov, 18:00 New York)
 const SIX = { id: 'six', nameEn: 'Melava Malka Siyum', nameHe: 'סיום מלווה מלכה', rule: { kind: 'gregorian', month: 11, day: 19 }, beginsAt: 'time', time: '18:00', zeroKey: 'here', eventEn: 'Main hall' };
-const RUN = { id: 'run', nameEn: 'Mivtza Chanukah', nameHe: 'מבצע חנוכה', kind: 'countup', from: { kind: 'gregorian', month: 11, day: 1, year: 2026 }, total: 8, beginsAt: 'midnight', eventEn: 'Every day after Mincha' };
-const ADV = (photo) => ({ ...YT, id: 'adv', advent: { on: true, photo, grid: '4x3', daily: { 8: { en: 'Learn one chapter of Tanya with a friend today.', he: 'ללמוד פרק תניא עם חבר', source: 'Hayom Yom, 19 Kislev', checked: true } } } });
+const RUN = { id: 'run', nameEn: 'Mivtza Chanukah', nameHe: 'מבצע חנוכה', kind: 'countup', from: { kind: 'gregorian', month: 11, day: 1, year: 2026 }, total: 8, beginsAt: 'midnight', eventEn: 'Every day after Mincha',
+  // the stored (normalised) shape the server sends: a one-time 8-day occasion from 1 Nov 2026
+  rule: { kind: 'gregorian', month: 11, day: 1 }, repeat: 'once', year: 2026, days: 8 };
+const ADV = (photo) => ({ ...YT, id: 'adv', advent: { on: true, photo, grid: '4x3', daily: { 7: { en: 'Learn one chapter of Tanya with a friend today.', he: 'ללמוד פרק תניא עם חבר', source: 'Hayom Yom, 19 Kislev', checked: true } } } });
 const doc = (occasions, settings = {}) => ({ version: 1, settings: { withinDays: 30, ...settings }, occasions });
 
 // New York, 2026: Rosh Chodesh Kislev = 10-11 Nov (eve 9 Nov, shkia ~4:43 PM), Yud-Tes Kislev = 29 Nov (eve 28 Nov), Chanukah 5 Dec
@@ -85,10 +87,10 @@ const cases = [
   { tag: 'photo white, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: WHITE, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
   { tag: 'photo black, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: BLACK, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
   // takeovers (an exact 6 PM start)
-  { tag: 'takeover: milestone (7 days)', time: T('2026-11-12T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fonts: true, shot: 'land' },
-  { tag: 'takeover: final minute', time: T('2026-11-19T17:59:20'), occ: doc([SIX]), takeover: 'final', tabular: true },
-  { tag: 'takeover: zero', time: T('2026-11-19T18:00:20'), occ: doc([SIX]), takeover: 'zero', zero: true, fonts: true },
-  { tag: 'takeover: worst case name, milestone', time: T('2026-11-12T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
+  { tag: 'takeover: milestone (7 days)', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fonts: true, shot: 'land' },
+  { tag: 'takeover: final minute', time: T('2026-11-18T17:59:20'), occ: doc([SIX]), takeover: 'final', tabular: true },
+  { tag: 'takeover: zero', time: T('2026-11-18T18:00:20'), occ: doc([SIX]), takeover: 'zero', zero: true, fonts: true },
+  { tag: 'takeover: worst case name, milestone', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
   // live moments (admin fired; real time)
   { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
   { tag: 'moment: shout-out', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'shoutout', text: { en: 'Mazel tov to the 8th grade on finishing Mishnayos!', he: 'מזל טוב לכיתה ח׳ על סיום משניות!' }, occasionKey: '', secs: 15 } },
@@ -106,6 +108,8 @@ async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent 
   const [W, H] = canvas === 'port' ? [900, 1600] : canvas === '4k' ? [3840, 2160] : [1600, 900];
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, timezoneId: 'America/New_York', deviceScaleFactor: 1 });
   const page = await ctx.newPage();
+  page.on('pageerror', (e) => console.log(`  page error: ${String(e.message || e).slice(0, 200)}`));
+  page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|stream/.test(m.text())) console.log(`  console error: ${m.text().slice(0, 300)}`); });
   await page.clock.setFixedTime(time);
   if (seedAdvent) await page.addInitScript((list) => { try { if (!sessionStorage.getItem('aud-seeded')) { for (const s of list) localStorage.setItem(s.k, JSON.stringify(s.v)); sessionStorage.setItem('aud-seeded', '1'); } } catch {} }, seedAdvent);
   await page.route('**/uploads/*.png', (route) => {

@@ -10,9 +10,9 @@ import { scrimAlpha } from '../../design/useLayout.js';
  * everything static (no loops, blur, blend or filters).
  */
 
-/** Small-caps label colour: the panel ink at 62% (readable on --panel and on a scrimmed photo). */
-export const LABEL_INK = 'color-mix(in srgb, var(--ink) 62%, transparent)';
-export const SOFT_INK = 'color-mix(in srgb, var(--ink) 74%, transparent)';
+/** Small-caps label colour: the panel ink at 70% (readable on --panel and on a scrimmed photo). */
+export const LABEL_INK = 'color-mix(in srgb, var(--ink) 70%, transparent)';
+export const SOFT_INK = 'color-mix(in srgb, var(--ink) 78%, transparent)';
 
 /** 'COUNTDOWN  ספירה לאחור': English small caps + the Hebrew (no caps in Hebrew: a touch larger, normal tracking). */
 export function Label({ en, heText, color = LABEL_INK, size = 24, style, ...rest }) {

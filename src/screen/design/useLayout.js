@@ -77,7 +77,7 @@ export function lookOf(raw) {
  */
 export function scrimAlpha(dim) {
   const d = Math.min(100, Math.max(0, Number(dim) || 0)) / 100;
-  return { base: Math.max(d, 0.74), text: Math.max(d, 0.88) };
+  return { base: Math.max(d, 0.86), text: Math.max(d, 0.93) };
 }
 
 /** font-family stack for the big numerals: the admin's pick, else the bundled condensed face (both via the font registry). */
