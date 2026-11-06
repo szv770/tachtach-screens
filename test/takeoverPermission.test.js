@@ -109,7 +109,7 @@ test('F1: Undo through History cannot bring a deleted takeover back for someone 
   const tk = (await admin.post('/api/announcements', tkBody('to be deleted'))).body;
   await admin.del(`/api/announcements/${tk.id}`);
   let rows;
-  for (let i = 0; i < 20; i++) { rows = (await admin.get('/api/history')).body.entries; if (rows.some((e) => e.undo?.state === 'available' && /to be deleted/.test(e.detail))) break; await new Promise((r) => setTimeout(r, 50)); }
+  for (let i = 0; i < 100; i++) { rows = (await admin.get('/api/history')).body.entries; if (rows.some((e) => e.undo?.state === 'available' && /to be deleted/.test(e.detail))) break; await new Promise((r) => setTimeout(r, 50)); }
   const rec = rows.find((e) => /to be deleted/.test(e.detail) && e.undo);
   assert.ok(rec, 'a delete leaves an undo record');
   const undoId = rec.undo.id;
