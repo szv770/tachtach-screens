@@ -43,6 +43,7 @@ import occasionsRouter from './routes/occasions.js';
 import { menuForKiosk } from './menuStore.js';
 import { shiurimForKiosk } from './shiurimStore.js';
 import { occasionsForKiosk } from './occasionsStore.js';
+import { activeMoment } from './occasionMoment.js';
 import rosterRouter, { readRoster } from './routes/roster.js';
 import chazanRouter from './routes/chazan.js';
 import { readForKiosk as readChazanForKiosk } from './chazanStore.js';
@@ -347,6 +348,8 @@ export function createApp() {
         menu,
         shiurim,
         occasions,
+        // A live moment the admin fired (in memory, auto-clears): confetti burst / shout-out / last ten seconds, or null.
+        occasionMoment: activeMoment(),
         // The roster (bochurim + birthday settings); the kiosk works out who has a birthday today.
         roster: rosterForKiosk(roster),
         // The chazan rotation (rules + names + computed days); the kiosk runs the same pure engine on it.

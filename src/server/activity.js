@@ -47,6 +47,8 @@ export function describe(method, rawPath, body = null) {
   const path = String(rawPath || '').split('?')[0].replace(/^\/api\//, '').replace(/^\/+|\/+$/g, '');
   const area = (AREAS.find(([re]) => re.test(path)) || [null, path.split('/')[0] || 'something'])[1];
   const verb = { POST: 'Added or ran', PUT: 'Changed', PATCH: 'Changed', DELETE: 'Deleted' }[method] || 'Changed';
+  if (method === 'POST' && /^occasions\/moment\/?$/.test(path)) return `Fired a live ${body?.kind === 'shoutout' ? 'shout-out' : body?.kind === 'ten' ? 'last-ten-seconds' : 'confetti'} moment on the TV`;
+  if (method === 'DELETE' && /^occasions\/moment\/?$/.test(path)) return 'Stopped the live countdown moment';
   if (method === 'POST' && /^freeze\/?$/.test(path)) return 'Froze the screen';
   if (method === 'DELETE' && /^freeze\/?$/.test(path)) return 'Resumed the screen';
   if (method === 'PUT' && /^freeze\/schedule\/?$/.test(path)) return 'Changed the screen off-hours schedule';

@@ -703,6 +703,17 @@ export function updateOccasion(file, id, patch) {
   // Editing the text or the source un-checks the explanation, unless the same save switches the check on again.
   const same = (k) => String(merged[k] ?? '').trim() === String(cur[k] ?? '').trim();
   if (!(same('explainEn') && same('explainHe') && same('source')) && pt.explainChecked !== true) merged.explainChecked = false;
+  // advent daily cards: the same rule per card (changed text or source un-checks it unless the save says checked again)
+  if (isObj(pt.advent) && isObj(pt.advent.daily)) {
+    const daily = {};
+    for (const [k, c] of Object.entries(pt.advent.daily)) {
+      const was = cur.advent?.daily?.[k];
+      const t = (x) => String(x ?? '').trim();
+      const changed = !was || t(c?.en) !== t(was.en) || t(c?.he) !== t(was.he) || t(c?.source) !== t(was.source);
+      daily[k] = isObj(c) ? { ...c, checked: changed && c.checked !== true ? false : c.checked } : c;
+    }
+    merged.advent = { ...pt.advent, daily };
+  }
   const o = normalizeOccasion(merged);
   return { file: { ...file, occasions: file.occasions.map((x) => (x.id === id ? o : x)) }, occasion: o };
 }
@@ -1183,6 +1194,57 @@ export function stageTextFor(o, s, stage, daysLeft) {
 }
 
 /**
+ * A count-up run at `now`: { k, n, fraction, label: {en,he} } ('Day 3 of 8'), or null before it starts / after it is over.
+ * k counts from each evening when the run begins in the evening (same rule as dayIndexOf); fraction = k / n.
+ */
+export function runOf(row, now, ctx, pickLang = (x) => x) {
+  if (!row.occasion || row.occasion.kind !== 'countup' || now.getTime() < row.begin.ms || now.getTime() >= row.end.ms) return null;
+  const n = Math.max(1, row.days);
+  const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
+  let k = fixedFromISO(today) - fixedFromISO(row.startISO) + 1;
+  if (row.begin.evening) {
+    const at = beginsOf(row.occasion, ctx.settings);
+    const tonight = at === 'time' ? zonedTimeToUtc(today, row.occasion.time || ctx.settings?.time || '18:00', ctx.tz || DEFAULT_TZ).getTime() : zmanOn(today, at, { ...ctx, today }, ctx.settings?.fallbackTime).ms;
+    if (now.getTime() >= tonight) k += 1;
+  }
+  k = Math.min(n, Math.max(1, k));
+  return { k, n, fraction: k / n, label: pickLang({ en: `${COPY.dayOf.en} ${k} ${COPY.of.en} ${n}`, he: `${COPY.dayOf.he} ${k} ${COPY.of.he} ${n}` }) };
+}
+
+/**
+ * The advent ('Reveal') state of a row: null when it is off. Before it begins a photo is covered by a grid of tiles; the
+ * number open grows in proportion to the lead-up days gone by, so ALL are open exactly when it begins; the order is a fixed
+ * seeded shuffle of the row's key, so the same tiles open on the same day for every screen and every reload.
+ *   { grid, tiles: {cols, rows}, photo, count, total, revealed: boolean[total] (tile index = row * cols + col),
+ *     today: { en, he, photo, source } | null }
+ * `today` is the daily card for the calendar days left; its text shows only with a source AND the admin's check, a photo needs neither.
+ */
+export function adventOf(row, now, c, s, today, daysLeft, pickLang = (x) => x) {
+  const a = row.occasion?.advent;
+  if (!a || !a.on) return null;
+  const g = GRIDS[a.grid] || GRIDS['3x3'];
+  const total = g.cols * g.rows;
+  const lead = Math.max(1, windowDays(row, s));
+  const began = c.form === 'zero' || c.form === 'day';
+  const elapsed = began ? lead : Math.min(lead, Math.max(0, lead - daysLeft));
+  const count = began ? total : Math.round((total * elapsed) / lead);
+  const order = seededOrder(total, `${row.id}|${row.startISO}`);
+  const open = new Set(order.slice(0, count));
+  const card = began ? null : a.daily[String(daysLeft)];
+  let todayCard = null;
+  if (card) {
+    const text = dailyTextShows(card);
+    const out = { ...(text ? pickLang({ en: card.en, he: card.he }) : { en: '', he: '' }), photo: card.photo, source: text && s.credit ? card.source : '' };
+    if (out.en || out.he || out.photo) todayCard = out;
+  }
+  return { grid: a.grid, tiles: { cols: g.cols, rows: g.rows }, photo: a.photo, count, total, revealed: Array.from({ length: total }, (_, i) => open.has(i)), today: todayCard };
+}
+const soundOfRow = (s, o) => {
+  const snd = soundFor(s, o, 'zero') || soundFor(s, o, 'milestone') || soundFor(s, o, 'final') || soundFor(s, o, 'moment');
+  return snd;
+};
+
+/**
  * Everything the kiosk page needs for one row, as plain data (also the fit test's input).
  * @param {object} row  from pickFor().rows
  */
@@ -1219,6 +1281,12 @@ export function heroModel(row, now, ctx) {
     stageText: tagline ? pickLang(tagline) : null,
     look: resolveLook(s, o),
     layout: resolveOccLayout(s, o),
+    display: o.display || s.display || 'classic',
+    kind: o.kind === 'countup' ? 'countup' : 'countdown',
+    run: o.kind === 'countup' ? runOf(row, now, { ...ctx, settings: s, today }, pickLang) : null,
+    advent: adventOf(row, now, c, s, today, daysLeft, pickLang),
+    sound: soundOfRow(s, o),
+    touch: o.touch !== false,
   };
 }
 
@@ -1332,6 +1400,7 @@ const TAKEOVER_RANK = { zero: 0, final: 1, milestone: 2 };
  *     style:      string     the occasion's takeover style id (OCC_STYLES, a src/shared/takeoverStyles.js id)
  *     look:       { accent, photo, dim, numeralsFont }   resolved (defaults < settings.look < the occasion's own)
  *     layout:     resolved layout (see layoutConfig.js)
+ *     sound:      { chime, volume } | null   to play with src/shared/chime.js when it appears (null = silent: off, or off for this moment)
  *   }
  *
  * Priority: zero > final > milestone; the occasion that begins first wins a tie. Switches (each can be set globally in the
@@ -1393,7 +1462,7 @@ export function takeoverFor(file, now, ctx) {
   const { kind, row: r, until, extra } = best;
   const o = r.occasion;
   const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
-  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false };
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind) };
   const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });
   if (kind === 'zero') {
     const evening = r.begin.evening && today < r.startISO;
@@ -1424,7 +1493,14 @@ export function takeoverFor(file, now, ctx) {
  * An explanation that does not show on the screen (no source, or not checked yet) stays out of the copies that leave the
  * server: a live viewer can read /api/state, and an unchecked draft must not be public.
  */
-const withoutHiddenExplain = (o) => (explainShows(o) ? o : { ...o, explainEn: '', explainHe: '', source: '', explainChecked: false });
+const withoutHiddenCards = (o) => {
+  const d = o?.advent?.daily;
+  if (!d) return o;
+  const daily = {};
+  for (const [k, c] of Object.entries(d)) daily[k] = dailyTextShows(c) ? c : { ...c, en: '', he: '', source: '', checked: false };
+  return { ...o, advent: { ...o.advent, daily } };
+};
+const withoutHiddenExplain = (o) => withoutHiddenCards(explainShows(o) ? o : { ...o, explainEn: '', explainHe: '', source: '', explainChecked: false });
 /** The kiosk / live copy of the document: switched-off occasions and unchecked explanations stay out. */
 export function forKiosk(file) {
   const f = normalizeFile(file);

@@ -30,7 +30,12 @@ export function uploadFilesFromOccasions(doc) {
     if (m) out.push(m[1]);
   };
   add(doc?.settings?.look?.photo);
-  if (Array.isArray(doc?.occasions)) for (const o of doc.occasions) add(o?.look?.photo);
+  if (Array.isArray(doc?.occasions)) {
+    for (const o of doc.occasions) {
+      add(o?.look?.photo); add(o?.advent?.photo);
+      if (o?.advent?.daily && typeof o.advent.daily === 'object') for (const c of Object.values(o.advent.daily)) add(c?.photo);
+    }
+  }
   return out;
 }
 

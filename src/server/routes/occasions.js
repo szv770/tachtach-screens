@@ -8,9 +8,11 @@
 import express, { Router } from 'express';
 import { occasionsStore } from '../occasionsStore.js';
 import * as O from '../../shared/occasions.js';
+import { momentStore, parseMoment } from '../occasionMoment.js';
 
 const router = Router();
 // Undo sends the whole previous document back (up to the 200 kB file cap), so only that one route takes a 256 kB body.
+router.use('/occasions/moment', express.json({ limit: '4kb' }));
 router.use('/occasions/all', express.json({ limit: '256kb' }));
 router.use('/occasions', express.json({ limit: '64kb' }));
 
@@ -22,6 +24,19 @@ const fail = (res, e) => {
 const body = (req) => (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {});
 const view = async (file) => ({ ...file, today: await occasionsStore.today(), tz: await occasionsStore.tz() });
 const notFound = (res) => res.status(404).json({ error: 'That occasion is not on the list any more.' });
+
+// Live moments (in memory, never stored): fire something on the TV now / stop it. Registered BEFORE the /:id routes.
+router.post('/occasions/moment', (req, res) => {
+  try {
+    // the app-wide parser may already have read a bigger body for /api/occasions: enforce 4 kB here too
+    if (JSON.stringify(req.body ?? null).length > 4096) return res.status(413).json({ error: 'That is too much text for a moment.' });
+    const clean = parseMoment(req.body);
+    const lim = momentStore.take();
+    if (!lim.ok) { res.set('Retry-After', String(lim.retryAfterSec)); return res.status(429).json({ error: 'That is a lot of moments in a minute. Wait a few seconds.' }); }
+    res.json({ moment: momentStore.start(clean) });
+  } catch (e) { fail(res, e); }
+});
+router.delete('/occasions/moment', (_req, res) => { res.json({ stopped: momentStore.stop() }); });
 
 router.get('/occasions', async (_req, res) => {
   try { res.json(await view(await occasionsStore.read())); } catch { res.status(500).json({ error: 'Could not read the occasions.' }); }
