@@ -34,6 +34,7 @@ import { candleMinutesOf, DEFAULT_CANDLE_MINUTES } from './candleLighting.js';
 import { zonedParts, zonedTimeToUtc, DEFAULT_TZ } from './announcements.js';
 import { isYomTov } from './chazan.js';
 import { zmanMinutes } from './dayNight.js';
+import { normalizeLayout, layoutProblem, resolveLayout } from './layoutConfig.js';
 
 export class OccasionsError extends Error {}
 
@@ -41,6 +42,7 @@ export class OccasionsError extends Error {}
 
 export const LIMITS = Object.freeze({
   occasions: 80, name: 60, explain: 600, source: 140, event: 120, zero: 40, file: 200000,
+  stageLine: 60, milestones: 12, milestoneTexts: 30, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
 export const BEGINS_LABEL = Object.freeze({
@@ -58,16 +60,73 @@ export const RANGES = Object.freeze({
   withinDays: { min: 1, max: 400 }, cycleCount: { min: 2, max: 5 }, cycleSeconds: { min: 6, max: 60 },
   comingUpCount: { min: 0, max: 4 }, comingUpDays: { min: 7, max: 400 }, zeroMinutes: { min: 1, max: 240 },
   railDays: { min: 1, max: 60 }, takeoverMinutes: { min: 1, max: 30 }, showDays: { min: 0, max: 400 }, days: { min: 1, max: 9 },
+  milestoneMinutes: { min: 1, max: 15 }, milestoneDay: { min: 1, max: 365 }, dim: { min: 30, max: 90 },
 });
 export const FAR_DAYS = 14; // more than this many whole days left: the big DAYS form
+
+// ── hype moments, stage words, look, layout (defaults) ──────────────────────
+
+/** The six stages of a countdown, in order (countdownOf's forms minus 'past'). */
+export const STAGES = Object.freeze(['far', 'days', 'hours', 'minutes', 'zero', 'day']);
+export const STAGE_LABEL = Object.freeze({
+  far: 'Far away (more than 2 weeks)', days: 'Days to go (2 weeks or less)', hours: 'The last day (hours)',
+  minutes: 'The last hour (minutes)', zero: 'The moment it begins', day: 'The day itself',
+});
+export const MILESTONE_EVERY = Object.freeze([15, 30, 60, 120]);
+export const DEFAULT_MILESTONES = Object.freeze([30, 14, 7, 3, 2, 1]);
+export const FINAL_SECONDS = 60;
+
+/** Built-in taglines per stage. Short, neutral, no claims. Hebrew: native speaker to confirm (see docs). Blank = no tagline. */
+export const STAGE_TEXT_DEFAULTS = Object.freeze({
+  far: { en: 'Get ready', he: 'מתכוננים' },
+  days: { en: 'Getting closer', he: 'מתקרבים' },
+  hours: { en: 'Just hours to go', he: 'עוד כמה שעות' },
+  minutes: { en: 'Almost here', he: 'כמעט כאן' },
+  zero: { en: '', he: '' },
+  day: { en: '', he: '' },
+});
+/** Built-in tagline for a milestone day ('7 days to go' style). Hebrew: native speaker to confirm. */
+export function milestoneDefault(n) {
+  if (n === 1) return { en: '1 day to go', he: 'עוד יום אחד' };
+  if (n === 2) return { en: '2 days to go', he: 'עוד יומיים' };
+  if (n === 7) return { en: 'One week to go', he: 'עוד שבוע' };
+  if (n === 14) return { en: 'Two weeks to go', he: 'עוד שבועיים' };
+  return { en: `${n} days to go`, he: `עוד ${n} ימים` };
+}
+
+export const LOOK_DEFAULTS = Object.freeze({ accent: '', photo: '', dim: 60, numeralsFont: '' });
+export const LOOK_KEYS = Object.freeze(Object.keys(LOOK_DEFAULTS));
+const ACCENT = /^#[0-9a-fA-F]{6}$/;
+/** An uploaded picture as the upload route stores it: /uploads/<uuid>.<jpg|png|webp> (no query, no folders). */
+export const PHOTO_URL = /^\/uploads\/[A-Za-z0-9-]{8,64}\.(?:jpe?g|png|webp)$/;
+const FONT_NAME = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,59}$/u;
+
+/** Parts the Countdown page can draw / the text order (src/shared/layoutConfig.js). */
+export const LAYOUT_SPEC = Object.freeze({
+  show: ['name', 'hebrewName', 'date', 'begins', 'event', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source'],
+  order: ['name', 'date', 'begins', 'event'],
+});
+export const LAYOUT_PART_LABEL = Object.freeze({
+  name: 'Name', hebrewName: 'Hebrew name', date: 'Dates', begins: 'When it begins', event: 'Event line', tagline: 'Tagline above the numbers',
+  ring: 'Ring', pips: 'Dots for the days', bar: 'Progress bar', coming: "'Coming up' strip", source: 'Source line',
+});
+export const LAYOUT_DEFAULTS = Object.freeze({
+  show: Object.freeze(Object.fromEntries(LAYOUT_SPEC.show.map((k) => [k, true]))),
+  order: LAYOUT_SPEC.order, side: 'left', scale: 100, align: 'start',
+});
 
 export const SETTINGS_DEFAULTS = Object.freeze({
   pick: 'nearest', pinnedId: '', cycleCount: 3, cycleSeconds: 10,
   withinDays: 30, beginsAt: 'shkia', time: '18:00', fallbackTime: '18:00',
   language: 'both', comingUp: true, comingUpCount: 3, comingUpDays: 120,
   seconds: true, zeroMinutes: 30, celebrate: true, explain: true, credit: true, hebrewDate: true, civilDate: true,
-  rail: true, railDays: 7, banner: false, takeover: false, takeoverMinutes: 3,
+  rail: true, railDays: 7, banner: false, takeover: true, takeoverMinutes: 3,
   zeroEn: '', zeroHe: '',
+  // hype moments: milestone takeovers + the final minute (the zero takeover is `takeover` / `takeoverMinutes` above)
+  milestoneOn: true, milestones: DEFAULT_MILESTONES, milestoneMinutes: 2, milestoneEveryMinutes: 60, milestoneFrom: '07:00', milestoneTo: '21:00',
+  finalOn: true,
+  // words per stage / per milestone ({} = the built-in lines), the look and the layout (complete objects)
+  stageText: Object.freeze({}), milestoneText: Object.freeze({}), look: LOOK_DEFAULTS, layout: LAYOUT_DEFAULTS,
 });
 
 /** Takeover styles an occasion may use at its zero moment (src/shared/takeoverStyles.js ids). */
@@ -178,6 +237,99 @@ export function para(v, max) {
 const hhmmOf = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
 const newId = () => `o${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 
+// ── normalising the new blocks (stage words, milestones, look, layout) ─────
+
+const tidyText = (v) => ({ en: line(isObj(v) ? v.en : '', LIMITS.stageLine), he: line(isObj(v) ? v.he : '', LIMITS.stageLine) });
+/** { far: {en,he}, ... }: only the stages that are present (absent = follow the default; both empty = deliberately blank). */
+export function normalizeStageText(raw) {
+  const out = {};
+  if (!isObj(raw)) return out;
+  for (const k of STAGES) if (isObj(raw[k])) out[k] = tidyText(raw[k]);
+  return out;
+}
+const milestoneKey = (k) => /^[1-9]\d{0,2}$/.test(k) && Number(k) <= RANGES.milestoneDay.max;
+/** { '7': {en,he}, ... } for whole numbers 1-365 (at most LIMITS.milestoneTexts). */
+export function normalizeMilestoneText(raw) {
+  const out = {};
+  if (!isObj(raw)) return out;
+  for (const k of Object.keys(raw).filter(milestoneKey).sort((a, b) => Number(a) - Number(b))) {
+    if (isObj(raw[k])) out[k] = tidyText(raw[k]);
+    if (Object.keys(out).length >= LIMITS.milestoneTexts) break;
+  }
+  return out;
+}
+/** Whole numbers 1-365, no repeats, biggest first, at most LIMITS.milestones. Not a list: the fallback. */
+export function normalizeMilestones(raw, fallback) {
+  if (!Array.isArray(raw)) return fallback;
+  const set = new Set();
+  for (const v of raw) { const n = typeof v === 'string' && v.trim() ? Number(v) : v; if (Number.isInteger(n) && n >= RANGES.milestoneDay.min && n <= RANGES.milestoneDay.max) set.add(n); }
+  return [...set].sort((a, b) => b - a).slice(0, LIMITS.milestones);
+}
+/**
+ * The look block. `partial` (one occasion): only the fields that are present stay (absent / null = follow the default;
+ * an empty accent / photo / font present = 'none, whatever the default says'). Not partial (settings): complete over LOOK_DEFAULTS.
+ */
+export function normalizeLook(raw, partial = false) {
+  const r = isObj(raw) ? raw : {};
+  const out = {};
+  const has = (k) => r[k] !== undefined && r[k] !== null;
+  if (has('accent') && typeof r.accent === 'string' && (r.accent === '' || ACCENT.test(r.accent))) out.accent = r.accent.toLowerCase();
+  if (has('photo') && typeof r.photo === 'string' && (r.photo === '' || PHOTO_URL.test(r.photo))) out.photo = r.photo;
+  if (has('dim')) { const n = typeof r.dim === 'string' && r.dim.trim() ? Number(r.dim) : r.dim; if (Number.isInteger(n) && n >= RANGES.dim.min && n <= RANGES.dim.max) out.dim = n; }
+  if (has('numeralsFont') && typeof r.numeralsFont === 'string') { const f = line(r.numeralsFont, LIMITS.fontName); if (f === '' || FONT_NAME.test(f)) out.numeralsFont = f; }
+  return partial ? out : { ...LOOK_DEFAULTS, ...out };
+}
+/** The look in force for an occasion: defaults < settings < the occasion's own fields. */
+export function resolveLook(settings, o) {
+  return { ...LOOK_DEFAULTS, ...(settings?.look || {}), ...(o?.look || {}) };
+}
+/** The layout in force for an occasion (see src/shared/layoutConfig.js). */
+export function resolveOccLayout(settings, o) {
+  return resolveLayout(LAYOUT_DEFAULTS, settings?.layout, o?.layout);
+}
+const LOOK_FIELDS_LABEL = { accent: 'Accent colour', photo: 'Background photo', dim: 'Darkening', numeralsFont: 'Numbers font' };
+/** Strict check of a look block: null when fine, else what is wrong. Unknown keys refused; `partial` allows null (= follow). */
+export function lookProblem(raw, partial = false) {
+  if (!isObj(raw)) return 'The look is not valid.';
+  for (const [k, v] of Object.entries(raw)) {
+    if (!LOOK_KEYS.includes(k)) return `Unknown look setting: ${String(k).slice(0, 30)}.`;
+    if (v === null && partial) continue;
+    if (k === 'accent' && !(typeof v === 'string' && (v === '' || ACCENT.test(v)))) return `${LOOK_FIELDS_LABEL[k]}: a colour like #c9a24b.`;
+    if (k === 'photo' && !(typeof v === 'string' && (v === '' || PHOTO_URL.test(v)))) return `${LOOK_FIELDS_LABEL[k]}: use a picture uploaded here.`;
+    if (k === 'dim' && intIn(v, RANGES.dim, null) == null) return `${LOOK_FIELDS_LABEL[k]}: ${RANGES.dim.min} to ${RANGES.dim.max} percent.`;
+    if (k === 'numeralsFont' && !(typeof v === 'string' && (v === '' || FONT_NAME.test(v.trim())))) return `${LOOK_FIELDS_LABEL[k]}: a font name (letters, numbers, spaces).`;
+  }
+  return null;
+}
+/** Strict check of the stage / milestone words (kind 'stage' | 'milestone'): every line is {en, he}, 60 characters at most. */
+export function textsProblem(raw, kind) {
+  if (!isObj(raw)) return 'The words are not valid.';
+  const entries = Object.entries(raw);
+  if (kind === 'milestone' && entries.length > LIMITS.milestoneTexts) return `${LIMITS.milestoneTexts} milestone lines at most.`;
+  for (const [k, v] of entries) {
+    if (kind === 'stage' ? !STAGES.includes(k) : !milestoneKey(k)) return kind === 'stage' ? `Unknown stage: ${String(k).slice(0, 30)}.` : `${String(k).slice(0, 10)} is not a day count from ${RANGES.milestoneDay.min} to ${RANGES.milestoneDay.max}.`;
+    if (!isObj(v)) return 'Each line has an English and a Hebrew part.';
+    for (const l of Object.keys(v)) if (l !== 'en' && l !== 'he') return 'Each line has an English and a Hebrew part.';
+    for (const l of ['en', 'he']) {
+      if (v[l] != null && typeof v[l] !== 'string') return 'Text only, please.';
+      if ([...String(v[l] || '').trim()].length > LIMITS.stageLine) return `${LIMITS.stageLine} characters at most, one line.`;
+    }
+  }
+  return null;
+}
+export function milestonesProblem(v) {
+  if (!Array.isArray(v)) return 'The milestones are a list of day counts.';
+  if (v.length > LIMITS.milestones) return `${LIMITS.milestones} milestones at most.`;
+  const seen = new Set();
+  for (const n of v) {
+    if (!Number.isInteger(n) || n < RANGES.milestoneDay.min || n > RANGES.milestoneDay.max) return `A milestone is a whole number from ${RANGES.milestoneDay.min} to ${RANGES.milestoneDay.max}.`;
+    if (seen.has(n)) return 'Each milestone is in the list once.';
+    seen.add(n);
+  }
+  return null;
+}
+const minutesOf = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
+
 // ── normalising (server and admin share it) ─────────────────────────────────
 
 export function normalizeSettings(raw) {
@@ -211,7 +363,24 @@ export function normalizeSettings(raw) {
     takeoverMinutes: intIn(s.takeoverMinutes, R.takeoverMinutes, D.takeoverMinutes),
     zeroEn: line(s.zeroEn, LIMITS.zero),
     zeroHe: line(s.zeroHe, LIMITS.zero),
+    milestoneOn: bool('milestoneOn'),
+    milestones: normalizeMilestones(s.milestones, [...D.milestones]),
+    milestoneMinutes: intIn(s.milestoneMinutes, R.milestoneMinutes, D.milestoneMinutes),
+    milestoneEveryMinutes: MILESTONE_EVERY.includes(s.milestoneEveryMinutes) ? s.milestoneEveryMinutes : D.milestoneEveryMinutes,
+    ...hoursOf(s),
+    finalOn: bool('finalOn'),
+    stageText: normalizeStageText(s.stageText),
+    milestoneText: normalizeMilestoneText(s.milestoneText),
+    look: normalizeLook(s.look, false),
+    layout: resolveLayout(LAYOUT_DEFAULTS, normalizeLayout(s.layout, LAYOUT_SPEC), null),
   };
+}
+/** The hours the milestone takeovers may appear in (from before to; otherwise the defaults). */
+function hoursOf(s) {
+  const D = SETTINGS_DEFAULTS;
+  const from = typeof s.milestoneFrom === 'string' && HHMM.test(s.milestoneFrom) ? s.milestoneFrom : D.milestoneFrom;
+  const to = typeof s.milestoneTo === 'string' && HHMM.test(s.milestoneTo) ? s.milestoneTo : D.milestoneTo;
+  return minutesOf(from) < minutesOf(to) ? { milestoneFrom: from, milestoneTo: to } : { milestoneFrom: D.milestoneFrom, milestoneTo: D.milestoneTo };
 }
 
 /** A rule, or null when it is not a usable date rule. */
@@ -268,6 +437,8 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     explainEn: para(raw.explainEn, LIMITS.explain),
     explainHe: para(raw.explainHe, LIMITS.explain),
     source: line(raw.source, LIMITS.source),
+    // 'I checked this with the source': only meaningful with text; editing text or source resets it (updateOccasion)
+    explainChecked: raw.explainChecked === true && !!(para(raw.explainEn, LIMITS.explain) || para(raw.explainHe, LIMITS.explain)),
     eventEn: line(raw.eventEn, LIMITS.event),
     eventHe: line(raw.eventHe, LIMITS.event),
     zeroEn: line(raw.zeroEn, LIMITS.zero),
@@ -278,6 +449,15 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     banner: raw.banner !== false,
     takeover: raw.takeover !== false,
     style: oneOf(raw.style, OCC_STYLES, 'hype'),
+    // hype moments: null = follow the global switch / list
+    milestoneOn: typeof raw.milestoneOn === 'boolean' ? raw.milestoneOn : null,
+    finalOn: typeof raw.finalOn === 'boolean' ? raw.finalOn : null,
+    milestones: Array.isArray(raw.milestones) ? normalizeMilestones(raw.milestones, null) : null,
+    // own words / look / layout: PARTIAL, anything absent follows the default
+    stageText: normalizeStageText(raw.stageText),
+    milestoneText: normalizeMilestoneText(raw.milestoneText),
+    look: normalizeLook(raw.look, true),
+    layout: normalizeLayout(raw.layout, LAYOUT_SPEC),
   };
 }
 
@@ -337,11 +517,46 @@ export function occasionProblem(raw) {
   if (raw.days != null && intIn(raw.days, RANGES.days, null) == null) return `It lasts 1 to ${RANGES.days.max} days.`;
   if (raw.beginsAt === 'time' && !(typeof raw.time === 'string' && HHMM.test(raw.time))) return 'Choose the time it begins.';
   if (raw.showDays != null && raw.showDays !== '' && intIn(raw.showDays, RANGES.showDays, null) == null) return `'Show only in the last days' is 0 to ${RANGES.showDays.max}.`;
+  for (const k of ['milestoneOn', 'finalOn']) if (raw[k] != null && typeof raw[k] !== 'boolean') return 'Hype moments: on, off or follow the default.';
+  if (raw.milestones != null) { const m = milestonesProblem(raw.milestones); if (m) return m; }
+  if (raw.stageText != null) { const m = textsProblem(raw.stageText, 'stage'); if (m) return m; }
+  if (raw.milestoneText != null) { const m = textsProblem(raw.milestoneText, 'milestone'); if (m) return m; }
+  if (raw.look != null) { const m = lookProblem(raw.look, true); if (m) return m; }
+  if (raw.layout != null) { const m = layoutProblem(raw.layout, LAYOUT_SPEC); if (m) return m; }
+  if (raw.explainChecked != null && typeof raw.explainChecked !== 'boolean') return 'Checked: yes or no.';
   return null;
 }
 
-/** Does the explanation show on the screen? Only with text AND a source (owner rule). */
-export const explainShows = (o) => !!(o && (o.explainEn || o.explainHe) && String(o.source || '').trim().length >= 3);
+/** Does the source field hold enough to count as a source (3+ characters)? */
+const hasSource = (o) => String(o?.source || '').trim().length >= 3;
+/**
+ * Does the explanation show on the screen? Only with text AND a source AND the admin's explicit 'I checked this with the
+ * source' (owner rule 2026-11: every explanation is verified before it is public). Existing explanations stored before
+ * `explainChecked` existed are therefore hidden until someone checks them.
+ */
+export const explainShows = (o) => !!(o && (o.explainEn || o.explainHe) && hasSource(o) && o.explainChecked === true);
+/** 'none' (no text) | 'needsSource' | 'needsCheck' (has a source, not checked) | 'shows'. For the admin's state chip. */
+export function explainState(o) {
+  if (!o || !(String(o.explainEn || '').trim() || String(o.explainHe || '').trim())) return 'none';
+  if (!hasSource(o)) return 'needsSource';
+  return o.explainChecked === true ? 'shows' : 'needsCheck';
+}
+export const EXPLAIN_CHIP = Object.freeze({
+  none: 'No explanation', needsSource: 'Needs checking', needsCheck: 'Needs checking', shows: 'Checked \u2013 shows on the screen',
+});
+/** Why an explanation is hidden (plain English for the edit sheet); '' when it shows or there is none. */
+export function explainWhy(o) {
+  const st = explainState(o);
+  if (st === 'needsSource') return 'Hidden: add the source, then check it against the source.';
+  if (st === 'needsCheck') return 'Hidden until you check it: open the source, compare, and switch on "I checked this with the source".';
+  return '';
+}
+/** A URL inside the source text (first http/https link), or '' (for the admin's 'Open source' helper). Never shown on the kiosk. */
+export function sourceUrl(src) {
+  const m = String(src || '').match(/https?:\/\/[^\s<>"')]+/i);
+  if (!m) return '';
+  try { const u = new URL(m[0]); return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : ''; } catch { return ''; }
+}
 
 // ── document operations (routes call these under the store lock) ───────────
 
@@ -356,9 +571,13 @@ export function addOccasion(file, raw) {
 export function updateOccasion(file, id, patch) {
   const cur = file.occasions.find((o) => o.id === id);
   if (!cur) return null; // -> 404
-  const merged = { ...cur, ...(isObj(patch) ? patch : {}), id: cur.id, starter: cur.starter };
+  const pt = isObj(patch) ? patch : {};
+  const merged = { ...cur, ...pt, id: cur.id, starter: cur.starter };
   const p = occasionProblem(merged);
   if (p) throw new OccasionsError(p);
+  // Editing the text or the source un-checks the explanation, unless the same save switches the check on again.
+  const same = (k) => String(merged[k] ?? '').trim() === String(cur[k] ?? '').trim();
+  if (!(same('explainEn') && same('explainHe') && same('source')) && pt.explainChecked !== true) merged.explainChecked = false;
   const o = normalizeOccasion(merged);
   return { file: { ...file, occasions: file.occasions.map((x) => (x.id === id ? o : x)) }, occasion: o };
 }
@@ -373,6 +592,7 @@ const SETTING_ENUMS = { pick: PICKS, beginsAt: BEGINS, language: LANGS };
 const SETTING_LABEL = {
   withinDays: 'Days ahead', cycleCount: 'How many take turns', cycleSeconds: 'Seconds each', comingUpCount: 'How many coming up',
   comingUpDays: 'Coming up within', zeroMinutes: 'Celebration minutes', railDays: 'Rail card days', takeoverMinutes: 'Takeover minutes',
+  milestoneMinutes: 'Milestone minutes',
 };
 /** Strict check of a settings patch: null when fine, else what is wrong (plain English). Unknown keys are refused. */
 export function settingsProblem(patch) {
@@ -384,7 +604,14 @@ export function settingsProblem(patch) {
     if (typeof SETTINGS_DEFAULTS[k] === 'boolean') { if (typeof v !== 'boolean') return `${k}: on or off.`; continue; }
     if (k === 'time' || k === 'fallbackTime') { if (typeof v !== 'string' || !HHMM.test(v)) return 'Choose a time like 18:00.'; continue; }
     if (k === 'pinnedId') { if (v !== '' && !(typeof v === 'string' && ID.test(v))) return 'That occasion is not on the list.'; continue; }
-    if (k === 'zeroEn' || k === 'zeroHe') { if (typeof v !== 'string' || [...v.trim()].length > LIMITS.zero) return `The greeting is ${LIMITS.zero} characters at most.`; }
+    if (k === 'zeroEn' || k === 'zeroHe') { if (typeof v !== 'string' || [...v.trim()].length > LIMITS.zero) return `The greeting is ${LIMITS.zero} characters at most.`; continue; }
+    if (k === 'milestones') { const m = milestonesProblem(v); if (m) return m; continue; }
+    if (k === 'milestoneEveryMinutes') { if (!MILESTONE_EVERY.includes(v)) return `How often: every ${MILESTONE_EVERY.join(', ')} minutes.`; continue; }
+    if (k === 'milestoneFrom' || k === 'milestoneTo') { if (typeof v !== 'string' || !HHMM.test(v)) return 'Choose a time like 07:00.'; continue; }
+    if (k === 'stageText') { const m = textsProblem(v, 'stage'); if (m) return m; continue; }
+    if (k === 'milestoneText') { const m = textsProblem(v, 'milestone'); if (m) return m; continue; }
+    if (k === 'look') { const m = lookProblem(v, false); if (m) return m; continue; }
+    if (k === 'layout') { const m = layoutProblem(v, LAYOUT_SPEC); if (m) return m; }
   }
   return null;
 }
@@ -392,7 +619,10 @@ export function settingsProblem(patch) {
 export function setSettings(file, patch) {
   const p = settingsProblem(patch);
   if (p) throw new OccasionsError(p);
-  const next = normalizeSettings({ ...file.settings, ...patch });
+  const merged = { ...file.settings, ...patch };
+  if (minutesOf(merged.milestoneFrom) >= minutesOf(merged.milestoneTo)) throw new OccasionsError('The hours go from an earlier time to a later one, for example 07:00 to 21:00.');
+  if (merged.milestoneMinutes >= merged.milestoneEveryMinutes) throw new OccasionsError('A milestone takeover has to be shorter than the time between them.');
+  const next = normalizeSettings(merged);
   if (patch.pinnedId && !file.occasions.some((o) => o.id === patch.pinnedId)) throw new OccasionsError('That occasion is not on the list.');
   return { ...file, settings: next };
 }
@@ -811,6 +1041,21 @@ export function dayIndexOf(row, now, ctx) {
 }
 
 /**
+ * The tagline for a stage: { en, he } or null (blank). Most specific wins, whole {en,he} lines (an empty line is a deliberate blank):
+ *   the occasion's line for this day count > the global line for this day count > the occasion's line for this stage >
+ *   the global line for this stage > the built-in '7 days to go' line (only on a day count in the milestone list) > the built-in stage line.
+ * `daysLeft` is the calendar days to go (0 once it has begun); day-count lines apply before it begins only.
+ */
+export function stageTextFor(o, s, stage, daysLeft) {
+  const st = s || SETTINGS_DEFAULTS;
+  const n = daysLeft > 0 && stage !== 'zero' && stage !== 'day' ? String(daysLeft) : null;
+  const list = (o && Array.isArray(o.milestones) ? o.milestones : st.milestones) || [];
+  const found = (n && o?.milestoneText?.[n]) || (n && st.milestoneText?.[n]) || o?.stageText?.[stage] || st.stageText?.[stage]
+    || (n && list.includes(daysLeft) ? milestoneDefault(daysLeft) : null) || STAGE_TEXT_DEFAULTS[stage] || null;
+  return found && (found.en || found.he) ? { en: found.en || '', he: found.he || '' } : null;
+}
+
+/**
  * Everything the kiosk page needs for one row, as plain data (also the fit test's input).
  * @param {object} row  from pickFor().rows
  */
@@ -825,6 +1070,8 @@ export function heroModel(row, now, ctx) {
   const name = { en: row.nameEn || (lang === 'english' ? row.nameHe : ''), he: row.nameHe || (lang === 'hebrew' ? row.nameEn : '') };
   const evening = c.form === 'day' && row.begin.evening && today < row.startISO;
   const di = c.form === 'day' || c.form === 'zero' ? dayIndexOf(row, now, { ...ctx, settings: s, today }) : null;
+  const daysLeft = c.form === 'day' || c.form === 'zero' ? 0 : Math.max(0, daysUntil(row, today));
+  const tagline = stageTextFor(o, s, c.form, daysLeft);
   return {
     id: row.id, key: `${row.id}|${row.startISO}`, form: c.form, countdown: c, words: { ...words, unit: pickLang(words.unit), sub: words.sub ? pickLang(words.sub) : null },
     name: pickLang(name),
@@ -841,6 +1088,10 @@ export function heroModel(row, now, ctx) {
     event: (c.form === 'day' || c.form === 'zero' || c.form === 'hours' || c.form === 'minutes') ? pickLang({ en: o.eventEn, he: o.eventHe }) : null,
     explain: s.explain && explainShows(o) ? { ...pickLang({ en: o.explainEn, he: o.explainHe }), source: s.credit ? o.source : '' } : null,
     style: o.style,
+    daysLeft,
+    stageText: tagline ? pickLang(tagline) : null,
+    look: resolveLook(s, o),
+    layout: resolveOccLayout(s, o),
   };
 }
 
@@ -861,7 +1112,7 @@ export function slideModel(file, now, ctx) {
   };
 }
 
-// ── virtual announcement items (rail card, banner on the day, takeover at zero) ──
+// ── virtual announcement items (rail card, banner on the day) ──────────────
 
 const baseItem = (id, startMs) => ({
   id, auto: 'occasions', readOnly: true, createdAt: new Date(startMs).toISOString(), status: 'published', hold: false, enabled: true,
@@ -869,22 +1120,22 @@ const baseItem = (id, startMs) => ({
 });
 
 /**
- * Rail card ('12 days to Yud-Tes Kislev') from railDays before until it begins; banner while it runs; a takeover for
- * takeoverMinutes from the zero moment. Never stored; the kiosk runs them through the same selectActive() as real posts.
- * Only when the OCCASION slide row is switched on (the one master switch).
+ * Rail card ('12 days to Yud-Tes Kislev') from railDays before until it begins; banner while it runs. Never stored; the
+ * kiosk runs them through the same selectActive() as real posts. Only when the OCCASION slide row is switched on (the one
+ * master switch). There is NO takeover item any more: every full-screen moment (milestone, final minute, zero) comes from
+ * takeoverFor() below, so only ONE takeover can ever show.
  */
 export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
   if (!slideOn || !file) return [];
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
   const s = normalizeSettings(f.settings);
-  if (!s.rail && !s.banner && !s.takeover) return [];
+  if (!s.rail && !s.banner) return [];
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
-  const rows = upcoming(f, now, { ...ctx, today }, { horizonDays: Math.max(s.railDays, 2) + 2 });
+  const rows = upcoming(f, now, { ...ctx, today });
   const out = [];
   const lang = s.language;
   const en = (x) => (lang === 'hebrew' ? '' : x); const he = (x) => (lang === 'english' ? '' : x);
   const iso = (ms) => new Date(ms).toISOString();
-  const t = now.getTime();
   // rail: the nearest not-yet-begun one inside railDays
   if (s.rail) {
     const r = rows.find((x) => !x.running && x.occasion.rail !== false && daysUntil(x, today) <= s.railDays);
@@ -904,12 +1155,12 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
       });
     }
   }
+  if (!s.banner) return out;
   for (const r of rows) {
-    if (!r.running && !(s.takeover && r.begin.ms - t < 60000)) continue;
+    if (!r.running) continue;
     const o = r.occasion;
     const nm = r.nameEn || r.nameHe;
-    const z = zeroWordsFor(o, s) || { en: r.begin.evening ? 'Tonight' : 'Today', he: r.begin.evening ? 'הלילה' : 'היום' };
-    if (s.banner && o.banner !== false && r.running) {
+    if (o.banner !== false) {
       const ev = o.eventEn ? ` · ${o.eventEn}` : ''; const evHe = o.eventHe ? ` · ${o.eventHe}` : '';
       const evening = today < r.startISO;
       out.push({
@@ -919,29 +1170,140 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
         updatedAt: `${r.id}:${r.startISO}:b:${evening}:${o.eventEn}:${o.eventHe}:${lang}`,
       });
     }
-    if (s.takeover && o.takeover !== false && r.begin.exact) {
-      const until = Math.min(r.begin.ms + s.takeoverMinutes * 60000, r.end.ms);
-      if (t < until) {
-        out.push({
-          ...baseItem(`auto-occasion-${r.id}-takeover`, r.begin.ms), display: 'takeover',
-          content: { headlineEn: en(z.en) || z.he, headlineHe: he(z.he), bodyEn: en(nm), bodyHe: he(r.nameHe || '') },
-          look: { layout: 'bigwords', style: o.style || 'hype', animation: 'entrance', fit: 'auto' },
-          takeover: {},
-          when: { startsAt: iso(r.begin.ms), expiresAt: iso(until), recurrence: null },
-          updatedAt: `${r.id}:${r.startISO}:t:${s.takeoverMinutes}:${z.en}:${lang}`,
-        });
-      }
-    }
   }
   return out;
 }
 
-/** The kiosk / live copy of the document: switched-off occasions and their drafts stay out. */
+// ── full-screen moments: milestone, final minute, zero ──────────────────────
+
+const TAKEOVER_RANK = { zero: 0, final: 1, milestone: 2 };
+
+/**
+ * THE one full-screen moment for the Countdown at `now` (or null). Pure and stateless: decided from the document, the clock
+ * and the zman context alone, so every screen and every reload agrees and nothing is stored.
+ *
+ *   takeoverFor(file, now, ctx) -> null | {
+ *     kind:       'zero' | 'final' | 'milestone'
+ *     key:        string   stable for the whole appearance (restart the entrance animation when it changes):
+ *                          'zero'      `${id}|${startISO}|zero`
+ *                          'final'     `${id}|${startISO}|final`
+ *                          'milestone' `${id}|${startISO}|m${daysLeft}|${slotStartMs}`
+ *     id:         string   the occasion's id
+ *     daysLeft:   number   calendar days to the day it begins on (0 for 'final' only when it begins today; 0 for 'zero')
+ *     until:      number   ms epoch when THIS appearance ends (the kiosk hides it then; 'final' ends at the zero moment, where
+ *                          the 'zero' one takes over; 'milestone' at the end of its slot, the end of the hours or the begin moment)
+ *     beginMs:    number   ms epoch of the zero moment (tick the final minute's seconds locally: ceil((beginMs-Date.now())/1000))
+ *     name:       { en, he }     the occasion's name, '' for a language the Language setting hides
+ *     words:      { big, unit: {en,he}, sub: {en,he}|null }   same shape as a slideModel row's `words`:
+ *                          'milestone' big '7', unit '7 days to go' style (countdownWords 'far' form; always about daysLeft)
+ *                          'final'     big '0:42' (M:SS) with unit 'minutes : seconds', live (see `live`)
+ *                          'zero'      big '' / unit '' / sub null (the greeting is the message)
+ *     stageText:  { en, he } | null   the tagline (milestone line > stage line > global > built-in; null = none)
+ *     greeting:   { en, he } | null   'zero' only: the greeting / 'Today is' words (null on the others)
+ *     celebrate:  boolean    'zero' only: confetti at this moment (settings.celebrate and the occasion's own switch)
+ *     live:       boolean    true for 'final': words.big is a snapshot of M:SS; tick it from beginMs
+ *     style:      string     the occasion's takeover style id (OCC_STYLES, a src/shared/takeoverStyles.js id)
+ *     look:       { accent, photo, dim, numeralsFont }   resolved (defaults < settings.look < the occasion's own)
+ *     layout:     resolved layout (see layoutConfig.js)
+ *   }
+ *
+ * Priority: zero > final > milestone; the occasion that begins first wins a tie. Switches (each can be set globally in the
+ * settings and per occasion):
+ *   zero       settings.takeover (global) AND occasion.takeover !== false; lasts settings.takeoverMinutes from the zero moment;
+ *              only with an exact begin time (never on an approximate ~ time)
+ *   final      settings.finalOn / occasion.finalOn (null = follow); the last 60 s before an exact begin time
+ *   milestone  settings.milestoneOn / occasion.milestoneOn (null = follow), on a day whose calendar-days-left is in
+ *              (occasion.milestones ?? settings.milestones), only between settings.milestoneFrom and milestoneTo (screen's
+ *              local clock, 'to' exclusive), for the first settings.milestoneMinutes minutes of every
+ *              settings.milestoneEveryMinutes slot counted from local midnight
+ * @param {object} file  the occasions document (state.occasions: { settings, occasions })
+ * @param {Date}   now
+ * @param {{ tz, today?, loc?, zmanim?, fresh?, slideOn: boolean }} ctx  `slideOn` MUST be true (the OCCASION slide row is
+ *        switched on: the one master switch); anything else returns null (fail closed)
+ */
+export function takeoverFor(file, now, ctx) {
+  if (!ctx || ctx.slideOn !== true || !file) return null;
+  const f = Array.isArray(file.occasions) ? file : normalizeFile(file);
+  const s = normalizeSettings(f.settings);
+  const tz = ctx.tz || DEFAULT_TZ;
+  const p = zonedParts(now, tz);
+  const today = ctx.today || p.date;
+  const c = { ...ctx, today };
+  const t = now.getTime();
+  const rows = upcoming(f, now, c);
+  const lang = s.language;
+  const pickLang = (x) => ({ en: lang === 'hebrew' ? '' : (x?.en || ''), he: lang === 'english' ? '' : (x?.he || '') });
+  const every = s.milestoneEveryMinutes;
+  const mins = Math.max(1, Math.min(s.milestoneMinutes, every - 1));
+  const from = minutesOf(s.milestoneFrom); const to = minutesOf(s.milestoneTo);
+  const offset = p.minutes % every;
+  const slotOpen = p.minutes >= from && p.minutes < to && offset < mins;
+  const slotStart = Math.floor(t / 1000) * 1000 - (offset * 60 + p.ss) * 1000;
+  const slotEnd = Math.min(slotStart + mins * 60000, slotStart + (to - (p.minutes - offset)) * 60000);
+  let best = null;
+  const offer = (kind, r, until, extra) => {
+    const rank = TAKEOVER_RANK[kind];
+    if (best && (best.rank < rank || (best.rank === rank && best.row.begin.ms <= r.begin.ms))) return;
+    best = { kind, rank, row: r, until, extra };
+  };
+  for (const r of rows) {
+    const o = r.occasion;
+    if (r.running) {
+      if (s.takeover && o.takeover !== false && r.begin.exact) {
+        const until = Math.min(r.begin.ms + s.takeoverMinutes * 60000, r.end.ms);
+        if (t < until) offer('zero', r, until, {});
+      }
+      continue;
+    }
+    if ((o.finalOn ?? s.finalOn) && r.begin.exact && t >= r.begin.ms - FINAL_SECONDS * 1000) { offer('final', r, r.begin.ms, {}); continue; }
+    if (!slotOpen || !(o.milestoneOn ?? s.milestoneOn)) continue;
+    const n = daysUntil(r, today);
+    if (n < 1 || !(o.milestones ?? s.milestones).includes(n)) continue;
+    const until = Math.min(slotEnd, r.begin.ms);
+    if (t < until) offer('milestone', r, until, { n, slotStart });
+  }
+  if (!best) return null;
+  const { kind, row: r, until, extra } = best;
+  const o = r.occasion;
+  const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false };
+  const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });
+  if (kind === 'zero') {
+    const evening = r.begin.evening && today < r.startISO;
+    return {
+      ...base, key: `${r.id}|${r.startISO}|zero`, daysLeft: 0,
+      words: wrap({ big: '', unit: { en: '', he: '' }, sub: null }),
+      stageText: pickLang(stageTextFor(o, s, 'zero', 0)),
+      greeting: pickLang(zeroWordsFor(o, s) || (evening ? COPY.tonight : COPY.today)),
+      celebrate: !!(s.celebrate && o.celebrate !== false),
+    };
+  }
+  if (kind === 'final') {
+    const cd = countdownOf(r, now, { ...s, seconds: true }, today);
+    return {
+      ...base, key: `${r.id}|${r.startISO}|final`, daysLeft: Math.max(0, daysUntil(r, today)), live: true,
+      words: wrap(countdownWords(cd)), stageText: pickLang(stageTextFor(o, s, 'minutes', Math.max(0, daysUntil(r, today)))),
+    };
+  }
+  const cd = countdownOf(r, now, s, today);
+  return {
+    ...base, key: `${r.id}|${r.startISO}|m${extra.n}|${extra.slotStart}`, daysLeft: extra.n,
+    words: wrap(countdownWords({ form: 'far', approx: cd.approx, days: extra.n })),
+    stageText: pickLang(stageTextFor(o, s, cd.form, extra.n)),
+  };
+}
+
+/**
+ * An explanation that does not show on the screen (no source, or not checked yet) stays out of the copies that leave the
+ * server: a live viewer can read /api/state, and an unchecked draft must not be public.
+ */
+const withoutHiddenExplain = (o) => (explainShows(o) ? o : { ...o, explainEn: '', explainHe: '', source: '', explainChecked: false });
+/** The kiosk / live copy of the document: switched-off occasions and unchecked explanations stay out. */
 export function forKiosk(file) {
   const f = normalizeFile(file);
-  return { version: 1, settings: f.settings, occasions: f.occasions.filter((o) => o.on) };
+  return { version: 1, settings: f.settings, occasions: f.occasions.filter((o) => o.on).map(withoutHiddenExplain) };
 }
-export const forViewer = (doc) => (doc && Array.isArray(doc.occasions) ? { ...doc, occasions: doc.occasions.filter((o) => o.on !== false) } : doc);
+export const forViewer = (doc) => (doc && Array.isArray(doc.occasions) ? { ...doc, occasions: doc.occasions.filter((o) => o.on !== false).map(withoutHiddenExplain) } : doc);
 
 /** A location for the sun maths from the screen's settings + cache (settings.location first, then the weather's geocode). */
 export function locationOf(settings, cache) {
