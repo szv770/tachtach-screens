@@ -2,6 +2,11 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
+## Added 2026-11-06 (owner) — customizable layouts, for EVERY screen type
+
+- **Layout customization everywhere.** Admins on desktop should be able to choose which parts of a page show, their order, which side the big element sits on and the overall size; phones get a simplified version (switches + a size slider, no drag). First version is built for the Countdown (Occasions) page as a small reusable shape (`layout: { show, order, side, scale }`, defaults under settings, per-item override). Next: look at the same controls for Schedule, Zmanim, Birthdays, Shiurim, Shabbos, Daily Word, announcements. Reuse the Countdown's admin editor + the kiosk `useLayout` helper instead of re-inventing.
+- **Look reference (owner photo, 2026-11-06):** a building projection with a calm dark slate background, small light Hebrew heading, small-caps grey labels, very large bold CONDENSED numerals, a real photographic object (candlesticks) beside them, thin vertical edge ticks. Wanted: more real / sleek / modern, less 'AI 3D' fakery. Uploaded Hebrew fonts must work everywhere (font roles).
+
 ## Polish queue (owner 2026-10-20: "go over a section at a time, a small area, see what can be fixed, cleaned up, better features/design, smoother — slowly")
 
 Process per slice: (1) seed realistic sample data on a throwaway copy, (2) screenshot the slice on 390 px and 1440 px, light + dark, in empty / normal / busy states, (3) write a short critique + proposed fixes/features, (4) owner picks (multi-choice), (5) one small agent implements, (6) tests + build, fast-forward `main`, tell the owner what changed. One slice at a time; skip a slice the owner says is fine.
