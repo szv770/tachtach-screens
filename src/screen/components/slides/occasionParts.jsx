@@ -94,22 +94,23 @@ export function EdgeTicks({ graphics, side = 'right', inset = 18 }) {
  * Backdrop: the uploaded photo (cover) under a scrim of the panel colour, heavier behind the text (`textSide`), or,
  * without a photo, a quiet static wash. A photo that fails to load simply disappears.
  */
-export function Backdrop({ photo, dim, textSide = 'left', portrait = false, graphics = 'rich' }) {
+export function Backdrop({ photo, dim, textSide = 'left', portrait = false, graphics = 'rich', light = false }) {
   const [bad, setBad] = useState('');
   const show = photo && bad !== photo;
   if (!show) {
     if (graphics === 'off') return null;
     return <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(160deg, color-mix(in srgb, var(--ink) 5%, transparent), transparent 46%)' }} />;
   }
-  const a = scrimAlpha(dim);
+  const a = scrimAlpha(dim, light);
   const pct = (x) => `${Math.round(x * 100)}%`;
-  const dir = portrait ? 'to bottom' : textSide === 'left' ? 'to right' : 'to left';
+  const dir = textSide === 'left' ? 'to right' : 'to left';
+  const far = portrait ? a.text : a.base; // portrait: text runs the full height, so the scrim is even
   return (
     <>
       <img src={photo} alt="" decoding="async" data-occ-photo="" onError={() => setBad(photo)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
       <div aria-hidden data-occ-scrim="" style={{
         position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: `linear-gradient(${dir}, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 0%, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 38%, color-mix(in srgb, var(--panel) ${pct(a.base)}, transparent) 70%)`,
+        background: `linear-gradient(${dir}, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 0%, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 38%, color-mix(in srgb, var(--panel) ${pct(far)}, transparent) 70%)`,
       }} />
     </>
   );

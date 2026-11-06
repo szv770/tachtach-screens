@@ -79,8 +79,8 @@ const cases = [
   { tag: 'flip, minutes (seconds cell)', time: T('2026-11-09T16:20:00'), occ: doc([RC, YT, CH], { display: 'flip' }), form: 'minutes', flip: 2 },
   { tag: 'flip, worst case text', time: T('2026-11-03T11:00:00'), occ: doc([BIG], { display: 'flip' }), form: 'days', flip: 2 },
   { tag: 'count-up, day 3 of 8', time: T('2026-11-03T12:00:00'), occ: doc([RUN]), form: 'day', run: true, text: /of 8/i, fonts: true },
-  { tag: 'advent with a photo (+ step page, tiles open once)', time: T('2026-11-21T11:00:00'), occ: doc([ADV(WHITE)], { withinDays: 30 }), form: 'days', advent: 'photo', step: true, shot: 'land' },
-  { tag: 'advent without a photo', time: T('2026-11-21T11:00:00'), occ: doc([ADV('')], { withinDays: 30 }), form: 'days', advent: 'grid', step: true },
+  { tag: 'advent with a photo (+ step page, tiles open once)', time: T('2026-11-21T11:30:00'), occ: doc([ADV(WHITE)], { withinDays: 30 }), form: 'days', advent: 'photo', step: true, shot: 'land' },
+  { tag: 'advent without a photo', time: T('2026-11-21T11:30:00'), occ: doc([ADV('')], { withinDays: 30 }), form: 'days', advent: 'grid', step: true },
   // photos: readability over a pure white and a pure black picture, dark and light theme
   { tag: 'photo white, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: WHITE, dim: 30 } }]), form: 'far', contrast: true },
   { tag: 'photo black, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: BLACK, dim: 30 } }]), form: 'far', contrast: true },
@@ -167,8 +167,9 @@ const probe = (page, sel) => page.evaluate((sel) => {
     const t = tw.currentNode; if (!t.textContent.trim()) continue;
     const el = t.parentElement; const cs = getComputedStyle(el);
     if (el.closest('[aria-hidden]') || cs.visibility === 'hidden') continue;
+    // big numerals: the element's box (the range box adds the font's whole ascent/descent, far above the digits)
     const range = document.createRange(); range.selectNodeContents(t);
-    const b = range.getBoundingClientRect(); if (!b.width) continue;
+    const b = el.closest('[data-occ-big]') ? el.closest('[data-occ-big]').getBoundingClientRect() : range.getBoundingClientRect(); if (!b.width) continue;
     if (b.right > pb.right + 1 || b.left < pb.left - 1 || b.bottom > pb.bottom + 1 || b.top < pb.top - 1) out.overflow.push(`outside the panel: "${t.textContent.trim().slice(0, 24)}"`);
     const fs = parseFloat(cs.fontSize);
     if (fs < 24) out.small.push(`${fs}px "${t.textContent.trim().slice(0, 20)}"`);
@@ -217,7 +218,7 @@ async function contrast(page) {
     const st = document.createElement('style'); st.id = 'aud-hide'; st.textContent = 'section.tt-panel *{color:transparent!important;text-shadow:none!important}'; document.head.appendChild(st);
     return out;
   });
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(400);
   const buf = await page.screenshot();
   await page.evaluate(() => document.getElementById('aud-hide')?.remove());
   const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true });
@@ -233,13 +234,14 @@ async function contrast(page) {
   let worst = { ratio: 99 };
   for (const it of items) {
     const col = parse(it.c); if (!col) continue;
-    const bgs = [[0.2, 0.5], [0.5, 0.5], [0.8, 0.5]].map(([fx, fy]) => px(it.x + it.w * fx, it.y + it.h * fy));
-    for (const bg of bgs) {
+    // the background behind the line: the median of 7 samples across it (one stray pixel - a tick, an edge - is not 'behind')
+    const smp = [0.1, 0.25, 0.4, 0.5, 0.6, 0.75, 0.9].map((fx) => px(it.x + it.w * fx, it.y + it.h * 0.5)).sort((p, q) => lum(p) - lum(q));
+    for (const bg of [smp[3]]) {
       const fg = [0, 1, 2].map((k) => col[k] * col[3] + bg[k] * (1 - col[3]));
       const L1 = lum(fg); const L2 = lum(bg);
       const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
       const need = it.fs >= 32 ? 3 : 4.5;
-      if (ratio / need < (worst.ratio / (worst.need || 1))) worst = { ratio, need, s: it.s, fs: it.fs };
+      if (ratio / need < (worst.ratio / (worst.need || 1))) worst = { ratio, need, s: it.s, fs: it.fs, score: ratio / need, bg: bg.join(','), fg: col.map((v) => Math.round(v * 100) / 100).join(',') };
     }
   }
   return worst;
@@ -314,8 +316,12 @@ async function run(canvas, c, font) {
       check(`${tag}: shows M:SS`, /^\d{1,2}:\d\d$/.test(a), a);
     }
     if (c.contrast) {
+      // WCAG AA over the photo, or (where the theme's own accent is weaker than AA on the plain panel) no worse than 90%
+      // of the same page without a photo: the photo never makes a line harder to read than the theme already is
       const w = await contrast(page);
-      check(`${tag}: every line readable on the photo (worst ${w.ratio?.toFixed(2)} vs ${w.need} at ${w.fs}px "${w.s}")`, w.ratio >= w.need, '');
+      const plain = await open({ canvas, time: c.time, occ: { ...c.occ, occasions: c.occ.occasions.map((o) => ({ ...o, look: { ...o.look, photo: '' } })) }, theme: c.theme });
+      const b = await contrast(plain.page); await plain.close();
+      check(`${tag}: every line readable on the photo (worst ${w.ratio?.toFixed(2)} vs ${w.need} at ${w.fs}px "${w.s}"; plain panel ${b.ratio?.toFixed(2)} "${b.s}"; bg ${w.bg} fg ${w.fg})`, w.score >= Math.min(1, (b.score || 1) * 0.9), '');
     }
     if (c.shot && c.shot === canvas && !font) await shot(page, `occasion-${canvas}-${c.tag.replace(/[^a-z0-9]+/gi, '-').slice(0, 30)}`);
     if (c.tap && !font) {

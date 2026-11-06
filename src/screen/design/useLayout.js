@@ -75,9 +75,10 @@ export function lookOf(raw) {
  * Floors keep every line readable on a pure white AND a pure black picture in any theme (checked by
  * scripts/occasions-audit.mjs): the admin's dim can only make it darker, never thinner than the floor.
  */
-export function scrimAlpha(dim) {
+export function scrimAlpha(dim, light = false) {
   const d = Math.min(100, Math.max(0, Number(dim) || 0)) / 100;
-  return { base: Math.max(d, 0.86), text: Math.max(d, 0.93) };
+  // a light theme's dark accent loses more on a dark picture than a dark theme's light text on a bright one
+  return light ? { base: Math.max(d, 0.95), text: Math.max(d, 0.97) } : { base: Math.max(d, 0.88), text: Math.max(d, 0.94) };
 }
 
 /** font-family stack for the big numerals: the admin's pick, else the bundled condensed face (both via the font registry). */

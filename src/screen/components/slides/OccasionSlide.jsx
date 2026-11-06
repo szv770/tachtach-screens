@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
@@ -52,19 +52,19 @@ function Name({ name, L, size, align, k }) {
     }}>{name.en}</Fit>
   ) : null;
   // the boxes may shrink (down to two lines at the smallest size) when the column is crowded; Fit re-fits on resize
-  return <div data-occ-name="" style={{ flex: '0 1 auto', minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>{he1}{en1}</div>;
+  return <div data-occ-name="" style={{ flex: '0 1 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 4 }}>{he1}{en1}</div>;
 }
 
 /** Name boxes (canvas px): [Hebrew max, min, box height, English max, min, box height]. Long names get two-line boxes. */
 const NAME = {
   side: [118, 46, 160, 50, 32, 70],
-  sideLong: [92, 40, 210, 44, 30, 108],
+  sideLong: [84, 36, 190, 40, 28, 100],
   port: [116, 46, 160, 52, 32, 72],
-  portLong: [96, 42, 220, 44, 30, 108],
+  portLong: [92, 40, 200, 42, 28, 100],
   day: [168, 56, 220, 64, 36, 92],
-  dayLong: [112, 46, 260, 50, 32, 116],
+  dayLong: [100, 40, 220, 46, 30, 104],
   dayPort: [176, 56, 260, 66, 36, 100],
-  dayPortLong: [118, 46, 330, 52, 32, 130],
+  dayPortLong: [110, 42, 280, 48, 30, 120],
   small: [92, 40, 124, 46, 30, 76],
 };
 
@@ -248,7 +248,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
       </div>
     );
   }
-  const numH = scaled(portrait ? 360 : compact ? 260 : 330, L);
+  const numH = scaled(portrait ? 290 : compact ? 260 : 330, L);
   const n = m.form === 'far' ? (m.lead?.days || FAR_DAYS) : m.form === 'days' ? FAR_DAYS : m.form === 'hours' ? 24 : 60;
   const left = m.form === 'far' ? (c.days || 0) : m.form === 'days' ? c.days : m.form === 'hours' ? c.hours + (c.minutes > 0 ? 1 : 0) : c.minutes + ((c.seconds || 0) > 0 ? 1 : 0);
   const ticksOn = m.form === 'far' || m.form === 'days' ? shows(L, 'pips') : shows(L, 'bar') && !c.approx;
@@ -256,8 +256,10 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
     <div data-occ-count={m.form} style={{ ...col, gap: portrait ? 14 : 10 }}>
       {tagline}
       <BigNum text={w.big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} />
-      <Unit unit={w.unit} center={center} />
-      <Sub sub={w.sub} center={center} />
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 26px', justifyContent: center ? 'center' : 'flex-start' }}>
+        <Unit unit={w.unit} center={center} />
+        <Sub sub={w.sub} center={center} />
+      </div>
       {ticksOn && <div style={{ width: '100%', marginTop: portrait ? 16 : 12, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}>
         <Ticks total={n} lit={left} major={m.form === 'hours' ? 6 : m.form === 'minutes' ? 5 : 7} align={center ? 'center' : 'start'} />
       </div>}
@@ -321,7 +323,7 @@ function DayView({ m, L, portrait, coming }) {
   const keys = orderedBlocks(L).filter((k) => k !== 'name' && k !== 'begins');
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
+      <div data-occ-col="" style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
         <Label en={m.dayLabel?.en} heText={m.dayLabel?.he} color="var(--accentText)" size={28} />
         <Name name={m.name} L={L} size={size} align={L.align} k={m.key} />
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap', justifyContent: center ? 'center' : 'flex-start', margin: '6px 0' }}>
@@ -353,8 +355,8 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
       : <Details key={k} m={m} keys={[k]} center={center} />));
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
-        <div style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
-        <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: 'inherit', gap: 14 }}>
+        <div style={{ flex: '0 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
+        <div style={{ flex: '1 0 auto', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'inherit', gap: 14 }}>
           {before.length > 0 && <Rule center={center} />}
           <Count m={m} L={L} portrait font={font} center={center} nowMs={nowMs} fast={fast} lang={lang} />
         </div>
@@ -365,14 +367,14 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
   }
   const countLeft = L.side === 'left';
   const info = (
-    <div style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 18, textAlign: center ? 'center' : 'start' }}>
+    <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
       {blocks.map((k, i) => (k === 'name'
         ? <React.Fragment key={k}><Name name={m.name} L={L} size={long ? NAME.sideLong : NAME.side} align={L.align} k={m.key} />{i < blocks.length - 1 && <Rule center={center} />}</React.Fragment>
         : <Details key={k} m={m} keys={[k]} center={center} />))}
     </div>
   );
   const count = (
-    <div style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
+    <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
       <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} />
     </div>
   );
@@ -579,6 +581,35 @@ function readSecs(ex) {
   return Math.max(10, Math.min(45, Math.round(5 + words(ex.en) * 0.46 + words(ex.he) * 0.3)));
 }
 
+/**
+ * When the worst content (60-character names, long event lines, a full coming-up strip) does not fit the panel, parts go
+ * in order of least importance instead of anything being cut: 1 the coming-up strip, 2 the tick row and the tagline,
+ * 3 everything a little smaller. Measured in layout px after each page renders (and after fonts load).
+ */
+function squeezed(L, level) {
+  if (!level) return L;
+  const show = { ...L.show, coming: false };
+  if (level >= 2) Object.assign(show, { pips: false, bar: false, tagline: false });
+  return { ...L, show, k: level >= 3 ? (L.k || 1) * 0.84 : L.k };
+}
+function useSqueeze(ref, key) {
+  const [level, setLevel] = useState(0);
+  const at = useRef(key);
+  if (at.current !== key) { at.current = key; if (level) setLevel(0); }
+  useLayoutEffect(() => {
+    const check = () => {
+      const el = ref.current;
+      if (!el || !el.clientHeight) return;
+      // the body, and each column (a crowded column overflows into the strip under it without growing the body)
+      const over = [el, ...el.querySelectorAll('[data-occ-col]')].some((c) => c.clientHeight && c.scrollHeight > c.clientHeight + 2);
+      if (over) setLevel((l) => (l < 3 ? l + 1 : l));
+    };
+    check();
+    document.fonts?.ready?.then(check).catch(() => {});
+  });
+  return level;
+}
+
 /** Ticks on its own: each second while a countdown shows seconds (or a zero moment is near), else each 15 s. */
 function useTick(offsetMs, fast) {
   const [now, setNow] = useState(() => new Date(Date.now() + offsetMs));
@@ -630,11 +661,14 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   // A tap on the TV (when the admin lets the TV take touch: App sets --tt-pe:none when not): a small finite pop at the tap
   // point on the countdown, or a peek at today's advent card for 8 s. Swipes belong to the rotation; this only reads taps.
   const panelRef = useRef(null);
+  const bodyRef = useRef(null);
   const [pops, setPops] = useState([]);
   const [peek, setPeek] = useState(false);
   const lastTap = useRef(0);
   useEffect(() => { if (!peek) return undefined; const t = setTimeout(() => setPeek(false), 8000); return () => clearTimeout(t); }, [peek]);
   useEffect(() => { if (!pops.length) return undefined; const t = setTimeout(() => setPops([]), 900); return () => clearTimeout(t); }, [pops]);
+
+  const squeeze = useSqueeze(bodyRef, `${keyList}|${page}|${(model?.rows || []).map((r) => r.form).join()}|${portrait}`);
 
   if (!model || !n) {
     return (
@@ -647,7 +681,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   }
   const cur = pages[Math.min(page, pages.length - 1)] || { m: model.rows[0], view: 'main' };
   const m = cur.m;
-  const L = layoutOf(m.layout);
+  const L = squeezed(layoutOf(m.layout), squeeze);
   const look = lookOf(m.look);
   const font = numeralsStack(look.numeralsFont);
   const coming = model.coming;
@@ -674,12 +708,12 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   };
   return (
     <Panel ref={panelRef} pad={pad} data-occ-form={m.form} data-occ-view={cur.view} data-occ-display={m.run ? 'run' : advent ? 'advent' : m.display || 'classic'} style={panelVars} onPointerUp={onTap}>
-      {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} />}
+      {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} />}
       {!advent && <EdgeTicks graphics={design.graphics} side={L.side === 'left' ? 'left' : 'right'} />}
       {m.form === 'zero' && m.celebrate && <Confetti key={`c|${m.key}`} graphics={design.graphics} motion={design.motion} />}
       {pops.map((p) => <TapPop key={p.id} x={p.x} y={p.y} />)}
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
-        <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Header pager={pager} />
           {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} />
             : cur.view === 'step' ? <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />
