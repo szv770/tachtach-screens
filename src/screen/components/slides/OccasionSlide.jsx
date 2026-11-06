@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK } from './occasionParts.jsx';
+import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -98,8 +98,8 @@ function Begins({ m, center }) {
     <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 4, lineHeight: 1.25 }}>
       {(enA || heA) && <Label en={enA} heText={heA} style={{ justifyContent: jc }} />}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: jc }}>
-        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 38, fontWeight: 600, color: 'var(--accentText)' }}>{enB}</span>}
-        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: 'var(--accentText)' }}>{heB}</span>}
+        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 38, fontWeight: 600, color: ACC }}>{enB}</span>}
+        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: ACC }}>{heB}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={COPY.approx.he} />}
     </div>
@@ -201,7 +201,7 @@ function RunCount({ m, L, portrait, font, center, tagline }) {
   return (
     <div data-occ-count="run" style={{ position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 14 : 10, textAlign: center ? 'center' : 'start' }}>
       {tagline}
-      <Label en={COPY.dayOf.en} heText={COPY.dayOf.he} color="var(--accentText)" size={28} />
+      <Label en={COPY.dayOf.en} heText={COPY.dayOf.he} color={ACC} size={28} />
       <BigNum text={String(r.k)} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} />
       <Label en={`${COPY.of.en} ${r.n}`} heText={`${COPY.of.he} ${r.n}`} size={30} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
       {(shows(L, 'pips') || shows(L, 'bar')) && (
@@ -221,7 +221,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
   const w = m.words;
   const c = m.countdown;
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
-  const tagline = tag ? <Label en={tag.en} heText={tag.he} color="var(--accentText)" size={26} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" /> : null;
+  const tagline = tag ? <Label en={tag.en} heText={tag.he} color={ACC} size={26} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" /> : null;
   const col = { position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', textAlign: center ? 'center' : 'start' };
   if (m.run) return <RunCount m={m} L={L} portrait={portrait} font={font} center={center} tagline={tagline} />;
   if (m.display === 'flip') {
@@ -279,7 +279,7 @@ function Coming({ list, portrait }) {
               {c.name.en && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 600, color: 'var(--ink)', overflowWrap: 'anywhere' }}>{bidiNodes(c.name.en)}</span>}
               {c.name.he && (portrait || !c.name.en) && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 500, color: c.name.en ? SOFT_INK : 'var(--ink)' }}>{c.name.he}</span>}
             </span>
-            <span className="tt-num" style={{ fontFamily: F.en, fontSize: 26, fontWeight: 600, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>{c.when.en || c.when.he}</span>
+            <span className="tt-num" style={{ fontFamily: F.en, fontSize: 26, fontWeight: 600, color: ACC, whiteSpace: 'nowrap' }}>{c.when.en || c.when.he}</span>
           </div>
         ))}
       </div>
@@ -303,10 +303,10 @@ function ZeroView({ m, L, portrait }) {
   return (
     <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 18 : 10, textAlign: 'center' }}>
       {z.he && (
-        <Fit key={`zh|${m.key}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={scaled(portrait ? 210 : dense ? 136 : 170, L)} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 300 : dense ? 172 : 214, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: 'var(--accentText)', lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>
+        <Fit key={`zh|${m.key}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={scaled(portrait ? 210 : dense ? 136 : 170, L)} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 300 : dense ? 172 : 214, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: ACC, lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>
       )}
       {z.en && (
-        <Fit key={`ze|${m.key}|${portrait}`} className="tt-bd-up" wrap vcenter max={scaled(portrait ? 104 : dense ? 66 : 84, L)} min={44} style={{ '--t': '500ms', flex: 'none', width: '100%', height: portrait ? 180 : dense ? 100 : 124, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : 'var(--accentText)', lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>
+        <Fit key={`ze|${m.key}|${portrait}`} className="tt-bd-up" wrap vcenter max={scaled(portrait ? 104 : dense ? 66 : 84, L)} min={44} style={{ '--t': '500ms', flex: 'none', width: '100%', height: portrait ? 180 : dense ? 100 : 124, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : ACC, lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>
       )}
       <div className="tt-bd-up" style={{ '--t': '700ms', flex: 'none', display: 'flex', width: '100%', justifyContent: 'center', margin: '6px 0' }}><Rule center /></div>
       <div className="tt-bd-up" style={{ '--t': '800ms', width: '100%', flex: 'none' }}><Name name={m.name} L={L} size={NAME.small} align="center" k={m.key} /></div>
@@ -324,7 +324,7 @@ function DayView({ m, L, portrait, coming }) {
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div data-occ-col="" style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
-        <Label en={m.dayLabel?.en} heText={m.dayLabel?.he} color="var(--accentText)" size={28} />
+        <Label en={m.dayLabel?.en} heText={m.dayLabel?.he} color={ACC} size={28} />
         <Name name={m.name} L={L} size={size} align={L.align} k={m.key} />
         <div style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 22, flexWrap: 'wrap', justifyContent: center ? 'center' : 'flex-start', margin: '6px 0' }}>
           <Rule />
@@ -419,11 +419,11 @@ function VortView({ m, ex, portrait, font }) {
       <Fit key={`vn|${m.key}|${portrait}`} wrap vcenter max={portrait ? 60 : 54} min={30} style={{ flex: 'none', width: '100%', height: portrait ? 120 : 100, overflow: 'visible', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, textAlign: 'center', marginTop: 6 }}>
         {nm.map((t, i) => <span key={i} dir={textDir(t)} className={textDir(t) === 'rtl' ? 'tt-he' : ''} style={{ fontFamily: textDir(t) === 'rtl' ? F.heD : F.enD, fontWeight: i ? 400 : 700, color: i ? SOFT_INK : 'var(--ink)', unicodeBidi: 'isolate' }}>{i ? ' / ' : ''}{bidiNodes(t)}</span>)}
       </Fit>
-      <div style={{ flex: 'none', display: 'flex', gap: '4px 18px', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', color: 'var(--accentText)', marginTop: 4 }}>
-        {line ? <Label en={line.en} heText={line.he} color="var(--accentText)" size={28} /> : (
+      <div style={{ flex: 'none', display: 'flex', gap: '4px 18px', alignItems: 'baseline', justifyContent: 'center', flexWrap: 'wrap', color: ACC, marginTop: 4 }}>
+        {line ? <Label en={line.en} heText={line.he} color={ACC} size={28} /> : (
           <>
             <span className="tt-num" style={{ fontFamily: font, fontSize: 64, fontWeight: 600, lineHeight: 1 }}>{w.big}</span>
-            <Label en={`${w.unit.en || ''}${w.sub?.en ? ` ${w.sub.en}` : ''}`} heText={w.unit.he ? `${w.unit.he}${w.sub?.he ? ` ${w.sub.he}` : ''}` : ''} color="var(--accentText)" size={26} />
+            <Label en={`${w.unit.en || ''}${w.sub?.en ? ` ${w.sub.en}` : ''}`} heText={w.unit.he ? `${w.unit.he}${w.sub?.he ? ` ${w.sub.he}` : ''}` : ''} color={ACC} size={26} />
           </>
         )}
       </div>
@@ -465,7 +465,7 @@ function AdventGrid({ a, newly, photo, portrait, side }) {
         {Array.from({ length: total }, (_, i) => {
           const open = !!a.revealed?.[i];
           const fresh = open && newly.has(i);
-          const num = <span className="tt-num" style={{ fontFamily: F.en, fontSize: photo ? 26 : 34, fontWeight: 600, color: open && !photo ? 'var(--accentText)' : LABEL_INK }}>{i + 1}</span>;
+          const num = <span className="tt-num" style={{ fontFamily: F.en, fontSize: photo ? 26 : 34, fontWeight: 600, color: open && !photo ? ACC : LABEL_INK }}>{i + 1}</span>;
           if (photo) {
             return (
               <div key={i} data-occ-tile={open ? 'open' : 'shut'} style={{ position: 'relative', border: '2px solid var(--panel)' }}>
@@ -509,7 +509,7 @@ function AdventCard({ m, L, portrait, font, pager, photo, nowMs, fast, lang }) {
             </div>
           )
       ) : (
-        <Label en={(m.zero || m.dayLabel)?.en} heText={(m.zero || m.dayLabel)?.he} color="var(--accentText)" size={30} />
+        <Label en={(m.zero || m.dayLabel)?.en} heText={(m.zero || m.dayLabel)?.he} color={ACC} size={30} />
       )}
     </div>
   );
@@ -544,7 +544,7 @@ function StepView({ step, m, portrait, k }) {
   return (
     <div data-occ-step="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 24px' }}>
-        <Label en={STEP.en} heText={STEP.he} color="var(--accentText)" size={28} />
+        <Label en={STEP.en} heText={STEP.he} color={ACC} size={28} />
         <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK }}>{m.name.en || ''}</span>
         {m.name.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 500, color: SOFT_INK }}>{m.name.he}</span>}
       </div>

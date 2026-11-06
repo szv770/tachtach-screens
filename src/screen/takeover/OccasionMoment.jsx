@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { numeralsStack } from '../design/useLayout.js';
-import { Label, EdgeTicks, SOFT_INK } from '../components/slides/occasionParts.jsx';
+import { Label, EdgeTicks, SOFT_INK, ACC } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { COPY } from '../../shared/occasions.js';
 import { playOnce } from './occasionSound.js';
@@ -23,8 +23,8 @@ export const BURST_TAIL_MS = 3000;
 function Words({ text, portrait, accentFirst = true }) {
   return (
     <>
-      {text?.he && <Fit key={`mh|${text.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 380 : 270, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: accentFirst ? 'var(--accentText)' : 'var(--ink)', lineHeight: 1.25, textAlign: 'center' }}>{text.he}</Fit>}
-      {text?.en && <Fit key={`me|${text.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 130 : 116} min={44} style={{ '--t': '400ms', flex: 'none', width: '100%', height: portrait ? 230 : 160, overflow: 'visible', fontFamily: F.enD, fontWeight: text.he ? 400 : 700, color: text.he ? 'var(--ink)' : 'var(--accentText)', lineHeight: 1.1, textAlign: 'center' }}>{text.en}</Fit>}
+      {text?.he && <Fit key={`mh|${text.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={64} style={{ flex: 'none', width: '100%', height: portrait ? 380 : 270, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: accentFirst ? ACC : 'var(--ink)', lineHeight: 1.25, textAlign: 'center' }}>{text.he}</Fit>}
+      {text?.en && <Fit key={`me|${text.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 130 : 116} min={44} style={{ '--t': '400ms', flex: 'none', width: '100%', height: portrait ? 230 : 160, overflow: 'visible', fontFamily: F.enD, fontWeight: text.he ? 400 : 700, color: text.he ? 'var(--ink)' : ACC, lineHeight: 1.1, textAlign: 'center' }}>{text.en}</Fit>}
     </>
   );
 }
@@ -45,7 +45,7 @@ function MomentView({ mo, name, nowMs, tail }) {
         <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 26 : 16, textAlign: 'center' }}>
           {counting ? (
             <>
-              {(name || text) && <Label en={(text || name).en} heText={(text || name).he} color="var(--accentText)" size={32} style={{ justifyContent: 'center' }} />}
+              {(name || text) && <Label en={(text || name).en} heText={(text || name).he} color={ACC} size={32} style={{ justifyContent: 'center' }} />}
               <div data-occ-count="ten" style={{ flex: 'none', height: portrait ? 820 : 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span key={secs} className="tt-num tt-occ-num" data-occ-big="" style={{ fontFamily: font, fontSize: portrait ? 640 : 600, fontWeight: 600, lineHeight: 0.9, color: 'var(--ink)' }}>{secs}</span>
               </div>

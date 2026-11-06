@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK } from '../components/slides/occasionParts.jsx';
+import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, ACC } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -66,7 +66,7 @@ function TkName({ name, L, portrait, center, big = false }) {
 
 function Tagline({ t, center }) {
   if (!t || (!t.en && !t.he)) return null;
-  return <Label en={t.en} heText={t.he} color="var(--accentText)" size={30} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" />;
+  return <Label en={t.en} heText={t.he} color={ACC} size={30} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" />;
 }
 
 function CountTk({ tk, now, L, portrait, font }) {
@@ -83,7 +83,7 @@ function CountTk({ tk, now, L, portrait, font }) {
   const numH = Math.round((portrait ? 560 : 520) * (L.k || 1));
   const numbers = (
     <div data-occ-count={tk.kind} style={{ flex: 'none', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14 }}>
-      <BigNum text={big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} color={final ? 'var(--accentText)' : 'var(--ink)'} />
+      <BigNum text={big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} color={final ? ACC : 'var(--ink)'} />
       <Label en={unit.en} heText={unit.he} size={30} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
       {!final && shows(L, 'pips') && days > 0 && days <= FAR_DAYS && (
         <div style={{ width: '100%', marginTop: 14, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}><Ticks total={FAR_DAYS} lit={days} align={center ? 'center' : 'start'} height={34} /></div>
@@ -122,8 +122,8 @@ function ZeroTk({ tk, L, portrait }) {
   const z = zeroOf(tk);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 24 : 14, textAlign: 'center' }}>
-      {z.he && <Fit key={`zh|${z.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={72} style={{ flex: 'none', width: '100%', height: portrait ? 340 : 250, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: 'var(--accentText)', lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>}
-      {z.en && <Fit key={`ze|${z.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 120 : 104} min={48} style={{ '--t': '450ms', flex: 'none', width: '100%', height: portrait ? 200 : 140, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : 'var(--accentText)', lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>}
+      {z.he && <Fit key={`zh|${z.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={72} style={{ flex: 'none', width: '100%', height: portrait ? 340 : 250, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: ACC, lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>}
+      {z.en && <Fit key={`ze|${z.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 120 : 104} min={48} style={{ '--t': '450ms', flex: 'none', width: '100%', height: portrait ? 200 : 140, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : ACC, lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>}
       <div className="tt-bd-up" aria-hidden style={{ '--t': '650ms', width: 96, height: 2, background: 'var(--line)', flex: 'none', margin: '8px 0' }} />
       <div className="tt-bd-up" style={{ '--t': '800ms', width: '100%', flex: 'none' }}><TkName name={tk.name} L={L} portrait={portrait} center /></div>
     </div>
