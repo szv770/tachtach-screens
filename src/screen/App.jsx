@@ -15,6 +15,7 @@ import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.
 import * as OccasionsLib from '../shared/occasions.js';
 import { occasionVisible, ctxFrom as occasionCtx } from '../shared/occasions.js';
 import { OccasionTakeoverLayer } from './takeover/OccasionTakeover.jsx';
+import { OccasionMomentLayer, momentShowing } from './takeover/OccasionMoment.jsx';
 import { zonedTimeToUtc } from '../shared/announcements.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
@@ -270,8 +271,26 @@ function AppContent() {
   const isAutoOccasion = (t) => typeof t?.id === 'string' && t.id.startsWith('auto-occasion-');
   const occTakeover = occTk && (!annTakeoverRaw || isAutoOccasion(annTakeoverRaw)) ? occTk : null;
   const annTakeover = occTakeover ? null : annTakeoverRaw;
+  // Live moments (takeover/OccasionMoment.jsx; state.occasionMoment, SSE occasion-moment): fired by the admin, real time
+  // only, auto-end at `until`. Hidden by a freeze / Shabbos cover (like any non-emergency takeover) and while an emergency
+  // takeover shows; drawn ABOVE a normal announcement takeover and the Countdown's own takeovers (it lasts seconds).
+  // the server clears the moment at `until`; a 'ten' keeps its short burst tail locally (a manual Stop before then ends it at once)
+  const lastMomentRef = useRef(null);
+  if (state?.occasionMoment) lastMomentRef.current = state.occasionMoment;
+  else if (lastMomentRef.current && clock.time.getTime() < lastMomentRef.current.until - 1500) lastMomentRef.current = null;
+  const momentRaw = state?.occasionMoment || lastMomentRef.current;
+  const momentOn = !coverOn && !(annTakeoverRaw && isEmergencyTakeover(annTakeoverRaw)) && momentShowing(momentRaw, clock.time.getTime());
+  const occNameFor = React.useCallback((key) => {
+    const id = String(key || '').split('|')[0];
+    const o = id && Array.isArray(state?.occasions?.occasions) ? state.occasions.occasions.find((x) => x.id === id) : null;
+    return o && (o.nameEn || o.nameHe) ? { en: o.nameEn || '', he: o.nameHe || '' } : null;
+  }, [state?.occasions]);
+  let momentSound = null;
+  try {
+    if (momentOn && typeof OccasionsLib.soundFor === 'function') momentSound = OccasionsLib.soundFor(OccasionsLib.normalizeSettings(state?.occasions?.settings), null, 'moment');
+  } catch { momentSound = null; }
   // what every 'is a takeover on top?' check reads (rotation pause, banner, up-next, reader hold, the report)
-  const takeover = annTakeover || occTakeover;
+  const takeover = annTakeover || occTakeover || (momentOn ? momentRaw : null);
 
   // Newest "pause everything else" slide replaces the slide area.
   const holdSlide = React.useMemo(() => (!coverOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, coverOn]);
@@ -428,6 +447,9 @@ function AppContent() {
         break;
       case 'shiurim-update':
         setState(prev => prev ? { ...prev, shiurim: data } : prev);
+        break;
+      case 'occasion-moment':
+        setState(prev => prev ? { ...prev, occasionMoment: data?.moment || null } : prev);
         break;
       case 'occasions-update':
         setState(prev => prev ? { ...prev, occasions: data } : prev);
@@ -864,6 +886,7 @@ function AppContent() {
         />
         <AnnouncementTakeover item={annTakeover} tokens={tokens} clock={clock} />
         <OccasionTakeoverLayer tk={occTakeover} clockMs={occClockMs} />
+        {momentOn && <OccasionMomentLayer moment={momentRaw} nowMs={clock.time.getTime()} nameFor={occNameFor} sound={momentSound} />}
         {!freezeOn && countdown?.mode === 'takeover' && (
           <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={() => setCountdown(null)} />
         )}

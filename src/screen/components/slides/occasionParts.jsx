@@ -29,7 +29,7 @@ export function Label({ en, heText, color = LABEL_INK, size = 24, style, ...rest
  * The big countdown numerals: one line, as large as the box allows. The size is fitted on the number's SHAPE
  * (every digit as 0), so with tabular figures the seconds tick without re-fitting or jiggling.
  */
-export function BigNum({ text, max, min = 60, height, font, align = 'start', color = 'var(--ink)', weight = 600 }) {
+export function BigNum({ text, max, min = 60, height, font, align = 'start', color = 'var(--ink)', weight = 600, flip = false }) {
   const [size, setSize] = useState(null);
   const shape = String(text).replace(/\d/g, '0');
   const jc = align === 'center' ? 'center' : 'flex-start';
@@ -38,7 +38,7 @@ export function BigNum({ text, max, min = 60, height, font, align = 'start', col
       <Fit key={shape} max={max} min={min} onSize={setSize} aria-hidden className="tt-num" style={{
         position: 'absolute', inset: 0, visibility: 'hidden', fontFamily: font, fontWeight: weight, lineHeight: 0.9, letterSpacing: '-.005em',
       }}>{shape}</Fit>
-      <div className="tt-num" data-occ-big="" style={{
+      <div key={flip ? text : undefined} className={`tt-num${flip ? ' tt-flip' : ''}`} data-occ-big="" style={{
         fontFamily: font, fontSize: size || max, fontWeight: weight, lineHeight: 0.9, letterSpacing: '-.005em', color, whiteSpace: 'nowrap',
         visibility: size ? 'visible' : 'hidden',
       }}>{text}</div>
@@ -49,13 +49,13 @@ export function BigNum({ text, max, min = 60, height, font, align = 'start', col
 /**
  * A row of hairline ticks: `total` of them, the last `lit` lit in the accent (what is left), every `major`-th taller.
  */
-export function Ticks({ total, lit, major = 7, height = 30, maxWidth = 640, align = 'start', ...rest }) {
+export function Ticks({ total, lit, major = 7, height = 30, maxWidth = 640, align = 'start', from = 'end', ...rest }) {
   const n = Math.max(1, Math.min(120, Math.round(total)));
   const on = Math.max(0, Math.min(n, Math.round(lit)));
   return (
     <div aria-hidden data-occ-progress="" {...rest} style={{ flex: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', width: '100%', maxWidth: Math.min(maxWidth, n * 26), height, alignSelf: align === 'center' ? 'center' : 'flex-start' }}>
       {Array.from({ length: n }, (_, i) => {
-        const lt = i >= n - on;
+        const lt = from === 'start' ? i < on : i >= n - on;
         const big = (n - i) % major === 0 || i === 0;
         return <span key={i} style={{ flex: 'none', width: 3, height: big ? height : Math.round(height * 0.55), borderRadius: 1, background: lt ? 'var(--accentText)' : 'var(--line)' }} />;
       })}
@@ -112,5 +112,25 @@ export function Backdrop({ photo, dim, textSide = 'left', portrait = false, grap
         background: `linear-gradient(${dir}, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 0%, color-mix(in srgb, var(--panel) ${pct(a.text)}, transparent) 38%, color-mix(in srgb, var(--panel) ${pct(a.base)}, transparent) 70%)`,
       }} />
     </>
+  );
+}
+
+/**
+ * A tap on the TV: a small, FINITE burst of hairline pieces at the tap point (layout px inside the panel), gone in 0.8 s.
+ * The caller rate-limits it and never renders it on Minimal motion.
+ */
+const POP = Array.from({ length: 12 }, (_, i) => {
+  const a = (i / 12) * Math.PI * 2 + (i % 2 ? 0.2 : -0.1);
+  const r = 90 + (i % 3) * 34;
+  return { x: Math.round(Math.cos(a) * r), y: Math.round(Math.sin(a) * r), w: i % 3 === 0 ? 14 : 8, rot: Math.round((a * 180) / Math.PI), tone: i % 3 };
+});
+export function TapPop({ x, y }) {
+  const tones = ['var(--accentText)', 'var(--ink)', 'color-mix(in srgb, var(--accentText) 55%, var(--ink))'];
+  return (
+    <div aria-hidden data-occ-pop="" style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, zIndex: 3, pointerEvents: 'none' }}>
+      {POP.map((p, i) => (
+        <span key={i} className="tt-pop" style={{ position: 'absolute', left: -p.w / 2, top: -2, width: p.w, height: 4, borderRadius: 2, background: tones[p.tone], '--px': `${p.x}px`, '--py': `${p.y}px`, '--pr': `${p.rot}deg` }} />
+      ))}
+    </div>
   );
 }

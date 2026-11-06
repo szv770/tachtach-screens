@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, LABEL_INK, SOFT_INK } from './occasionParts.jsx';
+import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -139,13 +139,99 @@ function Sub({ sub, center }) {
   );
 }
 
+const SECONDS = { en: 'seconds', he: 'שניות' };
+const two = (n) => String(n).padStart(2, '0');
+
+/**
+ * The flip display's cells. With the row's exact begin time (m.beginMs) every unit shows at once (days only when there are
+ * any; seconds only while the page ticks each second and the time is exact); without it, the units of the current form.
+ */
+export function flipCells(m, nowMs, fast) {
+  const c = m.countdown || {};
+  const beginMs = Number(m.beginMs ?? c.beginMs);
+  const exact = !c.approx;
+  if (Number.isFinite(beginMs) && beginMs > nowMs) {
+    const t = Math.floor((beginMs - nowMs) / 1000);
+    const d = Math.floor(t / 86400); const h = Math.floor((t % 86400) / 3600); const mi = Math.floor((t % 3600) / 60); const se = t % 60;
+    const out = [];
+    if (d > 0) out.push({ k: 'd', v: String(d), label: COPY.days });
+    out.push({ k: 'h', v: two(h), label: COPY.hours }, { k: 'm', v: two(mi), label: COPY.minutes });
+    if (fast && exact) out.push({ k: 's', v: two(se), label: SECONDS });
+    return out;
+  }
+  if (m.form === 'far') return [{ k: 'd', v: String(c.days ?? m.words?.big ?? ''), label: COPY.days }];
+  if (m.form === 'days') return [{ k: 'd', v: String(c.days), label: COPY.days }, { k: 'h', v: two(c.hours || 0), label: COPY.hours }];
+  if (m.form === 'hours') return [{ k: 'h', v: String(c.hours), label: COPY.hours }, { k: 'm', v: two(c.minutes || 0), label: COPY.minutes }];
+  if (m.form === 'minutes') {
+    const out = [{ k: 'm', v: two(c.minutes || 0), label: COPY.minutes }];
+    if (c.seconds != null && fast && exact) out.push({ k: 's', v: two(c.seconds), label: SECONDS });
+    return out;
+  }
+  return [];
+}
+
+/** Flip-clock cells: tabular condensed digits, a hairline split, each cell turns in once when its value changes. */
+function FlipRow({ cells, font, portrait, center, L, lang }) {
+  const n = cells.length;
+  const h = scaled(portrait ? (n > 3 ? 210 : n === 3 ? 250 : 300) : (n > 3 ? 168 : n === 3 ? 204 : 250), L);
+  const label = (l) => ({ en: lang === 'hebrew' ? '' : l.en, he: lang === 'english' ? '' : l.he });
+  return (
+    <div data-occ-flip={n} style={{ flex: 'none', display: 'flex', gap: portrait ? 18 : 14, width: '100%', justifyContent: center ? 'center' : 'flex-start' }}>
+      {cells.map((c) => (
+        <div key={c.k} data-occ-cell={c.k} style={{ flex: '1 1 0', minWidth: 0, maxWidth: Math.round(h * (c.v.length > 2 ? 1.5 : 1.15)), display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          <div style={{ position: 'relative', width: '100%', height: h, borderRadius: 14, border: '2px solid var(--line)', background: 'color-mix(in srgb, var(--ink) 5%, transparent)', overflow: 'hidden', padding: '0 9%' }}>
+            <BigNum text={c.v} max={Math.round(h * 0.84)} min={30} height={h} font={font} align="center" flip />
+            <span aria-hidden style={{ position: 'absolute', left: 0, right: 0, top: 'calc(50% - 1px)', height: 2, background: 'var(--panel)' }} />
+          </div>
+          <Label en={label(c.label).en} heText={label(c.label).he} size={24} color={SOFT_INK} style={{ justifyContent: 'center', textAlign: 'center' }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Count-up ('Day 3 of 8'): a big DAY k, 'of n', n hairline ticks with k lit (a hairline bar past 60), days to go. */
+function RunCount({ m, L, portrait, font, center, tagline }) {
+  const r = m.run;
+  const left = Math.max(0, r.n - r.k);
+  const numH = scaled(portrait ? 400 : 320, L);
+  return (
+    <div data-occ-count="run" style={{ position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 14 : 10, textAlign: center ? 'center' : 'start' }}>
+      {tagline}
+      <Label en={COPY.dayOf.en} heText={COPY.dayOf.he} color="var(--accentText)" size={28} />
+      <BigNum text={String(r.k)} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} />
+      <Label en={`${COPY.of.en} ${r.n}`} heText={`${COPY.of.he} ${r.n}`} size={30} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
+      {(shows(L, 'pips') || shows(L, 'bar')) && (
+        <div style={{ width: '100%', marginTop: 12, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}>
+          {r.n <= 60
+            ? <Ticks total={r.n} lit={r.k} from="start" major={r.n > 20 ? 5 : 7} align={center ? 'center' : 'start'} />
+            : <div aria-hidden data-occ-progress="" style={{ width: '100%', maxWidth: 560, height: 4, background: 'var(--line)', borderRadius: 2 }}><div style={{ width: `${((r.fraction ?? r.k / r.n) * 100).toFixed(2)}%`, height: '100%', background: 'var(--accentText)', borderRadius: 2 }} /></div>}
+        </div>
+      )}
+      {left > 0 && <Label en={`${left} ${left === 1 ? COPY.day.en : COPY.days.en} ${COPY.toGo.en}`} heText={`${COPY.toGo.he} ${left} ${left === 1 ? COPY.day.he : COPY.days.he}`} style={{ marginTop: 6, justifyContent: center ? 'center' : 'flex-start' }} />}
+    </div>
+  );
+}
+
 /** The countdown itself, in its current form: tagline, the big numerals, the unit, the tick row. */
-function Count({ m, L, portrait, font, compact, center }) {
+function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
   const w = m.words;
   const c = m.countdown;
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
   const tagline = tag ? <Label en={tag.en} heText={tag.he} color="var(--accentText)" size={26} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" /> : null;
   const col = { position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', textAlign: center ? 'center' : 'start' };
+  if (m.run) return <RunCount m={m} L={L} portrait={portrait} font={font} center={center} tagline={tagline} />;
+  if (m.display === 'flip') {
+    const cells = flipCells(m, nowMs, fast);
+    if (cells.length) {
+      return (
+        <div data-occ-count={m.form} style={{ ...col, gap: portrait ? 18 : 14 }}>
+          {tagline}
+          <FlipRow cells={cells} font={font} portrait={portrait} center={center} L={L} lang={lang} />
+        </div>
+      );
+    }
+  }
   if (m.form === 'far' && shows(L, 'ring')) {
     const ring = scaled(portrait ? 560 : compact ? 380 : 440, L);
     return (
@@ -251,7 +337,7 @@ function DayView({ m, L, portrait, coming }) {
   );
 }
 
-function CountView({ m, L, portrait, coming, font }) {
+function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
   const center = L.align === 'center';
   const long = isLong(m.name);
   const blocks = orderedBlocks(L);
@@ -267,7 +353,7 @@ function CountView({ m, L, portrait, coming, font }) {
         <div style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
         <div style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'inherit', gap: 14 }}>
           {before.length > 0 && <Rule center={center} />}
-          <Count m={m} L={L} portrait font={font} center={center} />
+          <Count m={m} L={L} portrait font={font} center={center} nowMs={nowMs} fast={fast} lang={lang} />
         </div>
         <div style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14 }}>{part(after)}</div>
         {shows(L, 'coming') && <div style={{ width: '100%', flex: 'none' }}><Coming list={coming} portrait /></div>}
@@ -284,7 +370,7 @@ function CountView({ m, L, portrait, coming, font }) {
   );
   const count = (
     <div style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
-      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} />
+      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} />
     </div>
   );
   return (
@@ -341,6 +427,143 @@ function VortView({ m, ex, portrait, font }) {
   );
 }
 
+/**
+ * Advent ('Reveal'): which tiles opened since the last day this screen showed the page (remembered per occasion in this
+ * browser; nothing on the first ever view). Those tiles fade out once each time the page appears today.
+ */
+function useNewlyOpened(key, day, revealed) {
+  const sig = (revealed || []).map((r) => (r ? 1 : 0)).join('');
+  return useMemo(() => {
+    const out = new Set();
+    try {
+      const k = `tt-adv:${key}`;
+      const st = JSON.parse(window.localStorage.getItem(k) || 'null');
+      const prev = st && st.day === day ? st.prev : st ? st.now : null;
+      window.localStorage.setItem(k, JSON.stringify({ day, prev, now: sig }));
+      if (typeof prev === 'string' && prev.length === sig.length) for (let i = 0; i < sig.length; i++) if (sig[i] === '1' && prev[i] !== '1') out.add(i);
+    } catch { /* no storage: nothing fades, the page is still right */ }
+    return out;
+  }, [key, day, sig]);
+}
+
+/** The tile grid: covers over the photo (panel-coloured hairline panes), or, without a photo, a clean numbered grid. */
+function AdventGrid({ a, newly, photo, portrait, side }) {
+  const { cols, rows } = a.tiles || { cols: 3, rows: 3 };
+  const total = cols * rows;
+  const box = photo ? { inset: 0 }
+    : portrait ? { top: 104, left: 56, right: 56, height: '46%' }
+      : { top: 96, bottom: 40, [side === 'left' ? 'left' : 'right']: 64, width: '50%' };
+  return (
+    <div aria-hidden data-occ-advent={photo ? 'photo' : 'grid'} style={{ position: 'absolute', ...box, pointerEvents: 'none' }}>
+      {photo && <img src={photo} alt="" decoding="async" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+      <div style={{ position: 'absolute', inset: 0, display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`, gap: photo ? 0 : 10 }}>
+        {Array.from({ length: total }, (_, i) => {
+          const open = !!a.revealed?.[i];
+          const fresh = open && newly.has(i);
+          const num = <span className="tt-num" style={{ fontFamily: F.en, fontSize: photo ? 26 : 34, fontWeight: 600, color: open && !photo ? 'var(--accentText)' : LABEL_INK }}>{i + 1}</span>;
+          if (photo) {
+            return (
+              <div key={i} data-occ-tile={open ? 'open' : 'shut'} style={{ position: 'relative', border: '2px solid var(--panel)' }}>
+                {(!open || fresh) && (
+                  <div className={fresh ? 'tt-adv-open' : undefined} style={{ position: 'absolute', inset: 0, background: 'color-mix(in srgb, var(--ink) 7%, var(--panel))', display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-start', padding: '10px 14px' }}>{num}</div>
+                )}
+              </div>
+            );
+          }
+          return (
+            <div key={i} data-occ-tile={open ? 'open' : 'shut'} style={{ position: 'relative', borderRadius: 12, border: `2px solid ${open ? 'var(--accentText)' : 'var(--line)'}`, background: open ? 'color-mix(in srgb, var(--accentText) 14%, transparent)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {num}
+              {fresh && <div className="tt-adv-open" style={{ position: 'absolute', inset: -2, borderRadius: 12, background: 'var(--panel)', border: '2px solid var(--line)' }} />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** The countdown on an advent page: a compact card (over a scrim when there is a photo). */
+function AdventCard({ m, L, portrait, font, pager, photo, nowMs, fast, lang }) {
+  const counting = m.form === 'far' || m.form === 'days' || m.form === 'hours' || m.form === 'minutes';
+  const w = m.words;
+  return (
+    <div data-occ-card="" style={{
+      flex: 'none', width: portrait ? '100%' : photo ? '48%' : '44%', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12,
+      ...(photo ? { padding: portrait ? '28px 36px' : '28px 40px', borderRadius: 24, background: 'color-mix(in srgb, var(--panel) 92%, transparent)' } : null),
+    }}>
+      <Header pager={pager} />
+      <Name name={m.name} L={L} size={NAME.small} align="start" k={`a|${m.key}`} />
+      <Rule />
+      {counting ? (
+        m.display === 'flip' && flipCells(m, nowMs, fast).length
+          ? <FlipRow cells={flipCells(m, nowMs, fast)} font={font} portrait={portrait} L={{ ...L, k: (L.k || 1) * 0.7 }} lang={lang} />
+          : (
+            <div data-occ-count={m.form} style={{ display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap' }}>
+              <div style={{ width: portrait ? 300 : 240, flex: 'none' }}><BigNum text={w.big} max={200} height={scaled(portrait ? 190 : 170, L)} font={font} /></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8, minWidth: 0 }}><Unit unit={w.unit} /><Sub sub={w.sub} /></div>
+            </div>
+          )
+      ) : (
+        <Label en={(m.zero || m.dayLabel)?.en} heText={(m.zero || m.dayLabel)?.he} color="var(--accentText)" size={30} />
+      )}
+    </div>
+  );
+}
+
+function AdventMain({ m, L, portrait, font, pager, nowMs, fast, lang, peek }) {
+  const a = m.advent;
+  const photo = lookOf({ photo: a.photo }).photo;
+  const newly = useNewlyOpened(m.key, m.daysLeft, a.revealed);
+  const side = L.side === 'left' ? 'left' : 'right';
+  return (
+    <>
+      <AdventGrid a={a} newly={newly} photo={photo} portrait={portrait} side={side} />
+      <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: photo || portrait ? 'flex-end' : 'center', alignItems: !photo && !portrait && side === 'left' ? 'flex-end' : 'flex-start' }}>
+        <AdventCard m={m} L={L} portrait={portrait} font={font} pager={pager} photo={photo} nowMs={nowMs} fast={fast} lang={lang} />
+      </div>
+      {peek && a.today && (
+        <div data-occ-peek="" style={{ position: 'absolute', zIndex: 3, inset: portrait ? '18% 40px' : '12% 14%', borderRadius: 28, padding: '32px 40px', background: 'var(--panel)', border: '2px solid var(--line)', display: 'flex', flexDirection: 'column' }}>
+          <StepView step={a.today} m={m} portrait={portrait} k={`peek|${m.key}`} />
+        </div>
+      )}
+    </>
+  );
+}
+
+const STEP = { en: "Today's step", he: 'הצעד של היום' };
+
+/** The advent's daily card ('Today's step'): text and / or a photo, the source under it (text only ever with a source). */
+function StepView({ step, m, portrait, k }) {
+  const photo = lookOf({ photo: step.photo }).photo;
+  const hasText = !!(step.en || step.he);
+  return (
+    <div data-occ-step="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 24px' }}>
+        <Label en={STEP.en} heText={STEP.he} color="var(--accentText)" size={28} />
+        <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK }}>{m.name.en || ''}</span>
+        {m.name.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 500, color: SOFT_INK }}>{m.name.he}</span>}
+      </div>
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: portrait ? 'column' : 'row', gap: 32, alignItems: 'stretch' }}>
+        {photo && <div style={{ flex: hasText ? (portrait ? '0 0 44%' : '0 0 44%') : 1, minHeight: 0, minWidth: 0, borderRadius: 20, overflow: 'hidden', background: 'color-mix(in srgb, var(--ink) 6%, transparent)' }}><img src={photo} alt="" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>}
+        {hasText && (
+          <Fit key={`st|${k}`} wrap vcenter max={60} min={28} style={{ flex: 1, minHeight: 0, minWidth: 0, lineHeight: 1.32, textAlign: photo ? 'start' : 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '.45em' }}>
+              {step.en && <div dir={textDir(step.en)} style={{ fontFamily: textDir(step.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(step.en)}</div>}
+              {step.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: step.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.45 }}>{bidiNodes(step.he)}</div>}
+            </div>
+          </Fit>
+        )}
+      </div>
+      {step.source && (
+        <div data-occ-source="" dir="auto" style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 14, fontFamily: F.en, fontSize: 24, fontWeight: 500, color: SOFT_INK, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+          <span aria-hidden style={{ flex: 'none', width: 24, height: 2, background: 'var(--line)' }} />
+          <span style={{ minWidth: 0 }}><span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{COPY.source.en}</span>: {bidiNodes(step.source)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** One vort page with both languages, or one page per language when together they are long (420+ characters). */
 function vortParts(ex) {
   if (ex.en && ex.he && [...ex.en].length + [...ex.he].length > 420) return [{ en: ex.en, he: '', source: ex.source }, { en: '', he: ex.he, source: ex.source }];
@@ -381,9 +604,11 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   // Pages: each occasion's countdown, and (when it has a sourced explanation) its vort page right after it. Several occasions
   // take turns (pick = cycle). Each page keeps its own time (the vort page: long enough to read it) and the slide asks the
   // rotation once for the time all the pages need, never a scroll. Layout 'source' off = no vort page (never a vort without it).
-  const pages = useMemo(() => (model?.rows || []).flatMap((r) => (r.explain && r.form !== 'zero' && shows(layoutOf(r.layout), 'source')
-    ? [{ m: r, view: 'main', secs: model.cycleSeconds }, ...vortParts(r.explain).map((ex) => ({ m: r, view: 'vort', ex, secs: readSecs(ex) }))]
-    : [{ m: r, view: 'main', secs: model.cycleSeconds }])), [model]);
+  const pages = useMemo(() => (model?.rows || []).flatMap((r) => [
+    { m: r, view: 'main', secs: model.cycleSeconds },
+    ...(r.advent?.today && r.form !== 'zero' ? [{ m: r, view: 'step', ex: r.advent.today, secs: Math.max(12, readSecs(r.advent.today)) }] : []),
+    ...(r.explain && r.form !== 'zero' && shows(layoutOf(r.layout), 'source') ? vortParts(r.explain).map((ex) => ({ m: r, view: 'vort', ex, secs: readSecs(ex) })) : []),
+  ]), [model]);
   const n = model?.rows.length || 0;
   const [page, setPage] = useState(0);
   const base = Number(slide?.duration) || 0;
@@ -398,6 +623,15 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     const t = setTimeout(() => setPage((x) => (x + 1) % pages.length), cur.secs * 1000);
     return () => clearTimeout(t);
   }, [keyList, page]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A tap on the TV (when the admin lets the TV take touch: App sets --tt-pe:none when not): a small finite pop at the tap
+  // point on the countdown, or a peek at today's advent card for 8 s. Swipes belong to the rotation; this only reads taps.
+  const panelRef = useRef(null);
+  const [pops, setPops] = useState([]);
+  const [peek, setPeek] = useState(false);
+  const lastTap = useRef(0);
+  useEffect(() => { if (!peek) return undefined; const t = setTimeout(() => setPeek(false), 8000); return () => clearTimeout(t); }, [peek]);
+  useEffect(() => { if (!pops.length) return undefined; const t = setTimeout(() => setPops([]), 900); return () => clearTimeout(t); }, [pops]);
 
   if (!model || !n) {
     return (
@@ -418,18 +652,39 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   const pager = n > 1 ? `${at + 1} / ${n}` : '';
   const pad = portrait ? '42px 56px 38px' : '34px 64px 30px';
   const panelVars = look.accent ? { '--accentText': look.accent } : undefined;
+  const nowMs = now.getTime();
+  const lang = model.language;
+  const advent = cur.view === 'main' && m.advent && m.form !== 'zero';
+  const onTap = (e) => {
+    if (m.touch === false || design.motion === 'minimal') return;
+    const el = panelRef.current;
+    if (!el) return;
+    try { if (getComputedStyle(el).getPropertyValue('--tt-pe').trim() === 'none') return; } catch { /* no styles: allow */ }
+    const t = Date.now();
+    if (t - lastTap.current < 800) return;
+    lastTap.current = t;
+    if (advent && m.advent.today) { setPeek(true); return; }
+    if (design.graphics === 'off') return;
+    const r = el.getBoundingClientRect();
+    const k = r.width / (el.offsetWidth || r.width || 1); // ScreenScaler: rect px -> layout px
+    setPops([{ id: t, x: Math.round((e.clientX - r.left) / k), y: Math.round((e.clientY - r.top) / k) }]);
+  };
   return (
-    <Panel pad={pad} data-occ-form={m.form} data-occ-view={cur.view} style={panelVars}>
-      <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} />
-      <EdgeTicks graphics={design.graphics} side={L.side === 'left' ? 'left' : 'right'} />
+    <Panel ref={panelRef} pad={pad} data-occ-form={m.form} data-occ-view={cur.view} data-occ-display={m.run ? 'run' : advent ? 'advent' : m.display || 'classic'} style={panelVars} onPointerUp={onTap}>
+      {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} />}
+      {!advent && <EdgeTicks graphics={design.graphics} side={L.side === 'left' ? 'left' : 'right'} />}
       {m.form === 'zero' && m.celebrate && <Confetti key={`c|${m.key}`} graphics={design.graphics} motion={design.motion} />}
-      <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-        <Header pager={pager} />
-        {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} />
-          : m.form === 'zero' ? <ZeroView m={m} L={L} portrait={portrait} />
-          : m.form === 'day' ? <DayView m={m} L={L} portrait={portrait} coming={coming} />
-            : <CountView m={m} L={L} portrait={portrait} coming={coming} font={font} />}
-      </div>
+      {pops.map((p) => <TapPop key={p.id} x={p.x} y={p.y} />)}
+      {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
+        <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Header pager={pager} />
+          {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} />
+            : cur.view === 'step' ? <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />
+            : m.form === 'zero' ? <ZeroView m={m} L={L} portrait={portrait} />
+            : m.form === 'day' && !m.run ? <DayView m={m} L={L} portrait={portrait} coming={coming} />
+              : <CountView m={m} L={L} portrait={portrait} coming={coming} font={font} nowMs={nowMs} fast={fast} lang={lang} />}
+        </div>
+      )}
     </Panel>
   );
 }

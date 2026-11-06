@@ -7,6 +7,7 @@ import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK } from '../componen
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
+import { playOnce } from './occasionSound.js';
 
 /**
  * The Countdown's hype moments, full canvas (src/shared/occasions.js takeoverFor() decides when):
@@ -170,6 +171,8 @@ export function OccasionTakeoverLayer({ tk, clockMs }) {
     const t = setTimeout(() => { last.current = null; setShown(null); setExiting(false); }, EXIT_MS);
     return () => clearTimeout(t);
   }, [tk]);
+  // the optional chime, once per appearance (settings.sound; null = silent)
+  useEffect(() => { if (tk?.sound) playOnce(`tk|${tk.key}`, tk.sound); }, [tk?.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const cur = tk || shown;
   if (!cur) return null;
   const now = cur.kind === 'final' ? Math.floor(clockMs / 1000) * 1000 : null;

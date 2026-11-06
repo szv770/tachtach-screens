@@ -62,6 +62,17 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-minimal .tt-occ-tk { animation: ttFadeIn 400ms linear both; }
 .m-smooth .tt-occ-rise, .m-lively .tt-occ-rise { animation: ttSmIn 700ms cubic-bezier(.22,.7,.2,1) 120ms both; }
 .tt-occ-tk.tt-out { animation: ttFadeOut 400ms ease-in both; }
+/* Countdown flip display: each changed cell turns in ONCE (transform + opacity, finite); Minimal motion = a plain swap.
+   Advent: tiles opened today fade out once; a tap on the TV: a small finite burst at the tap point. */
+.m-smooth .tt-flip, .m-lively .tt-flip { animation: ttFlip 340ms cubic-bezier(.2,.7,.3,1) both; transform-origin: 50% 50%; }
+@keyframes ttFlip { from { opacity: 0; transform: perspective(900px) rotateX(-80deg); } }
+.tt-adv-open { opacity: 0; }
+.m-smooth .tt-adv-open, .m-lively .tt-adv-open { animation: ttAdvOpen 1400ms ease-in-out 700ms both; }
+@keyframes ttAdvOpen { from { opacity: 1; } to { opacity: 0; } }
+.tt-pop { opacity: 0; }
+.m-smooth .tt-pop, .m-lively .tt-pop { animation: ttPop 760ms cubic-bezier(.15,.8,.3,1) both; }
+@keyframes ttPop { from { opacity: 1; transform: translate3d(0,0,0) rotate(var(--pr)) scale(.4); } 70% { opacity: 1; } to { opacity: 0; transform: translate3d(var(--px), var(--py), 0) rotate(var(--pr)) scale(1); } }
+.m-smooth .tt-occ-num, .m-lively .tt-occ-num { animation: ttBdHero 700ms cubic-bezier(.2,.8,.3,1) both; }
 @keyframes ttBdFall {
   0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)) rotateX(0deg); }
   40%  { opacity: 1; transform: translate3d(var(--sx), calc(var(--fall) * .4), 0) rotate(calc((var(--r0) + var(--r1)) / 2)) rotateX(calc(var(--fx) / 2)); }
@@ -78,7 +89,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-adv-open, .tt-pop, .tt-occ-num { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }

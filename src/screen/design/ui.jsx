@@ -48,7 +48,7 @@ export const s = (i, style) => ({ 'data-s': '', style: { '--i': i, ...style } })
  * --f-disp-* --disp-w) are what every page paints with, so a style is just a
  * set of overrides.
  */
-export function Panel({ look, pad = '30px 40px 32px', style, children, className = '', fullBleed = false, ...rest }) {
+export const Panel = React.forwardRef(function Panel({ look, pad = '30px 40px 32px', style, children, className = '', fullBleed = false, ...rest }, ref) {
   const { upNext, light } = useDesign();
   const neutral = upNext && (!look || look === 'classic');
   const roles = {
@@ -65,6 +65,7 @@ export function Panel({ look, pad = '30px 40px 32px', style, children, className
   };
   return (
     <section
+      ref={ref}
       className={`tt-panel ${className}`}
       style={{
         ...roles,
@@ -91,7 +92,7 @@ export function Panel({ look, pad = '30px 40px 32px', style, children, className
       {children}
     </section>
   );
-}
+});
 
 /** Quiet page title: English left (dim), Hebrew right. One line, no chrome. */
 export function PageTitle({ en, heText, i = 0, style }) {
