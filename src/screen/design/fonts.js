@@ -19,6 +19,15 @@ import '@fontsource-variable/playfair-display';
 import '@fontsource-variable/playfair-display/wght-italic.css';
 import '@fontsource-variable/fraunces';
 import '@fontsource-variable/fraunces/wght-italic.css';
+// Condensed grotesque for the big countdown numerals (Countdown page + its takeover, src/shared/fontRoles.js
+// CONDENSED_NUMERALS); also a built-in any font role can pick. Bundled, never Google Fonts.
+import '@fontsource/barlow-condensed/500.css';
+import '@fontsource/barlow-condensed/600.css';
+import '@fontsource/barlow-condensed/700.css';
+// Condensed grotesque for big countdown numerals (Countdown page / its takeover default; also a pickable built-in).
+import '@fontsource/barlow-condensed/500.css';
+import '@fontsource/barlow-condensed/600.css';
+import '@fontsource/barlow-condensed/700.css';
 import { googleFamiliesFor } from '../../shared/fontRoles.js';
 
 function styleEl(attr) {

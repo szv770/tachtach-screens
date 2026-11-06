@@ -27,6 +27,9 @@ export const FONT_ROLES = [
   { key: 'torahEnglish', label: 'Torah text (English)', hint: 'Translations and English Torah text', script: 'en', cssVar: '--f-te' },
 ];
 
+/** The condensed face the Countdown page uses for its big numerals unless the admin picks another (look.numeralsFont). */
+export const CONDENSED_NUMERALS = 'Barlow Condensed';
+
 export const DEFAULT_FONT_ROLES = {
   hebrewDisplay: 'Rubik',
   hebrewBody: 'Rubik',
@@ -51,6 +54,7 @@ export const BUILTIN_FONTS = [
   { name: 'Suez One', family: 'Suez One', bundled: true, scripts: ['he', 'en'] },
   { name: 'Playfair Display', family: 'Playfair Display Variable', bundled: true, scripts: ['en', 'num'] },
   { name: 'Fraunces', family: 'Fraunces Variable', bundled: true, scripts: ['en', 'num'] },
+  { name: 'Barlow Condensed', family: 'Barlow Condensed', bundled: true, scripts: ['en', 'num'] },
   { name: 'Noto Serif Hebrew', family: 'Noto Serif Hebrew', google: 'Noto+Serif+Hebrew:wght@400;500;600;700', scripts: ['he'] },
   { name: 'David Libre', family: 'David Libre', google: 'David+Libre:wght@400;500;700', scripts: ['he', 'en'] },
   { name: 'Heebo', family: 'Heebo', google: 'Heebo:wght@300..800', scripts: ['he', 'en', 'num'] },
