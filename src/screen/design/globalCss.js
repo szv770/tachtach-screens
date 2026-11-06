@@ -57,6 +57,11 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-smooth .tt-bd-up, .m-lively .tt-bd-up { animation: ttBdUp 650ms cubic-bezier(.22,.7,.2,1) var(--t, 0ms) both; }
 .m-smooth .tt-bd-late, .m-lively .tt-bd-late { animation-delay: calc(1250ms + var(--n, 1) * 240ms + var(--t2, 0ms)); }
 .m-smooth .tt-bd-n, .m-lively .tt-bd-n { animation: ttBdPop 800ms cubic-bezier(.2,.9,.25,1.2) both; animation-delay: calc(1000ms + var(--i, 0) * 240ms); }
+/* Countdown takeover (takeover/OccasionTakeover.jsx): a short fade in + a small rise of the content, a short fade out. Finite. */
+.m-smooth .tt-occ-tk, .m-lively .tt-occ-tk { animation: ttFadeIn 520ms ease-out both; }
+.m-minimal .tt-occ-tk { animation: ttFadeIn 400ms linear both; }
+.m-smooth .tt-occ-rise, .m-lively .tt-occ-rise { animation: ttSmIn 700ms cubic-bezier(.22,.7,.2,1) 120ms both; }
+.tt-occ-tk.tt-out { animation: ttFadeOut 400ms ease-in both; }
 @keyframes ttBdFall {
   0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)) rotateX(0deg); }
   40%  { opacity: 1; transform: translate3d(var(--sx), calc(var(--fall) * .4), 0) rotate(calc((var(--r0) + var(--r1)) / 2)) rotateX(calc(var(--fx) / 2)); }
@@ -73,7 +78,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }

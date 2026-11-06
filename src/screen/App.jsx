@@ -12,7 +12,9 @@ import Layout from './components/Layout.jsx';
 import { pickDailyStory } from '../shared/dailyStories.js';
 import { menuVisible } from '../shared/menu.js';
 import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.js';
+import * as OccasionsLib from '../shared/occasions.js';
 import { occasionVisible, ctxFrom as occasionCtx } from '../shared/occasions.js';
+import { OccasionTakeoverLayer } from './takeover/OccasionTakeover.jsx';
 import { zonedTimeToUtc } from '../shared/announcements.js';
 import SlideCarousel from './components/SlideCarousel.jsx';
 import Banner from './components/messages/Banner.jsx';
@@ -247,7 +249,34 @@ function AppContent() {
   // A Shabbos sign / screen-off covers like a freeze; an Emergency takeover still shows through when that setting is on.
   const coverOn = freezeOn || !!shabbosCover;
   const emergencyShows = coverOn && (freezeOn ? !!freezeView.emergency : freezeView?.emergency !== false) && isEmergencyTakeover(ann.takeover);
-  const takeover = coverOn && !emergencyShows ? null : ann.takeover;
+  const annTakeoverRaw = coverOn && !emergencyShows ? null : ann.takeover;
+
+  // Countdown hype moments (src/shared/occasions.js takeoverFor(), takeover/OccasionTakeover.jsx): a full-canvas takeover
+  // on a milestone day, in the final minute and at the zero moment. Same precedence as every takeover: a freeze or a
+  // Shabbos cover hides it (it is never an emergency) and a real announcement takeover wins over it; it replaces the
+  // Countdown's own virtual zero takeover (auto-occasion-*) when both are due. Only while the OCCASION slide row is on,
+  // on the same clock as the rest of the Countdown (?previewAt= / ?previewDate= move it). `window.__ttOccTakeoverFor`
+  // is a test seam for scripts/occasions-audit.mjs, used only while occasions.js has no takeoverFor().
+  const occClockMs = clock.time.getTime() + occasionOffset;
+  const occSlideOn = !!state?.slides?.some?.((sl) => sl?.type === 'OCCASION' && sl.enabled !== false);
+  let occTkRaw = null;
+  if (!coverOn && occSlideOn && state?.occasions) {
+    const fn = typeof OccasionsLib.takeoverFor === 'function' ? OccasionsLib.takeoverFor
+      : (typeof window !== 'undefined' && typeof window.__ttOccTakeoverFor === 'function' ? window.__ttOccTakeoverFor : null);
+    if (fn) {
+      try {
+        const at = new Date(occClockMs);
+        occTkRaw = fn(state.occasions, at, occasionCtx(state.settings, state.cache, at)) || null;
+      } catch { occTkRaw = null; }
+    }
+  }
+  const occTkKey = occTkRaw ? JSON.stringify(occTkRaw) : '';
+  const occTk = React.useMemo(() => occTkRaw, [occTkKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const isAutoOccasion = (t) => typeof t?.id === 'string' && t.id.startsWith('auto-occasion-');
+  const occTakeover = occTk && (!annTakeoverRaw || isAutoOccasion(annTakeoverRaw)) ? occTk : null;
+  const annTakeover = occTakeover ? null : annTakeoverRaw;
+  // what every 'is a takeover on top?' check reads (rotation pause, banner, up-next, reader hold, the report)
+  const takeover = annTakeover || occTakeover;
 
   // Newest "pause everything else" slide replaces the slide area.
   const holdSlide = React.useMemo(() => (!coverOn && ann.holds[0] ? toRotationSlide(ann.holds[0]) : null), [ann, coverOn]);
@@ -838,7 +867,8 @@ function AppContent() {
           clockSide={railSide}
           portrait={isPortrait}
         />
-        <AnnouncementTakeover item={takeover} tokens={tokens} clock={clock} />
+        <AnnouncementTakeover item={annTakeover} tokens={tokens} clock={clock} />
+        <OccasionTakeoverLayer tk={occTakeover} clockMs={occClockMs} />
         {!freezeOn && countdown?.mode === 'takeover' && (
           <CountdownOverlay countdown={countdown} tokens={tokens} onComplete={() => setCountdown(null)} />
         )}
