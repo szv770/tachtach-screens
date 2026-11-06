@@ -1279,6 +1279,8 @@ export function heroModel(row, now, ctx) {
     explain: s.explain && explainShows(o) ? { ...pickLang({ en: o.explainEn, he: o.explainHe }), source: s.credit ? o.source : '' } : null,
     style: o.style,
     daysLeft,
+    // exact zero moment (ms epoch) for the flip clock's all-units view; null when the time is only approximate
+    beginMs: c.approx ? null : row.begin.ms,
     stageText: tagline ? pickLang(tagline) : null,
     look: resolveLook(s, o),
     layout: resolveOccLayout(s, o),
