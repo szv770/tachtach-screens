@@ -660,3 +660,168 @@ test('uploads cleanup keeps the Countdown photos (global and per occasion, also 
   const n = O.normalizeFile({ settings: { look: { photo: '/uploads/11111111-aaaa-bbbb-cccc-000000000001.jpg' } }, occasions: [{ id: 'a', nameEn: 'A', rule: { kind: 'hebrew', month: 9, day: 1 }, look: { photo: '/uploads/22222222-aaaa-bbbb-cccc-000000000002.webp' } }] });
   assert.equal(uploadFilesFromOccasions(n).length, 2);
 });
+
+// ── count-up runs, flip display, sound, touch ───────────────────────────────
+
+test('count-up: Day k of n from any start date; before it starts a countdown, after the run it is past', () => {
+  const U = { id: 'u', nameEn: 'Run', kind: 'countup', from: { kind: 'gregorian', month: 12, day: 1, year: 2026 }, total: 8, beginsAt: 'midnight' };
+  const o = O.normalizeOccasion(U);
+  assert.equal(o.kind, 'countup'); assert.equal(o.total, 8); assert.equal(o.days, 8); assert.equal(o.repeat, 'once'); assert.equal(o.year, 2026); assert.deepEqual(o.rule, { kind: 'gregorian', month: 12, day: 1 });
+  const f = file([U]);
+  const run = (iso) => O.slideModel(f, at(iso), NY).rows[0];
+  const before = run('2026-11-10T17:00:00Z');
+  assert.equal(before.kind, 'countup'); assert.equal(before.run, null); assert.equal(before.form, 'far');
+  const d1 = run('2026-12-01T17:00:00Z'); assert.deepEqual([d1.run.k, d1.run.n, d1.run.fraction], [1, 8, 1 / 8]); assert.equal(d1.run.label.en, 'Day 1 of 8'); assert.equal(d1.run.label.he, 'יום 1 מתוך 8');
+  const d3 = run('2026-12-03T17:00:00Z'); assert.equal(d3.run.label.en, 'Day 3 of 8'); assert.equal(d3.run.fraction, 3 / 8);
+  assert.equal(run('2026-12-08T17:00:00Z').run.label.en, 'Day 8 of 8'); assert.equal(run('2026-12-08T17:00:00Z').run.fraction, 1);
+  assert.equal(O.slideModel(f, at('2026-12-09T06:00:00Z'), NY).rows.length, 0, 'finished run: past, off the slide');
+  assert.equal(O.upcoming(f, at('2026-12-09T06:00:00Z'), NY).length, 0);
+  // a countdown has no run; hebrew starts; evening starts count the next day after nightfall
+  assert.equal(O.slideModel(file([DINNER]), at('2026-12-20T17:00:00Z'), NY).rows[0].run, null);
+  assert.equal(O.slideModel(file([DINNER]), at('2026-12-20T17:00:00Z'), NY).rows[0].kind, 'countdown');
+  const H = { id: 'h', nameEn: 'H', kind: 'countup', from: { kind: 'hebrew', month: KISLEV, day: 25, year: 5787 }, total: 100, beginsAt: 'shkia' };
+  const hr = O.upcoming(file([H]), at('2026-12-01T17:00:00Z'), NY)[0];
+  assert.equal(hr.days, 100); assert.equal(hebrewDateOf(hr.startISO).hebrewDay, 25);
+  const mid = O.slideModel(file([H]), new Date(hr.begin.ms + 3 * 86400000 + 3600000 * 12), NY).rows[0];
+  assert.ok(mid.run.k >= 3 && mid.run.k <= 5);
+  // edges
+  assert.equal(O.normalizeOccasion({ ...U, total: 1 }).total, 1);
+  assert.equal(O.normalizeOccasion({ ...U, total: 400 }).total, 400);
+  assert.equal(O.normalizeOccasion({ ...U, total: 401 }).total, 1, 'out of range falls back (the strict check refuses it)');
+  assert.match(O.occasionProblem({ ...U, total: 401 }), /400/);
+  assert.match(O.occasionProblem({ ...U, from: null }), /starts on/);
+  assert.match(O.occasionProblem({ ...U, from: { kind: 'gregorian', month: 2, day: 30, year: 2026 } }), /starts on/);
+  assert.equal(O.occasionProblem(U), null);
+  assert.equal(O.normalizeOccasion({ ...U, from: { kind: 'hebrew', month: 9, day: 31, year: 5787 } }), null, 'a broken start and no rule: not an occasion');
+  assert.equal(O.normalizeOccasion({ ...U, from: null, rule: { kind: 'hebrew', month: 9, day: 1 } }).kind, 'countdown', 'with a rule it stays an ordinary occasion');
+});
+
+test('display, sound and touch: normalised, resolved, limited', () => {
+  assert.equal(O.normalizeSettings({}).display, 'classic'); assert.equal(O.normalizeSettings({ display: 'flip' }).display, 'flip'); assert.equal(O.normalizeSettings({ display: 'x' }).display, 'classic');
+  const m = (o, set) => O.slideModel(file([{ ...DINNER, ...o }], set), at('2026-12-11T17:00:00Z'), NY).rows[0];
+  assert.equal(m({}, {}).display, 'classic'); assert.equal(m({}, { display: 'flip' }).display, 'flip'); assert.equal(m({ display: 'classic' }, { display: 'flip' }).display, 'classic'); assert.equal(m({ display: 'flip' }, {}).display, 'flip');
+  assert.equal(m({}, {}).touch, true); assert.equal(m({ touch: false }, {}).touch, false);
+  // sound: off by default and silent
+  assert.deepEqual(O.normalizeSettings({}).sound, { on: false, chime: 'soft', at: { milestone: true, final: true, zero: true, moment: true }, volume: 40 });
+  assert.equal(m({}, {}).sound, null);
+  const on = { sound: { on: true, chime: 'bell', volume: 70, at: { zero: false } } };
+  assert.deepEqual(m({}, on).sound, { chime: 'bell', volume: 70 });
+  assert.equal(m({ soundOn: false }, on).sound, null); assert.deepEqual(m({ soundOn: true }, {}).sound, { chime: 'soft', volume: 40 });
+  assert.deepEqual(O.soundFor(O.normalizeSettings(on), null, 'milestone'), { chime: 'bell', volume: 70 }); assert.equal(O.soundFor(O.normalizeSettings(on), null, 'zero'), null);
+  assert.equal(O.soundFor(O.normalizeSettings({}), null, 'moment'), null);
+  // takeoverFor carries it (null when off or off for that moment)
+  assert.equal(tk(file([DINNER]), '2026-12-13T17:00:00Z').sound, null);
+  assert.deepEqual(tk(file([DINNER], on), '2026-12-13T17:00:00Z').sound, { chime: 'bell', volume: 70 });
+  assert.equal(O.takeoverFor(file([DINNER], on), new Date(BEGIN), ctxOn).sound, null, 'zero is off in "at"');
+  assert.deepEqual(O.takeoverFor(file([DINNER], on), new Date(BEGIN - 5000), ctxOn).sound, { chime: 'bell', volume: 70 });
+  // limits and refusals
+  assert.equal(O.normalizeSettings({ sound: { volume: 5, chime: 'x' } }).sound.volume, 40); assert.equal(O.normalizeSettings({ sound: { chime: 'x' } }).sound.chime, 'soft');
+  const f0 = O.normalizeFile(null);
+  for (const sound of [{ on: 'yes' }, { chime: 'gong' }, { volume: 9 }, { volume: 101 }, { volume: 50.5 }, { at: { zero: 'y' } }, { at: { bell: true } }, { loud: 1 }, 5]) assert.throws(() => O.setSettings(f0, { sound }), O.OccasionsError, JSON.stringify(sound));
+  assert.equal(O.setSettings(f0, { sound: { on: true, chime: 'fanfare', volume: 100, at: { final: false } } }).settings.sound.at.final, false);
+  assert.throws(() => O.setSettings(f0, { display: 'wide' }), O.OccasionsError);
+  assert.throws(() => O.addOccasion(f0, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, soundOn: 'loud' }), O.OccasionsError);
+  assert.throws(() => O.addOccasion(f0, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, display: 'wide' }), O.OccasionsError);
+  assert.throws(() => O.addOccasion(f0, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, touch: 'yes' }), O.OccasionsError);
+});
+
+// ── advent (reveal) ─────────────────────────────────────────────────────────
+
+const PH = '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg';
+const advOcc = (extra = {}, adv = {}) => ({ ...DINNER, advent: { on: true, photo: PH, grid: '3x3', daily: {}, ...adv }, ...extra });
+const adv = (o, iso, set = {}) => O.slideModel(file([o], set), at(iso), NY).rows[0].advent;
+
+test('advent: tiles open in proportion to the lead-up days, complete exactly when it begins; same tiles every time', () => {
+  const o = advOcc(); // begins 20 Dec 19:00, lead-up window 30 days
+  assert.equal(O.slideModel(file([{ ...DINNER }]), at('2026-12-11T17:00:00Z'), NY).rows[0].advent, null, 'off by default');
+  const days = (n) => `2026-12-${String(20 - n).padStart(2, '0')}T17:00:00Z`;
+  const a30 = adv(o, '2026-11-20T17:00:00Z');
+  assert.equal(a30.total, 9); assert.deepEqual(a30.tiles, { cols: 3, rows: 3 }); assert.equal(a30.count, 0); assert.equal(a30.revealed.length, 9); assert.ok(a30.revealed.every((x) => x === false));
+  assert.equal(a30.photo, PH); assert.equal(a30.grid, '3x3');
+  let prev = new Set(); let last = 0;
+  for (let left = 30; left >= 0; left--) {
+    const d = new Date(Date.UTC(2026, 11, 20 - left, 17, 0, 0)); // 12:00 EST
+    const a = O.slideModel(file([o]), d, NY).rows[0].advent;
+    assert.equal(a.count, Math.round((9 * (30 - left)) / 30), `${left} days left`);
+    assert.equal(a.revealed.filter(Boolean).length, a.count);
+    const open = new Set(a.revealed.map((x, i) => (x ? i : -1)).filter((i) => i >= 0));
+    for (const i of prev) assert.ok(open.has(i), 'a tile that is open stays open');
+    prev = open; last = a.count;
+  }
+  assert.equal(last, 9, 'complete when it begins (0 days left)');
+  assert.equal(adv(o, '2026-12-20T17:00:00Z').count, 9);
+  assert.equal(adv(o, '2026-12-21T00:00:30Z').count, 9, 'at zero: all open');
+  assert.equal(adv(o, '2026-12-21T01:00:00Z').count, 9, 'on the day');
+  // stateless / the same on every call and from a copy; another occasion shuffles differently
+  assert.deepEqual(adv(o, days(10)), adv(JSON.parse(JSON.stringify(o)), days(10)));
+  assert.deepEqual(O.seededOrder(24, 'a|2026-12-20'), O.seededOrder(24, 'a|2026-12-20'));
+  assert.notDeepEqual(O.seededOrder(24, 'a|2026-12-20'), O.seededOrder(24, 'b|2026-12-20'));
+  assert.deepEqual([...O.seededOrder(24, 'z')].sort((x, y) => x - y), Array.from({ length: 24 }, (_, i) => i), 'a permutation');
+  // every grid; the lead-up follows the occasion's own window
+  for (const [g, n] of [['3x3', 9], ['4x3', 12], ['5x4', 20], ['6x4', 24]]) assert.equal(adv(advOcc({}, { grid: g }), '2026-12-20T17:00:00Z').total, n);
+  assert.equal(adv(advOcc({ showDays: 10 }), '2026-12-15T17:00:00Z').count, Math.round(9 * 5 / 10));
+});
+
+test('advent across DST: the count only changes with the calendar day (spring forward 14 Mar 2027, fall back 1 Nov 2026)', () => {
+  const spring = advOcc({ rule: { kind: 'gregorian', month: 4, day: 10 }, year: 2027, showDays: 30, id: 's' }, { grid: '6x4' });
+  const fall = advOcc({ rule: { kind: 'gregorian', month: 11, day: 15 }, year: 2026, showDays: 30, id: 'f' }, { grid: '6x4' });
+  for (const [o, y, m, d] of [[spring, 2027, 4, 10], [fall, 2026, 11, 15]]) {
+    let prev = -1;
+    for (let left = 30; left >= 0; left--) {
+      for (const hh of [6, 12, 17]) { // morning / noon / evening local (UTC-5 or -4: pick hours far from midnight)
+        const ms = zonedLocal(y, m, d - left, hh);
+        const a = O.slideModel(file([o]), new Date(ms), NY).rows[0].advent;
+        assert.equal(a.count, Math.round((24 * (30 - left)) / 30), `${y}-${m}-${d} minus ${left}, ${hh}h`);
+      }
+      const a = O.slideModel(file([o]), new Date(zonedLocal(y, m, d - left, 12)), NY).rows[0].advent;
+      assert.ok(a.count >= prev); prev = a.count;
+    }
+    assert.equal(prev, 24);
+  }
+});
+function zonedLocal(y, m, d, hh) { // the instant at which New York's wall clock reads y-m-d hh:00
+  const iso = new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10);
+  return Date.parse(`${iso}T${String(hh).padStart(2, '0')}:00:00${isDst(iso) ? '-04:00' : '-05:00'}`);
+}
+function isDst(iso) { return iso >= '2026-03-08' && iso < '2026-11-01' || iso >= '2027-03-14' && iso < '2027-11-07'; }
+
+test('advent daily cards: text needs a source AND a check, a photo needs neither; the kiosk copy hides the rest', () => {
+  const daily = { 7: { en: 'Card words', he: 'כרטיס', source: 'Sefer A p. 1', checked: true }, 6: { en: 'Unchecked words', source: 'Sefer B p. 2' }, 5: { en: 'No source', checked: true }, 4: { photo: PH }, 3: { en: 'With photo', photo: PH, source: '' }, 2: {} };
+  const o = advOcc({}, { daily });
+  const card = (left) => adv(o, `2026-12-${String(20 - left).padStart(2, '0')}T17:00:00Z`).today;
+  assert.equal(card(7).en, 'Card words'); assert.equal(card(7).source, 'Sefer A p. 1');
+  assert.equal(card(6), null, 'unchecked text alone: nothing to show');
+  assert.equal(card(5), null, 'checked but no source: hidden');
+  assert.deepEqual(card(4), { en: '', he: '', photo: PH, source: '' }, 'photo-only card needs no source');
+  assert.deepEqual(card(3), { en: '', he: '', photo: PH, source: '' }, 'the photo shows, the unchecked text does not');
+  assert.equal(card(2), null); assert.equal(card(1), null);
+  assert.equal(O.normalizeOccasion(o).advent.daily['2'], undefined, 'empty cards are dropped');
+  assert.equal(O.normalizeOccasion(advOcc({}, { daily: { 5: { en: 'x', checked: true } } })).advent.daily['5'].checked, true);
+  assert.equal(O.normalizeOccasion(advOcc({}, { daily: { 5: { photo: PH, checked: true } } })).advent.daily['5'].checked, false, 'nothing to check on a photo');
+  // not on the day itself / after it begins
+  assert.equal(adv(o, '2026-12-21T00:01:00Z').today, null);
+  // kiosk and viewer copies carry no unchecked card text and no source for it
+  const txt = JSON.stringify(O.forViewer(O.forKiosk(file([o]))));
+  assert.ok(txt.includes('Card words') && !/Unchecked words|No source|Sefer B/.test(txt));
+  // editing a card un-checks it; checking again in the same save keeps it
+  let f = file([{ ...o, id: 'ad' }]);
+  const pick = () => f.occasions.find((x) => x.id === 'ad').advent.daily['7'];
+  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { ...daily[7], en: 'Edited words' } } } }).file;
+  assert.equal(pick().checked, true, 'the save says checked: it is trusted');
+  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { en: 'Edited again', he: 'כרטיס', source: 'Sefer A p. 1' } } } }).file;
+  assert.equal(pick().checked, false, 'text changed without the check');
+  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { ...daily[7], checked: true } } } }).file;
+  assert.equal(pick().checked, true);
+  f = O.updateOccasion(f, 'ad', { advent: { ...f.occasions[0].advent, daily: { 7: { ...pick(), source: 'Sefer A p. 9', checked: false } } } }).file;
+  assert.equal(pick().checked, false);
+  // strict refusals
+  for (const a of [{ on: 'x' }, { grid: '9x9' }, { photo: 'http://x/y.jpg' }, { daily: { 0: { en: 'x' } } }, { daily: { 5: { en: 'x'.repeat(161) } } }, { daily: { 5: { evil: 1 } } }, { daily: { 5: { photo: '/etc/passwd' } } }, { daily: { 5: { checked: 'y' } } }, { nope: 1 }, { daily: Object.fromEntries(Array.from({ length: 61 }, (_, i) => [String(i + 1), { en: 'x' }])) }]) {
+    assert.throws(() => O.addOccasion(O.normalizeFile(null), { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, advent: a }), O.OccasionsError, JSON.stringify(a).slice(0, 60));
+  }
+});
+
+test('uploads cleanup keeps advent photos too', async () => {
+  const { uploadFilesFromOccasions } = await import('../src/shared/uploadRefs.js');
+  const refs = uploadFilesFromOccasions({ occasions: [{ advent: { photo: '/uploads/aaaaaaaa-1111-2222-3333-000000000001.jpg', daily: { 3: { photo: '/uploads/bbbbbbbb-1111-2222-3333-000000000002.png' } } } }] });
+  assert.deepEqual(refs.sort(), ['aaaaaaaa-1111-2222-3333-000000000001', 'bbbbbbbb-1111-2222-3333-000000000002']);
+});

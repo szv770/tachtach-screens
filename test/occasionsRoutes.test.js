@@ -192,3 +192,80 @@ test('hype / words / look / layout over the routes: saved, refused when strict, 
   r = await call('PUT', '/occasions/all', { file: { occasions: before.occasions, settings: before.settings } });
   assert.equal(r.status, 200); assert.deepEqual(r.json.settings.milestones, [30, 14, 7, 3, 2, 1]); assert.equal(r.json.settings.look.photo, '');
 });
+
+test('live moments: strict body, caps, rate limit, in memory only, SSE, state, clear, permissions, activity line', async () => {
+  const { call, events, dir } = await setup();
+  const { momentStore, activeMoment, createMomentStore, parseMoment } = await import('../src/server/occasionMoment.js');
+  momentStore.reset();
+  const n0 = events.length;
+  let r = await call('POST', '/occasions/moment', { kind: 'shoutout', text: { en: 'Mazel tov Dovid!', he: 'מזל טוב' }, seconds: 20, occasionKey: 'abc|2026-12-20' });
+  assert.equal(r.status, 200); const m = r.json.moment;
+  assert.equal(m.kind, 'shoutout'); assert.equal(m.text.en, 'Mazel tov Dovid!'); assert.equal(m.occasionKey, 'abc|2026-12-20'); assert.equal(m.until - m.startedAt, 20000); assert.match(m.id, /^m/);
+  assert.equal(activeMoment().id, m.id, 'the active one rides in /api/state');
+  assert.ok(events.slice(n0).some((e) => e.includes('occasion-moment') && e.includes('Mazel tov Dovid')), 'SSE');
+  assert.ok(!fs.readdirSync(dir).some((f) => /moment/i.test(f)), 'nothing stored');
+  // defaults per kind
+  r = await call('POST', '/occasions/moment', { kind: 'burst' }); assert.equal(r.json.moment.until - r.json.moment.startedAt, 8000); assert.equal(r.json.moment.text.en, '');
+  r = await call('POST', '/occasions/moment', { kind: 'ten' }); assert.equal(r.json.moment.until - r.json.moment.startedAt, 10000);
+  // a new one replaces the old; stop clears it and says so
+  assert.equal(activeMoment().kind, 'ten');
+  const n1 = events.length;
+  r = await call('DELETE', '/occasions/moment'); assert.equal(r.status, 200); assert.equal(r.json.stopped, true);
+  assert.equal(activeMoment(), null); assert.ok(events.slice(n1).some((e) => e.includes('occasion-moment') && e.includes('"moment":null')));
+  assert.equal((await call('DELETE', '/occasions/moment')).json.stopped, false);
+  // validation
+  momentStore.reset();
+  for (const body of [{}, { kind: 'rocket' }, { kind: 'shoutout' }, { kind: 'shoutout', text: { en: '  ', he: '' } }, { kind: 'burst', text: { en: 'x'.repeat(81) } }, { kind: 'burst', text: { fr: 'x' } }, { kind: 'burst', text: 'hi' }, { kind: 'burst', text: { en: 5 } }, { kind: 'burst', seconds: 4 }, { kind: 'burst', seconds: 61 }, { kind: 'burst', seconds: '10' }, { kind: 'burst', seconds: 7.5 }, { kind: 'burst', occasionKey: '../../x' }, { kind: 'burst', occasionKey: 5 }, { kind: 'burst', evil: 1 }]) {
+    r = await call('POST', '/occasions/moment', body);
+    assert.equal(r.status, 400, JSON.stringify(body));
+  }
+  assert.equal((await call('POST', '/occasions/moment', null, '[1]')).status, 400);
+  assert.equal(activeMoment(), null, 'refused requests start nothing');
+  r = await call('POST', '/occasions/moment', { kind: 'shoutout', text: { en: 'y'.repeat(80) } }); assert.equal(r.status, 200);
+  assert.equal((await call('POST', '/occasions/moment', { kind: 'shoutout', text: { en: 'x'.repeat(5000) } })).status, 413, '4 kB body cap');
+  // the id 'moment' is never an occasion id
+  assert.equal((await call('PUT', '/occasions/moment', { occasion: { on: false } })).status, 404);
+  // rate limit: 10 a minute for the whole screen
+  momentStore.reset();
+  for (let i = 0; i < 10; i++) assert.equal((await call('POST', '/occasions/moment', { kind: 'burst' })).status, 200, `hit ${i}`);
+  r = await call('POST', '/occasions/moment', { kind: 'burst' }); assert.equal(r.status, 429); assert.match(r.json.error, /Wait/);
+  momentStore.reset();
+  assert.equal((await call('POST', '/occasions/moment', { kind: 'burst' })).status, 200);
+  momentStore.reset();
+  // expiry and the rate window with a fake clock
+  let t = 1000; const timers = []; const emitted = [];
+  const st = createMomentStore({ now: () => t, emit: (type, data) => emitted.push([type, data]), setTimer: (fn, ms) => { timers.push([fn, ms]); return { unref() {} }; }, clearTimer() {} });
+  st.start(parseMoment({ kind: 'burst', seconds: 5 }));
+  assert.equal(st.get().kind, 'burst'); t += 4999; assert.ok(st.get()); t += 1; assert.equal(st.get(), null, 'auto-clears at until'); assert.equal(emitted.at(-1)[1].moment, null);
+  for (let i = 0; i < 10; i++) assert.ok(st.take().ok);
+  assert.equal(st.take().ok, false); t += 60001; assert.ok(st.take().ok);
+  // permissions + activity
+  const P = await import('../src/shared/permissions.js');
+  const full = { role: 'editor', preset: 'full' }; const msg = { role: 'editor', preset: 'messages' };
+  assert.equal(P.canDo(full, 'POST', '/api/occasions/moment'), true); assert.equal(P.canDo(full, 'DELETE', '/api/occasions/moment'), true);
+  assert.equal(P.canDo(msg, 'POST', '/api/occasions/moment'), false); assert.equal(P.canDo(msg, 'DELETE', '/api/occasions/moment'), false);
+  const { describe } = await import('../src/server/activity.js');
+  assert.match(describe('POST', '/api/occasions/moment', { kind: 'shoutout' }), /shout-out/); assert.match(describe('DELETE', '/api/occasions/moment'), /Stopped/);
+  // viewers may see the active moment (harmless: words typed for the TV)
+  const { viewerState } = await import('../src/server/live.js');
+  assert.deepEqual(viewerState({ occasionMoment: { id: 'm1', kind: 'burst' } }).occasionMoment, { id: 'm1', kind: 'burst' });
+  momentStore.reset();
+});
+
+test('advent / count-up / sound over the routes: saved, strict, kiosk copy, undo', async () => {
+  const { call, events } = await setup();
+  const PH = '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg';
+  let r = await call('POST', '/occasions', { occasion: { nameEn: 'Run', kind: 'countup', from: { kind: 'gregorian', month: 6, day: 1, year: 2027 }, total: 100, display: 'flip', touch: false, soundOn: true, advent: { on: true, photo: PH, grid: '4x3', daily: { 5: { en: 'Card', source: 'Sefer X p. 3', checked: true }, 4: { en: 'Draft card', source: 'Sefer Y' } } } } });
+  assert.equal(r.status, 200);
+  const o = r.json.occasions.find((x) => x.id === r.json.id);
+  assert.equal(o.kind, 'countup'); assert.equal(o.days, 100); assert.equal(o.display, 'flip'); assert.equal(o.touch, false); assert.equal(o.soundOn, true); assert.equal(o.advent.grid, '4x3'); assert.equal(o.advent.daily['5'].checked, true); assert.equal(o.advent.daily['4'].checked, false);
+  assert.ok(!events.slice(-1)[0].includes('Draft card'), 'an unchecked card is not broadcast');
+  assert.ok(events.slice(-1)[0].includes('"Card"') || events.slice(-1)[0].includes('Card'));
+  assert.equal((await call('POST', '/occasions', { occasion: { nameEn: 'Bad', kind: 'countup', total: 5 } })).status, 400);
+  assert.equal((await call('POST', '/occasions', { occasion: { nameEn: 'Bad', kind: 'countup', from: { kind: 'gregorian', month: 6, day: 1, year: 2027 }, total: 999 } })).status, 400);
+  assert.equal((await call('POST', '/occasions', { occasion: { nameEn: 'Bad', rule: { kind: 'hebrew', month: 9, day: 1 }, advent: { grid: '2x2' } } })).status, 400);
+  r = await call('PUT', '/occasions/settings', { settings: { display: 'flip', sound: { on: true, chime: 'bell', volume: 60 } } });
+  assert.equal(r.status, 200); assert.equal(r.json.settings.sound.chime, 'bell'); assert.equal(r.json.settings.display, 'flip');
+  assert.equal((await call('PUT', '/occasions/settings', { settings: { sound: { volume: 5 } } })).status, 400);
+  assert.equal((await call('PUT', '/occasions/settings', { settings: { display: 'big' } })).status, 400);
+});

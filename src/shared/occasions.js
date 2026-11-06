@@ -622,6 +622,7 @@ export function occasionProblem(raw) {
     if (raw[k] != null && typeof raw[k] !== 'string') return 'Text only, please.';
     if ([...String(raw[k] || '').trim()].length > LIMITS.explain) return `The explanation is ${LIMITS.explain} characters at most.`;
   }
+  if (raw.kind === 'countup' && !normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
   const r = raw.kind === 'countup' && normalizeFrom(raw.from) ? { kind: raw.from.kind, month: raw.from.month, day: raw.from.day } : raw.rule;
   if (!isObj(r) || !['hebrew', 'roshChodesh', 'gregorian'].includes(r.kind)) return 'Choose a Hebrew date or a date on the regular calendar.';
   if (!normalizeRule(r)) return r.kind === 'gregorian' ? 'That date does not exist. Check the month and day.' : 'Choose a Hebrew month and a day from 1 to 30.';
