@@ -255,20 +255,15 @@ function AppContent() {
   // on a milestone day, in the final minute and at the zero moment. Same precedence as every takeover: a freeze or a
   // Shabbos cover hides it (it is never an emergency) and a real announcement takeover wins over it; it replaces the
   // Countdown's own virtual zero takeover (auto-occasion-*) when both are due. Only while the OCCASION slide row is on,
-  // on the same clock as the rest of the Countdown (?previewAt= / ?previewDate= move it). `window.__ttOccTakeoverFor`
-  // is a test seam for scripts/occasions-audit.mjs, used only while occasions.js has no takeoverFor().
+  // on the same clock as the rest of the Countdown (?previewAt= / ?previewDate= move it).
   const occClockMs = clock.time.getTime() + occasionOffset;
   const occSlideOn = !!state?.slides?.some?.((sl) => sl?.type === 'OCCASION' && sl.enabled !== false);
   let occTkRaw = null;
-  if (!coverOn && occSlideOn && state?.occasions) {
-    const fn = typeof OccasionsLib.takeoverFor === 'function' ? OccasionsLib.takeoverFor
-      : (typeof window !== 'undefined' && typeof window.__ttOccTakeoverFor === 'function' ? window.__ttOccTakeoverFor : null);
-    if (fn) {
-      try {
-        const at = new Date(occClockMs);
-        occTkRaw = fn(state.occasions, at, occasionCtx(state.settings, state.cache, at)) || null;
-      } catch { occTkRaw = null; }
-    }
+  if (!coverOn && occSlideOn && state?.occasions && typeof OccasionsLib.takeoverFor === 'function') {
+    try {
+      const at = new Date(occClockMs);
+      occTkRaw = OccasionsLib.takeoverFor(state.occasions, at, { ...occasionCtx(state.settings, state.cache, at), slideOn: true }) || null;
+    } catch { occTkRaw = null; }
   }
   const occTkKey = occTkRaw ? JSON.stringify(occTkRaw) : '';
   const occTk = React.useMemo(() => occTkRaw, [occTkKey]); // eslint-disable-line react-hooks/exhaustive-deps

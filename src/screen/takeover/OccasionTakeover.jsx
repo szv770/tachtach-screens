@@ -70,7 +70,7 @@ function Tagline({ t, center }) {
 
 function CountTk({ tk, now, L, portrait, font }) {
   const final = tk.kind === 'final';
-  const fw = final ? finalWords(tk.until, now) : null;
+  const fw = final ? finalWords(tk.beginMs ?? tk.until, now) : null;
   const w = tk.words || {};
   const days = Number.isFinite(tk.daysLeft) ? tk.daysLeft : Number(w.big) || 0;
   const big = final ? fw.big : (w.big || String(days));
@@ -142,7 +142,7 @@ export const OccasionTakeover = React.memo(function OccasionTakeover({ tk, now, 
       <Panel pad={portrait ? '64px 72px 64px' : '56px 104px 56px'} style={{ borderRadius: 0, ...vars }} data-occ-form={tk.kind}>
         <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} />
         <EdgeTicks graphics={design.graphics === 'off' ? 'off' : 'rich'} inset={36} />
-        {tk.kind === 'zero' && <Confetti key={`c|${tk.key}`} graphics={design.graphics} motion={design.motion} />}
+        {tk.kind === 'zero' && tk.celebrate !== false && <Confetti key={`c|${tk.key}`} graphics={design.graphics} motion={design.motion} />}
         <div className="tt-occ-rise" style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <header style={{ flex: 'none', display: 'flex', justifyContent: portrait ? 'center' : 'flex-start' }}>
             <Label en={COPY.slideTitle.en} heText={COPY.slideTitle.he} size={26} />

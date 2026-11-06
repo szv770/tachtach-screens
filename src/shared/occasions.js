@@ -42,7 +42,7 @@ export class OccasionsError extends Error {}
 
 export const LIMITS = Object.freeze({
   occasions: 80, name: 60, explain: 600, source: 140, event: 120, zero: 40, file: 200000,
-  stageLine: 60, milestones: 12, milestoneTexts: 12, fontName: 60,
+  stageLine: 60, milestones: 12, milestoneTexts: 12, adventDays: 60, adventText: 160, momentText: 80, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
 export const BEGINS_LABEL = Object.freeze({
@@ -61,6 +61,7 @@ export const RANGES = Object.freeze({
   comingUpCount: { min: 0, max: 4 }, comingUpDays: { min: 7, max: 400 }, zeroMinutes: { min: 1, max: 240 },
   railDays: { min: 1, max: 60 }, takeoverMinutes: { min: 1, max: 30 }, showDays: { min: 0, max: 400 }, days: { min: 1, max: 9 },
   milestoneMinutes: { min: 1, max: 15 }, milestoneDay: { min: 1, max: 365 }, dim: { min: 30, max: 90 },
+  total: { min: 1, max: 400 }, volume: { min: 10, max: 100 }, momentSeconds: { min: 5, max: 60 },
 });
 export const FAR_DAYS = 14; // more than this many whole days left: the big DAYS form
 
@@ -115,6 +116,16 @@ export const LAYOUT_DEFAULTS = Object.freeze({
   order: LAYOUT_SPEC.order, side: 'left', scale: 100, align: 'start',
 });
 
+export const DISPLAYS = Object.freeze(['classic', 'flip']);
+export const DISPLAY_LABEL = Object.freeze({ classic: 'Classic (one big number)', flip: 'Flip clock (days, hours, minutes, seconds)' });
+export const KINDS = Object.freeze(['countdown', 'countup']);
+export const GRIDS = Object.freeze({ '3x3': { cols: 3, rows: 3 }, '4x3': { cols: 4, rows: 3 }, '5x4': { cols: 5, rows: 4 }, '6x4': { cols: 6, rows: 4 } });
+export const CHIMES = Object.freeze(['soft', 'bell', 'fanfare']);
+export const CHIME_LABEL = Object.freeze({ soft: 'Soft chime', bell: 'Bell', fanfare: 'Fanfare' });
+export const SOUND_MOMENTS = Object.freeze(['milestone', 'final', 'zero', 'moment']);
+export const SOUND_DEFAULTS = Object.freeze({ on: false, chime: 'soft', at: Object.freeze({ milestone: true, final: true, zero: true, moment: true }), volume: 40 });
+export const MOMENT_KINDS = Object.freeze(['burst', 'shoutout', 'ten']);
+
 export const SETTINGS_DEFAULTS = Object.freeze({
   pick: 'nearest', pinnedId: '', cycleCount: 3, cycleSeconds: 10,
   withinDays: 30, beginsAt: 'shkia', time: '18:00', fallbackTime: '18:00',
@@ -127,6 +138,7 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   finalOn: true,
   // words per stage / per milestone ({} = the built-in lines), the look and the layout (complete objects)
   stageText: Object.freeze({}), milestoneText: Object.freeze({}), look: LOOK_DEFAULTS, layout: LAYOUT_DEFAULTS,
+  display: 'classic', sound: SOUND_DEFAULTS,
 });
 
 /** Takeover styles an occasion may use at its zero moment (src/shared/takeoverStyles.js ids). */
@@ -330,6 +342,99 @@ export function milestonesProblem(v) {
 }
 const minutesOf = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m; };
 
+// ── count-up runs, advent reveal, sound ─────────────────────────────────────
+
+/** A count-up start: { kind: 'hebrew'|'gregorian', month, day, year } (a real, single date), or null. */
+export function normalizeFrom(raw) {
+  if (!isObj(raw) || (raw.kind !== 'hebrew' && raw.kind !== 'gregorian')) return null;
+  const rule = normalizeRule({ kind: raw.kind, month: raw.month, day: raw.day });
+  const y = Number(raw.year);
+  const ok = rule && (rule.kind === 'gregorian' ? Number.isInteger(y) && y >= 2000 && y <= 2200 : Number.isInteger(y) && y >= 5760 && y <= 5960);
+  return ok ? { kind: rule.kind, month: rule.month, day: rule.day, year: y } : null;
+}
+
+const dailyCard = (v) => {
+  const r = isObj(v) ? v : {};
+  const en = line(r.en, LIMITS.adventText); const he = line(r.he, LIMITS.adventText);
+  const photo = typeof r.photo === 'string' && PHOTO_URL.test(r.photo) ? r.photo : '';
+  const source = line(r.source, LIMITS.source);
+  return { en, he, photo, source, checked: r.checked === true && !!(en || he) };
+};
+/** The advent ('Reveal') block: { on, photo, grid, daily: { '<daysLeft>': { en, he, photo, source, checked } } }. */
+export function normalizeAdvent(raw) {
+  const r = isObj(raw) ? raw : {};
+  const daily = {};
+  if (isObj(r.daily)) {
+    for (const k of Object.keys(r.daily).filter(milestoneKey).sort((a, b) => Number(b) - Number(a))) {
+      const c = dailyCard(r.daily[k]);
+      if (c.en || c.he || c.photo) daily[k] = c;
+      if (Object.keys(daily).length >= LIMITS.adventDays) break;
+    }
+  }
+  return { on: r.on === true, photo: typeof r.photo === 'string' && PHOTO_URL.test(r.photo) ? r.photo : '', grid: GRIDS[r.grid] ? r.grid : '3x3', daily };
+}
+/** A daily card shows its TEXT only with a source and the admin's check (like an explanation); a photo needs neither. */
+export const dailyTextShows = (c) => !!(c && (c.en || c.he) && String(c.source || '').trim().length >= 3 && c.checked === true);
+export function advProblem(raw) {
+  if (!isObj(raw)) return 'The advent calendar is not valid.';
+  for (const [k, v] of Object.entries(raw)) {
+    if (k === 'on') { if (typeof v !== 'boolean') return 'Advent: on or off.'; } else if (k === 'photo') { if (!(typeof v === 'string' && (v === '' || PHOTO_URL.test(v)))) return 'Advent photo: use a picture uploaded here.'; } else if (k === 'grid') { if (!GRIDS[v]) return `Grid: ${Object.keys(GRIDS).join(', ')}.`; } else if (k === 'daily') {
+      if (!isObj(v)) return 'The daily cards are not valid.';
+      const keys = Object.keys(v);
+      if (keys.length > LIMITS.adventDays) return `${LIMITS.adventDays} daily cards at most.`;
+      for (const d of keys) {
+        if (!milestoneKey(d)) return `${String(d).slice(0, 10)} is not a day count from ${RANGES.milestoneDay.min} to ${RANGES.milestoneDay.max}.`;
+        const c = v[d];
+        if (!isObj(c)) return 'Each daily card is text, a picture and a source.';
+        for (const [f, x] of Object.entries(c)) {
+          if (f === 'en' || f === 'he') { if (x != null && typeof x !== 'string') return 'Text only, please.'; if ([...String(x || '').trim()].length > LIMITS.adventText) return `A daily card is ${LIMITS.adventText} characters at most.`; } else if (f === 'source') { if (x != null && typeof x !== 'string') return 'Text only, please.'; if ([...String(x || '').trim()].length > LIMITS.source) return `The source is ${LIMITS.source} characters at most.`; } else if (f === 'photo') { if (!(typeof x === 'string' && (x === '' || PHOTO_URL.test(x)))) return 'Card photo: use a picture uploaded here.'; } else if (f === 'checked') { if (typeof x !== 'boolean') return 'Checked: yes or no.'; } else return `Unknown card field: ${String(f).slice(0, 20)}.`;
+        }
+      }
+    } else return `Unknown advent setting: ${String(k).slice(0, 30)}.`;
+  }
+  return null;
+}
+
+/** Sound: { on, chime, at: {milestone, final, zero, moment}, volume }. Complete over SOUND_DEFAULTS. */
+export function normalizeSound(raw) {
+  const r = isObj(raw) ? raw : {};
+  const at = {};
+  for (const k of SOUND_MOMENTS) at[k] = isObj(r.at) && typeof r.at[k] === 'boolean' ? r.at[k] : SOUND_DEFAULTS.at[k];
+  return { on: r.on === true, chime: oneOf(r.chime, CHIMES, SOUND_DEFAULTS.chime), at, volume: intIn(r.volume, RANGES.volume, SOUND_DEFAULTS.volume) };
+}
+export function soundProblem(raw) {
+  if (!isObj(raw)) return 'The sound settings are not valid.';
+  for (const [k, v] of Object.entries(raw)) {
+    if (k === 'on') { if (typeof v !== 'boolean') return 'Sound: on or off.'; } else if (k === 'chime') { if (!CHIMES.includes(v)) return 'Choose one of the chimes.'; } else if (k === 'volume') { if (!Number.isInteger(v) || v < RANGES.volume.min || v > RANGES.volume.max) return `Volume: ${RANGES.volume.min} to ${RANGES.volume.max}.`; } else if (k === 'at') {
+      if (!isObj(v)) return 'Sound moments: on or off for each.';
+      for (const [m, b] of Object.entries(v)) { if (!SOUND_MOMENTS.includes(m)) return `Unknown sound moment: ${String(m).slice(0, 20)}.`; if (typeof b !== 'boolean') return 'Each moment is on or off.'; }
+    } else return `Unknown sound setting: ${String(k).slice(0, 20)}.`;
+  }
+  return null;
+}
+/**
+ * The sound in force for one moment, or null when silent. `kind` is 'milestone' | 'final' | 'zero' | 'moment'.
+ * settings.sound.on is the master switch; the occasion's `soundOn` (null = follow) can switch it on or off for itself.
+ * Result: { chime: 'soft'|'bell'|'fanfare', volume: 10-100 }. The kiosk plays it with src/shared/chime.js.
+ */
+export function soundFor(settings, o, kind) {
+  const snd = (settings && settings.sound) || SOUND_DEFAULTS;
+  const on = o && typeof o.soundOn === 'boolean' ? o.soundOn : snd.on;
+  if (!on || snd.at?.[kind] === false) return null;
+  return { chime: snd.chime, volume: snd.volume };
+}
+
+/** A small seeded shuffle (mulberry32 over an FNV-1a hash of the seed): the same seed always gives the same order. */
+export function seededOrder(n, seed) {
+  let h = 2166136261;
+  for (const ch of String(seed)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+  let a = h >>> 0;
+  const rnd = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return order;
+}
+
 // ── normalising (server and admin share it) ─────────────────────────────────
 
 export function normalizeSettings(raw) {
@@ -373,6 +478,8 @@ export function normalizeSettings(raw) {
     milestoneText: normalizeMilestoneText(s.milestoneText),
     look: normalizeLook(s.look, false),
     layout: resolveLayout(LAYOUT_DEFAULTS, normalizeLayout(s.layout, LAYOUT_SPEC), null),
+    display: oneOf(s.display, DISPLAYS, D.display),
+    sound: normalizeSound(s.sound),
   };
 }
 /** The hours the milestone takeovers may appear in (from before to; otherwise the defaults). */
@@ -410,7 +517,9 @@ export function normalizeRule(raw) {
  */
 export function normalizeOccasion(raw, { keepId = true } = {}) {
   if (!isObj(raw)) return null;
-  const rule = normalizeRule(raw.rule);
+  // a count-up (a run of days from a start date) is stored as a one-time occasion that lasts `total` days
+  const from = raw.kind === 'countup' ? normalizeFrom(raw.from) : null;
+  const rule = from ? { kind: from.kind, month: from.month, day: from.day } : normalizeRule(raw.rule);
   if (!rule) return null;
   const nameEn = line(raw.nameEn, LIMITS.name);
   const nameHe = line(raw.nameHe, LIMITS.name);
@@ -425,9 +534,16 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     starter,
     nameEn, nameHe,
     rule,
-    repeat: repeat === 'once' && yearOk ? 'once' : 'yearly',
-    year: repeat === 'once' && yearOk ? yr : null,
-    days: intIn(raw.days, RANGES.days, 1),
+    repeat: from ? 'once' : repeat === 'once' && yearOk ? 'once' : 'yearly',
+    year: from ? from.year : repeat === 'once' && yearOk ? yr : null,
+    days: from ? intIn(raw.total ?? raw.days, RANGES.total, 1) : intIn(raw.days, RANGES.days, 1),
+    kind: from ? 'countup' : 'countdown',
+    from,
+    total: from ? intIn(raw.total ?? raw.days, RANGES.total, 1) : null,
+    display: oneOf(raw.display, DISPLAYS, null),
+    advent: normalizeAdvent(raw.advent),
+    soundOn: typeof raw.soundOn === 'boolean' ? raw.soundOn : null,
+    touch: raw.touch !== false,
     adar: raw.adar === 'adar1' ? 'adar1' : 'adar2',
     missing30: raw.missing30 === 'first' ? 'first' : '29',
     beginsAt: raw.beginsAt === 'default' || raw.beginsAt == null ? 'default' : oneOf(raw.beginsAt, BEGINS, 'default'),
@@ -506,15 +622,15 @@ export function occasionProblem(raw) {
     if (raw[k] != null && typeof raw[k] !== 'string') return 'Text only, please.';
     if ([...String(raw[k] || '').trim()].length > LIMITS.explain) return `The explanation is ${LIMITS.explain} characters at most.`;
   }
-  const r = raw.rule;
+  const r = raw.kind === 'countup' && normalizeFrom(raw.from) ? { kind: raw.from.kind, month: raw.from.month, day: raw.from.day } : raw.rule;
   if (!isObj(r) || !['hebrew', 'roshChodesh', 'gregorian'].includes(r.kind)) return 'Choose a Hebrew date or a date on the regular calendar.';
   if (!normalizeRule(r)) return r.kind === 'gregorian' ? 'That date does not exist. Check the month and day.' : 'Choose a Hebrew month and a day from 1 to 30.';
-  if (raw.repeat === 'once') {
+  if (raw.repeat === 'once' && raw.kind !== 'countup') {
     const y = Number(raw.year);
     const ok = r.kind === 'gregorian' ? Number.isInteger(y) && y >= 2000 && y <= 2200 : Number.isInteger(y) && y >= 5760 && y <= 5960;
     if (!ok) return r.kind === 'gregorian' ? 'Say which year (for a one-time date).' : 'Say which Hebrew year, for example 5787 (for a one-time date).';
   }
-  if (raw.days != null && intIn(raw.days, RANGES.days, null) == null) return `It lasts 1 to ${RANGES.days.max} days.`;
+  if (raw.kind !== 'countup' && raw.days != null && intIn(raw.days, RANGES.days, null) == null) return `It lasts 1 to ${RANGES.days.max} days.`;
   if (raw.beginsAt === 'time' && !(typeof raw.time === 'string' && HHMM.test(raw.time))) return 'Choose the time it begins.';
   if (raw.showDays != null && raw.showDays !== '' && intIn(raw.showDays, RANGES.showDays, null) == null) return `'Show only in the last days' is 0 to ${RANGES.showDays.max}.`;
   for (const k of ['milestoneOn', 'finalOn']) if (raw[k] != null && typeof raw[k] !== 'boolean') return 'Hype moments: on, off or follow the default.';
@@ -524,6 +640,15 @@ export function occasionProblem(raw) {
   if (raw.look != null) { const m = lookProblem(raw.look, true); if (m) return m; }
   if (raw.layout != null) { const m = layoutProblem(raw.layout, LAYOUT_SPEC); if (m) return m; }
   if (raw.explainChecked != null && typeof raw.explainChecked !== 'boolean') return 'Checked: yes or no.';
+  if (raw.display != null && !DISPLAYS.includes(raw.display)) return 'Display: classic or flip clock.';
+  if (raw.kind != null && !KINDS.includes(raw.kind)) return 'Kind: countdown or count-up.';
+  if (raw.kind === 'countup') {
+    if (!normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
+    if (intIn(raw.total, RANGES.total, null) == null) return `How many days it runs: ${RANGES.total.min} to ${RANGES.total.max}.`;
+  }
+  if (raw.advent != null) { const m = advProblem(raw.advent); if (m) return m; }
+  if (raw.soundOn != null && typeof raw.soundOn !== 'boolean') return 'Sound: on, off or follow the default.';
+  if (raw.touch != null && typeof raw.touch !== 'boolean') return 'Touch: on or off.';
   return null;
 }
 
@@ -611,7 +736,9 @@ export function settingsProblem(patch) {
     if (k === 'stageText') { const m = textsProblem(v, 'stage'); if (m) return m; continue; }
     if (k === 'milestoneText') { const m = textsProblem(v, 'milestone'); if (m) return m; continue; }
     if (k === 'look') { const m = lookProblem(v, false); if (m) return m; continue; }
-    if (k === 'layout') { const m = layoutProblem(v, LAYOUT_SPEC); if (m) return m; }
+    if (k === 'layout') { const m = layoutProblem(v, LAYOUT_SPEC); if (m) return m; continue; }
+    if (k === 'display') { if (!DISPLAYS.includes(v)) return 'Display: classic or flip clock.'; continue; }
+    if (k === 'sound') { const m = soundProblem(v); if (m) return m; }
   }
   return null;
 }
