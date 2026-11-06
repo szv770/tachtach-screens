@@ -21,6 +21,8 @@ import { createRequire } from 'module';
 const require = createRequire('/opt/node-tools/');
 const { chromium } = require('playwright');
 const sharp = createRequire(import.meta.url)('sharp');
+const { THEMES } = await import('../src/shared/themes.js');
+const THEME_IDS = THEMES.map((t) => t.id);
 
 const args = process.argv.slice(2);
 const BASE = args.find((a) => a.startsWith('http')) || 'http://localhost:3100';
@@ -39,6 +41,8 @@ const EV_EN = 'Farbrengen at 8:30 PM in the main hall with the whole yeshiva, re
 const EV_HE = 'התוועדות בשעה 8:30 בערב באולם הגדול עם כל הישיבה, כיבוד קל'.slice(0, 120);
 const WHITE = '/uploads/white-photo-0001.png';
 const BLACK = '/uploads/black-photo-0001.png';
+const GREY = '/uploads/grey-photo-0001.png';
+const DARK = '/uploads/dark-photo-0001.png'; // a dark red picture: must stay clearly visible under the admin's light dim
 
 const starter = (o) => ({ on: true, rule: { kind: 'hebrew', month: 9, day: 19 }, ...o });
 const RC = { id: 'rc', nameEn: 'Rosh Chodesh Kislev', nameHe: 'ראש חודש כסלו', starter: 'rc-kislev', rule: { kind: 'roshChodesh', month: 9 }, zeroKey: 'chodeshTov', style: 'chassidic' };
@@ -75,17 +79,21 @@ const cases = [
   { tag: 'cycle (3 take turns)', time: T('2026-11-05T11:00:00'), occ: doc([RC, YT, CH], { pick: 'cycle', cycleCount: 3 }), form: 'days', pager: /1 \/ 3/ },
   { tag: 'nothing inside the window: slide out of the rotation', time: T('2026-11-01T11:00:00'), occ: doc([CH], { withinDays: 10 }), absent: true },
   // display types
-  { tag: 'flip, days', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { display: 'flip' }), form: 'days', flip: 2, fonts: true, shot: 'land' },
+  { tag: 'flip, days', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { display: 'flip' }), form: 'days', flip: 3, cells: 'dhm', fonts: true, shot: 'land' },
   { tag: 'flip, minutes (seconds cell)', time: T('2026-11-09T16:20:00'), occ: doc([RC, YT, CH], { display: 'flip' }), form: 'minutes', flip: 2 },
   { tag: 'flip, worst case text', time: T('2026-11-03T11:00:00'), occ: doc([BIG], { display: 'flip' }), form: 'days', flip: 2 },
   { tag: 'count-up, day 3 of 8', time: T('2026-11-03T12:00:00'), occ: doc([RUN]), form: 'day', run: true, text: /of 8/i, fonts: true },
   { tag: 'advent with a photo (+ step page, tiles open once)', time: T('2026-11-21T11:30:00'), occ: doc([ADV(WHITE)], { withinDays: 30 }), form: 'days', advent: 'photo', step: true, shot: 'land' },
   { tag: 'advent without a photo', time: T('2026-11-21T11:30:00'), occ: doc([ADV('')], { withinDays: 30 }), form: 'days', advent: 'grid', step: true },
-  // photos: readability over a pure white and a pure black picture, dark and light theme
+  // photos: the scrim is measured from the picture: >= 4.5:1 for every line over white / black / mid-grey, dark + light theme
   { tag: 'photo white, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: WHITE, dim: 30 } }]), form: 'far', contrast: true },
-  { tag: 'photo black, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: BLACK, dim: 30 } }]), form: 'far', contrast: true },
   { tag: 'photo white, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: WHITE, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
+  { tag: 'photo black, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: BLACK, dim: 30 } }]), form: 'far', contrast: true },
   { tag: 'photo black, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: BLACK, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
+  { tag: 'photo grey, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: GREY, dim: 30 } }]), form: 'far', contrast: true },
+  { tag: 'photo grey, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: GREY, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
+  { tag: 'photo dark red, dark theme: the photo shows', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: DARK, dim: 30 } }]), form: 'far', contrast: true, visible: true },
+  { tag: 'all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', themes: true },
   // takeovers (an exact 6 PM start)
   { tag: 'takeover: milestone (7 days)', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fonts: true, shot: 'land' },
   { tag: 'takeover: final minute', time: T('2026-11-18T17:59:20'), occ: doc([SIX]), takeover: 'final', tabular: true },
@@ -100,6 +108,8 @@ const cases = [
 const PNG = {
   [WHITE]: await sharp({ create: { width: 64, height: 36, channels: 3, background: '#ffffff' } }).png().toBuffer(),
   [BLACK]: await sharp({ create: { width: 64, height: 36, channels: 3, background: '#000000' } }).png().toBuffer(),
+  [GREY]: await sharp({ create: { width: 64, height: 36, channels: 3, background: '#808080' } }).png().toBuffer(),
+  [DARK]: await sharp({ create: { width: 64, height: 36, channels: 3, background: '#5a1a1a' } }).png().toBuffer(),
 };
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
@@ -202,8 +212,21 @@ const probe = (page, sel) => page.evaluate((sel) => {
   return out;
 }, sel);
 
+/** Mean colour of the panel's pixels with the text hidden (is the photo really there?). */
+async function panelMean(page) {
+  const box = await page.evaluate(() => {
+    const st = document.createElement('style'); st.id = 'aud-hide'; st.textContent = 'section.tt-panel *{color:transparent!important}'; document.head.appendChild(st);
+    const b = document.querySelector('section.tt-panel[data-occ-form]').getBoundingClientRect(); return { x: b.left, y: b.top, w: b.width, h: b.height };
+  });
+  await page.waitForTimeout(300);
+  const buf = await page.screenshot({ clip: { x: box.x + 20, y: box.y + 20, width: box.w - 40, height: box.h - 40 } });
+  await page.evaluate(() => document.getElementById('aud-hide')?.remove());
+  const st = await sharp(buf).stats();
+  return st.channels.slice(0, 3).map((c) => c.mean);
+}
+
 /** WCAG contrast of every text element against what is really painted behind it (text hidden, screenshot sampled). */
-async function contrast(page) {
+async function contrast(page, needAll = 0) {
   const items = await page.evaluate(() => {
     const panel = document.querySelector('section.tt-panel[data-occ-form]');
     const out = [];
@@ -240,7 +263,7 @@ async function contrast(page) {
       const fg = [0, 1, 2].map((k) => col[k] * col[3] + bg[k] * (1 - col[3]));
       const L1 = lum(fg); const L2 = lum(bg);
       const ratio = (Math.max(L1, L2) + 0.05) / (Math.min(L1, L2) + 0.05);
-      const need = it.fs >= 32 ? 3 : 4.5;
+      const need = needAll || (it.fs >= 32 ? 3 : 4.5);
       if (ratio / need < (worst.ratio / (worst.need || 1))) worst = { ratio, need, s: it.s, fs: it.fs, score: ratio / need, bg: bg.join(','), fg: col.map((v) => Math.round(v * 100) / 100).join(',') };
     }
   }
@@ -316,13 +339,32 @@ async function run(canvas, c, font) {
       check(`${tag}: shows M:SS`, /^\d{1,2}:\d\d$/.test(a), a);
     }
     if (c.contrast) {
-      // WCAG AA over the photo, or (where the theme's own accent is weaker than AA on the plain panel) no worse than 90%
-      // of the same page without a photo: the photo never makes a line harder to read than the theme already is
-      const w = await contrast(page);
-      const plain = await open({ canvas, time: c.time, occ: { ...c.occ, occasions: c.occ.occasions.map((o) => ({ ...o, look: { ...o.look, photo: '' } })) }, theme: c.theme });
-      const b = await contrast(plain.page); await plain.close();
-      check(`${tag}: every line readable on the photo (worst ${w.ratio?.toFixed(2)} vs ${w.need} at ${w.fs}px "${w.s}"; plain panel ${b.ratio?.toFixed(2)} "${b.s}"; bg ${w.bg} fg ${w.fg})`, w.score >= Math.min(1, (b.score || 1) * 0.9), '');
+      // the scrim is measured from the photo: wait for it, then every line (numerals included) must read at 4.5:1
+      await page.waitForFunction(() => document.querySelector('[data-occ-scrim=measured]'), null, { timeout: 5000 }).catch(() => {});
+      const sc = await page.evaluate(() => { const e = document.querySelector('[data-occ-scrim]'); return e ? `${e.getAttribute('data-occ-scrim')} ${e.getAttribute('data-occ-alpha')}` : 'none'; });
+      check(`${tag}: scrim measured from the photo (${sc})`, /^measured/.test(sc), sc);
+      const w = await contrast(page, 4.5);
+      check(`${tag}: every line reads at 4.5:1 on the photo (worst ${w.ratio?.toFixed(2)} at ${w.fs}px "${w.s}"; bg ${w.bg} fg ${w.fg})`, w.ratio >= 4.5, '');
+      if (c.visible) {
+        const a = await panelMean(page);
+        const plain = await open({ canvas, time: c.time, occ: { ...c.occ, occasions: c.occ.occasions.map((o) => ({ ...o, look: { ...o.look, photo: '' } })) }, theme: c.theme });
+        const b = await panelMean(plain.page); await plain.close();
+        const diff = Math.max(...a.map((v, k) => Math.abs(v - b[k])));
+        check(`${tag}: the photo is clearly visible (mean ${a.map(Math.round)} vs plain ${b.map(Math.round)}, diff ${diff.toFixed(0)})`, diff >= 15, '');
+      }
     }
+    if (c.themes && !font) {
+      // every registered theme: the page's small text (< 32 px) at 4.5:1, larger at 3:1 (accent text is pulled toward the ink)
+      const bad = [];
+      for (const th of THEME_IDS) {
+        const o = await open({ canvas, time: c.time, occ: c.occ, theme: th });
+        await o.page.waitForTimeout(500);
+        const w = await contrast(o.page); await o.close();
+        if (w.score < 1) bad.push(`${th}: ${w.ratio.toFixed(2)} at ${w.fs}px "${w.s}"`);
+      }
+      check(`${tag}: ${THEME_IDS.length} themes`, bad.length === 0, bad.slice(0, 5).join(' | '));
+    }
+    if (c.cells) check(`${tag}: flip shows ${c.cells} (every unit at once from the exact begin time)`, r.cells.startsWith(c.cells), r.cells);
     if (c.shot && c.shot === canvas && !font) await shot(page, `occasion-${canvas}-${c.tag.replace(/[^a-z0-9]+/gi, '-').slice(0, 30)}`);
     if (c.tap && !font) {
       await page.evaluate(() => document.getElementById('tt-splash')?.remove());

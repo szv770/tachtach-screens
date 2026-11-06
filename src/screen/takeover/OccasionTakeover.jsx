@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, ACC } from '../components/slides/occasionParts.jsx';
+import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, ACC, useSmallAccent } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -138,10 +138,12 @@ export const OccasionTakeover = React.memo(function OccasionTakeover({ tk, now, 
   const look = lookOf(tk.look);
   const font = numeralsStack(look.numeralsFont);
   const vars = look.accent ? { '--accentText': look.accent } : null;
+  const panelRef = useRef(null);
+  useSmallAccent(panelRef, [design.themeId, design.light, look.accent]);
   return (
     <div className={`tt-occ-tk${exiting ? ' tt-out' : ''}`} data-occ-takeover={tk.kind} style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg)', display: 'flex' }}>
-      <Panel pad={portrait ? '64px 72px 64px' : '56px 104px 56px'} style={{ borderRadius: 0, ...vars }} data-occ-form={tk.kind}>
-        <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} />
+      <Panel ref={panelRef} pad={portrait ? '64px 72px 64px' : '56px 104px 56px'} style={{ borderRadius: 0, ...vars }} data-occ-form={tk.kind}>
+        <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} themeKey={`${design.themeId}|${look.accent}`} />
         <EdgeTicks graphics={design.graphics === 'off' ? 'off' : 'rich'} inset={36} />
         {tk.kind === 'zero' && tk.celebrate !== false && <Confetti key={`c|${tk.key}`} graphics={design.graphics} motion={design.motion} />}
         <div className="tt-occ-rise" style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>

@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { numeralsStack } from '../design/useLayout.js';
-import { Label, EdgeTicks, SOFT_INK, ACC } from '../components/slides/occasionParts.jsx';
+import { Label, EdgeTicks, SOFT_INK, ACC, useSmallAccent } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { COPY } from '../../shared/occasions.js';
 import { playOnce } from './occasionSound.js';
@@ -37,9 +37,11 @@ function MomentView({ mo, name, nowMs, tail }) {
   const counting = mo.kind === 'ten' && !tail;
   const secs = Math.max(0, Math.ceil((mo.until - nowMs) / 1000));
   const burst = mo.kind === 'burst' || (mo.kind === 'ten' && (tail || secs === 0));
+  const panelRef = useRef(null);
+  useSmallAccent(panelRef, [design.themeId, design.light]);
   return (
     <div className="tt-occ-tk" data-occ-moment={mo.kind} style={{ position: 'absolute', inset: 0, zIndex: 110, background: 'var(--bg)', display: 'flex' }}>
-      <Panel pad={portrait ? '64px 72px' : '56px 104px'} style={{ borderRadius: 0 }}>
+      <Panel ref={panelRef} pad={portrait ? '64px 72px' : '56px 104px'} style={{ borderRadius: 0 }}>
         <EdgeTicks graphics={design.graphics === 'off' ? 'off' : 'rich'} inset={36} />
         {burst && <Confetti key={`mc|${mo.id}`} graphics={design.graphics} motion={design.motion} />}
         <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 26 : 16, textAlign: 'center' }}>

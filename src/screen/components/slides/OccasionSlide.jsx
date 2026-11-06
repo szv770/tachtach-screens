@@ -82,9 +82,20 @@ function DateLine({ m, center }) {
   return (
     <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 2, lineHeight: 1.3 }}>
       {heText && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: 'var(--ink)' }}>{heText}</span>}
-      {en.length > 0 && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK, textAlign: center ? 'center' : 'start' }}>{en.join('  ·  ')}</span>}
+      {en.length > 0 && (
+        <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500, color: SOFT_INK, textAlign: center ? 'center' : 'start' }}>
+          {en.map((t, i) => <React.Fragment key={i}>{i > 0 && ' · '}<DatePart t={t} /></React.Fragment>)}
+        </span>
+      )}
     </div>
   );
+}
+
+/** 'Sunday, November 29': the weekday may wrap, 'November 29' (and '19 Kislev 5787') never splits. */
+function DatePart({ t }) {
+  const i = t.indexOf(', ');
+  if (i < 0) return <span style={{ whiteSpace: 'nowrap' }}>{t}</span>;
+  return <>{t.slice(0, i + 1)} <span style={{ whiteSpace: 'nowrap' }}>{t.slice(i + 2)}</span></>;
 }
 
 /** 'Begins Saturday evening · Shkia 4:30 PM': the when as a small-caps label, the zman and time large under it. */
@@ -675,6 +686,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   useEffect(() => { if (!peek) return undefined; const t = setTimeout(() => setPeek(false), 8000); return () => clearTimeout(t); }, [peek]);
   useEffect(() => { if (!pops.length) return undefined; const t = setTimeout(() => setPops([]), 900); return () => clearTimeout(t); }, [pops]);
 
+  useSmallAccent(panelRef, [design.themeId, design.light, design.upNext, (model?.rows || []).map((r) => r.look?.accent || '').join()]);
   const squeeze = useSqueeze(bodyRef, `${keyList}|${page}|${(model?.rows || []).map((r) => r.form).join()}|${portrait}`);
 
   if (!model || !n) {
@@ -715,7 +727,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   };
   return (
     <Panel ref={panelRef} pad={pad} data-occ-form={m.form} data-occ-view={cur.view} data-occ-display={m.run ? 'run' : advent ? 'advent' : m.display || 'classic'} style={panelVars} onPointerUp={onTap}>
-      {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} />}
+      {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} themeKey={`${design.themeId}|${look.accent}`} />}
       {!advent && <EdgeTicks graphics={design.graphics} side={L.side === 'left' ? 'left' : 'right'} />}
       {m.form === 'zero' && m.celebrate && <Confetti key={`c|${m.key}`} graphics={design.graphics} motion={design.motion} />}
       {pops.map((p) => <TapPop key={p.id} x={p.x} y={p.y} />)}

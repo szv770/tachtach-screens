@@ -110,8 +110,8 @@ function usePhotoScrim(photo, dim, portrait, textSide, hostRef, themeKey) {
           }
           return 1;
         };
-        const half = Math.round(W / 2);
-        const left = alphaFor(0, half); const right = alphaFor(half, W);
+        // the halves overlap by 20% so the 44-56% blend between the two alphas is covered by both measurements
+        const left = alphaFor(0, Math.round(W * 0.6)); const right = alphaFor(Math.round(W * 0.4), W);
         const all = Math.max(left, right);
         if (alive) setRes(portrait ? { text: all, other: all } : textSide === 'left' ? { text: left, other: right } : { text: right, other: left });
       } catch { /* tainted / unavailable: keep the floor */ }
