@@ -2,7 +2,7 @@
  * /api/occasions: the Countdown slide's calendar (admin Screen > Occasions). Mounted on /api AFTER requireAuth +
  * csrfProtection + the mutation limiter, gated by the `occasions.edit` capability (src/shared/permissions.js). Granular
  * writes (one occasion, the settings) so two people editing different occasions cannot overwrite each other; every one
- * runs under the store lock and ends in an SSE `occasions-update`, so the TV follows at once. Bodies are bounded (64 kB).
+ * runs under the store lock and ends in an SSE `occasions-update`, so the TV follows at once. Bodies are bounded (64 kB; 256 kB for the Undo of the whole document).
  * Ids from the URL are only compared with stored ids, never used as paths. Unknown ids answer 404.
  */
 import express, { Router } from 'express';
@@ -10,6 +10,8 @@ import { occasionsStore } from '../occasionsStore.js';
 import * as O from '../../shared/occasions.js';
 
 const router = Router();
+// Undo sends the whole previous document back (up to the 200 kB file cap), so only that one route takes a 256 kB body.
+router.use('/occasions/all', express.json({ limit: '256kb' }));
 router.use('/occasions', express.json({ limit: '64kb' }));
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/;

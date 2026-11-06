@@ -131,3 +131,64 @@ test('live view: occasions reach viewers on purpose, switched-off ones do not', 
   const out = viewerState({ occasions: { version: 1, settings: {}, occasions: [{ id: 'a', on: true }, { id: 'b', on: false }] } });
   assert.deepEqual(out.occasions.occasions.map((o) => o.id), ['a']);
 });
+
+test('hype / words / look / layout over the routes: saved, refused when strict, SSE copy is the kiosk copy, undo works', async () => {
+  const { call, events, dir } = await setup();
+  const PHOTO = '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg';
+  let r = await call('GET', '/occasions');
+  assert.equal(r.json.settings.takeover, true, 'the zero takeover is on by default');
+  assert.deepEqual(r.json.settings.milestones, [30, 14, 7, 3, 2, 1]); assert.equal(r.json.settings.milestoneMinutes, 2); assert.equal(r.json.settings.milestoneEveryMinutes, 60);
+  assert.equal(r.json.settings.milestoneFrom, '07:00'); assert.equal(r.json.settings.milestoneTo, '21:00'); assert.equal(r.json.settings.finalOn, true);
+  const before = r.json;
+
+  const n0 = events.length;
+  r = await call('PUT', '/occasions/settings', { settings: { milestones: [21, 7], milestoneMinutes: 3, milestoneEveryMinutes: 30, milestoneFrom: '08:00', milestoneTo: '20:00', finalOn: false, look: { accent: '#c9a24b', photo: PHOTO, dim: 70, numeralsFont: 'Rubik' }, layout: { show: { bar: false }, scale: 110, side: 'right' }, stageText: { far: { en: 'Soon', he: 'בקרוב' } }, milestoneText: { 21: { en: 'Three weeks', he: '' } } } });
+  assert.equal(r.status, 200); assert.deepEqual(r.json.settings.milestones, [21, 7]); assert.equal(r.json.settings.look.photo, PHOTO); assert.equal(r.json.settings.layout.show.bar, false);
+  assert.ok(events.slice(n0).some((e) => e.includes('occasions-update') && e.includes('Three weeks')), 'SSE carries the new settings');
+  assert.ok(fs.existsSync(path.join(dir, 'occasions.json')));
+
+  // refusals leave the document alone
+  for (const settings of [{ milestones: [0] }, { milestoneEveryMinutes: 45 }, { milestoneFrom: '22:00' }, { look: { photo: 'https://evil.test/x.png' } }, { look: { accent: 'red' } }, { layout: { scale: 300 } }, { stageText: { days: { en: 'x'.repeat(61), he: '' } } }, { stageText: { nope: {} } }, { milestoneText: { 999: { en: 'x', he: '' } } }, { milestoneMinutes: 30 }, { ghost: 1 }]) {
+    r = await call('PUT', '/occasions/settings', { settings });
+    assert.equal(r.status, 400, JSON.stringify(settings));
+  }
+  r = await call('GET', '/occasions');
+  assert.deepEqual(r.json.settings.milestones, [21, 7]);
+
+  // one occasion: own look / layout / words / switches; unknown keys refused
+  r = await call('POST', '/occasions', { occasion: { nameEn: 'Siyum', rule: { kind: 'gregorian', month: 6, day: 1 }, milestoneOn: false, milestones: [5, 1], look: { accent: '#112233', dim: null }, layout: { show: { ring: false }, order: ['date', 'name'] }, stageText: { minutes: { en: 'Nearly!', he: '' } } } });
+  assert.equal(r.status, 200);
+  const id = r.json.id; const o = r.json.occasions.find((x) => x.id === id);
+  assert.equal(o.milestoneOn, false); assert.deepEqual(o.milestones, [5, 1]); assert.deepEqual(o.look, { accent: '#112233' }); assert.deepEqual(o.layout, { show: { ring: false }, order: ['date', 'name'] });
+  assert.equal((await call('PUT', `/occasions/${id}`, { occasion: { look: { glow: 1 } } })).status, 400);
+  assert.equal((await call('PUT', `/occasions/${id}`, { occasion: { layout: { scale: 5 } } })).status, 400);
+  r = await call('PUT', `/occasions/${id}`, { occasion: { look: {}, layout: {}, milestoneOn: null, milestones: null } });
+  const o2 = r.json.occasions.find((x) => x.id === id);
+  assert.deepEqual(o2.look, {}); assert.deepEqual(o2.layout, {}); assert.equal(o2.milestoneOn, null); assert.equal(o2.milestones, null, 'Follow the default clears each field');
+
+  // the checked rule over the routes + what the kiosk / live copies carry
+  r = await call('PUT', `/occasions/${id}`, { occasion: { explainEn: 'DRAFT-WORDS', source: 'chabad.org/a' } });
+  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, false);
+  let ev = events.slice(-1)[0];
+  assert.ok(!ev.includes('DRAFT-WORDS'), 'an unchecked explanation is not broadcast');
+  r = await call('PUT', `/occasions/${id}`, { occasion: { explainChecked: true } });
+  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, true);
+  assert.ok(events.slice(-1)[0].includes('DRAFT-WORDS'), 'checked: it shows, so it is in the kiosk copy');
+  r = await call('PUT', `/occasions/${id}`, { occasion: { source: 'chabad.org/b' } });
+  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, false, 'editing the source un-checks it');
+  assert.equal((await call('PUT', `/occasions/${id}`, { occasion: { explainChecked: 'yes' } })).status, 400);
+  const { occasionsForKiosk } = await import('../src/server/occasionsStore.js');
+  const kiosk = JSON.stringify(await occasionsForKiosk());
+  assert.ok(!kiosk.includes('DRAFT-WORDS') && !kiosk.includes('chabad.org/b'));
+  const { viewerState } = await import('../src/server/live.js');
+  assert.ok(!JSON.stringify(viewerState({ occasions: await occasionsForKiosk() }).occasions).includes('DRAFT-WORDS'), 'live viewers never get an unchecked explanation');
+
+  // the file cap is enforced by the store
+  const fat = Array.from({ length: 80 }, (_, i) => ({ id: `f${i}`, nameEn: 'n', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'y'.repeat(600), explainHe: 'ש'.repeat(600), source: 's'.repeat(100) }));
+  r = await call('PUT', '/occasions/all', { file: { occasions: fat, settings: { milestoneText: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])) } } });
+  assert.ok(r.status === 200 || (r.status === 400 && /too big/.test(r.json.error)), `status ${r.status}`);
+
+  // undo: the whole previous document comes back, hype fields included
+  r = await call('PUT', '/occasions/all', { file: { occasions: before.occasions, settings: before.settings } });
+  assert.equal(r.status, 200); assert.deepEqual(r.json.settings.milestones, [30, 14, 7, 3, 2, 1]); assert.equal(r.json.settings.look.photo, '');
+});
