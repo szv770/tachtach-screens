@@ -300,7 +300,7 @@ async function run(canvas, c, font) {
     check(`${tag}: fitted lines fit their box`, r.fit.length === 0, r.fit.slice(0, 3).join(' | '));
     check(`${tag}: no text blocks overlap`, r.overlap.length === 0, r.overlap.slice(0, 3).join(' | '));
     check(`${tag}: text >= 24 canvas px`, r.small.every((s) => parseFloat(s) / (r.scale || 1) >= 23.5), r.small.slice(0, 4).join(', '));
-    if (c.big) check(`${tag}: countdown numerals >= ${c.big} canvas px`, r.big / (r.scale || 1) >= c.big - 1, String(r.big));
+    if (c.big) check(`${tag}: countdown numerals >= ${c.big} canvas px`, r.big >= c.big - 1, `${r.big} (scale ${r.scale})`); // computed font-size is layout (canvas) px
     check(`${tag}: nothing animating after the page settled`, r.anims.length === 0 && r.infinite === 0, r.anims.slice(0, 3).join(','));
     if (c.flip) check(`${tag}: flip cells (${r.cells})`, r.display === 'flip' && r.flip >= c.flip, `${r.display} ${r.cells}`);
     if (c.flip && c.form === 'minutes') check(`${tag}: seconds cell while ticking each second`, r.cells.includes('s'), r.cells);

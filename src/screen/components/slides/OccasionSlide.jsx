@@ -595,7 +595,8 @@ function squeezed(L, level) {
 function useSqueeze(ref, key) {
   const [level, setLevel] = useState(0);
   const at = useRef(key);
-  if (at.current !== key) { at.current = key; if (level) setLevel(0); }
+  const fresh = useRef(false); // re-measured from 0 once the fonts are in (fallback fonts are wider and over-squeeze)
+  if (at.current !== key) { at.current = key; fresh.current = false; if (level) setLevel(0); }
   useLayoutEffect(() => {
     const check = () => {
       const el = ref.current;
@@ -605,7 +606,13 @@ function useSqueeze(ref, key) {
       if (over) setLevel((l) => (l < 3 ? l + 1 : l));
     };
     check();
-    document.fonts?.ready?.then(check).catch(() => {});
+    let alive = true;
+    document.fonts?.ready?.then(() => {
+      if (!alive || fresh.current) return;
+      fresh.current = true;
+      if (document.fonts.status === 'loaded') setLevel(0); else check();
+    }).catch(() => {});
+    return () => { alive = false; };
   });
   return level;
 }
