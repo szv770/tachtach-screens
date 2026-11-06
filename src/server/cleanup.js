@@ -4,7 +4,7 @@ import { readdir, unlink, stat, rmdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { readJSON } from './storage.js';
 import { dataDir } from './dataDir.js';
-import { uploadFilesFromSettings, isFileReferenced } from '../shared/uploadRefs.js';
+import { uploadFilesFromSettings, uploadFilesFromOccasions, isFileReferenced } from '../shared/uploadRefs.js';
 import { purgeArchived } from './announcements-store.js';
 import { shiurimPhotoIds } from './shiurimStore.js';
 import { photoFile } from '../shared/shiurim.js';
@@ -27,6 +27,8 @@ const DAY_MS = 24 * HOUR_MS;
 async function getReferencedUploadFiles() {
   const slides = (await readJSON('slides.json')) ?? [];
   const referenced = new Set(uploadFilesFromSettings(await readJSON('settings.json')));
+  // background photos of the Countdown (data/occasions.json, src/shared/occasions.js look.photo)
+  try { for (const f of uploadFilesFromOccasions(await readJSON('occasions.json'))) referenced.add(f); } catch { /* a missing document never blocks the clean-up */ }
   // photos of rebbeim / guest speakers (src/server/speakerPhoto.js): spk-<id>.jpg and spk-<id>-t.jpg, kept while a person or guest points at them
   try { for (const id of await shiurimPhotoIds()) referenced.add(photoFile(id).replace(/\.jpg$/, '')); } catch { /* a missing list never blocks the clean-up */ }
 

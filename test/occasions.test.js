@@ -244,13 +244,16 @@ test('the explanation only shows with a source (owner rule)', () => {
   const base = { nameEn: 'X', rule: { kind: 'gregorian', month: 11, day: 20 }, beginsAt: 'midnight', explainEn: 'Some words.' };
   assert.equal(O.explainShows(occ(base)), false);
   assert.equal(O.explainShows(occ({ ...base, source: '  ' })), false);
-  assert.equal(O.explainShows(occ({ ...base, source: 'Sefer X, p. 12' })), true);
+  assert.equal(O.explainShows(occ({ ...base, source: 'Sefer X, p. 12' })), false, 'a source alone is not enough: it has to be checked');
+  assert.equal(O.explainShows(occ({ ...base, source: 'Sefer X, p. 12', explainChecked: true })), true);
+  assert.equal(O.explainShows(occ({ ...base, explainChecked: true })), false, 'checked but no source: still hidden');
   const now = at('2026-11-05T15:00:00Z');
   assert.equal(O.slideModel(file([{ ...base, id: 'x' }]), now, NY).rows[0].explain, null);
-  const m = O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }]), now, NY).rows[0];
+  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }]), now, NY).rows[0].explain, null, 'unchecked');
+  const m = O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }]), now, NY).rows[0];
   assert.equal(m.explain.en, 'Some words.'); assert.equal(m.explain.source, 'Sefer X, p. 12');
-  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }], { credit: false }), now, NY).rows[0].explain.source, '');
-  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }], { explain: false }), now, NY).rows[0].explain, null);
+  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }], { credit: false }), now, NY).rows[0].explain.source, '');
+  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }], { explain: false }), now, NY).rows[0].explain, null);
 });
 
 test('the slide model: language, zero greeting, day label and day index, begins line', () => {
@@ -300,9 +303,9 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   assert.equal(O.occasionItems(f, at('2026-11-28T15:00:00Z'), NY, { slideOn: true })[0].content.headlineEn, 'Tonight: Yud-Tes Kislev');
   const row = O.upcoming(f, at('2026-11-28T15:00:00Z'), NY)[0];
   items = O.occasionItems(f, new Date(row.begin.ms + 60000), NY, { slideOn: true });
-  assert.deepEqual(items.map((i) => i.display).sort(), ['banner', 'takeover']);
-  const tk = items.find((i) => i.display === 'takeover');
-  assert.equal(tk.content.headlineEn, 'Gut Yom Tov!'); assert.equal(Date.parse(tk.when.expiresAt) - row.begin.ms, 3 * 60000);
+  assert.deepEqual(items.map((i) => i.display), ['banner'], 'no virtual takeover item any more: takeoverFor() is the only takeover path');
+  const tk = O.takeoverFor(f, new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
+  assert.equal(tk.kind, 'zero'); assert.equal(tk.greeting.en, 'Gut Yom Tov!'); assert.equal(tk.until - row.begin.ms, 3 * 60000);
   assert.equal(items.find((i) => i.display === 'banner').content.headlineEn, 'Tonight: Yud-Tes Kislev · Farbrengen 8 PM, main hall');
   items = O.occasionItems(f, new Date(row.begin.ms + 5 * 60000), NY, { slideOn: true });
   assert.deepEqual(items.map((i) => i.display), ['banner']);
@@ -312,7 +315,7 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   const noLoc = { tz: NY.tz, zmanim: null, fresh: false };
   const r2 = O.upcoming(f, at('2026-11-28T15:00:00Z'), noLoc)[0];
   assert.equal(r2.begin.exact, false);
-  assert.ok(!O.occasionItems(f, new Date(r2.begin.ms + 60000), noLoc, { slideOn: true }).some((i) => i.display === 'takeover'));
+  assert.equal(O.takeoverFor(f, new Date(r2.begin.ms + 60000), { ...noLoc, slideOn: true }), null, 'no takeover on an approximate time');
 });
 
 // ── data ────────────────────────────────────────────────────────────────────
@@ -376,4 +379,284 @@ test('kiosk lint: OccasionSlide.jsx has no infinite animation, blur, blend, hex 
   for (const m of src.matchAll(/fontSize: (?:he\()?(\d+)[^}]*?color: [^,}]*var\(--inkDim\)/g)) assert.ok(Number(m[1]) >= 28, `inkDim at ${m[1]}px`);
   // every literal font size is at least the 24 px floor
   for (const m of src.matchAll(/fontSize: (?:he\()?(\d+)\b/g)) assert.ok(Number(m[1]) >= 24, `font ${m[1]}px`);
+});
+
+// ── hype moments: milestone / final minute / zero takeovers ─────────────────
+
+const DINNER = { id: 'd', nameEn: 'Dinner', nameHe: 'ארוחה', rule: { kind: 'gregorian', month: 12, day: 20 }, repeat: 'once', year: 2026, beginsAt: 'time', time: '19:00', timeDay: 'day' };
+const ctxOn = { ...NY, slideOn: true };
+const BEGIN = Date.parse('2026-12-21T00:00:00Z'); // 19:00 EST on 20 Dec
+const tk = (f, iso, ctx = ctxOn) => O.takeoverFor(f, at(iso), ctx);
+
+test('takeoverFor: milestone windows (slot start, length, hours, every N minutes), only on a milestone day', () => {
+  const f = file([DINNER]);
+  // 7 days before (13 Dec), local noon = 17:00Z: first 2 minutes of the hour
+  const a = tk(f, '2026-12-13T17:00:00Z');
+  assert.equal(a.kind, 'milestone'); assert.equal(a.daysLeft, 7); assert.equal(a.until - Date.parse('2026-12-13T17:00:00Z'), 2 * 60000);
+  assert.equal(a.key, `d|2026-12-20|m7|${Date.parse('2026-12-13T17:00:00Z')}`);
+  assert.equal(a.words.big, '7'); assert.equal(a.words.unit.en, 'days to go'); assert.equal(a.name.en, 'Dinner');
+  assert.equal(a.stageText.en, 'One week to go'); assert.equal(a.stageText.he, 'עוד שבוע');
+  assert.equal(tk(f, '2026-12-13T17:01:59Z').kind, 'milestone');
+  assert.equal(tk(f, '2026-12-13T17:01:59Z').key, a.key, 'same key all through the slot');
+  assert.equal(tk(f, '2026-12-13T17:02:00Z'), null, 'slot over');
+  assert.equal(tk(f, '2026-12-13T17:30:00Z'), null);
+  assert.equal(tk(f, '2026-12-13T18:00:00Z').kind, 'milestone', 'next hour');
+  assert.notEqual(tk(f, '2026-12-13T18:00:00Z').key, a.key);
+  // hours 07:00-21:00 local (21:00 excluded): 06:00 EST = 11:00Z no, 07:00 = 12:00Z yes, 20:00 = 01:00Z yes, 21:00 = 02:00Z no
+  assert.equal(tk(f, '2026-12-13T11:00:00Z'), null);
+  assert.equal(tk(f, '2026-12-13T12:00:00Z').kind, 'milestone');
+  assert.equal(tk(f, '2026-12-14T01:00:00Z').kind, 'milestone', '20:00 local on 13 Dec is still inside the hours');
+  assert.equal(tk(f, '2026-12-14T02:00:00Z'), null, '21:00 local: outside');
+  const f2 = file([{ ...DINNER, rule: { kind: 'gregorian', month: 12, day: 21 }, year: 2026 }]); // begins 21 Dec 19:00; 7 days left on 14 Dec
+  assert.equal(tk(f2, '2026-12-15T01:00:00Z').kind, 'milestone', '20:00 local on 14 Dec is inside the hours');
+  assert.equal(tk(f2, '2026-12-15T02:00:00Z'), null, '21:00 local is outside');
+  // not a milestone day (8 days left, 5, 4)
+  for (const d of ['12', '15', '16']) assert.equal(tk(f, `2026-12-${d}T17:00:00Z`), null, d);
+  // days the admin changed: own list, global list, every 30 minutes, a longer slot
+  assert.equal(tk(file([{ ...DINNER, milestones: [5] }]), '2026-12-15T17:00:00Z').daysLeft, 5);
+  assert.equal(tk(file([{ ...DINNER, milestones: [5] }]), '2026-12-13T17:00:00Z'), null);
+  const f30 = file([DINNER], { milestoneEveryMinutes: 30, milestoneMinutes: 5, milestones: [7] });
+  assert.equal(tk(f30, '2026-12-13T17:30:00Z').kind, 'milestone'); assert.equal(tk(f30, '2026-12-13T17:34:59Z').kind, 'milestone'); assert.equal(tk(f30, '2026-12-13T17:35:00Z'), null);
+  const f120 = file([DINNER], { milestoneEveryMinutes: 120 });
+  assert.equal(tk(f120, '2026-12-13T17:00:00Z').kind, 'milestone', '12:00 is an even hour'); assert.equal(tk(f120, '2026-12-13T18:00:00Z'), null);
+  // never on the day itself, never when the slide is off, never without a ctx flag
+  assert.equal(tk(f, '2026-12-20T17:00:00Z'), null);
+  assert.equal(tk(f, '2026-12-13T17:00:00Z', { ...NY, slideOn: false }), null);
+  assert.equal(tk(f, '2026-12-13T17:00:00Z', NY), null, 'fail closed: slideOn must be true');
+  assert.equal(O.takeoverFor(null, at('2026-12-13T17:00:00Z'), ctxOn), null);
+});
+
+test('takeoverFor: milestone slots follow the wall clock across DST (spring forward 14 Mar 2027, fall back 1 Nov 2026)', () => {
+  const spring = file([{ ...DINNER, rule: { kind: 'gregorian', month: 3, day: 21 }, year: 2027 }]); // 7 days left on 14 Mar
+  assert.equal(tk(spring, '2027-03-14T10:59:00Z'), null, '06:59 EDT: before the hours');
+  const s1 = tk(spring, '2027-03-14T11:00:00Z'); // 07:00 EDT
+  assert.equal(s1.kind, 'milestone'); assert.equal(s1.until - Date.parse('2027-03-14T11:00:00Z'), 2 * 60000);
+  assert.equal(tk(spring, '2027-03-14T13:00:30Z').kind, 'milestone', '09:00 EDT');
+  assert.equal(tk(spring, '2027-03-14T13:30:00Z'), null);
+  assert.equal(tk(spring, '2027-03-15T01:00:00Z'), null, '21:00 EDT: outside');
+  const fall = file([{ ...DINNER, rule: { kind: 'gregorian', month: 11, day: 8 }, year: 2026 }]); // 7 days left on 1 Nov
+  assert.equal(tk(fall, '2026-11-01T11:59:00Z'), null, '06:59 EST');
+  assert.equal(tk(fall, '2026-11-01T12:00:00Z').kind, 'milestone', '07:00 EST');
+  assert.equal(tk(fall, '2026-11-01T06:30:00Z'), null, '01:30 EDT/EST: night');
+  // one hour later the next slot is on the hour again (60-minute slots follow the local clock)
+  assert.equal(tk(fall, '2026-11-01T13:00:00Z').kind, 'milestone');
+});
+
+test('takeoverFor: final minute flows into the zero takeover; both can be switched off, globally and per occasion', () => {
+  const f = file([DINNER]);
+  const fin = O.takeoverFor(f, new Date(BEGIN - 59000), ctxOn);
+  assert.equal(fin.kind, 'final'); assert.equal(fin.live, true); assert.equal(fin.until, BEGIN); assert.equal(fin.beginMs, BEGIN);
+  assert.equal(fin.words.big, '0:59'); assert.equal(fin.key, 'd|2026-12-20|final'); assert.equal(fin.stageText.en, 'Almost here');
+  assert.equal(O.takeoverFor(f, new Date(BEGIN - 1000), ctxOn).words.big, '0:01');
+  assert.equal(O.takeoverFor(f, new Date(BEGIN - 61000), ctxOn), null, 'not in the last 60 s (and 0 days left is not a milestone)');
+  const z = O.takeoverFor(f, new Date(BEGIN), ctxOn);
+  assert.equal(z.kind, 'zero'); assert.equal(z.key, 'd|2026-12-20|zero'); assert.equal(z.until, BEGIN + 3 * 60000); assert.equal(z.daysLeft, 0);
+  assert.equal(z.greeting.en, "It's here!"); assert.equal(z.celebrate, true); assert.equal(z.words.big, '');
+  assert.equal(O.takeoverFor(f, new Date(BEGIN + 3 * 60000 - 1), ctxOn).kind, 'zero');
+  assert.equal(O.takeoverFor(f, new Date(BEGIN + 3 * 60000), ctxOn), null);
+  // zero is ON by default now
+  assert.equal(O.SETTINGS_DEFAULTS.takeover, true); assert.equal(O.normalizeSettings({}).takeover, true);
+  // switches
+  assert.equal(O.takeoverFor(file([DINNER], { finalOn: false }), new Date(BEGIN - 30000), ctxOn), null);
+  assert.equal(O.takeoverFor(file([{ ...DINNER, finalOn: false }]), new Date(BEGIN - 30000), ctxOn), null);
+  assert.equal(O.takeoverFor(file([{ ...DINNER, finalOn: true }], { finalOn: false }), new Date(BEGIN - 30000), ctxOn).kind, 'final', 'own override beats the global switch');
+  assert.equal(O.takeoverFor(file([DINNER], { takeover: false }), new Date(BEGIN + 1000), ctxOn), null);
+  assert.equal(O.takeoverFor(file([{ ...DINNER, takeover: false }]), new Date(BEGIN + 1000), ctxOn), null);
+  assert.equal(O.takeoverFor(file([DINNER], { takeoverMinutes: 1 }), new Date(BEGIN + 61000), ctxOn), null);
+  const m = (extra, set) => tk(file([{ ...DINNER, ...extra }], set), '2026-12-13T17:00:00Z');
+  assert.equal(m({}, { milestoneOn: false }), null);
+  assert.equal(m({ milestoneOn: false }), null);
+  assert.equal(m({ milestoneOn: true }, { milestoneOn: false }).kind, 'milestone');
+  // an approximate begin time never gets a final minute or a zero takeover (milestones are about days, they still show)
+  const noLoc = { tz: NY.tz, zmanim: null, fresh: false, slideOn: true };
+  const g = file([{ ...DINNER, beginsAt: 'shkia' }]);
+  const row = O.upcoming(g, at('2026-12-19T15:00:00Z'), noLoc)[0];
+  assert.equal(row.begin.exact, false);
+  assert.equal(O.takeoverFor(g, new Date(row.begin.ms - 30000), noLoc), null);
+  assert.equal(O.takeoverFor(g, new Date(row.begin.ms + 1000), noLoc), null);
+});
+
+test('takeoverFor: priority zero > final > milestone, the nearest occasion first; stateless and repeatable', () => {
+  const a = { ...DINNER, id: 'a', nameEn: 'A', time: '18:59' };
+  const b = { ...DINNER, id: 'b', nameEn: 'B', time: '19:01' };
+  const f = file([b, a]);
+  const A = Date.parse('2026-12-21T23:59:00Z') - 86400000; // 18:59 EST on 20 Dec
+  assert.equal(O.takeoverFor(f, new Date(A + 30000), ctxOn).kind, 'zero', 'A began 30 s ago, B is in its final minute: zero wins');
+  assert.equal(O.takeoverFor(f, new Date(A + 30000), ctxOn).id, 'a');
+  assert.equal(O.takeoverFor(f, new Date(A - 30000), ctxOn).id, 'a', 'both in their final minute... A is nearer');
+  // a milestone day for one occasion while another is in its final minute
+  const c = { ...DINNER, id: 'c', nameEn: 'C', rule: { kind: 'gregorian', month: 12, day: 27 }, year: 2026 }; // 7 days left on 20 Dec at the same 19:00
+  const f2 = file([c, a]);
+  assert.equal(O.takeoverFor(f2, new Date(A - 30000 + 0), ctxOn).kind, 'final');
+  // milestone for the nearest of two
+  const d1 = { ...DINNER, id: 'd1', nameEn: 'D1', rule: { kind: 'gregorian', month: 12, day: 20 } }; const d2 = { ...DINNER, id: 'd2', nameEn: 'D2', time: '20:00', rule: { kind: 'gregorian', month: 12, day: 20 } };
+  assert.equal(tk(file([d2, d1]), '2026-12-13T17:00:00Z').id, 'd1');
+  // stateless: the same inputs give the same answer, whatever was asked before, and from a copy of the document
+  const copy = JSON.parse(JSON.stringify(f));
+  for (const ms of [A - 30000, A + 30000, A + 3600000]) assert.deepEqual(O.takeoverFor(f, new Date(ms), ctxOn), O.takeoverFor(copy, new Date(ms), ctxOn));
+  const once = tk(f, '2026-12-13T17:00:30Z'); tk(f, '2026-12-20T12:00:00Z'); tk(f, '2026-12-13T17:00:30Z');
+  assert.deepEqual(tk(f, '2026-12-13T17:00:30Z'), once);
+});
+
+test('takeoverFor and the virtual items: only ONE takeover path (no takeover item, ever)', () => {
+  const o = { ...DINNER, banner: true };
+  const f = file([o], { banner: true, rail: true });
+  for (const ms of [BEGIN - 3 * 86400000, BEGIN - 30000, BEGIN, BEGIN + 60000, BEGIN + 3600000]) {
+    const items = O.occasionItems(f, new Date(ms), ctxOn, { slideOn: true });
+    assert.ok(items.every((i) => i.display !== 'takeover'), `no takeover item at ${new Date(ms).toISOString()}`);
+  }
+  assert.deepEqual(O.occasionItems(f, new Date(BEGIN + 60000), ctxOn, { slideOn: true }).map((i) => i.display), ['banner'], 'the banner and the takeover go together at zero');
+  assert.equal(O.takeoverFor(f, new Date(BEGIN + 60000), ctxOn).kind, 'zero');
+});
+
+// ── words, look, layout resolution ──────────────────────────────────────────
+
+test('stageText: milestone line > stage line > global > built-in; own beats global; blank is deliberate', () => {
+  const base = { ...DINNER };
+  const row = (o, set, iso) => O.slideModel(file([{ ...base, ...o }], set), at(iso), NY).rows[0];
+  const d7 = '2026-12-13T17:00:00Z'; const d9 = '2026-12-11T17:00:00Z'; const h = '2026-12-20T20:00:00Z';
+  assert.equal(row({}, {}, d9).stageText.en, 'Getting closer', 'built-in stage line');
+  assert.equal(row({}, {}, d7).stageText.en, 'One week to go', 'built-in milestone line on a milestone day');
+  assert.equal(row({}, {}, '2026-12-14T17:00:00Z').stageText.en, 'Getting closer', '6 days: not a milestone in the list');
+  assert.equal(row({}, {}, h).stageText.en, 'Just hours to go');
+  assert.equal(row({}, { stageText: { days: { en: 'Global days', he: 'ג' } } }, d9).stageText.en, 'Global days');
+  assert.equal(row({ stageText: { days: { en: 'Own days', he: '' } } }, { stageText: { days: { en: 'Global days', he: 'ג' } } }, d9).stageText.en, 'Own days');
+  assert.equal(row({}, { stageText: { days: { en: 'Global days', he: 'ג' } } }, d7).stageText.en, 'Global days', 'a custom stage line beats the built-in milestone line');
+  assert.equal(row({}, { stageText: { days: { en: 'Global days', he: '' } }, milestoneText: { 7: { en: 'A week!', he: 'שבוע!' } } }, d7).stageText.en, 'A week!');
+  assert.equal(row({ stageText: { days: { en: 'Own days', he: '' } } }, { milestoneText: { 7: { en: 'A week!', he: '' } } }, d7).stageText.en, 'A week!', 'milestone line beats a stage line');
+  assert.equal(row({ milestoneText: { 7: { en: 'Own week', he: '' } } }, { milestoneText: { 7: { en: 'A week!', he: '' } } }, d7).stageText.en, 'Own week');
+  assert.equal(row({ stageText: { days: { en: '', he: '' } } }, {}, d9).stageText, null, 'blank on purpose = no tagline');
+  assert.equal(row({}, { stageText: { days: { en: '', he: '' } } }, d9).stageText, null);
+  const hebrew = row({}, { language: 'hebrew' }, d9).stageText; assert.equal(hebrew.en, ''); assert.equal(hebrew.he, 'מתקרבים');
+  const m = O.slideModel(file([base]), at('2026-12-21T00:00:30Z'), NY).rows[0];
+  assert.equal(m.form, 'zero'); assert.equal(m.stageText, null, 'zero / day have no built-in line');
+  assert.equal(O.slideModel(file([base], { stageText: { zero: { en: 'Here!', he: '' } } }), at('2026-12-21T00:00:30Z'), NY).rows[0].stageText.en, 'Here!');
+  for (const n of [1, 2, 3, 7, 14, 30, 45]) { const d = O.milestoneDefault(n); assert.ok(d.en && d.he && [...d.en].length <= 60); }
+});
+
+test('look and layout resolve defaults < global < own, field by field, on every slideModel row', () => {
+  const r0 = O.slideModel(file([DINNER]), at('2026-12-11T17:00:00Z'), NY).rows[0];
+  assert.deepEqual(r0.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
+  assert.deepEqual(r0.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(r0.layout.scale, 100); assert.equal(r0.layout.side, 'left'); assert.equal(r0.layout.align, 'start');
+  assert.ok(O.LAYOUT_SPEC.show.every((k) => r0.layout.show[k] === true));
+  const g = { look: { accent: '#112233', dim: 40, numeralsFont: 'Rubik' }, layout: { show: { ring: false, bar: false }, scale: 90, side: 'right', order: ['date', 'name'] } };
+  const own = { look: { accent: '#AABBCC', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg' }, layout: { show: { ring: true }, scale: 110 } };
+  const r = O.slideModel(file([{ ...DINNER, ...own }], g), at('2026-12-11T17:00:00Z'), NY).rows[0];
+  assert.deepEqual(r.look, { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 40, numeralsFont: 'Rubik' });
+  assert.equal(r.layout.show.ring, true); assert.equal(r.layout.show.bar, false); assert.equal(r.layout.show.name, true);
+  assert.equal(r.layout.scale, 110); assert.equal(r.layout.side, 'right'); assert.equal(r.layout.align, 'start');
+  assert.deepEqual(r.layout.order, ['date', 'name', 'begins', 'event'], 'a subset keeps the other parts after it');
+  // an own empty accent means "none", whatever the default says
+  assert.equal(O.slideModel(file([{ ...DINNER, look: { accent: '' } }], g), at('2026-12-11T17:00:00Z'), NY).rows[0].look.accent, '');
+  // the takeover carries the same resolved look
+  assert.equal(tk(file([{ ...DINNER, ...own }], g), '2026-12-13T17:00:00Z').look.accent, '#aabbcc');
+});
+
+// ── normalisers and strict checks ───────────────────────────────────────────
+
+test('normalisers: limits, bad values dropped, defaults safe; the document stays under the cap', () => {
+  const s = O.normalizeSettings({ milestones: [7, '14', 0, 366, 7, 1.5, 'x', 30], milestoneMinutes: 99, milestoneEveryMinutes: 45, milestoneFrom: '22:00', milestoneTo: '08:00', stageText: { days: { en: 'x'.repeat(200), he: 'a\nb' }, nope: { en: 'z' } }, milestoneText: { 7: { en: 'w' }, 0: { en: 'no' }, 400: { en: 'no' }, abc: { en: 'no' } }, look: { accent: 'red', photo: 'http://evil/x.jpg', dim: 5, numeralsFont: "Bad'Font" }, layout: { scale: 500, side: 'up', order: ['x', 'name', 'name'], show: { ring: 'no', bar: false, evil: true } } });
+  assert.deepEqual(s.milestones, [30, 14, 7]); assert.equal(s.milestoneMinutes, 2); assert.equal(s.milestoneEveryMinutes, 60);
+  assert.equal(s.milestoneFrom, '07:00'); assert.equal(s.milestoneTo, '21:00');
+  assert.equal([...s.stageText.days.en].length, O.LIMITS.stageLine); assert.equal(s.stageText.days.he, 'a b'); assert.ok(!('nope' in s.stageText));
+  assert.deepEqual(Object.keys(s.milestoneText), ['7']);
+  assert.deepEqual(s.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
+  assert.equal(s.layout.scale, 100); assert.equal(s.layout.side, 'left'); assert.deepEqual(s.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(s.layout.show.ring, true); assert.equal(s.layout.show.bar, false); assert.ok(!('evil' in s.layout.show));
+  assert.deepEqual(O.normalizeSettings({}).milestones, [30, 14, 7, 3, 2, 1]);
+  assert.deepEqual(O.normalizeSettings({ milestones: [] }).milestones, [], 'an empty list is allowed (none)');
+  assert.equal(O.normalizeMilestones(Array.from({ length: 40 }, (_, i) => i + 1), []).length, O.LIMITS.milestones);
+  const o = O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, milestoneOn: 'yes', finalOn: false, milestones: [3, 3, 999], look: { dim: '70', photo: '/uploads/../../etc/passwd' }, layout: { align: 'center', evil: 1 } });
+  assert.equal(o.milestoneOn, null); assert.equal(o.finalOn, false); assert.deepEqual(o.milestones, [3]);
+  assert.deepEqual(o.look, { dim: 70 }); assert.deepEqual(o.layout, { align: 'center' });
+  assert.equal(O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 } }).milestones, null);
+  // the worst legal document is far below the 200 kB cap
+  const full = { stageText: Object.fromEntries(O.STAGES.map((k) => [k, { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])), milestoneText: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])) };
+  assert.equal(Object.keys(O.normalizeMilestoneText(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [String(i + 1), { en: 'x' }])))).length, O.LIMITS.milestoneTexts);
+  // the starters, each with every own block filled to its limit, plus the global blocks: still far below the cap
+  const big = O.normalizeFile({ settings: full, occasions: O.STARTERS.map((st, i) => ({ id: `i${i}`, nameEn: `n${i}`, nameHe: 'ש'.repeat(60), rule: st.rule, explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full, milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], look: { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 50, numeralsFont: 'x'.repeat(60) }, layout: { order: ['name', 'date', 'begins', 'event'], show: Object.fromEntries(O.LAYOUT_SPEC.show.map((k) => [k, false])), scale: 100, side: 'left', align: 'start' } })) });
+  assert.ok(O.fileBytes(big) < O.LIMITS.file, `${O.fileBytes(big)} bytes`);
+  // the absolute worst case is caught by the store's cap (occasionsStore.mutate), not by the normaliser
+  const worst = O.normalizeFile({ occasions: Array.from({ length: 80 }, (_, i) => ({ id: `w${i}`, nameEn: 'n', rule: { kind: 'hebrew', month: 9, day: 1 }, explainHe: 'ש'.repeat(600), explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full })) });
+  assert.ok(O.fileBytes(worst) > O.LIMITS.file, 'so the cap check has something to refuse');
+});
+
+test('strict checks: settings and occasion patches refuse unknown keys and out-of-range values', () => {
+  const f = O.normalizeFile(null);
+  const bad = (patch) => assert.throws(() => O.setSettings(f, patch), O.OccasionsError, JSON.stringify(patch).slice(0, 80));
+  for (const patch of [
+    { milestones: [0] }, { milestones: [366] }, { milestones: [1.5] }, { milestones: [7, 7] }, { milestones: 'x' }, { milestones: Array.from({ length: 13 }, (_, i) => i + 1) },
+    { milestoneMinutes: 0 }, { milestoneMinutes: 16 }, { milestoneEveryMinutes: 45 }, { milestoneEveryMinutes: '60' }, { milestoneFrom: '7am' }, { milestoneFrom: '22:00' }, { milestoneTo: '06:00' }, { milestoneMinutes: 15, milestoneEveryMinutes: 15 },
+    { milestoneOn: 'yes' }, { finalOn: 1 }, { evil: true },
+    { stageText: { hours: { en: 'x'.repeat(61), he: '' } } }, { stageText: { bogus: { en: 'x', he: '' } } }, { stageText: { days: 'x' } }, { stageText: { days: { en: 'x', fr: 'y' } } }, { stageText: { days: { en: 5 } } },
+    { milestoneText: { 0: { en: 'x', he: '' } } }, { milestoneText: { 366: { en: 'x', he: '' } } }, { milestoneText: { seven: { en: 'x', he: '' } } },
+    { look: { accent: 'red' } }, { look: { accent: '#12345' } }, { look: { photo: 'https://x.test/a.jpg' } }, { look: { photo: '/uploads/a/b.jpg' } }, { look: { dim: 29 } }, { look: { dim: 91 } }, { look: { numeralsFont: "x'; y" } }, { look: { glow: 1 } }, { look: { dim: null } },
+    { layout: { scale: 79 } }, { layout: { scale: 126 } }, { layout: { side: 'top' } }, { layout: { align: 'end' } }, { layout: { order: ['name', 'name'] } }, { layout: { order: ['tagline'] } }, { layout: { show: { ring: 'yes' } } }, { layout: { show: { wings: true } } }, { layout: { bogus: 1 } }, { layout: 5 },
+  ]) bad(patch);
+  const ok = O.setSettings(f, { milestones: [10, 5], milestoneMinutes: 3, milestoneEveryMinutes: 30, milestoneFrom: '08:00', milestoneTo: '20:30', look: { accent: '#c9a24b', dim: 70, numeralsFont: 'Rubik', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.png' }, layout: { show: { tagline: false }, order: ['date'], scale: 120, side: 'right', align: 'center' }, stageText: { far: { en: 'Soon', he: 'בקרוב' } }, milestoneText: { 10: { en: 'Ten!', he: '' } } });
+  assert.deepEqual(ok.settings.milestones, [10, 5]); assert.equal(ok.settings.layout.show.tagline, false); assert.deepEqual(ok.settings.layout.order, ['date', 'name', 'begins', 'event']);
+  assert.equal(ok.settings.look.accent, '#c9a24b'); assert.equal(ok.settings.stageText.far.en, 'Soon'); assert.equal(ok.settings.milestoneText[10].en, 'Ten!');
+  // occasions: same strictness
+  const addBad = (o) => assert.throws(() => O.addOccasion(f, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, ...o }), O.OccasionsError, JSON.stringify(o).slice(0, 80));
+  for (const o of [{ milestoneOn: 'x' }, { milestones: [0] }, { stageText: { zero: { en: 'x'.repeat(61) } } }, { milestoneText: { 0: {} } }, { look: { dim: 5 } }, { look: { accent: 'blue' } }, { look: { x: 1 } }, { layout: { scale: 300 } }, { layout: { show: { nope: true } } }, { explainChecked: 'yes' }]) addBad(o);
+  const added = O.addOccasion(f, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, look: { accent: '#abcdef', dim: null }, layout: { scale: 90 }, stageText: { days: { en: 'Soon', he: '' } }, milestoneOn: null });
+  assert.deepEqual(added.occasion.look, { accent: '#abcdef' }); assert.equal(added.occasion.layout.scale, 90); assert.equal(added.occasion.milestoneOn, null);
+});
+
+// ── the explanation 'checked' rule ──────────────────────────────────────────
+
+test('explanation: needs text, a source AND an explicit check; editing text or source un-checks it; states for the admin', () => {
+  let f = O.normalizeFile({ occasions: [{ id: 'e', nameEn: 'E', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'Words.', source: 'chabad.org/x' }] });
+  const e = () => f.occasions.find((o) => o.id === 'e');
+  assert.equal(e().explainChecked, false, 'stored explanations from before the rule are hidden until checked');
+  assert.equal(O.explainShows(e()), false); assert.equal(O.explainState(e()), 'needsCheck'); assert.equal(O.EXPLAIN_CHIP.needsCheck, 'Needs checking');
+  assert.match(O.explainWhy(e()), /Hidden until you check it/);
+  f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
+  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Checked/);
+  f = O.updateOccasion(f, 'e', { eventEn: 'Hall' }).file; assert.equal(e().explainChecked, true, 'an unrelated edit keeps the check');
+  f = O.updateOccasion(f, 'e', { explainEn: 'Changed.' }).file; assert.equal(e().explainChecked, false, 'text changed');
+  f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
+  f = O.updateOccasion(f, 'e', { source: 'chabad.org/y' }).file; assert.equal(e().explainChecked, false, 'source changed');
+  f = O.updateOccasion(f, 'e', { explainHe: 'שלום', explainChecked: true }).file; assert.equal(e().explainChecked, true, 'edited and checked again in the same save');
+  f = O.updateOccasion(f, 'e', { explainEn: '', explainHe: '' }).file; assert.equal(O.explainState(e()), 'none'); assert.equal(e().explainChecked, false);
+  assert.equal(O.explainState({ explainEn: 'x', source: '' }), 'needsSource'); assert.match(O.explainWhy({ explainEn: 'x', source: '' }), /add the source/);
+  assert.equal(O.EXPLAIN_CHIP.none, 'No explanation');
+  // add: checked only when there is text
+  assert.equal(O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: { kind: 'hebrew', month: 9, day: 1 }, explainChecked: true }).occasion.explainChecked, false);
+  assert.equal(O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'x', source: 'abc', explainChecked: true }).occasion.explainChecked, true);
+  // Open source helper
+  assert.equal(O.sourceUrl('see https://www.chabad.org/library/article_cdo/aid/1/jewish/x.htm, p. 3'), 'https://www.chabad.org/library/article_cdo/aid/1/jewish/x.htm');
+  assert.equal(O.sourceUrl('Sefer X, p. 12'), ''); assert.equal(O.sourceUrl('javascript:alert(1)'), ''); assert.equal(O.sourceUrl('ftp://x.test/a'), '');
+});
+
+test('the copies that leave the server carry no unchecked explanation, no hidden text and nothing secret', () => {
+  const f = file([
+    { id: 'draft', nameEn: 'Draft', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'SECRET-DRAFT', explainHe: 'טיוטה', source: 'Sefer Y p. 1' },
+    { id: 'ok', nameEn: 'Ok', rule: { kind: 'hebrew', month: 9, day: 2 }, explainEn: 'Public words', source: 'Sefer Z p. 2', explainChecked: true },
+    { id: 'off', nameEn: 'Off', on: false, rule: { kind: 'hebrew', month: 9, day: 3 }, explainEn: 'HIDDEN-OFF', source: 'Sefer Z p. 3', explainChecked: true },
+  ]);
+  for (const copy of [O.forKiosk(f), O.forViewer(f), O.forViewer(O.forKiosk(f))]) {
+    const txt = JSON.stringify(copy);
+    assert.ok(!/SECRET-DRAFT|טיוטה|Sefer Y|HIDDEN-OFF/.test(txt), 'unchecked / switched-off text stays out');
+    assert.ok(txt.includes('Public words'));
+    assert.ok(!/token|secret|password|hash/i.test(txt.replace(/SECRET-DRAFT/g, '')), 'nothing secret-looking');
+  }
+  assert.equal(O.forKiosk(f).occasions.find((o) => o.id === 'draft').explainEn, '');
+  // the kiosk copy still resolves to the same slide
+  assert.equal(O.slideModel(O.forKiosk(f), at('2026-11-05T15:00:00Z'), NY).rows.every((r) => r.explain === null || r.explain.en === 'Public words'), true);
+});
+
+test('uploads cleanup keeps the Countdown photos (global and per occasion, also switched-off ones)', async () => {
+  const { uploadFilesFromOccasions, isFileReferenced } = await import('../src/shared/uploadRefs.js');
+  const doc = { settings: { look: { photo: '/uploads/11111111-aaaa-bbbb-cccc-000000000001.jpg' } }, occasions: [
+    { look: { photo: '/uploads/22222222-aaaa-bbbb-cccc-000000000002.webp' } }, { on: false, look: { photo: '/uploads/33333333-aaaa-bbbb-cccc-000000000003.png' } },
+    { look: { photo: '' } }, { look: { photo: 'https://evil.test/x.jpg' } }, {},
+  ] };
+  const refs = new Set(uploadFilesFromOccasions(doc));
+  assert.equal(refs.size, 3);
+  for (const f of ['11111111-aaaa-bbbb-cccc-000000000001.jpg', '11111111-aaaa-bbbb-cccc-000000000001-blur.jpg', '22222222-aaaa-bbbb-cccc-000000000002.webp', '33333333-aaaa-bbbb-cccc-000000000003.png']) assert.equal(isFileReferenced(f, refs), true, f);
+  assert.equal(isFileReferenced('44444444-aaaa-bbbb-cccc-000000000004.jpg', refs), false);
+  assert.deepEqual(uploadFilesFromOccasions(null), []); assert.deepEqual(uploadFilesFromOccasions({}), []);
+  // a normalised document keeps exactly the references a clean-up has to protect
+  const n = O.normalizeFile({ settings: { look: { photo: '/uploads/11111111-aaaa-bbbb-cccc-000000000001.jpg' } }, occasions: [{ id: 'a', nameEn: 'A', rule: { kind: 'hebrew', month: 9, day: 1 }, look: { photo: '/uploads/22222222-aaaa-bbbb-cccc-000000000002.webp' } }] });
+  assert.equal(uploadFilesFromOccasions(n).length, 2);
 });

@@ -42,7 +42,7 @@ export class OccasionsError extends Error {}
 
 export const LIMITS = Object.freeze({
   occasions: 80, name: 60, explain: 600, source: 140, event: 120, zero: 40, file: 200000,
-  stageLine: 60, milestones: 12, milestoneTexts: 30, fontName: 60,
+  stageLine: 60, milestones: 12, milestoneTexts: 12, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
 export const BEGINS_LABEL = Object.freeze({
@@ -555,7 +555,7 @@ export function explainWhy(o) {
 export function sourceUrl(src) {
   const m = String(src || '').match(/https?:\/\/[^\s<>"')]+/i);
   if (!m) return '';
-  try { const u = new URL(m[0]); return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : ''; } catch { return ''; }
+  try { const u = new URL(m[0].replace(/[.,;:!?]+$/, '')); return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : ''; } catch { return ''; }
 }
 
 // ── document operations (routes call these under the store lock) ───────────

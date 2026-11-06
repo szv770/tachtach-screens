@@ -18,6 +18,22 @@ export function uploadFilesFromSettings(settings) {
   return out;
 }
 
+/**
+ * Upload ids the Countdown (data/occasions.json) points at: the default background photo and every occasion's own one
+ * (switched-off occasions too, they can come back). Each is `/uploads/<uuid>.<ext>`; the bare `<uuid>` is returned so the
+ * prefix rule of isFileReferenced also keeps the `-blur` copy. Without this the daily cleanup deleted the photo 24 h after upload.
+ */
+export function uploadFilesFromOccasions(doc) {
+  const out = [];
+  const add = (url) => {
+    const m = typeof url === 'string' ? url.match(/^\/uploads\/([A-Za-z0-9-]+)\.[A-Za-z0-9]+$/) : null;
+    if (m) out.push(m[1]);
+  };
+  add(doc?.settings?.look?.photo);
+  if (Array.isArray(doc?.occasions)) for (const o of doc.occasions) add(o?.look?.photo);
+  return out;
+}
+
 /** Is a file in uploads/ referenced? Exact name, or by mediaId prefix (UUID.jpg, UUID-blur.jpg). */
 export function isFileReferenced(filename, referencedFiles) {
   if (referencedFiles.has(filename)) return true;
