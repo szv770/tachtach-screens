@@ -16,6 +16,27 @@ export const SOFT_INK = 'color-mix(in srgb, var(--ink) 78%, transparent)';
 /** Accent for TEXT (taglines, 'Begins', small accent labels): the accent, pulled toward the ink until it reads at 4.5:1 on
  *  this theme's panel (useSmallAccent sets --accentSmall on the panel). Rings, ticks and tiles keep the pure accent. */
 export const ACC = 'var(--accentSmall, var(--accentText))';
+/** The label over the short 'why it is special' text (one constants spot; the Hebrew wording: native speaker to confirm). */
+export const WHY_LABEL = Object.freeze({ en: 'Why we celebrate', he: 'למה חוגגים' });
+/** 'Source' for the line under it (same word as the vort page). */
+export const WHY_SOURCE = Object.freeze({ en: 'Source', he: 'מקור' });
+/** Language filter for a { en, he } pair under the page's language setting ('both' | 'english' | 'hebrew'). */
+export const inLang = (x, lang) => (x ? { en: lang === 'hebrew' ? '' : x.en || '', he: lang === 'english' ? '' : x.he || '' } : null);
+
+/**
+ * Box height (canvas px) for the short why text: enough for its lines at the size the box is meant for, so Fit only
+ * shrinks it when the column is crowded. `width` = the column's width; the size steps down with the length.
+ */
+export function whyBox(why, width, { max = 44, min = 28 } = {}) {
+  const parts = [why?.en, why?.he].filter(Boolean).map((t) => [...String(t)].length);
+  if (!parts.length) return { size: min, height: 0 };
+  const total = parts.reduce((a, b) => a + b, 0);
+  const size = Math.max(min + 4, Math.min(max, total <= 90 ? max : total <= 180 ? max - 8 : max - 14));
+  const per = Math.max(8, Math.floor(width / (size * 0.52)));
+  const lines = parts.reduce((a, n) => a + Math.ceil(n / per), 0);
+  return { size, height: Math.round(lines * size * 1.4 + (parts.length - 1) * size * 0.5 + 10) };
+}
+
 /** The text colours the scrim must keep readable (each checked at 4.5:1 against every photo pixel behind it). */
 const TEXT_COLOURS = ['var(--ink)', LABEL_INK, SOFT_INK, ACC];
 

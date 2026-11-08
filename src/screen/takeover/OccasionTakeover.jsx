@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, ACC, useSmallAccent } from '../components/slides/occasionParts.jsx';
+import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, whyBox } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -19,7 +19,9 @@ import { playOnce } from './occasionSound.js';
  * precedence as every takeover (a freeze / Shabbos cover hides it; an announcement takeover wins over it).
  *
  * Input shape: { kind, key, daysLeft, until (ms epoch), name: {en, he}, words: {big, unit, sub}, stageText: {en, he} | null,
- *                look?, layout?, zero?: {en, he} }  (look / layout / zero optional, read defensively).
+ *                look?, layout?, zero?: {en, he}, why?: {en, he, source}, dates?: {toGoLabel} }  (optional ones read defensively).
+ * The milestone shows the short 'why we celebrate' line (`why`) as a quiet bottom line when it fits; it is the FIRST thing dropped when
+ * the frame is crowded (measured after layout).
  */
 
 export const EXIT_MS = 420;
@@ -69,18 +71,74 @@ function Tagline({ t, center }) {
   return <Label en={t.en} heText={t.he} color={ACC} size={30} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" />;
 }
 
+/** The quiet 'why we celebrate' line of a milestone: label, the text fitted (28 px at the least), a muted source. */
+function WhyLine({ why, L, width, center }) {
+  const w = { en: why.en || '', he: why.he || '' };
+  const { size, height } = whyBox(w, width, { max: 40, min: 28 });
+  const ta = center ? 'center' : 'start';
+  return (
+    <div data-occ-why="" style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6, textAlign: ta }}>
+      <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} size={24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
+      <Fit key={`tw|${w.en}|${w.he}|${size}|${height}`} wrap vcenter max={size + 4} min={28} style={{ flex: 'none', width: '100%', height, overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
+          {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{w.en}</div>}
+          {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{w.he}</div>}
+        </div>
+      </Fit>
+      {why.source && (
+        <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
+          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {String(why.source)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Is the frame's body taller than its box? Then the optional line goes (re-measured once the fonts are in). */
+function useCrowded(ref, key) {
+  const [crowded, setCrowded] = useState(false);
+  const at = useRef(key);
+  const fresh = useRef(false);
+  if (at.current !== key) { at.current = key; fresh.current = false; if (crowded) setCrowded(false); }
+  useLayoutEffect(() => {
+    const check = () => {
+      const el = ref.current;
+      if (!el || !el.clientHeight) return;
+      const over = [el, ...el.querySelectorAll('[data-tk-col]')].some((c) => c.clientHeight && c.scrollHeight > c.clientHeight + 2);
+      if (over) setCrowded(true);
+    };
+    check();
+    let alive = true;
+    document.fonts?.ready?.then(() => {
+      if (!alive || fresh.current) return;
+      fresh.current = true; // fallback fonts are wider: measure again once, from 'not crowded', when the real ones are in
+      if (document.fonts.status === 'loaded') setCrowded(false); else check();
+    }).catch(() => {});
+    return () => { alive = false; };
+  });
+  return crowded;
+}
+
 function CountTk({ tk, now, L, portrait, font }) {
+  const bodyRef = useRef(null);
+  const whyOn = tk.kind === 'milestone' && shows(L, 'why') && !!(tk.why && (tk.why.en || tk.why.he));
+  const crowded = useCrowded(bodyRef, `${tk.key}|${portrait}|${whyOn}`);
+  const why = whyOn && !crowded ? tk.why : null;
   const final = tk.kind === 'final';
   const fw = final ? finalWords(tk.beginMs ?? tk.until, now) : null;
   const w = tk.words || {};
   const days = Number.isFinite(tk.daysLeft) ? tk.daysLeft : Number(w.big) || 0;
   const big = final ? fw.big : (w.big || String(days));
+  // 'N DAYS UNTIL IT BEGINS' when the model says so (the countdown runs to the evening before the day itself)
+  const tg = tk.dates?.toGoLabel;
+  const noun = days === 1 ? COPY.day : COPY.days;
+  const toGo = !final && tg && (tg.en || tg.he) ? { en: w.unit && !w.unit.en && w.unit.he ? '' : (tg.en ? `${noun.en} ${tg.en}` : noun.en), he: w.unit && !w.unit.he && w.unit.en ? '' : (tg.he ? `${noun.he} ${tg.he}` : noun.he) } : null;
   const unit = final ? { en: `${COPY.minutes.en} : seconds`, he: `${COPY.minutes.he} : שניות` }
-    : w.unit && (w.unit.en || w.unit.he) ? w.unit
-      : { en: `${days === 1 ? COPY.day.en : COPY.days.en} ${COPY.toGo.en}`, he: `${COPY.toGo.he} ${days === 1 ? COPY.day.he : COPY.days.he}` };
+    : toGo || (w.unit && (w.unit.en || w.unit.he) ? w.unit
+      : { en: `${days === 1 ? COPY.day.en : COPY.days.en} ${COPY.toGo.en}`, he: `${COPY.toGo.he} ${days === 1 ? COPY.day.he : COPY.days.he}` });
   const tag = shows(L, 'tagline') ? tk.stageText : null;
   const center = portrait || L.align === 'center';
-  const numH = Math.round((portrait ? 560 : 520) * (L.k || 1));
+  const numH = Math.round((portrait ? (why ? 440 : 560) : 520) * (L.k || 1));
   const numbers = (
     <div data-occ-count={tk.kind} style={{ flex: 'none', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14 }}>
       <BigNum text={big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} color={final ? ACC : 'var(--ink)'} />
@@ -95,24 +153,26 @@ function CountTk({ tk, now, L, portrait, font }) {
   );
   if (portrait) {
     return (
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 26, textAlign: 'center' }}>
+      <div ref={bodyRef} data-tk-col="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 26, textAlign: 'center' }}>
         <Tagline t={tag} center />
         {numbers}
         <div aria-hidden style={{ width: 96, height: 2, background: 'var(--line)', flex: 'none' }} />
         <TkName name={tk.name} L={L} portrait center />
+        {why && <WhyLine why={why} L={L} width={900} center />}
       </div>
     );
   }
   const left = L.side === 'left';
   const nameCol = (
-    <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, [left ? 'paddingLeft' : 'paddingRight']: 64, [left ? 'borderLeft' : 'borderRight']: '2px solid var(--line)' }}>
+    <div data-tk-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, [left ? 'paddingLeft' : 'paddingRight']: 64, [left ? 'borderLeft' : 'borderRight']: '2px solid var(--line)' }}>
       <Tagline t={tag} />
       <TkName name={tk.name} L={L} big />
+      {why && <WhyLine why={why} L={L} width={760} />}
     </div>
   );
   const numCol = <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', [left ? 'paddingRight' : 'paddingLeft']: 0 }}>{numbers}</div>;
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: left ? 'minmax(0, 1fr) minmax(0, 1.1fr)' : 'minmax(0, 1.1fr) minmax(0, 1fr)', columnGap: 64, alignItems: 'stretch' }}>
+    <div ref={bodyRef} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: left ? 'minmax(0, 1fr) minmax(0, 1.1fr)' : 'minmax(0, 1.1fr) minmax(0, 1fr)', columnGap: 64, alignItems: 'stretch' }}>
       {left ? <>{numCol}{nameCol}</> : <>{nameCol}{numCol}</>}
     </div>
   );
@@ -156,7 +216,7 @@ export const OccasionTakeover = React.memo(function OccasionTakeover({ tk, now, 
     </div>
   );
 }, (a, b) => a.exiting === b.exiting && a.now === b.now && a.tk.key === b.tk.key && a.tk.kind === b.tk.kind && a.tk.daysLeft === b.tk.daysLeft
-  && a.tk.until === b.tk.until && JSON.stringify([a.tk.name, a.tk.words, a.tk.stageText, a.tk.look, a.tk.layout, a.tk.zero]) === JSON.stringify([b.tk.name, b.tk.words, b.tk.stageText, b.tk.look, b.tk.layout, b.tk.zero]));
+  && a.tk.until === b.tk.until && JSON.stringify([a.tk.name, a.tk.words, a.tk.stageText, a.tk.look, a.tk.layout, a.tk.zero, a.tk.why, a.tk.dates?.toGoLabel]) === JSON.stringify([b.tk.name, b.tk.words, b.tk.stageText, b.tk.look, b.tk.layout, b.tk.zero, b.tk.why, b.tk.dates?.toGoLabel]));
 
 /**
  * Keeps the last takeover on screen for a short exit fade after it ends, and gives 'final' a per-second `now`

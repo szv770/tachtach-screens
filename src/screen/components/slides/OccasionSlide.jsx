@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent } from './occasionParts.jsx';
+import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, whyBox } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -98,21 +98,95 @@ function DatePart({ t }) {
   return <>{t.slice(0, i + 1)} <span style={{ whiteSpace: 'nowrap' }}>{t.slice(i + 2)}</span></>;
 }
 
+const hasText = (x) => !!(x && (x.en || x.he));
+
+/**
+ * THE DAY, in three calm lines (the model's `dates`, written by src/shared/occasions.js): 'Sunday, November 29' (big), the
+ * range of a multi-day occasion (small), the Hebrew date ('19 Kislev 5787' / Hebrew). Rows without `dates` (an older model)
+ * keep the old date line. The range is the first thing to go when the column is crowded (layout.show.dateRange, set by squeezed()).
+ */
+function DateBlock({ m, center, lang, L, portrait }) {
+  const d = m.dates && typeof m.dates === 'object' ? m.dates : null;
+  const day = inLang(d?.day, lang);
+  if (!hasText(day)) return <DateLine m={m} center={center} />;
+  const range = shows(L, 'dateRange') ? inLang(d.dayRange, lang) : null;
+  const heb = inLang(d.hebrew, lang);
+  const al = center ? 'center' : 'flex-start';
+  const k = L.k || 1;
+  return (
+    <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al, gap: 4, lineHeight: 1.2, textAlign: center ? 'center' : 'start' }}>
+      {day.en && <div data-occ-day="" dir={textDir(day.en)} style={{ fontFamily: F.enD, fontSize: Math.round((portrait ? 54 : 50) * k), fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.005em', unicodeBidi: 'isolate' }}><DatePart t={day.en} /></div>}
+      {day.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(Math.round((day.en ? 38 : 50) * k)), fontWeight: day.en ? 400 : 600, color: day.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.3 }}>{day.he}</div>}
+      {hasText(range) && (
+        <div data-occ-range="" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 18px', justifyContent: al, alignItems: 'baseline', color: SOFT_INK, lineHeight: 1.25 }}>
+          {range.en && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500 }}><DatePart t={range.en} /></span>}
+          {range.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 500 }}>{range.he}</span>}
+        </div>
+      )}
+      {hasText(heb) && (
+        <div data-occ-hebdate="" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 20px', justifyContent: al, alignItems: 'baseline', marginTop: 2, lineHeight: 1.25 }}>
+          {heb.en && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 32, fontWeight: 500, color: SOFT_INK }}>{heb.en}</span>}
+          {heb.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: heb.en ? SOFT_INK : 'var(--ink)' }}>{heb.he}</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** 'Begins Saturday evening · Shkia 4:30 PM': the when as a small-caps label, the zman and time large under it. */
 const splitWhen = (t) => { const i = String(t || '').lastIndexOf(' · '); return i < 0 ? ['', String(t || '')] : [t.slice(0, i), t.slice(i + 3)]; };
-function Begins({ m, center }) {
-  if (!m.begins) return null;
-  const [enA, enB] = splitWhen(m.begins.en);
-  const [heA, heB] = splitWhen(m.begins.he);
+function Begins({ m, center, lang }) {
+  const d = m.dates && typeof m.dates === 'object' ? m.dates : null;
+  const line = inLang(d?.beginsLine, lang);
+  let enA; let heA; let enB; let heB;
+  if (hasText(line)) {
+    // the model's own wording: the line (small caps) and, when there is one, the time under it
+    const at = inLang(d.beginsAt, lang) || { en: '', he: '' };
+    [enA, heA, enB, heB] = [line.en, line.he, at.en, at.he];
+  } else if (m.begins) {
+    [enA, enB] = splitWhen(m.begins.en); [heA, heB] = splitWhen(m.begins.he);
+  } else return null;
   const jc = center ? 'center' : 'flex-start';
+  const big = hasText(line); // the new block sets the time larger
   return (
     <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 4, lineHeight: 1.25 }}>
-      {(enA || heA) && <Label en={enA} heText={heA} style={{ justifyContent: jc }} />}
+      {(enA || heA) && <Label en={enA} heText={heA} size={big ? 26 : 24} style={{ justifyContent: jc }} />}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: jc }}>
-        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 38, fontWeight: 600, color: ACC }}>{enB}</span>}
-        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(34), fontWeight: 500, color: ACC }}>{heB}</span>}
+        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: big ? 46 : 38, fontWeight: 600, color: ACC }}>{enB}</span>}
+        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(big ? 40 : 34), fontWeight: 500, color: ACC }}>{heB}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={COPY.approx.he} />}
+    </div>
+  );
+}
+
+/**
+ * 'WHY WE CELEBRATE' + the short why line (the model's `why`, already filtered by the owner's source + checked rule, so
+ * when it is here it shows) + a muted 'Source: ...' under it. The text is fitted (28 px at the least) and never cut; the
+ * source line is the first part of this block to be dropped when the column is crowded (layout.show.whySource).
+ * `hero` = the day view, where it is the main line under the name.
+ */
+function WhyBlock({ why, L, width, hero = false, center, lang, k }) {
+  const w = inLang(why, lang);
+  if (!why || !hasText(w) || !shows(L, 'why')) return null;
+  const src = why.source && shows(L, 'whySource') ? String(why.source) : '';
+  const kk = L.k || 1;
+  const { size, height } = whyBox(w, width, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round(44 * kk), min: 28 });
+  const ta = center ? 'center' : 'start';
+  return (
+    <div data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
+      <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
+      <Fit key={`wy|${k}|${size}|${height}|${lang}`} wrap vcenter max={size + 6} min={hero ? 30 : 28} data-occ-why-text="" style={{ flex: '0 1 auto', width: '100%', height, minHeight: Math.min(height, 120), overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
+          {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
+          {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
+        </div>
+      </Fit>
+      {src && (
+        <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
+          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {bidiNodes(src)}
+        </div>
+      )}
     </div>
   );
 }
@@ -129,10 +203,11 @@ function EventLine({ ev, center, size = 32 }) {
 }
 
 /** The detail blocks other than the name, in the admin's order. */
-function Details({ m, keys, center, eventSize }) {
+function Details({ m, keys, center, eventSize, lang, L, portrait, whyWidth = 840 }) {
   return keys.map((key) => {
-    if (key === 'date') return <DateLine key={key} m={m} center={center} />;
-    if (key === 'begins') return <Begins key={key} m={m} center={center} />;
+    if (key === 'date') return <DateBlock key={key} m={m} center={center} lang={lang} L={L} portrait={portrait} />;
+    if (key === 'begins') return <Begins key={key} m={m} center={center} lang={lang} />;
+    if (key === 'why') return <WhyBlock key={key} why={m.why} L={L} width={whyWidth} center={center} lang={lang} k={m.key} />;
     if (key === 'event') return <EventLine key={key} ev={m.event} center={center} size={eventSize} />;
     return null;
   });
@@ -140,7 +215,7 @@ function Details({ m, keys, center, eventSize }) {
 
 function Unit({ unit, center, size = 26 }) {
   if (!unit?.en && !unit?.he) return null;
-  return <Label en={unit.en} heText={unit.he} size={size} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} />;
+  return <Label en={unit.en} heText={unit.he} size={size} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-unit="" />;
 }
 
 function Sub({ sub, center }) {
@@ -151,6 +226,17 @@ function Sub({ sub, center }) {
       {sub.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(36), fontWeight: 500, color: SOFT_INK }}>{sub.he}</span>}
     </div>
   );
+}
+
+/**
+ * The unit under the big number. With the model's `dates.toGoLabel` the days read 'DAYS UNTIL IT BEGINS' (the countdown runs
+ * to the EVENING BEFORE the day, so a bare 'days to go' next to the day's own date was off by one); without it the old words.
+ */
+function unitWords(m, lang) {
+  const tg = inLang(m.dates?.toGoLabel, lang);
+  if ((m.form !== 'far' && m.form !== 'days') || !hasText(tg) || !m.countdown) return m.words.unit;
+  const noun = m.countdown.days === 1 ? COPY.day : COPY.days;
+  return inLang({ en: tg.en ? `${noun.en} ${tg.en}` : noun.en, he: tg.he ? `${noun.he} ${tg.he}` : noun.he }, lang);
 }
 
 const SECONDS = { en: 'seconds', he: 'שניות' };
@@ -232,6 +318,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
   const w = m.words;
   const c = m.countdown;
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
+  const unit = unitWords(m, lang);
   const tagline = tag ? <Label en={tag.en} heText={tag.he} color={ACC} size={26} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" /> : null;
   const col = { position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', textAlign: center ? 'center' : 'start' };
   if (m.run) return <RunCount m={m} L={L} portrait={portrait} font={font} center={center} tagline={tagline} />;
@@ -242,6 +329,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
         <div data-occ-count={m.form} style={{ ...col, gap: portrait ? 18 : 14 }}>
           {tagline}
           <FlipRow cells={cells} font={font} portrait={portrait} center={center} L={L} lang={lang} />
+          {hasText(inLang(m.dates?.toGoLabel, lang)) && <Unit unit={inLang(m.dates.toGoLabel, lang)} center={center} />}
         </div>
       );
     }
@@ -254,7 +342,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
         <div style={{ position: 'relative', width: ring, height: ring, flex: 'none', alignSelf: center ? 'center' : 'flex-start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <ThinRing size={ring} fraction={m.lead?.fraction || 0} />
           <div style={{ width: '64%' }}><BigNum text={w.big} max={Math.round(ring * 0.5)} height={Math.round(ring * 0.46)} font={font} align="center" /></div>
-          <Unit unit={w.unit} center size={24} />
+          <Unit unit={unit} center size={24} />
         </div>
       </div>
     );
@@ -268,7 +356,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
       {tagline}
       <BigNum text={w.big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} />
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 26px', justifyContent: center ? 'center' : 'flex-start' }}>
-        <Unit unit={w.unit} center={center} />
+        <Unit unit={unit} center={center} />
         <Sub sub={w.sub} center={center} />
       </div>
       {ticksOn && <div style={{ width: '100%', marginTop: portrait ? 16 : 12, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}>
@@ -326,12 +414,13 @@ function ZeroView({ m, L, portrait }) {
   );
 }
 
-function DayView({ m, L, portrait, coming }) {
+function DayView({ m, L, portrait, coming, lang }) {
   const di = m.dayIndex;
   const center = L.align === 'center';
   const dense = isLong(m.name) || [...(m.event?.en || '')].length + [...(m.event?.he || '')].length > 100;
   const size = portrait ? (dense ? NAME.dayPortLong : NAME.dayPort) : (dense ? NAME.dayLong : NAME.day);
-  const keys = orderedBlocks(L).filter((k) => k !== 'name' && k !== 'begins');
+  const keys = orderedBlocks(L).filter((k) => k !== 'name' && k !== 'begins' && k !== 'why');
+  const whyOn = orderedBlocks(L).includes('why') && hasText(m.why);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <div data-occ-col="" style={{ flex: 1, minHeight: 0, width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: portrait ? 16 : 10, textAlign: center ? 'center' : 'start' }}>
@@ -346,7 +435,8 @@ function DayView({ m, L, portrait, coming }) {
             </span>
           )}
         </div>
-        <Details m={m} keys={keys} center={center} eventSize={dense ? 28 : portrait ? 36 : 32} />
+        {whyOn && <WhyBlock why={m.why} L={L} width={portrait ? 940 : 1680} hero center={center} lang={lang} k={`day|${m.key}`} />}
+        <Details m={m} keys={keys} center={center} eventSize={dense ? 28 : portrait ? 36 : 32} lang={lang} L={L} portrait={portrait} />
       </div>
       {shows(L, 'coming') && <div style={{ width: '100%', flex: 'none' }}><Coming list={coming} portrait={portrait} /></div>}
     </div>
@@ -363,7 +453,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     const after = at >= 0 ? blocks.slice(at + 1) : blocks;
     const part = (keys) => keys.map((k) => (k === 'name'
       ? <Name key={k} name={m.name} L={L} size={long ? NAME.portLong : NAME.port} align={L.align} k={m.key} />
-      : <Details key={k} m={m} keys={[k]} center={center} />));
+      : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait whyWidth={940} />));
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
         <div style={{ flex: '0 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
@@ -381,7 +471,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
       {blocks.map((k, i) => (k === 'name'
         ? <React.Fragment key={k}><Name name={m.name} L={L} size={long ? NAME.sideLong : NAME.side} align={L.align} k={m.key} />{i < blocks.length - 1 && <Rule center={center} />}</React.Fragment>
-        : <Details key={k} m={m} keys={[k]} center={center} />))}
+        : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} whyWidth={840} />))}
     </div>
   );
   const count = (
@@ -421,10 +511,11 @@ function Explain({ ex, k }) {
 }
 
 /** The vort page: the name and the countdown on one compact line, then the explanation (one language per page when it is long) and its source. */
-function VortView({ m, ex, portrait, font }) {
+function VortView({ m, ex, portrait, font, lang }) {
   const w = m.words;
   const line = m.form === 'day' || m.form === 'zero' ? m.dayLabel || m.zero : null;
   const nm = [m.name.he, m.name.en].filter(Boolean);
+  const vu = unitWords(m, lang);
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
       <Fit key={`vn|${m.key}|${portrait}`} wrap vcenter max={portrait ? 60 : 54} min={30} style={{ flex: 'none', width: '100%', height: portrait ? 120 : 100, overflow: 'visible', fontWeight: 700, color: 'var(--ink)', lineHeight: 1.2, textAlign: 'center', marginTop: 6 }}>
@@ -434,7 +525,7 @@ function VortView({ m, ex, portrait, font }) {
         {line ? <Label en={line.en} heText={line.he} color={ACC} size={28} /> : (
           <>
             <span className="tt-num" style={{ fontFamily: font, fontSize: 64, fontWeight: 600, lineHeight: 1 }}>{w.big}</span>
-            <Label en={`${w.unit.en || ''}${w.sub?.en ? ` ${w.sub.en}` : ''}`} heText={w.unit.he ? `${w.unit.he}${w.sub?.he ? ` ${w.sub.he}` : ''}` : ''} color={ACC} size={26} />
+            <Label en={`${vu.en || ''}${w.sub?.en ? ` ${w.sub.en}` : ''}`} heText={vu.he ? `${vu.he}${w.sub?.he ? ` ${w.sub.he}` : ''}` : ''} color={ACC} size={26} />
           </>
         )}
       </div>
@@ -516,7 +607,7 @@ function AdventCard({ m, L, portrait, font, pager, photo, nowMs, fast, lang }) {
           : (
             <div data-occ-count={m.form} style={{ display: 'flex', alignItems: 'flex-end', gap: 22, flexWrap: 'wrap' }}>
               <div style={{ width: portrait ? 300 : 240, flex: 'none' }}><BigNum text={w.big} max={200} height={scaled(portrait ? 190 : 170, L)} font={font} /></div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8, minWidth: 0 }}><Unit unit={w.unit} /><Sub sub={w.sub} /></div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingBottom: 8, minWidth: 0 }}><Unit unit={unitWords(m, lang)} /><Sub sub={w.sub} /></div>
             </div>
           )
       ) : (
@@ -595,13 +686,15 @@ function readSecs(ex) {
 /**
  * When the worst content (60-character names, long event lines, a full coming-up strip) does not fit the panel, parts go
  * in order of least importance instead of anything being cut: 1 the coming-up strip, 2 the tick row and the tagline,
- * 3 everything a little smaller. Measured in layout px after each page renders (and after fonts load).
+ * 3 the why text's source line, 4 the date range and everything a little smaller (the why text itself shrinks to 28 px, never goes). Measured in layout px after each page renders (and after fonts load).
  */
 function squeezed(L, level) {
   if (!level) return L;
   const show = { ...L.show, coming: false };
   if (level >= 2) Object.assign(show, { pips: false, bar: false, tagline: false });
-  return { ...L, show, k: level >= 3 ? (L.k || 1) * 0.84 : L.k };
+  if (level >= 3) show.whySource = false; // the 'Source: ...' line under the why text (never the text itself)
+  if (level >= 4) show.dateRange = false; // then the multi-day range, and everything a little smaller
+  return { ...L, show, k: level >= 4 ? (L.k || 1) * 0.84 : L.k };
 }
 function useSqueeze(ref, key) {
   const [level, setLevel] = useState(0);
@@ -614,7 +707,7 @@ function useSqueeze(ref, key) {
       if (!el || !el.clientHeight) return;
       // the body, and each column (a crowded column overflows into the strip under it without growing the body)
       const over = [el, ...el.querySelectorAll('[data-occ-col]')].some((c) => c.clientHeight && c.scrollHeight > c.clientHeight + 2);
-      if (over) setLevel((l) => (l < 3 ? l + 1 : l));
+      if (over) setLevel((l) => (l < 4 ? l + 1 : l));
     };
     check();
     let alive = true;
@@ -734,10 +827,10 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
         <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <Header pager={pager} />
-          {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} />
+          {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} lang={lang} />
             : cur.view === 'step' ? <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />
             : m.form === 'zero' ? <ZeroView m={m} L={L} portrait={portrait} />
-            : m.form === 'day' && !m.run ? <DayView m={m} L={L} portrait={portrait} coming={coming} />
+            : m.form === 'day' && !m.run ? <DayView m={m} L={L} portrait={portrait} coming={coming} lang={lang} />
               : <CountView m={m} L={L} portrait={portrait} coming={coming} font={font} nowMs={nowMs} fast={fast} lang={lang} />}
         </div>
       )}
