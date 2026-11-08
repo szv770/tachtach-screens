@@ -79,12 +79,12 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
    (clip-path on the sheet + translate3d/rotateX on the lower rod, same curve); hype pops / settle / sparks / the rail flash
    play once per change. All finite; Minimal motion and reduced motion: settled at once (the scroll just fades). */
 .m-smooth .tt-act [data-s], .m-lively .tt-act [data-s] { animation: ttSmIn 560ms cubic-bezier(.22,.7,.2,1) calc(260ms + var(--i, 0) * 90ms) both; }
-.m-smooth .tt-scroll-go .tt-scroll-paper, .m-lively .tt-scroll-go .tt-scroll-paper { animation: ttUnroll var(--open) cubic-bezier(.3,.75,.25,1) both; will-change: clip-path; }
-.m-smooth .tt-scroll-go .tt-scroll-rod, .m-lively .tt-scroll-go .tt-scroll-rod { animation: ttRodDown var(--open) cubic-bezier(.3,.75,.25,1) both; will-change: transform; }
-.m-smooth .tt-scroll-go [data-s], .m-lively .tt-scroll-go [data-s] { animation: ttSmIn 620ms cubic-bezier(.22,.7,.2,1) calc(var(--open) * .32 + var(--i, 0) * 80ms) both; }
-.m-smooth .tt-scroll-close .tt-scroll-paper, .m-lively .tt-scroll-close .tt-scroll-paper { animation: ttRollUp var(--close) cubic-bezier(.55,0,.7,.35) both; }
-.m-smooth .tt-scroll-close .tt-scroll-rod, .m-lively .tt-scroll-close .tt-scroll-rod { animation: ttRodUp var(--close) cubic-bezier(.55,0,.7,.35) both; }
-.m-smooth .tt-scroll-close [data-s], .m-lively .tt-scroll-close [data-s] { animation: none; }
+.m-smooth .tt-scroll-go .tt-scroll-paper, .m-lively .tt-scroll-go .tt-scroll-paper { animation: ttUnroll var(--open) cubic-bezier(.42,.08,.24,1) 300ms both; will-change: clip-path; }
+.m-smooth .tt-scroll-go .tt-scroll-rod, .m-lively .tt-scroll-go .tt-scroll-rod { animation: ttRodDown var(--open) cubic-bezier(.42,.08,.24,1) 300ms both; will-change: transform; }
+.m-smooth .tt-scroll-go [data-s], .m-lively .tt-scroll-go [data-s] { animation: ttSmIn 620ms cubic-bezier(.22,.7,.2,1) calc(300ms + var(--open) * .45 + var(--i, 0) * 80ms) both; }
+.m-smooth .tt-scroll-close .tt-scroll-paper, .m-lively .tt-scroll-close .tt-scroll-paper { animation: ttRollUp var(--close) cubic-bezier(.5,0,.3,1) 160ms both; }
+.m-smooth .tt-scroll-close .tt-scroll-rod, .m-lively .tt-scroll-close .tt-scroll-rod { animation: ttRodUp var(--close) cubic-bezier(.5,0,.3,1) 160ms both; }
+.m-smooth .tt-scroll-close [data-s], .m-lively .tt-scroll-close [data-s] { animation: ttFadeOut 240ms ease-in both; }
 .m-minimal .tt-scroll-go .tt-scroll-paper { animation: ttFadeIn 400ms linear both; }
 @keyframes ttUnroll { 0% { clip-path: inset(0 0 100% 0); } 84% { clip-path: inset(0 0 -1.4% 0); } 100% { clip-path: inset(0 0 0 0); } }
 @keyframes ttRodDown { 0% { transform: translate3d(0, 0, 0) rotateX(6deg); } 84% { transform: translate3d(0, calc(var(--rh) * 1.014), 0) rotateX(.5deg); } 100% { transform: translate3d(0, var(--rh), 0) rotateX(0deg); } }

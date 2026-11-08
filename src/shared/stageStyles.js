@@ -19,5 +19,5 @@ export const STAGE_STYLE_LIST = Object.freeze([
 export const STAGE_STYLES = Object.freeze(STAGE_STYLE_LIST.map((s) => s.id));
 export const DEFAULT_STAGE_STYLE = 'scroll';
 /** Extra seconds a style's reveal adds to an explanation act (open + close), so the rotation is asked for enough time. */
-export const STAGE_REVEAL_MS = Object.freeze({ scroll: Object.freeze({ open: 1300, close: 800 }), calm: Object.freeze({ open: 0, close: 0 }) });
+export const STAGE_REVEAL_MS = Object.freeze({ scroll: Object.freeze({ open: 1600, close: 1000 }), calm: Object.freeze({ open: 0, close: 0 }) });
 export const stageStyleOf = (id) => (STAGE_STYLES.includes(id) ? id : DEFAULT_STAGE_STYLE);
