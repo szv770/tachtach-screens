@@ -101,19 +101,23 @@ function DatePart({ t }) {
 }
 
 /** The real width (layout px) of the box a block sits in, so a text box is sized for the column it is really in. */
-function useBoxWidth(guess) {
+function useBoxWidth(guess, withHeight = false) {
   const ref = useRef(null);
   const [w, setW] = useState(guess);
+  const [h, setH] = useState(0);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return undefined;
-    const read = () => { if (el.clientWidth) setW((o) => (Math.abs(o - el.clientWidth) > 2 ? el.clientWidth : o)); };
+    const read = () => {
+      if (el.clientWidth) setW((o) => (Math.abs(o - el.clientWidth) > 2 ? el.clientWidth : o));
+      if (withHeight && el.clientHeight) setH((o) => (Math.abs(o - el.clientHeight) > 2 ? el.clientHeight : o));
+    };
     read();
     let ro;
     if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(read); ro.observe(el); }
     return () => ro?.disconnect();
   }, []);
-  return [ref, w];
+  return withHeight ? [ref, w, h] : [ref, w];
 }
 
 const hasText = (x) => !!(x && (x.en || x.he));
@@ -193,15 +197,23 @@ function WhyBlock({ why, L, width, hero = false, band = false, center, lang, k }
   const { size, height } = whyBox(w, boxW, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round((band ? 40 : 44) * kk), min: 28, row: band });
   const ta = center ? 'center' : 'start';
   return (
-    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, ...(band ? { marginTop: 12, paddingTop: 12, borderTop: '2px solid var(--line)' } : null), display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
-      <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
+    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, ...(band ? { marginTop: 8, paddingTop: 10, borderTop: '2px solid var(--line)' } : null), display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
+      {band ? (
+        // the band: the source shares the label's row (one line less), wrapping under it when it is long
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '2px 32px', width: '100%' }}>
+          <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} />
+          {src && <span data-occ-why-source="" dir="auto" style={{ flex: '0 1 auto', minWidth: 0, fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+            <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {bidiNodes(src)}
+          </span>}
+        </div>
+      ) : <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />}
       <Fit key={`wy|${k}|${size}|${height}|${lang}`} wrap vcenter max={size + 6} min={hero ? 30 : 28} data-occ-why-text="" style={{ flex: '0 1 auto', width: '100%', height, minHeight: Math.min(height, 120), overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
         <div style={band ? { display: 'flex', flexDirection: 'row', gap: 48, alignItems: 'flex-start' } : { display: 'flex', flexDirection: 'column', gap: '.4em' }}>
           {w.en && <div dir={textDir(w.en)} style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
           {w.he && <div className="tt-he" dir="rtl" style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
         </div>
       </Fit>
-      {src && (
+      {src && !band && (
         <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
           <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {bidiNodes(src)}
         </div>
@@ -333,7 +345,7 @@ function RunCount({ m, L, portrait, font, center, tagline }) {
 }
 
 /** The countdown itself, in its current form: tagline, the big numerals, the unit, the tick row. */
-function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
+function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang, maxH = 0 }) {
   const w = m.words;
   const c = m.countdown;
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
@@ -354,7 +366,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
     }
   }
   if (m.form === 'far' && shows(L, 'ring')) {
-    const ring = scaled(portrait ? 560 : compact ? 380 : 440, L);
+    const ring = Math.min(scaled(portrait ? 560 : compact ? 380 : 440, L), maxH ? Math.max(240, maxH - 70) : 9999);
     return (
       <div data-occ-count="far" style={{ ...col, gap: 18 }}>
         {tagline}
@@ -366,7 +378,7 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang }) {
       </div>
     );
   }
-  const numH = scaled(portrait ? 290 : compact ? 260 : 330, L);
+  const numH = Math.min(scaled(portrait ? 290 : compact ? 260 : 330, L), maxH ? Math.max(150, maxH - 200) : 9999);
   const n = m.form === 'far' ? (m.lead?.days || FAR_DAYS) : m.form === 'days' ? FAR_DAYS : m.form === 'hours' ? 24 : 60;
   const left = m.form === 'far' ? (c.days || 0) : m.form === 'days' ? c.days : m.form === 'hours' ? c.hours + (c.minutes > 0 ? 1 : 0) : c.minutes + ((c.seconds || 0) > 0 ? 1 : 0);
   const ticksOn = m.form === 'far' || m.form === 'days' ? shows(L, 'pips') : shows(L, 'bar') && !c.approx;
@@ -463,6 +475,7 @@ function DayView({ m, L, portrait, coming, lang }) {
 }
 
 function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
+  const [countRef, , countH] = useBoxWidth(0, true);
   const center = L.align === 'center';
   const long = isLong(m.name);
   const blocks = orderedBlocks(L);
@@ -497,13 +510,13 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     </div>
   );
   const count = (
-    <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
-      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} />
+    <div ref={countRef} data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
+      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} maxH={countH} />
     </div>
   );
   return (
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: countLeft ? 'minmax(0, 1fr) minmax(0, 1.08fr)' : 'minmax(0, 1.08fr) minmax(0, 1fr)', columnGap: 52, alignItems: 'stretch', marginTop: 10 }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', gridTemplateColumns: countLeft ? 'minmax(0, 1fr) minmax(0, 1.08fr)' : 'minmax(0, 1.08fr) minmax(0, 1fr)', columnGap: 52, alignItems: 'stretch', marginTop: 10 }}>
         {countLeft ? <>{count}{info}</> : <>{info}{count}</>}
       </div>
       {whyBand && <WhyBlock why={m.why} L={L} width={940} band center={center} lang={lang} k={m.key} />}
