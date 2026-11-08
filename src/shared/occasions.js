@@ -35,6 +35,10 @@ import { zonedParts, zonedTimeToUtc, DEFAULT_TZ } from './announcements.js';
 import { isYomTov } from './chazan.js';
 import { zmanMinutes } from './dayNight.js';
 import { normalizeLayout, layoutProblem, resolveLayout } from './layoutConfig.js';
+import { STAGE_STYLES, DEFAULT_STAGE_STYLE, stageStyleOf } from './stageStyles.js';
+import { HYPES, DEFAULT_HYPE } from './occasionHype.js';
+export { STAGE_STYLES, STAGE_STYLE_LIST, DEFAULT_STAGE_STYLE } from './stageStyles.js';
+export { HYPES, HYPE_LABEL, HYPE_HINT, DEFAULT_HYPE } from './occasionHype.js';
 
 export class OccasionsError extends Error {}
 
@@ -131,9 +135,6 @@ export const LAYOUT_DEFAULTS = Object.freeze({
 
 export const DISPLAYS = Object.freeze(['classic', 'flip']);
 export const DISPLAY_LABEL = Object.freeze({ classic: 'Classic (one big number)', flip: 'Flip clock (days, hours, minutes, seconds)' });
-/** How the page moves from the big number to the why / story (kiosk Stage): 'calm' = the acts glide across, 'scroll' = a plain paper scroll unrolls from the header. */
-export const STAGE_STYLES = Object.freeze(['calm', 'scroll']);
-export const STAGE_STYLE_LABEL = Object.freeze({ calm: 'Calm (the text glides in)', scroll: 'Scroll (a paper scroll unrolls)' });
 export const KINDS = Object.freeze(['countdown', 'countup']);
 export const GRIDS = Object.freeze({ '3x3': { cols: 3, rows: 3 }, '4x3': { cols: 4, rows: 3 }, '5x4': { cols: 5, rows: 4 }, '6x4': { cols: 6, rows: 4 } });
 export const CHIMES = Object.freeze(['soft', 'bell', 'fanfare']);
@@ -154,7 +155,7 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   finalOn: true,
   // words per stage / per milestone ({} = the built-in lines), the look and the layout (complete objects)
   stageText: Object.freeze({}), milestoneText: Object.freeze({}), look: LOOK_DEFAULTS, layout: LAYOUT_DEFAULTS,
-  display: 'classic', stageStyle: 'scroll', sound: SOUND_DEFAULTS,
+  display: 'classic', stageStyle: DEFAULT_STAGE_STYLE, hype: DEFAULT_HYPE, sound: SOUND_DEFAULTS,
   showCategories: CATEGORIES, tapForms: DEFAULT_TAP_FORMS, autoForms: AUTO_DEFAULTS, shareEmoji: false,
 });
 
@@ -536,6 +537,7 @@ export function normalizeSettings(raw) {
     layout: resolveLayout(LAYOUT_DEFAULTS, normalizeLayout(s.layout, LAYOUT_SPEC), null),
     display: oneOf(s.display, DISPLAYS, D.display),
     stageStyle: oneOf(s.stageStyle, STAGE_STYLES, D.stageStyle),
+    hype: oneOf(s.hype, HYPES, D.hype),
     sound: normalizeSound(s.sound),
     showCategories: normalizeShowCategories(s.showCategories),
     tapForms: normalizeTapForms(s.tapForms, [...D.tapForms]),
@@ -603,6 +605,7 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     total: from ? intIn(raw.total ?? raw.days, RANGES.total, 1) : null,
     display: oneOf(raw.display, DISPLAYS, null),
     stageStyle: oneOf(raw.stageStyle, STAGE_STYLES, null),
+    hype: oneOf(raw.hype, HYPES, null),
     advent: normalizeAdvent(raw.advent),
     soundOn: typeof raw.soundOn === 'boolean' ? raw.soundOn : null,
     touch: raw.touch !== false,
@@ -720,7 +723,8 @@ export function occasionProblem(raw) {
   if (raw.layout != null) { const m = layoutProblem(raw.layout, LAYOUT_SPEC); if (m) return m; }
   if (raw.explainChecked != null && typeof raw.explainChecked !== 'boolean') return 'Checked: yes or no.';
   if (raw.display != null && !DISPLAYS.includes(raw.display)) return 'Display: classic or flip clock.';
-  if (raw.stageStyle != null && !STAGE_STYLES.includes(raw.stageStyle)) return 'How the explanation appears: calm or scroll.';
+  if (raw.stageStyle != null && !STAGE_STYLES.includes(raw.stageStyle)) return 'How the explanation appears: one of the listed styles.';
+  if (raw.hype != null && !HYPES.includes(raw.hype)) return 'Hype: calm, lively or maximum.';
   if (raw.kind != null && !KINDS.includes(raw.kind)) return 'Kind: countdown or count-up.';
   if (raw.kind === 'countup') {
     if (!normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
@@ -837,7 +841,8 @@ export function settingsProblem(patch) {
     if (k === 'look') { const m = lookProblem(v, false); if (m) return m; continue; }
     if (k === 'layout') { const m = layoutProblem(v, LAYOUT_SPEC); if (m) return m; continue; }
     if (k === 'display') { if (!DISPLAYS.includes(v)) return 'Display: classic or flip clock.'; continue; }
-    if (k === 'stageStyle') { if (!STAGE_STYLES.includes(v)) return 'How the explanation appears: calm or scroll.'; continue; }
+    if (k === 'stageStyle') { if (!STAGE_STYLES.includes(v)) return 'How the explanation appears: one of the listed styles.'; continue; }
+    if (k === 'hype') { if (!HYPES.includes(v)) return 'Hype: calm, lively or maximum.'; continue; }
     if (k === 'showCategories') { if (!Array.isArray(v) || v.some((c) => !CATEGORIES.includes(c))) return 'Which kinds of days show: a list of the known kinds.'; continue; }
     if (k === 'tapForms') { const m = formsProblem(v, null); if (m) return m; continue; }
     if (k === 'autoForms') { const m = formsProblem([...DEFAULT_TAP_FORMS], v); if (m) return m; continue; }
@@ -1433,7 +1438,8 @@ export function heroModel(row, now, ctx) {
     look: resolveLook(s, o),
     layout: resolveOccLayout(s, o),
     display: o.display || s.display || 'classic',
-    stageStyle: o.stageStyle || s.stageStyle || 'scroll',
+    stageStyle: stageStyleOf(o.stageStyle || s.stageStyle),
+    hype: o.hype || s.hype || DEFAULT_HYPE,
     kind: o.kind === 'countup' ? 'countup' : 'countdown',
     run: o.kind === 'countup' ? runOf(row, now, { ...ctx, settings: s, today }, pickLang) : null,
     advent: adventOf(row, now, c, s, today, daysLeft, pickLang),
