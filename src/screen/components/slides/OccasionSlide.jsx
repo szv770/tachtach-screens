@@ -98,6 +98,22 @@ function DatePart({ t }) {
   return <>{t.slice(0, i + 1)} <span style={{ whiteSpace: 'nowrap' }}>{t.slice(i + 2)}</span></>;
 }
 
+/** The real width (layout px) of the box a block sits in, so a text box is sized for the column it is really in. */
+function useBoxWidth(guess) {
+  const ref = useRef(null);
+  const [w, setW] = useState(guess);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const read = () => { if (el.clientWidth) setW((o) => (Math.abs(o - el.clientWidth) > 2 ? el.clientWidth : o)); };
+    read();
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(read); ro.observe(el); }
+    return () => ro?.disconnect();
+  }, []);
+  return [ref, w];
+}
+
 const hasText = (x) => !!(x && (x.en || x.he));
 
 /**
@@ -115,8 +131,8 @@ function DateBlock({ m, center, lang, L, portrait }) {
   const k = L.k || 1;
   return (
     <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al, gap: 4, lineHeight: 1.2, textAlign: center ? 'center' : 'start' }}>
-      {day.en && <div data-occ-day="" dir={textDir(day.en)} style={{ fontFamily: F.enD, fontSize: Math.round((portrait ? 54 : 50) * k), fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.005em', unicodeBidi: 'isolate' }}><DatePart t={day.en} /></div>}
-      {day.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(Math.round((day.en ? 38 : 50) * k)), fontWeight: day.en ? 400 : 600, color: day.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.3 }}>{day.he}</div>}
+      {day.en && <div data-occ-day="" dir={textDir(day.en)} style={{ fontFamily: F.enD, fontSize: Math.round((portrait ? 52 : 46) * k), fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.005em', unicodeBidi: 'isolate' }}><DatePart t={day.en} /></div>}
+      {day.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(Math.round((day.en ? 32 : 46) * k)), fontWeight: day.en ? 400 : 600, color: day.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.3 }}>{day.he}</div>}
       {hasText(range) && (
         <div data-occ-range="" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 18px', justifyContent: al, alignItems: 'baseline', color: SOFT_INK, lineHeight: 1.25 }}>
           {range.en && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500 }}><DatePart t={range.en} /></span>}
@@ -152,8 +168,8 @@ function Begins({ m, center, lang }) {
     <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 4, lineHeight: 1.25 }}>
       {(enA || heA) && <Label en={enA} heText={heA} size={big ? 26 : 24} style={{ justifyContent: jc }} />}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: jc }}>
-        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: big ? 46 : 38, fontWeight: 600, color: ACC }}>{enB}</span>}
-        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(big ? 40 : 34), fontWeight: 500, color: ACC }}>{heB}</span>}
+        {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: big ? 40 : 38, fontWeight: 600, color: ACC }}>{enB}</span>}
+        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(big ? 36 : 34), fontWeight: 500, color: ACC }}>{heB}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={COPY.approx.he} />}
     </div>
@@ -167,14 +183,15 @@ function Begins({ m, center, lang }) {
  * `hero` = the day view, where it is the main line under the name.
  */
 function WhyBlock({ why, L, width, hero = false, center, lang, k }) {
+  const [boxRef, boxW] = useBoxWidth(width);
   const w = inLang(why, lang);
   if (!why || !hasText(w) || !shows(L, 'why')) return null;
   const src = why.source && shows(L, 'whySource') ? String(why.source) : '';
   const kk = L.k || 1;
-  const { size, height } = whyBox(w, width, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round(44 * kk), min: 28 });
+  const { size, height } = whyBox(w, boxW, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round(44 * kk), min: 28 });
   const ta = center ? 'center' : 'start';
   return (
-    <div data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
+    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
       <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
       <Fit key={`wy|${k}|${size}|${height}|${lang}`} wrap vcenter max={size + 6} min={hero ? 30 : 28} data-occ-why-text="" style={{ flex: '0 1 auto', width: '100%', height, minHeight: Math.min(height, 120), overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
