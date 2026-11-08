@@ -11,13 +11,18 @@ import { LookEditor, DisplayField } from './occasions/LookSection.jsx';
 import { LayoutEditor } from './occasions/LayoutSection.jsx';
 import { SoundGlobal, SoundOwn } from './occasions/SoundSection.jsx';
 import AdventEditor from './occasions/AdventSection.jsx';
+import DatePicker from './occasions/DatePicker.jsx';
+import LibraryPicker from './occasions/LibraryPicker.jsx';
+import Timeline from './occasions/Timeline.jsx';
+import { advancedSummary, datePreview } from './occasions/occDates.js';
+import { libraryDraft } from '../../shared/occasionLibrary.js';
 import MomentCard from './occasions/MomentCard.jsx';
-import { explainChip, adventPreview, hypeSummary } from './occasions/occHelpers.js';
+import { adventPreview, hypeSummary } from './occasions/occHelpers.js';
 import { NumberField, ConfirmDialog } from './ui.jsx';
 import { useCopy } from './schedule/scheduleShared.jsx';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 import {
-  upcoming, ctxFrom, daysUntil, hebrewWords, civilWords, ruleWords, explainShows, normalizeOccasion, resolveLook, resolveOccLayout, occasionProblem, vortPrompt, countdownOf, countdownWords,
+  upcoming, ctxFrom, daysUntil, normalizeOccasion, resolveLook, resolveOccLayout, occasionProblem, vortPrompt, countdownOf, countdownWords,
   BEGINS, BEGINS_LABEL, PICKS, PICK_LABEL, LANGS, LANG_LABEL, RANGES, LIMITS, MONTH_EN, ZERO_WORDS, OCC_STYLES, SETTINGS_DEFAULTS, beginsOf, timeEn, STAGE_TEXT_DEFAULTS, LAYOUT_DEFAULTS, LOOK_DEFAULTS, windowDays,
 } from '../../shared/occasions.js';
 
@@ -45,28 +50,31 @@ const pad = (n) => String(n).padStart(2, '0');
 const localStamp = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const openPreview = (ms) => window.open(`/screen?preview=true${ms ? `&previewAt=${localStamp(ms)}` : ''}`, '_blank', 'noopener');
 
-function whenLeft(row, today) {
-  const d = daysUntil(row, today);
-  if (row.running) return 'On now';
-  if (d <= 0) return row.begin.evening ? 'Tonight' : 'Today';
-  if (d === 1) return row.begin.evening ? 'Tomorrow evening' : 'Tomorrow';
-  return `In ${d} days`;
-}
-
 const emptyDraft = () => ({
   on: true, nameEn: '', nameHe: '', rule: { kind: 'hebrew', month: 9, day: 19 }, repeat: 'yearly', year: '', days: 1, adar: 'adar2', missing30: '29',
-  beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', source: '', eventEn: '', eventHe: '',
+  beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', source: '', eventEn: '', eventHe: '',
   zeroKey: 'gutYomTov', zeroEn: '', zeroHe: '', celebrate: true, rail: true, banner: true, takeover: true, style: 'hype',
   explainChecked: false, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
   kind: 'countdown', from: null, total: 8, display: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
 });
 
-/** Add / edit one occasion (bottom sheet, sticky Save). */
-function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, busy, copy, appSettings, cache }) {
+const stepH = { fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: '10px' };
+const stepNum = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '28px', height: '28px', borderRadius: '50%', background: colors.accentSoft, color: colors.accent, fontSize: '14px', fontWeight: 700, flex: 'none' };
+function Step({ n, title, children, testId }) {
+  return (
+    <section style={{ display: 'grid', gap: '14px', minWidth: 0 }} aria-label={`Step ${n}: ${title}`} data-testid={testId}>
+      <h3 style={stepH}><span style={stepNum} aria-hidden="true">{n}</span>{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+/** Add / edit one occasion (bottom sheet, sticky Save): 1 Name and date, 2 What the bochurim see, 3 Countdown options, 4 Advanced. */
+function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, busy, copy, appSettings, cache, today }) {
   const [d, setD] = useState(() => ({ ...emptyDraft(), ...(initial || {}), year: initial?.year ?? '' }));
+  const [advOpen, setAdvOpen] = useState(false);
   const set = (patch) => setD((x) => ({ ...x, ...patch }));
   const setRule = (patch) => setD((x) => ({ ...x, rule: { ...x.rule, ...patch } }));
-  const kind = d.rule.kind;
   const countup = d.kind === 'countup';
   const from = d.from || { kind: 'gregorian', month: 1, day: 1, year: new Date().getFullYear() };
   const setFrom = (patch) => setD((x) => ({ ...x, from: { ...(x.from || from), ...patch } }));
@@ -74,7 +82,7 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
     ? { ...d, kind: 'countup', from: { ...from, month: Number(from.month), day: Number(from.day), year: Number(from.year) }, total: Number(d.total) || 0, days: Number(d.total) || 1, showDays: Number(d.showDays) || 0 }
     : { ...d, kind: 'countdown', from: null, year: d.repeat === 'once' ? Number(d.year) : null, days: Number(d.days) || 1, showDays: Number(d.showDays) || 0 };
   const problem = occasionProblem(payload);
-  // what this rule gives next (for the 'Next:' line)
+  // what this rule gives next (for the count-up line and the Claude prompt)
   const next = useMemo(() => {
     if (problem) return null;
     try {
@@ -87,151 +95,124 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
   }, [JSON.stringify(payload), settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const advPrev = useMemo(() => adventPreview(payload, settings, appSettings, cache), [JSON.stringify(payload.advent), JSON.stringify(payload.from), JSON.stringify(payload.rule), payload.showDays, settings]); // eslint-disable-line react-hooks/exhaustive-deps
   const lead = Number(d.showDays) > 0 ? Number(d.showDays) : settings.withinDays;
-  const dayOptions = Array.from({ length: kind === 'gregorian' ? 31 : 30 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
   const effBegins = beginsOf(d, settings);
+  const nextLine = countup && next ? datePreview({ ...d, rule: { kind: from.kind, month: from.month, day: from.day }, repeat: 'once', year: from.year, days: d.total }, settings, ctxNow) : null;
 
   return (
     <Sheet open onClose={onClose} title={initial?.id ? 'Edit occasion' : 'Add an occasion'} label="Occasion">
-      <div style={{ display: 'grid', gap: '14px', paddingBottom: '84px' }} data-testid="occ-sheet">
-        <div>
-          <span style={label}>Name in English</span>
-          <TextIn value={d.nameEn} onChange={(v) => set({ nameEn: v })} ariaLabel="Name in English" max={LIMITS.name} testId="occ-name-en" placeholder="Yud-Tes Kislev" />
-        </div>
-        <div>
-          <span style={label}>Name in Hebrew</span>
-          <TextIn value={d.nameHe} onChange={(v) => set({ nameHe: v })} ariaLabel="Name in Hebrew" dir="rtl" max={LIMITS.name} testId="occ-name-he" placeholder="י״ט כסלו" />
-        </div>
-
-        <Field label="What kind">
-          <Choices ariaLabel="Kind" value={d.kind} onChange={(v) => set({ kind: v, ...(v === 'countup' && !d.from ? { from } : {}) })}
-            options={[{ value: 'countdown', label: 'Countdown to a day' }, { value: 'countup', label: 'Count up: a run of days (Day 3 of 8)' }]} />
-        </Field>
-        {countup ? (
-          <>
-            <Field label="The run starts on">
-              <Choices ariaLabel="Kind of start date" value={from.kind} onChange={(v) => setFrom(v === 'hebrew' ? { kind: v, month: 9, day: 1, year: 5787 } : { kind: v, month: 1, day: 1, year: new Date().getFullYear() })} options={[{ value: 'gregorian', label: 'Regular date' }, { value: 'hebrew', label: 'Hebrew date' }]} />
-            </Field>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
-              <div><span style={label}>Month</span><Select ariaLabel="Start month" value={from.month} onChange={(v) => setFrom({ month: Number(v) })} options={from.kind === 'gregorian' ? GREG_MONTHS : HEB_MONTHS} /></div>
-              <div><span style={label}>Day</span><Select ariaLabel="Start day" value={from.day} onChange={(v) => setFrom({ day: Number(v) })} options={Array.from({ length: from.kind === 'gregorian' ? 31 : 30 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))} /></div>
-              <div><span style={label}>{from.kind === 'gregorian' ? 'Year' : 'Hebrew year'}</span><input type="number" inputMode="numeric" value={from.year} onChange={(e) => setFrom({ year: e.target.value })} aria-label="Start year" style={{ ...fieldStyle, width: '100%' }} /></div>
-            </div>
-            <div><span style={label}>How many days it runs (1-400)</span><NumberField value={Number(d.total) || 1} min={RANGES.total.min} max={RANGES.total.max} onCommit={(n) => set({ total: n })} ariaLabel="How many days it runs" style={{ ...fieldStyle, maxWidth: '110px' }} /></div>
-            <Hint>Before it starts the page counts down to the first day; then it says "Day 3 of 8" until the run is over.</Hint>
-          </>
-        ) : (
-          <>
-        <Field label="Date">
-          <Choices ariaLabel="Kind of date" value={kind} onChange={(v) => setRule(v === 'roshChodesh' ? { kind: v, month: 9 } : v === 'gregorian' ? { kind: v, month: 1, day: 1 } : { kind: v, month: 9, day: 19 })}
-            options={[{ value: 'hebrew', label: 'Hebrew date' }, { value: 'roshChodesh', label: 'Rosh Chodesh' }, { value: 'gregorian', label: 'Regular calendar' }]} />
-        </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: kind === 'roshChodesh' ? '1fr' : 'minmax(0, 2fr) minmax(0, 1fr)', gap: '10px' }}>
+      <div style={{ display: 'grid', gap: '22px', paddingBottom: '84px' }} data-testid="occ-sheet">
+        <Step n={1} title="Name and date" testId="occ-step-1">
           <div>
-            <span style={label}>Month</span>
-            <Select ariaLabel="Month" testId="occ-month" value={d.rule.month} onChange={(v) => setRule({ month: Number(v) })}
-              options={kind === 'gregorian' ? GREG_MONTHS : kind === 'roshChodesh' ? [{ value: 0, label: 'Every month' }, ...HEB_MONTHS.filter((m) => m.value !== 7)] : HEB_MONTHS} />
+            <span style={label}>Name in English</span>
+            <TextIn value={d.nameEn} onChange={(v) => set({ nameEn: v })} ariaLabel="Name in English" max={LIMITS.name} testId="occ-name-en" placeholder="Yud-Tes Kislev" />
           </div>
-          {kind !== 'roshChodesh' && (
-            <div>
-              <span style={label}>Day</span>
-              <Select ariaLabel="Day" testId="occ-day" value={d.rule.day} onChange={(v) => setRule({ day: Number(v) })} options={dayOptions} />
+          <div>
+            <span style={label}>Name in Hebrew</span>
+            <TextIn value={d.nameHe} onChange={(v) => set({ nameHe: v })} ariaLabel="Name in Hebrew" dir="rtl" max={LIMITS.name} testId="occ-name-he" placeholder="י״ט כסלו" />
+          </div>
+          <Field label="What kind" style={{ marginTop: 0 }}>
+            <Choices ariaLabel="Kind" value={d.kind} onChange={(v) => set({ kind: v, ...(v === 'countup' && !d.from ? { from } : {}) })}
+              options={[{ value: 'countdown', label: 'Countdown to a day' }, { value: 'countup', label: 'Count up: a run of days (Day 3 of 8)' }]} />
+          </Field>
+          {countup ? (
+            <>
+              <Field label="The run starts on" style={{ marginTop: 0 }}>
+                <Choices ariaLabel="Kind of start date" value={from.kind} onChange={(v) => setFrom(v === 'hebrew' ? { kind: v, month: 9, day: 1, year: 5787 } : { kind: v, month: 1, day: 1, year: new Date().getFullYear() })} options={[{ value: 'gregorian', label: 'Regular date' }, { value: 'hebrew', label: 'Hebrew date' }]} />
+              </Field>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
+                <div><span style={label}>Month</span><Select ariaLabel="Start month" value={from.month} onChange={(v) => setFrom({ month: Number(v) })} options={from.kind === 'gregorian' ? GREG_MONTHS : HEB_MONTHS} /></div>
+                <div><span style={label}>Day</span><Select ariaLabel="Start day" value={from.day} onChange={(v) => setFrom({ day: Number(v) })} options={Array.from({ length: from.kind === 'gregorian' ? 31 : 30 }, (_, i) => ({ value: i + 1, label: String(i + 1) }))} /></div>
+                <div><span style={label}>{from.kind === 'gregorian' ? 'Year' : 'Hebrew year'}</span><input type="number" inputMode="numeric" value={from.year} onChange={(e) => setFrom({ year: e.target.value })} aria-label="Start year" style={{ ...fieldStyle, width: '100%' }} /></div>
+              </div>
+              <div><span style={label}>How many days it runs (1-400)</span><NumberField value={Number(d.total) || 1} min={RANGES.total.min} max={RANGES.total.max} onCommit={(n) => set({ total: n })} ariaLabel="How many days it runs" style={{ ...fieldStyle, maxWidth: '110px' }} /></div>
+              <Hint>Before it starts the page counts down to the first day; then it says "Day 3 of 8" until the run is over.</Hint>
+              {nextLine?.next && (
+                <p style={{ ...small, margin: 0, color: colors.text }} data-testid="occ-next">
+                  Hebrew: <strong>{nextLine.hebrew}</strong> · Starts: <strong>{nextLine.next.long}</strong> ({nextLine.next.inText})
+                </p>
+              )}
+            </>
+          ) : (
+            <DatePicker d={d} set={set} setRule={setRule} settings={settings} ctxNow={ctxNow} today={today} />
+          )}
+        </Step>
+
+        <Step n={2} title="What the bochurim see" testId="occ-step-2">
+          <p style={{ ...small, margin: '-6px 0 0' }}>The name and the dates always show. Here you can add why the day is special and why we celebrate it: a short line for the screen and the whole story, with the source.</p>
+          <ExplainBox d={d} set={set} copyPrompt={() => copy(vortPrompt(next, d.nameEn || d.nameHe), 'Prompt copied')} />
+        </Step>
+
+        <Step n={3} title="Countdown options" testId="occ-step-3">
+          <Field label="When it begins (the countdown's zero)" style={{ marginTop: 0 }} hint={effBegins === 'candles' ? 'Candle lighting uses the minutes set in Location & weather. When that evening is itself Shabbos or Yom Tov, candles are lit after nightfall, so the countdown goes to nightfall.' : effBegins === 'midnight' ? 'Counts to 12:00 AM of the day.' : effBegins === 'time' ? '' : 'From the screen\'s zmanim for that evening.'}>
+            <Choices ariaLabel="When it begins" value={d.beginsAt} onChange={(v) => set({ beginsAt: v })}
+              options={[{ value: 'default', label: `Same as the others (${BEGINS_LABEL[settings.beginsAt].toLowerCase()})` }, ...BEGINS.map((v) => ({ value: v, label: BEGINS_LABEL[v] }))]} />
+          </Field>
+          {effBegins === 'time' && (
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <div><span style={label}>Time</span><input type="time" aria-label="Begins at" value={d.time || settings.time} onChange={(e) => e.target.value && set({ time: e.target.value })} style={{ ...fieldStyle, maxWidth: '150px' }} /></div>
+              <div style={{ minWidth: 0 }}><span style={label}>On</span>
+                <Choices ariaLabel="Which day" value={d.timeDay} onChange={(v) => set({ timeDay: v })} options={[{ value: 'eve', label: 'The evening before' }, { value: 'day', label: 'The day itself' }]} /></div>
             </div>
           )}
-        </div>
-        {kind === 'hebrew' && Number(d.rule.month) === 12 && (
-          <Field label="In a leap year (two Adars)">
-            <Choices ariaLabel="Adar in a leap year" value={d.adar} onChange={(v) => set({ adar: v })} options={[{ value: 'adar2', label: 'Adar II (like Purim)' }, { value: 'adar1', label: 'Adar I' }]} />
-          </Field>
-        )}
-        {kind === 'hebrew' && Number(d.rule.day) === 30 && (
-          <Field label="Years when this month has only 29 days">
-            <Choices ariaLabel="When the 30th does not exist" value={d.missing30} onChange={(v) => set({ missing30: v })} options={[{ value: '29', label: 'Use the 29th' }, { value: 'first', label: 'Use the 1st of the next month' }]} />
-          </Field>
-        )}
-        <Field label="Repeats">
-          <Choices ariaLabel="Repeats" value={d.repeat} onChange={(v) => set({ repeat: v })} options={[{ value: 'yearly', label: 'Every year' }, { value: 'once', label: 'Only once' }]} />
-        </Field>
-        {d.repeat === 'once' && (
           <div>
-            <span style={label}>{kind === 'gregorian' ? 'Year' : 'Hebrew year (for example 5787)'}</span>
-            <input type="number" inputMode="numeric" value={d.year} onChange={(e) => set({ year: e.target.value })} aria-label="Year" style={{ ...fieldStyle, maxWidth: '160px' }} data-testid="occ-year" />
+            <span style={label}>Show only in the last ... days (0 = same as the others, {settings.withinDays})</span>
+            <NumberField value={Number(d.showDays) || 0} min={RANGES.showDays.min} max={RANGES.showDays.max} onCommit={(n) => set({ showDays: n })} ariaLabel="Show only in the last days" style={{ ...fieldStyle, maxWidth: '96px' }} />
           </div>
-        )}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
+          <Field label="At the moment it begins, the screen says" style={{ marginTop: 0 }}>
+            <Select ariaLabel="Greeting" value={d.zeroKey || 'here'} onChange={(v) => set({ zeroKey: v })} options={Object.keys(ZERO_WORDS).map((k) => ({ value: k, label: ZERO_LABEL[k] }))} />
+          </Field>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
+            <div><span style={label}>Or your own words (English)</span><TextIn value={d.zeroEn} onChange={(v) => set({ zeroEn: v })} ariaLabel="Own greeting in English" max={LIMITS.zero} placeholder="L'chaim!" /></div>
+            <div><span style={label}>Hebrew</span><TextIn value={d.zeroHe} onChange={(v) => set({ zeroHe: v })} ariaLabel="Own greeting in Hebrew" dir="rtl" max={LIMITS.zero} placeholder="לחיים!" /></div>
+          </div>
+          <SwitchRow on={d.celebrate !== false} onChange={() => set({ celebrate: d.celebrate === false })} label="Confetti at that moment" note="A short burst that falls once and is gone. Turn it off for a solemn day." testId="occ-celebrate" />
+
           <div>
-            <span style={label}>How many days</span>
-            <NumberField value={Number(d.days) || 1} min={RANGES.days.min} max={RANGES.days.max} onCommit={(n) => set({ days: n })} ariaLabel="How many days" style={{ ...fieldStyle, maxWidth: '96px' }} />
+            <span style={label}>Event line (when and where), optional</span>
+            <TextIn value={d.eventEn} onChange={(v) => set({ eventEn: v })} ariaLabel="Event line in English" max={LIMITS.event} placeholder="Farbrengen 8:30 PM, main hall" testId="occ-event-en" />
+            <div style={{ height: '8px' }} />
+            <TextIn value={d.eventHe} onChange={(v) => set({ eventHe: v })} ariaLabel="Event line in Hebrew" dir="rtl" max={LIMITS.event} placeholder="התוועדות 8:30 בערב" />
+            <Hint>Shown on the last day and on the day itself. No student names.</Hint>
           </div>
-          {kind === 'roshChodesh' && <Hint style={{ margin: 0 }}>Rosh Chodesh is one or two days by itself.</Hint>}
-        </div>
-          </>
-        )}
-        {next && (
-          <p style={{ ...small, margin: 0, color: colors.text }} data-testid="occ-next">
-            Next: <strong>{civilWords(next.startISO).en}</strong> · {hebrewWords(next.startISO).en}{next.days > 1 ? ` · ${next.days} days` : ''}
-          </p>
-        )}
 
-        <Field label="When it begins (the countdown's zero)" hint={effBegins === 'candles' ? 'Candle lighting uses the minutes set in Location & weather. When that evening is itself Shabbos or Yom Tov, candles are lit after nightfall, so the countdown goes to nightfall.' : effBegins === 'midnight' ? 'Counts to 12:00 AM of the day.' : effBegins === 'time' ? '' : 'From the screen\'s zmanim for that evening.'}>
-          <Choices ariaLabel="When it begins" value={d.beginsAt} onChange={(v) => set({ beginsAt: v })}
-            options={[{ value: 'default', label: `Same as the others (${BEGINS_LABEL[settings.beginsAt].toLowerCase()})` }, ...BEGINS.map((v) => ({ value: v, label: BEGINS_LABEL[v] }))]} />
-        </Field>
-        {effBegins === 'time' && (
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <div><span style={label}>Time</span><input type="time" aria-label="Begins at" value={d.time || settings.time} onChange={(e) => e.target.value && set({ time: e.target.value })} style={{ ...fieldStyle, maxWidth: '150px' }} /></div>
-            <div style={{ minWidth: 0 }}><span style={label}>On</span>
-              <Choices ariaLabel="Which day" value={d.timeDay} onChange={(v) => set({ timeDay: v })} options={[{ value: 'eve', label: 'The evening before' }, { value: 'day', label: 'The day itself' }]} /></div>
+          <div>
+            <SwitchRow on={d.rail !== false} onChange={() => set({ rail: d.rail === false })} label="Rail card ('5 days to ...')" note="When the rail card is on for the Countdown (below the list)." />
+            <SwitchRow on={d.banner !== false} onChange={() => set({ banner: d.banner === false })} label="Banner on the day" note="When banners are on for the Countdown." />
+            <SwitchRow on={d.takeover !== false} onChange={() => set({ takeover: d.takeover === false })} label="Full-screen takeover at the moment it begins" note="When takeovers are on for the Countdown." />
+            <div style={{ marginTop: '6px' }}>
+              <span style={label}>Takeover style</span>
+              <Select ariaLabel="Takeover style" value={d.style} onChange={(v) => set({ style: v })} options={OCC_STYLES.map((v) => ({ value: v, label: STYLE_LABEL[v] || v }))} />
+            </div>
           </div>
-        )}
-        <div>
-          <span style={label}>Show only in the last ... days (0 = same as the others, {settings.withinDays})</span>
-          <NumberField value={Number(d.showDays) || 0} min={RANGES.showDays.min} max={RANGES.showDays.max} onCommit={(n) => set({ showDays: n })} ariaLabel="Show only in the last days" style={{ ...fieldStyle, maxWidth: '96px' }} />
-        </div>
+        </Step>
 
-        <Field label="At the moment it begins, the screen says">
-          <Select ariaLabel="Greeting" value={d.zeroKey || 'here'} onChange={(v) => set({ zeroKey: v })} options={Object.keys(ZERO_WORDS).map((k) => ({ value: k, label: ZERO_LABEL[k] }))} />
-        </Field>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '10px' }}>
-          <div><span style={label}>Or your own words (English)</span><TextIn value={d.zeroEn} onChange={(v) => set({ zeroEn: v })} ariaLabel="Own greeting in English" max={LIMITS.zero} placeholder="L'chaim!" /></div>
-          <div><span style={label}>Hebrew</span><TextIn value={d.zeroHe} onChange={(v) => set({ zeroHe: v })} ariaLabel="Own greeting in Hebrew" dir="rtl" max={LIMITS.zero} placeholder="לחיים!" /></div>
-        </div>
-        <SwitchRow on={d.celebrate !== false} onChange={() => set({ celebrate: d.celebrate === false })} label="Confetti at that moment" note="A short burst that falls once and is gone. Turn it off for a solemn day." testId="occ-celebrate" />
-
-        <div>
-          <span style={label}>Event line (when and where), optional</span>
-          <TextIn value={d.eventEn} onChange={(v) => set({ eventEn: v })} ariaLabel="Event line in English" max={LIMITS.event} placeholder="Farbrengen 8:30 PM, main hall" testId="occ-event-en" />
-          <div style={{ height: '8px' }} />
-          <TextIn value={d.eventHe} onChange={(v) => set({ eventHe: v })} ariaLabel="Event line in Hebrew" dir="rtl" max={LIMITS.event} placeholder="התוועדות 8:30 בערב" />
-          <Hint>Shown on the last day and on the day itself. No student names.</Hint>
-        </div>
-
-        <ExplainBox d={d} set={set} copyPrompt={() => copy(vortPrompt(next, d.nameEn || d.nameHe), 'Prompt copied')} />
-
-        <div>
-          <SwitchRow on={d.rail !== false} onChange={() => set({ rail: d.rail === false })} label="Rail card ('5 days to ...')" note="When the rail card is on for the Countdown (below the list)." />
-          <SwitchRow on={d.banner !== false} onChange={() => set({ banner: d.banner === false })} label="Banner on the day" note="When banners are on for the Countdown." />
-          <SwitchRow on={d.takeover !== false} onChange={() => set({ takeover: d.takeover === false })} label="Full-screen takeover at the moment it begins" note="When takeovers are on for the Countdown." />
-          <div style={{ marginTop: '6px' }}>
-            <span style={label}>Takeover style</span>
-            <Select ariaLabel="Takeover style" value={d.style} onChange={(v) => set({ style: v })} options={OCC_STYLES.map((v) => ({ value: v, label: STYLE_LABEL[v] || v }))} />
-          </div>
-        </div>
-        <h3 style={{ ...h3, marginTop: '6px' }}>Just this one</h3>
-        <p style={{ ...small, margin: '-8px 0 0' }}>Each choice below can follow the default set for every countdown, or be different for this occasion only.</p>
-        <Group title="Hype moments" summary="Milestone takeovers and the final minute" testId="occ-own-hype"><HypeOwn d={d} set={set} s={settings} /></Group>
-        <Group title="Words for each stage" summary={`${Object.keys(d.stageText || {}).length + Object.keys(d.milestoneText || {}).length} of its own`} testId="occ-own-words">
-          <WordsEditor level="own" stageText={d.stageText || {}} milestoneText={d.milestoneText || {}} baseStage={settings.stageText} baseMilestone={settings.milestoneText} onChange={(patch) => set(patch)} />
-        </Group>
-        <Group title="Look" summary={Object.keys(d.look || {}).length ? 'Its own look' : 'Follows the default'} testId="occ-own-look">
-          <DisplayField level="own" value={d.display} base={settings.display} onChange={(v) => set({ display: v })} />
-          <LookEditor level="own" look={d.look || {}} base={settings.look} onChange={(l) => set({ look: l })} />
-        </Group>
-        <Group title="Layout" summary={Object.keys(d.layout || {}).length ? 'Its own layout' : 'Follows the default'} testId="occ-own-layout">
-          <LayoutEditor level="own" layout={d.layout || {}} base={settings.layout} onChange={(l) => set({ layout: l })} />
-        </Group>
-        <Group title="Sound" summary={d.soundOn == null ? 'Follows the default' : d.soundOn ? 'On' : 'Off'}><SoundOwn d={d} set={set} sound={settings.sound} /></Group>
-        <Group title="Advent calendar" summary={d.advent?.on ? 'On' : 'Off'} testId="occ-own-advent"><AdventEditor d={d} set={set} lead={lead} preview={advPrev} /></Group>
-        <SwitchRow on={d.touch !== false} onChange={() => set({ touch: d.touch === false })} label="Touch on the TV" note="Lets people tap this countdown on a touch screen (also needs touch switched on for the screen)." />
+        <Step n={4} title="Advanced" testId="occ-step-4">
+          <button type="button" aria-expanded={advOpen} onClick={() => setAdvOpen(!advOpen)} data-testid="occ-advanced-toggle"
+            style={{ ...btn(false), width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left', padding: '8px 14px', minHeight: '56px' }}>
+            <span><strong style={{ fontSize: '15px' }}>Look, layout, hype, advent, sound</strong><span style={{ ...small, display: 'block', fontWeight: 400 }} data-testid="occ-advanced-summary">{advancedSummary(d, settings)}</span></span>
+            <span aria-hidden="true">{advOpen ? '−' : '+'}</span>
+          </button>
+          {advOpen && (
+            <div style={{ display: 'grid', gap: '14px' }} data-testid="occ-advanced">
+              <p style={{ ...small, margin: 0 }}>Each choice below can follow the default set for every countdown, or be different for this occasion only.</p>
+              <Group title="Hype moments" summary="Milestone takeovers and the final minute" testId="occ-own-hype"><HypeOwn d={d} set={set} s={settings} /></Group>
+              <Group title="Words for each stage" summary={`${Object.keys(d.stageText || {}).length + Object.keys(d.milestoneText || {}).length} of its own`} testId="occ-own-words">
+                <WordsEditor level="own" stageText={d.stageText || {}} milestoneText={d.milestoneText || {}} baseStage={settings.stageText} baseMilestone={settings.milestoneText} onChange={(patch) => set(patch)} />
+              </Group>
+              <Group title="Look" summary={Object.keys(d.look || {}).length ? 'Its own look' : 'Follows the default'} testId="occ-own-look">
+                <DisplayField level="own" value={d.display} base={settings.display} onChange={(v) => set({ display: v })} />
+                <LookEditor level="own" look={d.look || {}} base={settings.look} onChange={(l) => set({ look: l })} />
+              </Group>
+              <Group title="Layout" summary={Object.keys(d.layout || {}).length ? 'Its own layout' : 'Follows the default'} testId="occ-own-layout">
+                <LayoutEditor level="own" layout={d.layout || {}} base={settings.layout} onChange={(l) => set({ layout: l })} />
+              </Group>
+              <Group title="Sound" summary={d.soundOn == null ? 'Follows the default' : d.soundOn ? 'On' : 'Off'}><SoundOwn d={d} set={set} sound={settings.sound} /></Group>
+              <Group title="Advent calendar" summary={d.advent?.on ? 'On' : 'Off'} testId="occ-own-advent"><AdventEditor d={d} set={set} lead={lead} preview={advPrev} /></Group>
+              <SwitchRow on={d.touch !== false} onChange={() => set({ touch: d.touch === false })} label="Touch on the TV" note="Lets people tap this countdown on a touch screen (also needs touch switched on for the screen)." />
+            </div>
+          )}
+        </Step>
         {initial?.id && <button type="button" style={btn(false, { color: colors.danger || colors.text })} onClick={onDelete} data-testid="occ-delete">Remove this occasion</button>}
       </div>
       <div style={{ position: 'sticky', bottom: 0, background: colors.surface || colors.card, padding: '10px 0', borderTop: `1px solid ${colors.line}`, display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -249,7 +230,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const [busy, setBusy] = useState(false);
   const [sheet, setSheet] = useState(null); // occasion | {} (new)
   const [confirm, setConfirm] = useState(null);
-  const [showOff, setShowOff] = useState(false);
+  const [adding, setAdding] = useState(false);
   const { copy, modal } = useCopy(notify);
 
   const load = useCallback(async () => {
@@ -291,7 +272,6 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const saveSettings = (patch, msg) => (canEdit ? change('PUT', '/settings', { settings: patch }, msg) : null);
   const toggleSlide = () => onUpdateSlides?.(slides.map((x) => (x.type === 'OCCASION' ? { ...x, enabled: !x.enabled } : x)));
   const onRows = rows.filter((r) => r.occasion.on);
-  const shownRows = showOff ? rows : onRows;
   const offCount = file.occasions.filter((o) => !o.on).length;
   const now = new Date();
   // what the TV shows now (the same rules as the kiosk)
@@ -354,34 +334,10 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
       <div style={card} data-testid="occ-list">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>Coming up</h3>
-          {canEdit && <button type="button" style={btn(true)} onClick={() => setSheet({})} data-testid="occ-add">+ Add an occasion</button>}
+          {canEdit && <button type="button" style={btn(true)} onClick={() => setAdding(true)} data-testid="occ-add">+ Add an occasion</button>}
         </div>
-        {shownRows.length === 0 && <p style={small}>Nothing on the list yet.</p>}
-        {shownRows.map((r) => {
-          const o = r.occasion;
-          return (
-            <div key={`${r.id}|${r.startISO}`} data-testid={`occ-row-${r.id}`} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 0', borderBottom: `1px solid ${colors.line}`, opacity: o.on ? 1 : 0.6, minWidth: 0 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <strong style={{ fontSize: '16px', color: colors.text }}>{r.nameEn || r.nameHe}</strong>
-                  {r.nameHe && r.nameEn && <span dir="rtl" style={{ fontSize: '16px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>{r.nameHe}</span>}
-                </div>
-                <div style={small}>{civilWords(r.startISO).en} · {hebrewWords(r.startISO).en}{r.days > 1 ? ` · ${r.days} days` : ''}</div>
-                <div style={{ ...small, color: colors.text, fontWeight: 700, display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span>{whenLeft(r, today)}{o.kind === 'countup' ? ` · run of ${o.total} days` : ''}</span>
-                  <Chip tone={explainChip(o).tone} testId={`occ-chip-${r.id}`}>{explainChip(o).text}</Chip>
-                </div>
-              </div>
-              {canEdit && (
-                <>
-                  <button type="button" aria-pressed={o.on} aria-label={`${o.on ? 'Switch off' : 'Switch on'} ${o.nameEn || o.nameHe}`} onClick={() => toggle(o)} style={btn(false, { padding: '0 12px', minWidth: '64px' })}>{o.on ? 'On' : 'Off'}</button>
-                  <button type="button" aria-label={`Edit ${o.nameEn || o.nameHe}`} onClick={() => setSheet(o)} style={btn(false, { padding: '0 12px', minWidth: '44px' })} data-testid={`occ-edit-${r.id}`}>✎</button>
-                </>
-              )}
-            </div>
-          );
-        })}
-        {offCount > 0 && <SwitchRow on={showOff} onChange={() => setShowOff(!showOff)} label={`Show the ${offCount} switched off`} testId="occ-show-off" />}
+        <p style={{ ...small, margin: '4px 0 10px' }} data-testid="occ-explain-dates">Each day is listed by the day it falls on. The countdown reaches zero when the day <strong>begins</strong>, which is usually the evening before, so "In 20 days" means 20 days until it begins.</p>
+        <Timeline rows={rows} today={today} tz={file.tz} canEdit={canEdit} offCount={offCount} onEdit={(o) => setSheet(o)} onToggle={toggle} />
         <p style={{ ...small, marginTop: '10px' }} data-testid="occ-footnote">
           The starter dates are calendar rules only: a name and a Hebrew date, no explanations. Please check them with your rav and your minhag (for example Yom Tov is one day shorter in Israel). Add your own school events too: a dinner, a trip, a siyum.
         </p>
@@ -468,9 +424,13 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         <button type="button" style={btn(false, { justifySelf: 'start' })} onClick={() => onNavigate('slides')}>Seconds on screen and order: Slides</button>
       )}
 
+      {adding && (
+        <LibraryPicker file={file} today={today} busy={busy} onClose={() => setAdding(false)} onOwn={() => { setAdding(false); setSheet({}); }}
+          onPick={async (e) => { const next = await change('POST', '', { occasion: libraryDraft(e) }, `Added ${e.en}`); if (next) { setAdding(false); setSheet(next.occasions.find((o) => o.id === next.id) || null); } }} />
+      )}
       {sheet && (
         <OccasionSheet
-          key={sheet.id || 'new'} initial={sheet.id ? sheet : null} settings={s} ctxNow={ctxNow} busy={busy} copy={copy} appSettings={appSettings} cache={cache}
+          key={sheet.id || 'new'} initial={sheet.id ? sheet : null} settings={s} ctxNow={ctxNow} busy={busy} copy={copy} appSettings={appSettings} cache={cache} today={today}
           onClose={() => setSheet(null)} onSave={save} onDelete={() => setConfirm(sheet)}
         />
       )}

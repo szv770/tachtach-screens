@@ -24,19 +24,35 @@ export const WHY_SOURCE = Object.freeze({ en: 'Source', he: 'מקור' });
 export const inLang = (x, lang) => (x ? { en: lang === 'hebrew' ? '' : x.en || '', he: lang === 'english' ? '' : x.he || '' } : null);
 
 /**
- * Box height (canvas px) for the short why text: enough for its lines at the size the box is meant for, so Fit only
- * shrinks it when the column is crowded. `width` = the column's width; the size steps down with the length.
+ * Text that sizes itself to a height BUDGET instead of a fixed box: the largest font size in [min, max] at which its natural
+ * height fits `budget` (layout px), never below `min`; the block is then exactly as tall as its text, so nothing is clipped and
+ * no empty box is left over (what Fit's fixed box would do). Re-fitted when the width changes and when fonts arrive.
  */
-export function whyBox(why, width, { max = 44, min = 28, row = false } = {}) {
-  const parts = [why?.en, why?.he].filter(Boolean).map((t) => [...String(t)].length);
-  if (!parts.length) return { size: min, height: 0 };
-  const total = parts.reduce((a, b) => a + b, 0);
-  const size = Math.max(min + 4, Math.min(max, total <= 90 ? max : total <= 180 ? max - 8 : max - 14));
-  // row: the two languages side by side (each in half the width), else stacked
-  const w = row && parts.length > 1 ? (width - 48) / 2 : width;
-  const per = Math.max(8, Math.floor(w / (size * 0.52)));
-  const lines = row ? Math.max(...parts.map((n) => Math.ceil(n / per))) : parts.reduce((a, n) => a + Math.ceil(n / per), 0);
-  return { size, height: Math.round(lines * size * 1.42 + (row ? 0 : (parts.length - 1) * size * 0.5) + 10) };
+export function FitText({ max, min, budget, children, style, deps = '', ...rest }) {
+  const ref = useRef(null);
+  const [size, setSize] = useState(max);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    let alive = true; let lastW = -1;
+    const fit = () => {
+      if (!alive || !el.clientWidth) return;
+      lastW = el.clientWidth;
+      let lo = min; let hi = Math.max(min, max);
+      const fits = (px) => { el.style.fontSize = `${px}px`; return el.scrollHeight <= budget + 1 && el.scrollWidth <= el.clientWidth + 1; };
+      if (fits(hi)) { setSize(hi); return; }
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (fits(mid)) lo = mid; else hi = mid; }
+      el.style.fontSize = `${lo}px`;
+      setSize(lo);
+    };
+    fit();
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(() => { if (el.clientWidth !== lastW) fit(); }); ro.observe(el); }
+    document.fonts?.ready?.then(fit).catch(() => {});
+    document.fonts?.addEventListener?.('loadingdone', fit);
+    return () => { alive = false; ro?.disconnect(); document.fonts?.removeEventListener?.('loadingdone', fit); };
+  }, [max, min, budget, deps]);
+  return <div ref={ref} style={{ ...style, fontSize: size }} {...rest}>{children}</div>;
 }
 
 /** The text colours the scrim must keep readable (each checked at 4.5:1 against every photo pixel behind it). */

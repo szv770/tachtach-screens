@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, whyBox } from './occasionParts.jsx';
+import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, FitText } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -188,16 +188,18 @@ function Begins({ m, center, lang }) {
  * source line is the first part of this block to be dropped when the column is crowded (layout.show.whySource).
  * `hero` = the day view, where it is the main line under the name.
  */
-function WhyBlock({ why, L, width, hero = false, band = false, center, lang, k }) {
-  const [boxRef, boxW] = useBoxWidth(width);
+function WhyBlock({ why, L, hero = false, band = false, center, lang, portrait = false, k }) {
   const w = inLang(why, lang);
   if (!why || !hasText(w) || !shows(L, 'why')) return null;
   const src = why.source && shows(L, 'whySource') ? String(why.source) : '';
   const kk = L.k || 1;
-  const { size, height } = whyBox(w, boxW, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round((band ? 40 : 44) * kk), min: 28, row: band });
+  // the text takes the largest size (28 px at the least) at which it stays inside its height budget
+  const max = Math.round((hero ? 56 : band ? 40 : 44) * kk);
+  const min = hero ? 30 : 28;
+  const budget = Math.round((hero ? (portrait ? 420 : 300) : band ? 132 : 300) * kk);
   const ta = center ? 'center' : 'start';
   return (
-    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, ...(band ? { marginTop: 8, paddingTop: 10, borderTop: '2px solid var(--line)' } : null), display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
+    <div data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta, ...(band ? { marginTop: 8, paddingTop: 10, borderTop: '2px solid var(--line)' } : null) }}>
       {band ? (
         // the band: the source shares the label's row (one line less), wrapping under it when it is long
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '2px 32px', width: '100%' }}>
@@ -207,12 +209,12 @@ function WhyBlock({ why, L, width, hero = false, band = false, center, lang, k }
           </span>}
         </div>
       ) : <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />}
-      <Fit key={`wy|${k}|${size}|${height}|${lang}`} wrap vcenter max={size + 6} min={hero ? 30 : 28} data-occ-why-text="" style={{ flex: '0 1 auto', width: '100%', height, minHeight: Math.min(height, 120), overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
+      <FitText max={max} min={min} budget={budget} deps={`${k}|${lang}|${w.en}|${w.he}`} data-occ-why-text="" style={{ width: '100%', lineHeight: 1.36, textAlign: ta }}>
         <div style={band ? { display: 'flex', flexDirection: 'row', gap: 48, alignItems: 'flex-start' } : { display: 'flex', flexDirection: 'column', gap: '.4em' }}>
           {w.en && <div dir={textDir(w.en)} style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
           {w.he && <div className="tt-he" dir="rtl" style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
         </div>
-      </Fit>
+      </FitText>
       {src && !band && (
         <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
           <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {bidiNodes(src)}
@@ -234,11 +236,11 @@ function EventLine({ ev, center, size = 32 }) {
 }
 
 /** The detail blocks other than the name, in the admin's order. */
-function Details({ m, keys, center, eventSize, lang, L, portrait, whyWidth = 840 }) {
+function Details({ m, keys, center, eventSize, lang, L, portrait }) {
   return keys.map((key) => {
     if (key === 'date') return <DateBlock key={key} m={m} center={center} lang={lang} L={L} portrait={portrait} />;
     if (key === 'begins') return <Begins key={key} m={m} center={center} lang={lang} />;
-    if (key === 'why') return <WhyBlock key={key} why={m.why} L={L} width={whyWidth} center={center} lang={lang} k={m.key} />;
+    if (key === 'why') return <WhyBlock key={key} why={m.why} L={L} center={center} lang={lang} portrait={portrait} k={m.key} />;
     if (key === 'event') return <EventLine key={key} ev={m.event} center={center} size={eventSize} />;
     return null;
   });
@@ -466,7 +468,7 @@ function DayView({ m, L, portrait, coming, lang }) {
             </span>
           )}
         </div>
-        {whyOn && <WhyBlock why={m.why} L={L} width={portrait ? 940 : 1680} hero center={center} lang={lang} k={`day|${m.key}`} />}
+        {whyOn && <WhyBlock why={m.why} L={L} hero portrait={portrait} center={center} lang={lang} k={`day|${m.key}`} />}
         <Details m={m} keys={keys} center={center} eventSize={dense ? 28 : portrait ? 36 : 32} lang={lang} L={L} portrait={portrait} />
       </div>
       {shows(L, 'coming') && <div style={{ width: '100%', flex: 'none' }}><Coming list={coming} portrait={portrait} /></div>}
@@ -485,7 +487,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     const after = at >= 0 ? blocks.slice(at + 1) : blocks;
     const part = (keys) => keys.map((k) => (k === 'name'
       ? <Name key={k} name={m.name} L={L} size={long ? NAME.portLong : NAME.port} align={L.align} k={m.key} />
-      : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait whyWidth={940} />));
+      : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait />));
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
         <div style={{ flex: '0 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
@@ -506,7 +508,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
       {infoBlocks.map((k, i) => (k === 'name'
         ? <React.Fragment key={k}><Name name={m.name} L={L} size={whyBand ? (long ? NAME.sideLongWhy : NAME.sideWhy) : long ? NAME.sideLong : NAME.side} align={L.align} k={`${m.key}|${whyBand}`} />{i < infoBlocks.length - 1 && <Rule center={center} />}</React.Fragment>
-        : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} whyWidth={840} />))}
+        : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} />))}
     </div>
   );
   const count = (
@@ -519,7 +521,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: 'minmax(0, 1fr)', gridTemplateColumns: countLeft ? 'minmax(0, 1fr) minmax(0, 1.08fr)' : 'minmax(0, 1.08fr) minmax(0, 1fr)', columnGap: 52, alignItems: 'stretch', marginTop: 10 }}>
         {countLeft ? <>{count}{info}</> : <>{info}{count}</>}
       </div>
-      {whyBand && <WhyBlock why={m.why} L={L} width={940} band center={center} lang={lang} k={m.key} />}
+      {whyBand && <WhyBlock why={m.why} L={L} band center={center} lang={lang} k={m.key} />}
       {shows(L, 'coming') && <Coming list={coming} portrait={false} />}
     </div>
   );

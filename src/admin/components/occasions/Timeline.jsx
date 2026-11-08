@@ -34,7 +34,7 @@ function Row({ r, today, tz, canEdit, onEdit, onToggle }) {
           <strong style={{ fontSize: '16px' }}>{r.nameEn || r.nameHe}</strong>
           {r.nameHe && r.nameEn && <span dir="rtl" style={{ fontSize: '16px', color: colors.dim, fontFamily: adminFonts.hebrewPrimary }}>{r.nameHe}</span>}
         </span>
-        <span style={{ ...small, display: 'block' }} data-testid={`occ-day-${r.id}`}>{t.dayLine}</span>
+        <span style={{ ...small, display: 'block' }} data-testid={`occ-dayline-${r.id}`}>{t.dayLine}</span>
         <span style={{ ...small, display: 'block' }}>{t.beginsLine}{t.rangeLine ? ` · Runs: ${t.rangeLine}` : ''}</span>
         <span style={{ ...small, color: colors.text, display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', marginTop: '2px' }}>
           <strong data-testid={`occ-in-${r.id}`}>{t.inLine}</strong>

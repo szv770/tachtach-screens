@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, whyBox } from '../components/slides/occasionParts.jsx';
+import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, FitText } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -72,19 +72,18 @@ function Tagline({ t, center }) {
 }
 
 /** The quiet 'why we celebrate' line of a milestone: label, the text fitted (28 px at the least), a muted source. */
-function WhyLine({ why, L, width, center }) {
+function WhyLine({ why, L, portrait, center }) {
   const w = { en: why.en || '', he: why.he || '' };
-  const { size, height } = whyBox(w, width, { max: 40, min: 28 });
   const ta = center ? 'center' : 'start';
   return (
     <div data-occ-why="" style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6, textAlign: ta }}>
       <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} size={24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
-      <Fit key={`tw|${w.en}|${w.he}|${size}|${height}`} wrap vcenter max={size + 4} min={28} style={{ flex: 'none', width: '100%', height, overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
+      <FitText max={Math.round(40 * (L.k || 1))} min={28} budget={Math.round((portrait ? 220 : 170) * (L.k || 1))} deps={`${w.en}|${w.he}`} data-occ-why-text="" style={{ flex: 'none', width: '100%', lineHeight: 1.36, textAlign: ta }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
           {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{w.en}</div>}
           {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{w.he}</div>}
         </div>
-      </Fit>
+      </FitText>
       {why.source && (
         <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
           <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {String(why.source)}
@@ -158,7 +157,7 @@ function CountTk({ tk, now, L, portrait, font }) {
         {numbers}
         <div aria-hidden style={{ width: 96, height: 2, background: 'var(--line)', flex: 'none' }} />
         <TkName name={tk.name} L={L} portrait center />
-        {why && <WhyLine why={why} L={L} width={900} center />}
+        {why && <WhyLine why={why} L={L} portrait center />}
       </div>
     );
   }
@@ -167,7 +166,7 @@ function CountTk({ tk, now, L, portrait, font }) {
     <div data-tk-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, [left ? 'paddingLeft' : 'paddingRight']: 64, [left ? 'borderLeft' : 'borderRight']: '2px solid var(--line)' }}>
       <Tagline t={tag} />
       <TkName name={tk.name} L={L} big />
-      {why && <WhyLine why={why} L={L} width={760} />}
+      {why && <WhyLine why={why} L={L} />}
     </div>
   );
   const numCol = <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', [left ? 'paddingRight' : 'paddingLeft']: 0 }}>{numbers}</div>;
