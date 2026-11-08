@@ -16,12 +16,12 @@ test('milestone chips: add / remove with plain-English errors, biggest first, ca
 test('order list: up/down buttons and drag and drop never lose or repeat a part', () => {
   const o = ['name', 'date', 'begins', 'why', 'event'];
   assert.deepEqual(H.moveItem(o, 1, -1), ['date', 'name', 'begins', 'why', 'event']);
-  assert.deepEqual(H.moveItem(o, 3, 1), o); assert.deepEqual(H.moveItem(o, 0, -1), o);
+  assert.deepEqual(H.moveItem(o, 4, 1), o); assert.deepEqual(H.moveItem(o, 0, -1), o);
   assert.deepEqual(H.reorder(o, 0, 2), ['date', 'begins', 'name', 'why', 'event']);
-  assert.deepEqual(H.reorder(o, 3, 0), ['event', 'name', 'date', 'begins', 'why']);
+  assert.deepEqual(H.reorder(o, 4, 0), ['event', 'name', 'date', 'begins', 'why']);
   assert.deepEqual(H.reorder(o, 1, 1), o); assert.deepEqual(H.reorder(o, 9, 0), o);
   assert.deepEqual(H.fullOrder(['event']), ['event', 'name', 'date', 'begins', 'why']);
-  for (const p of [H.reorder(o, 0, 3), H.moveItem(o, 2, 1)]) assert.deepEqual([...p].sort(), [...o].sort());
+  for (const p of [H.reorder(o, 0, 4), H.moveItem(o, 2, 1)]) assert.deepEqual([...p].sort(), [...o].sort());
 });
 
 test('follow the default: layout, look and lines drop a field instead of writing a copy of the default', () => {
