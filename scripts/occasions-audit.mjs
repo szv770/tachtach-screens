@@ -36,6 +36,8 @@ const BASE = args.find((a) => a.startsWith('http')) || 'http://localhost:3100';
 const SHOTS = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const QUICK = args.includes('--quick');
+const CANVAS = args.includes('--canvas') ? args[args.indexOf('--canvas') + 1] : null; // land | port | 4k: run one canvas (parallel shards)
+const PART = args.includes('--part') ? args[args.indexOf('--part') + 1].split('/').map(Number) : null; // N/M: every M-th case
 const fails = []; let checks = 0;
 const check = (name, ok, info = '') => { checks++; if (!ok) fails.push(`${name} ${info}`); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} ${ok ? '' : String(info).replace(/\s+/g, ' ').slice(0, 220)}`); };
 
@@ -587,7 +589,9 @@ async function run(canvas, c, font) {
 
 const FOURK = ['dates+why, days (8 days)', 'dates+why worst case, days', 'takeover: milestone with why', 'days (8 days)', 'minutes (last hour)', 'worst case text, days', 'zero (celebration)', 'flip, days', 'takeover: milestone (7 days)', 'advent with a photo (+ step page, tiles open once)'];
 for (const canvas of ['land', 'port', '4k']) {
-  for (const c of cases) {
+  if (CANVAS && canvas !== CANVAS) continue;
+  for (const [ci, c] of cases.entries()) {
+    if (PART && ci % PART[1] !== PART[0]) continue;
     if (ONLY && !c.tag.includes(ONLY)) continue;
     if (canvas === '4k' && !FOURK.includes(c.tag)) continue;
     if (QUICK && canvas === '4k') continue;
