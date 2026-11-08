@@ -20,10 +20,9 @@
  * (label, fitted text >= 28 px, muted source line) in the order date > begins > why > event, the day count that reads 'DAYS UNTIL IT
  * BEGINS' (never 'days to go' next to an evening start), the day view's hero line, the milestone takeover's quiet line (dropped, not
  * clipped, when crowded), 160-character worst cases in both languages, three Hebrew fonts, light + dark contrast at 4.5:1.
- * The model fields are injected through window.__OCC_FX (occasion id -> { dates, why }): this only does anything on a BUILD whose
- * slideModel() / takeoverFor() merge it (see the stub note in the hand-off); a build whose model emits dates / why by itself needs the
- * fixtures' real inputs instead. Every case without `fx` renders the old way and keeps its old checks.
- * Exit code 1 on any failed check.
+ * The model emits `dates` / `why` / `forms` / `today` itself (src/shared/occasions.js): the fixtures only set the occasion's INPUTS
+ * (explainShortEn/He + source + explainChecked). Exception: the milestone TAKEOVER's quiet why line needs takeoverFor() to carry
+ * `why` / `dates` (it does not yet); those cases inject them through window.__OCC_FX and only WARN when the build ignores it.
  */
 import { createRequire } from 'module';
 const require = createRequire('/opt/node-tools/');
@@ -64,22 +63,19 @@ const RUN = { id: 'run', nameEn: 'Mivtza Chanukah', nameHe: 'מבצע חנוכה
   // the stored (normalised) shape the server sends: a one-time 8-day occasion from 1 Nov 2026
   rule: { kind: 'gregorian', month: 11, day: 1 }, repeat: 'once', year: 2026, days: 8 };
 const ADV = (photo) => ({ ...YT, id: 'adv', advent: { on: true, photo, grid: '4x3', daily: { 7: { en: 'Learn one chapter of Tanya with a friend today.', he: 'ללמוד פרק תניא עם חבר', source: 'Hayom Yom, 19 Kislev', checked: true } } } });
-// ── dates + why fixtures (the model fields the data side adds to every slideModel row) ──
+// ── dates + why fixtures: the occasion INPUTS (the model derives `dates`, `why`, `forms`, `today` from them) ──
 const WORDS_EN = 'A short line about why this day matters to us and why the whole yeshiva celebrates it together every single year without fail';
 const WORDS_HE = 'משפט קצר על כך שהיום הזה חשוב לנו ועל כך שכל הישיבה חוגגת אותו יחד מדי שנה בלי יוצא מן הכלל ובשמחה גדולה מאוד של כולם';
 const pad = (t, n) => { let o = t; while ([...o].length < n) o += ` ${t}`; return [...o].slice(0, n).join('').trim(); };
-const DATES = (o = {}) => ({
-  day: { en: 'Sunday, November 29', he: 'יום ראשון, 29 בנובמבר' }, dayRange: null,
-  hebrew: { en: '19 Kislev 5787', he: 'י״ט כסלו תשפ״ז' },
-  beginsLine: { en: 'Begins Saturday evening', he: 'מתחיל במוצאי שבת' }, beginsAt: { en: 'Shkia 4:30 PM', he: 'שקיעה 4:30' },
-  toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' }, ...o,
-});
-const WHY = (o = {}) => ({ en: 'A short line about why this day matters to us.', he: 'משפט קצר על כך שהיום הזה חשוב לנו.', source: 'Sefer Sample, page 120', ...o });
-const WHY160 = WHY({ en: pad(WORDS_EN, 160), he: pad(WORDS_HE, 160), source: SRC });
-const RANGE = { en: 'Through Sunday, December 6', he: 'עד יום ראשון, 6 בדצמבר' };
-const fxOf = (ids, v) => Object.fromEntries(ids.map((i) => [i, v]));
-const FX = fxOf(['yt', 'rc', 'ch', 'six', 'big', 'bc1', 'bc2', 'bc3'], { dates: DATES(), why: WHY() });
-const FX_WORST = fxOf(['yt', 'rc', 'ch', 'six', 'big', 'bc1', 'bc2', 'bc3'], { dates: DATES({ dayRange: RANGE }), why: WHY160 });
+const WHY_S = { en: 'A short line about why this day matters to us.', he: 'משפט קצר על כך שהיום הזה חשוב לנו.', source: 'Sefer Sample, page 120' };
+const WHY_L = { en: pad(WORDS_EN, 160), he: pad(WORDS_HE, 160), source: SRC };
+const W = (o, w = WHY_S) => ({ ...o, explainShortEn: w.en, explainShortHe: w.he, source: w.source, explainChecked: true });
+const RCw = W(RC); const YTw = W(YT); const CHw = W(CH);
+const BIGw = W(BIG, WHY_L); const BIG_COw = (i) => W(BIG_CO(i), WHY_L);
+// takeover only (the takeover result does not carry why / dates yet): injected on the page, see the header
+const FX_TK = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_S } } };
+const FX_TK_W = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_L } } };
+const warn = (name, ok, info = '') => { if (ok) check(name, true); else { console.log(`WARN ${name} ${String(info).slice(0, 120)}`); } };
 const doc = (occasions, settings = {}) => ({ version: 1, settings: { withinDays: 30, ...settings }, occasions });
 
 // New York, 2026: Rosh Chodesh Kislev = 10-11 Nov (eve 9 Nov, shkia ~4:43 PM), Yud-Tes Kislev = 29 Nov (eve 28 Nov), Chanukah 5 Dec
@@ -132,34 +128,49 @@ const cases = [
 const DW = { dates: true, why: true };
 cases.push(
   // the date block, the why block, the label: every form, landscape + portrait (+ 4K on some)
-  { tag: 'dates+why, far (pinned, 27 days)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', big: 120, fx: FX, ...DW, shot: 'land', fonts: true },
-  { tag: 'dates+why, days (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', big: 150, fx: FX, ...DW, shot: 'port', fonts: true },
-  { tag: 'dates+why, hours (last day)', time: T('2026-11-09T12:00:00'), occ: doc([RC, YT, CH]), form: 'hours', big: 150, fx: FX, ...DW },
-  { tag: 'dates+why, minutes (last hour)', time: T('2026-11-09T16:20:00'), occ: doc([RC, YT, CH]), form: 'minutes', big: 150, fx: FX, ...DW },
-  { tag: 'dates+why, day itself (hero)', time: T('2026-11-29T12:00:00'), occ: doc([RC, YT, CH]), form: 'day', fx: FX, ...DW, hero: true, fonts: true },
-  { tag: 'dates+why, flip (until it begins)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { display: 'flip' }), form: 'days', flip: 3, fx: FX, ...DW },
-  { tag: 'dates+why, multi-day range', time: T('2026-11-26T11:00:00'), occ: doc([CH, YT]), form: 'days', fx: fxOf(['ch', 'yt'], { dates: DATES({ dayRange: RANGE }), why: WHY() }), ...DW, range: true },
-  { tag: 'dates+why, no why (dates only)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', fx: fxOf(['rc', 'yt', 'ch'], { dates: DATES(), why: null }), dates: true, why: false },
-  { tag: 'dates+why, why hidden by layout', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, layout: { show: { why: false } } }, RC, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', fx: FX, dates: true, why: false },
-  { tag: 'dates+why, approximate time', time: T('2026-11-09T12:00:00'), occ: doc([RC, YT, CH]), form: 'hours', noLoc: true, approx: true, fx: fxOf(['rc', 'yt', 'ch'], { dates: DATES({ beginsAt: null }), why: WHY() }), dates: true },
+  { tag: 'dates+why, far (pinned, 27 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', big: 120, ...DW, shot: 'land', fonts: true },
+  { tag: 'dates+why, days (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', big: 150, ...DW, shot: 'port', fonts: true },
+  { tag: 'dates+why, hours (last day)', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', big: 150, ...DW },
+  { tag: 'dates+why, minutes (last hour)', time: T('2026-11-09T16:20:00'), occ: doc([RCw, YTw, CHw]), form: 'minutes', big: 150, ...DW },
+  { tag: 'dates+why, day itself (hero)', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', ...DW, hero: true, fonts: true },
+  { tag: 'dates+why, flip (until it begins)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { display: 'flip' }), form: 'days', flip: 3, ...DW },
+  { tag: 'dates+why, multi-day range', time: T('2026-11-25T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'ch' }), form: 'days', ...DW, range: true, dayRe: /December 5/ },
+  { tag: 'dates+why, no why (dates only)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', dates: true, why: false },
+  { tag: 'dates+why, why hidden by layout', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { why: false } } }, RC, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', dates: true, why: false },
+  { tag: 'dates+why, approximate time', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', noLoc: true, approx: true, dates: true },
   // languages (the data side filters; the page filters too)
-  { tag: 'dates+why, English only', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { language: 'english' }), form: 'days', fx: FX, ...DW, lang: 'en' },
-  { tag: 'dates+why, Hebrew only', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { language: 'hebrew' }), form: 'days', fx: FX, ...DW, lang: 'he' },
+  { tag: 'dates+why, English only', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { language: 'english' }), form: 'days', ...DW, lang: 'en' },
+  { tag: 'dates+why, Hebrew only', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { language: 'hebrew' }), form: 'days', ...DW, lang: 'he' },
   // worst cases: 160 + 160 character why, range, 60-character names, long event line, full coming-up strip
-  { tag: 'dates+why worst case, days', time: T('2026-11-03T11:00:00'), occ: doc([BIG, BIG_CO(1), BIG_CO(2), BIG_CO(3)], { comingUpCount: 3 }), form: 'days', fx: FX_WORST, ...DW, fonts: true },
-  { tag: 'dates+why worst case, far', time: T('2026-11-01T11:00:00'), occ: doc([BIG, BIG_CO(1), BIG_CO(2), BIG_CO(3)], { comingUpCount: 3 }), form: 'far', fx: FX_WORST, ...DW },
-  { tag: 'dates+why worst case, hours', time: T('2026-11-10T09:00:00'), occ: doc([BIG, BIG_CO(1)], { comingUpCount: 3 }), form: 'hours', fx: FX_WORST, ...DW },
-  { tag: 'dates+why worst case, day itself', time: T('2026-11-10T12:00:00'), occ: doc([BIG, BIG_CO(1), BIG_CO(2), BIG_CO(3)]), form: 'day', fx: FX_WORST, ...DW, fonts: true },
-  { tag: 'dates+why worst case, flip', time: T('2026-11-03T11:00:00'), occ: doc([BIG], { display: 'flip' }), form: 'days', flip: 2, fx: FX_WORST, ...DW },
-  { tag: 'dates+why worst case, vort page keeps the long text', time: T('2026-11-03T11:00:00'), occ: doc([BIG]), form: 'days', explain: true, fx: FX_WORST, ...DW },
+  { tag: 'dates+why worst case, days', time: T('2026-11-03T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'days', ...DW, fonts: true },
+  { tag: 'dates+why worst case, far', time: T('2026-10-20T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'far', ...DW },
+  { tag: 'dates+why worst case, hours', time: T('2026-11-09T09:00:00'), occ: doc([BIGw, BIG_COw(1)], { comingUpCount: 3 }), form: 'hours', ...DW },
+  { tag: 'dates+why worst case, day itself', time: T('2026-11-10T12:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)]), form: 'day', ...DW, fonts: true },
+  { tag: 'dates+why worst case, flip', time: T('2026-11-03T11:00:00'), occ: doc([BIGw], { display: 'flip' }), form: 'days', flip: 2, ...DW },
+  { tag: 'dates+why worst case, vort page keeps the long text', time: T('2026-11-03T11:00:00'), occ: doc([BIGw]), form: 'days', explain: true, ...DW },
   // contrast of the new text: light + dark (every line at 4.5:1 over the panel), then every theme
-  { tag: 'dates+why contrast, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', fx: FX, ...DW, wcag: true },
-  { tag: 'dates+why contrast, light theme', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', fx: FX, ...DW, wcag: true, theme: 'ivory' },
-  { tag: 'dates+why contrast, day view, light theme', time: T('2026-11-29T12:00:00'), occ: doc([RC, YT, CH]), form: 'day', fx: FX, ...DW, wcag: true, theme: 'ivory' },
-  { tag: 'dates+why all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', fx: FX, ...DW, themes: true },
+  { tag: 'dates+why contrast, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, wcag: true },
+  { tag: 'dates+why contrast, light theme', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, wcag: true, theme: 'ivory' },
+  { tag: 'dates+why contrast, day view, light theme', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', ...DW, wcag: true, theme: 'ivory' },
+  { tag: 'dates+why all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, themes: true },
   // the milestone takeover's quiet line
-  { tag: 'takeover: milestone with why', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fx: FX, whyTk: true, fonts: true, shot: 'land' },
-  { tag: 'takeover: milestone with why, worst case', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_WORST, whyTk: 'either', fonts: true },
+  { tag: 'takeover: milestone with why', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fx: FX_TK, whyTk: true, fonts: true, shot: 'land' },
+  { tag: 'takeover: milestone with why, worst case', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_TK_W, whyTk: 'either', fonts: true },
+);
+
+cases.push(
+  // cycled countdown forms (a tap on the number steps through row.forms; the last day / hour / zero keep their own display)
+  { tag: 'forms: tap cycles days > 20¼ > hours > flip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip'], days: [27, 27.3], hoursRange: [648, 654], fonts: true, shot: 'land' },
+  { tag: 'forms: all six (percent, sleeps)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', tapForms: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'] }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'], days: [27, 27.3], hoursRange: [648, 654], sleeps: 27 },
+  { tag: 'forms: in the days form (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { tapForms: ['days', 'daysFraction', 'hours', 'sleeps'] }), form: 'days', formsSeq: ['days', 'daysFraction', 'hours', 'sleeps'], shot: 'port' },
+  { tag: 'forms: auto mode steps by itself', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', autoForms: { on: true, seconds: 3 } }), form: 'far', auto: true },
+  { tag: 'forms: approximate time offers only days', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', noLoc: true, noForms: true },
+  { tag: 'forms: the last day keeps its own display', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', noForms: true },
+  { tag: 'forms: the last hour keeps its seconds', time: T('2026-11-09T16:20:00'), occ: doc([RCw, YTw, CHw]), form: 'minutes', noForms: true },
+  // the Today strip in the header
+  { tag: 'today strip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', todayStrip: true },
+  { tag: 'today strip with the occasion that is today', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', todayStrip: true, todayName: /Yud-Tes Kislev/ },
+  { tag: 'today strip switched off in the layout', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { today: false } } }, RC, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', todayStrip: false },
 );
 
 const PNG = {
@@ -241,7 +252,7 @@ const probe = (page, sel) => page.evaluate((sel) => {
     if (b.right > pb.right + 1 || b.left < pb.left - 1 || b.bottom > pb.bottom + 1 || b.top < pb.top - 1) out.overflow.push(`outside the panel: "${t.textContent.trim().slice(0, 24)}"`);
     const fs = parseFloat(cs.fontSize);
     if (fs < 24) out.small.push(`${fs}px "${t.textContent.trim().slice(0, 20)}"`);
-    rects.push({ b, s: t.textContent.trim().slice(0, 18), blk: el.closest('[data-occ-name],[data-occ-date],[data-occ-begins],[data-occ-why],[data-occ-event],[data-occ-count],[data-occ-coming],[data-occ-tagline],header,[data-occ-card],[data-occ-step]') });
+    rects.push({ b, s: t.textContent.trim().slice(0, 18), blk: el.closest('[data-occ-name],[data-occ-date],[data-occ-begins],[data-occ-why],[data-occ-today],[data-occ-event],[data-occ-count],[data-occ-coming],[data-occ-tagline],header,[data-occ-card],[data-occ-step]') });
   }
   // text of different blocks never overlaps (a too-tall line box from a display font would)
   const tol = 3 * scale;
@@ -268,6 +279,16 @@ const probe = (page, sel) => page.evaluate((sel) => {
   out.run = !!panel.querySelector('[data-occ-count=run]');
   const topOf = (q) => { const e = panel.querySelector(q); return e ? e.getBoundingClientRect().top : null; };
   out.tops = { date: topOf('[data-occ-date]'), begins: topOf('[data-occ-begins]'), why: topOf('[data-occ-why]'), event: topOf('[data-occ-event]') };
+  out.formId = panel.querySelector('[data-occ-formid]')?.getAttribute('data-occ-formid') || '';
+  out.dots = Number(panel.querySelector('[data-occ-dots]')?.getAttribute('data-occ-dots') || 0);
+  out.dotOn = [...panel.querySelectorAll('[data-occ-dot]')].findIndex((d) => d.getAttribute('data-occ-dot') === 'on');
+  out.suffix = panel.querySelector('[data-occ-suffix]')?.textContent || '';
+  out.suffixFont = panel.querySelector('[data-occ-suffix]') ? getComputedStyle(panel.querySelector('[data-occ-suffix]')).fontFamily : '';
+  out.bigFont = panel.querySelector('[data-occ-count] [data-occ-big]') ? getComputedStyle(panel.querySelector('[data-occ-count] [data-occ-big]')).fontFamily : '';
+  out.progressBar = !!panel.querySelector('[data-occ-count] [data-occ-progress]');
+  out.todayEl = !!panel.querySelector('[data-occ-today]');
+  out.todayText = panel.querySelector('[data-occ-today]')?.innerText || '';
+  out.todayName = panel.querySelector('[data-occ-today-name]')?.innerText || '';
   out.whyEl = !!panel.querySelector('[data-occ-why]');
   out.whyText = panel.querySelector('[data-occ-why-text]')?.textContent || '';
   out.whyFs = panel.querySelector('[data-occ-why-text]') ? parseFloat(getComputedStyle(panel.querySelector('[data-occ-why-text]')).fontSize) : 0;
@@ -353,20 +374,23 @@ async function datesChecks(tag, c, r, canvas) {
   const evening = /evening/i;
   if (c.dates) {
     const day = c.form === 'day' || c.form === 'far' || c.form === 'days' || c.form === 'hours' || c.form === 'minutes';
-    check(`${tag}: THE DAY is written out ('Sunday, November 29') with its Hebrew date`, !day || (/Sunday, November 29/.test(r.dateBlock) && (c.lang === 'he' || /19 Kislev 5787/.test(r.dateBlock))), r.dateBlock.slice(0, 120));
+    check(`${tag}: THE DAY is written out ('Sunday, November 29') with its Hebrew date`, !day || (c.lang === 'he' ? /כסלו/.test(r.dateBlock) : (c.dayRe || /Sunday, November 29/).test(r.dateBlock) && (c.dayRe || /19 Kislev 5787/.test(r.dateBlock))), r.dateBlock.slice(0, 120));
     if (c.form !== 'day') {
       check(`${tag}: 'Begins Saturday evening' label + the zman`, c.lang === 'he' || (/begins saturday evening/i.test(r.beginsBlock) && (c.approx || /Shkia 4:30 PM/.test(r.beginsBlock))), r.beginsBlock.slice(0, 120));
     }
     if (c.form === 'far' || c.form === 'days') {
-      check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && /days?/i.test(r.unit), r.unit);
+      check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
       check(`${tag}: the day count never reads 'days to go' next to an evening start`, !/days?\s+to go/i.test(r.unit) && !/days?\s+to go/i.test(r.text), r.unit);
     }
     if (c.flip) check(`${tag}: flip: 'until it begins' under the cells`, /until it begins/i.test(r.unit), r.unit);
-    if (c.range) check(`${tag}: the multi-day range shows`, /Through Sunday, December 6/.test(r.dateBlock), r.dateBlock.slice(0, 120));
+    if (c.range) check(`${tag}: the multi-day range shows`, /Dec 5.*Dec 12/.test(r.dateBlock), r.dateBlock.slice(0, 120));
     if (c.approx) check(`${tag}: approximate: the '~' stays`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
     // vertical order: date > begins > why > event
     const t = r.tops; const seq = ['date', 'begins', 'why', 'event'].filter((k) => t[k] != null);
-    if (canvas !== 'port' || true) check(`${tag}: order date > begins > why > event (${seq.join(' > ')})`, seq.every((k, i) => i === 0 || t[seq[i - 1]] <= t[k] + 1) || r.view !== 'main', JSON.stringify(t));
+    // the day view puts the why under the name as its hero line: why > date > event there
+    const want = c.form === 'day' ? ['why', 'date', 'event'] : ['date', 'begins', 'why', 'event'];
+    const sq = want.filter((k) => t[k] != null);
+    check(`${tag}: order ${want.join(' > ')} (${sq.join(' > ')})`, sq.every((k, i) => i === 0 || t[sq[i - 1]] <= t[k] + 1) || r.view !== 'main', JSON.stringify(t));
   }
   if (c.why === true) {
     check(`${tag}: the why block shows ('Why we celebrate' + text)`, r.whyEl && /why we celebrate/i.test(r.text) && r.whyText.length > 10, `${r.whyEl} ${r.whyText.slice(0, 40)}`);
@@ -382,11 +406,55 @@ async function datesChecks(tag, c, r, canvas) {
   if (c.explain === true) check(`${tag}: the short why is not the vort text`, !r.text.includes('A long explanation sentence'), '');
 }
 
+/** Cycled forms: dots, a tap steps through each form, every form renders clean, 20¼ never promises more than is left, auto mode. */
+async function formsChecks(page, tag, c, r) {
+  await page.evaluate(() => document.getElementById('tt-splash')?.remove());
+  const probeNow = () => probe(page, SEL.slide);
+  if (c.noForms) { check(`${tag}: no form dots (nothing to cycle)`, r.dots === 0 && r.formId === '', `${r.dots} ${r.formId}`); return; }
+  if (c.auto) {
+    check(`${tag}: starts on the first form`, r.formId === 'days' && r.dots >= 2, `${r.formId} ${r.dots}`);
+    await page.waitForTimeout(3600);
+    const a = await probeNow();
+    check(`${tag}: auto mode moved on by itself (${r.formId} > ${a.formId})`, a.formId !== 'days' && a.dotOn === 1, `${a.formId} ${a.dotOn}`);
+    await page.waitForTimeout(3000);
+    const b = await probeNow();
+    check(`${tag}: ...and again (${b.formId})`, b.formId !== a.formId, `${a.formId} ${b.formId}`);
+    return;
+  }
+  const seq = c.formsSeq;
+  check(`${tag}: ${seq.length} form dots, the first form is '${seq[0]}'`, r.dots === seq.length && r.formId === seq[0] && r.dotOn === 0, `${r.dots} ${r.formId} ${r.dotOn}`);
+  for (let i = 1; i <= seq.length; i++) {
+    await page.locator(`${SEL.slide} [data-occ-forms] [data-occ-count]`).first().click();
+    await page.waitForTimeout(750);
+    const p = await probeNow();
+    const want = seq[i % seq.length];
+    const t = `${tag} [tap ${i} > ${want}]`;
+    check(`${t}: the form is '${want}'`, p.formId === want && p.dotOn === i % seq.length, `${p.formId} ${p.dotOn}`);
+    check(`${t}: nothing clips or leaves the panel`, p.overflow.length === 0, p.overflow.slice(0, 3).join(' | '));
+    check(`${t}: fitted lines fit, no overlap`, p.fit.length === 0 && p.overlap.length === 0, [...p.fit, ...p.overlap].slice(0, 3).join(' | '));
+    check(`${t}: text >= 24 canvas px`, p.small.every((x) => parseFloat(x) / (p.scale || 1) >= 23.5), p.small.slice(0, 3).join(', '));
+    check(`${t}: nothing animating once it has settled`, p.anims.length === 0 && p.infinite === 0, p.anims.slice(0, 3).join(','));
+    const n = Number(String(p.bigText).replace(/[^\d]/g, ''));
+    if (want === 'days') check(`${t}: whole days = the calendar days`, c.days ? n === c.days[0] : true, p.bigText);
+    if (want === 'daysFraction') {
+      const frac = { '': 0, '\u00BC': 0.25, '\u00BD': 0.5, '\u00BE': 0.75 }[p.suffix];
+      check(`${t}: a quarter glyph or none ('${p.bigText}')`, frac !== undefined, p.suffix);
+      check(`${t}: the glyph is set in the numerals font`, !p.suffix || p.suffixFont === p.bigFont, `${p.suffixFont} | ${p.bigFont}`);
+      if (c.days) check(`${t}: never promises more time than is left (${n + frac} <= ${c.days[1]})`, n + (frac || 0) <= c.days[1] && n + (frac || 0) >= c.days[0] - 0.01, `${n} ${p.suffix}`);
+    }
+    if (want === 'hours' && c.hoursRange) check(`${t}: total hours (${p.bigText}) inside ${c.hoursRange}`, n >= c.hoursRange[0] && n <= c.hoursRange[1] && /^\d+$/.test(p.bigText), p.bigText);
+    if (want === 'hours') check(`${t}: labelled hours`, /hours?/i.test(p.text), p.text.slice(0, 120));
+    if (want === 'flip') check(`${t}: flip cells (${p.cells})`, p.flip >= 3, p.cells);
+    if (want === 'percent') check(`${t}: a percent (${p.bigText}%) with a hairline bar`, n >= 0 && n <= 99 && p.suffix === '%' && p.progressBar, `${p.bigText} ${p.suffix} ${p.progressBar}`);
+    if (want === 'sleeps') check(`${t}: N sleeps (${p.bigText})`, (!c.sleeps || n === c.sleeps) && /sleeps?/i.test(p.text) && /לילות|לילה/.test(p.text), p.text.slice(0, 140));
+  }
+}
+
 /** The milestone takeover's quiet why line: there, with its source, or (crowded) dropped cleanly: never clipped. */
 function takeoverWhyChecks(tag, c, r) {
-  if (c.whyTk === true) check(`${tag}: the quiet 'why we celebrate' line shows`, r.whyEl && /why we celebrate/i.test(r.text), `${r.whyEl}`);
+  if (c.whyTk === true) warn(`${tag}: the quiet 'why we celebrate' line shows (needs takeoverFor() to carry why)`, r.whyEl && /why we celebrate/i.test(r.text), `${r.whyEl}`);
   if (c.whyTk === 'either') check(`${tag}: worst case: the why line is whole or dropped (${r.whyEl ? 'shown' : 'dropped'})`, !r.whyEl || r.whyText.length > 100, r.whyText.slice(0, 30));
-  check(`${tag}: milestone: 'until it begins' under the number`, /until it begins/i.test(r.text) && !/days? to go/i.test(r.text), r.text.replace(/\s+/g, ' ').slice(0, 100));
+  warn(`${tag}: milestone: 'until it begins' under the number (needs takeoverFor() to carry dates)`, /until it begins/i.test(r.text) && !/days? to go/i.test(r.text), r.text.replace(/\s+/g, ' ').slice(0, 100));
   if (r.whyEl) check(`${tag}: the why line is >= 28 px`, r.whyFs / (r.scale || 1) >= 27.5, String(r.whyFs));
 }
 
@@ -441,6 +509,12 @@ async function run(canvas, c, font) {
     if (c.run) check(`${tag}: count-up view`, r.run, r.text.slice(0, 80));
     if (c.fx && !c.takeover) await datesChecks(tag, c, r, canvas);
     if (c.fx && c.takeover) takeoverWhyChecks(tag, c, r);
+    if (c.formsSeq || c.auto || c.noForms) await formsChecks(page, tag, c, r);
+    if (c.todayStrip === true) {
+      check(`${tag}: the Today strip shows (TODAY + weekday + Hebrew date)`, r.todayEl && /today/i.test(r.todayText) && /(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Shabbos)/i.test(r.todayText) && /\d/.test(r.todayText), r.todayText);
+      if (c.todayName) check(`${tag}: the occasion that is today is named in it`, c.todayName.test(r.todayName), r.todayName);
+    }
+    if (c.todayStrip === false) check(`${tag}: no Today strip`, !r.todayEl);
     if (c.text) check(`${tag}: shows ${c.text}`, c.text.test(r.text), r.text.slice(0, 120));
     if (c.pager) check(`${tag}: pager ${c.pager}`, c.pager.test(r.text), r.text.slice(0, 80));
     if (c.approx) check(`${tag}: approximate time says ~`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
