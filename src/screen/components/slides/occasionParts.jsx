@@ -332,3 +332,7 @@ export function TapPop({ x, y }) {
     </div>
   );
 }
+
+/** Retired devices (the edge tick rows, the thin ring): kept as no-ops until every caller is moved to the Stage. */
+export const EdgeTicks = () => null;
+export const ThinRing = () => null;
