@@ -3,7 +3,7 @@ import Sheet from '../ui/Sheet.jsx';
 import { fieldStyle } from '../look/kit.jsx';
 import { btn, small, colors, adminFonts, Chip } from './occKit.jsx';
 import { LIBRARY, libraryGroups, searchLibrary, libraryHas, libraryDraft } from '../../../shared/occasionLibrary.js';
-import { normalizeOccasion, occurrencesBetween, hebrewWords, ruleWords } from '../../../shared/occasions.js';
+import { CATEGORIES, CATEGORY_LABEL, normalizeOccasion, occurrencesBetween, hebrewWords, ruleWords } from '../../../shared/occasions.js';
 import { addDaysISO } from '../../../shared/hebrewCalendar.js';
 import { fmtShort, daysFrom, inDaysText } from './occDates.js';
 
@@ -26,14 +26,21 @@ function nextDates(today) {
  */
 export default function LibraryPicker({ file, today, busy, onPick, onOwn, onClose }) {
   const [q, setQ] = useState('');
+  const [category, setCategory] = useState('all');
   const dates = useMemo(() => nextDates(today), [today]);
-  const found = useMemo(() => searchLibrary(q, { todayISO: today }), [q, today]);
+  const found = useMemo(() => searchLibrary(q, { todayISO: today }).filter((e) => category === 'all' || e.category === category), [q, today, category]);
   const groups = libraryGroups(found);
   return (
     <Sheet open onClose={onClose} title="Add an occasion" label="Add an occasion">
       <div style={{ display: 'grid', gap: '12px', paddingBottom: '84px' }} data-testid="occ-library">
         <h3 style={{ margin: 0, fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text }}>Pick a day</h3>
         <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the days" placeholder="Search: kis, yud, chanukah, 19 Kislev" style={{ ...fieldStyle, width: '100%' }} data-testid="occ-library-search" autoComplete="off" />
+        <div role="group" aria-label="Kind of day" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {['all', ...CATEGORIES.filter((c) => LIBRARY.some((e) => e.category === c))].map((c) => (
+            <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} data-testid={`occ-libcat-${c}`}
+              style={{ minHeight: '44px', padding: '0 14px', borderRadius: '999px', cursor: 'pointer', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600, background: category === c ? colors.accentSoft : colors.card, color: category === c ? colors.accent : colors.text, border: `1.5px solid ${category === c ? colors.accent : colors.border}` }}>{c === 'all' ? 'All kinds' : CATEGORY_LABEL[c]}</button>
+          ))}
+        </div>
         <p style={{ ...small, margin: 0 }}>Tap a day to add it. Each comes with its date and sensible choices; you can change everything next.</p>
         {groups.length === 0 && <p style={small} data-testid="occ-library-empty">No day matches that. Tap "Make my own" below to type a date.</p>}
         {groups.map((g) => (

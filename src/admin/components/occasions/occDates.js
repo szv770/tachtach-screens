@@ -2,7 +2,7 @@
 // The words are plain English on purpose: the countdown reaches zero when the day BEGINS, which is usually the EVENING BEFORE the
 // day, so every line names 'the day' and 'begins' separately.
 import {
-  occurrencesBetween, upcoming, normalizeOccasion, hebrewWords, daysUntil, explainState, timeEn, MONTH_EN, ruleWords,
+  shareText, weekShareText, occurrencesBetween, upcoming, normalizeOccasion, hebrewWords, daysUntil, explainState, timeEn, MONTH_EN, ruleWords,
 } from '../../../shared/occasions.js';
 import { fixedFromISO, hebrewFromFixed, isLeapYear, addDaysISO, ADAR, ADAR_II } from '../../../shared/hebrewCalendar.js';
 
@@ -130,8 +130,9 @@ const fold = (s) => String(s ?? '').normalize('NFC').replace(/[֑-ׇ]/g, '').rep
 export const FILTERS = Object.freeze(['all', 'on', 'off', 'needs']);
 export const FILTER_LABEL = Object.freeze({ all: 'All', on: 'On', off: 'Off', needs: 'Needs an explanation' });
 /** Does a row pass the search box and the filter chip? ('needs' = no explanation yet, or one that still needs checking.) */
-export function rowMatches(row, { query = '', filter = 'all' } = {}) {
+export function rowMatches(row, { query = '', filter = 'all', category = 'all' } = {}) {
   const o = row.occasion;
+  if (category !== 'all' && (o.category || 'custom') !== category) return false;
   if (filter === 'on' && !o.on) return false;
   if (filter === 'off' && o.on) return false;
   if (filter === 'needs' && (!o.on || explainState(o) === 'shows')) return false;
@@ -180,8 +181,22 @@ export function advancedSummary(d, settings) {
   const words = Object.keys(d.stageText || {}).length + Object.keys(d.milestoneText || {}).length;
   if (words) parts.push(`${words} own line${words === 1 ? '' : 's'} of words`);
   if (d.advent?.on) parts.push('advent calendar');
+  if (Array.isArray(d.tapForms) || d.autoForms) parts.push('own countdown views');
   if (d.soundOn != null) parts.push(d.soundOn ? 'sound on' : 'sound off');
   if (d.touch === false) parts.push('no touch');
   return parts.join(' · ') || 'Everything follows the defaults';
 }
 
+
+/** The share language for the Language setting ('hebrew' -> 'he', 'english' -> 'en', 'both'). */
+export const shareLang = (settings) => (settings?.language === 'hebrew' ? 'he' : settings?.language === 'english' ? 'en' : 'both');
+/** The WhatsApp message for one row (see shareText in src/shared/occasions.js). */
+export function shareFor(row, settings, ctxNow) {
+  const { now, ctx } = ctxNow();
+  return shareText(row, { lang: shareLang(settings), settings, now, tz: ctx.tz, today: ctx.today, emoji: !!settings.shareEmoji });
+}
+/** 'This week's days' as one message. */
+export function weekShare(file, ctxNow) {
+  const { now, ctx } = ctxNow();
+  return weekShareText(file, now, ctx, { lang: shareLang(file.settings), emoji: !!file.settings.shareEmoji });
+}

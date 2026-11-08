@@ -14,7 +14,8 @@ import AdventEditor from './occasions/AdventSection.jsx';
 import DatePicker from './occasions/DatePicker.jsx';
 import LibraryPicker from './occasions/LibraryPicker.jsx';
 import Timeline from './occasions/Timeline.jsx';
-import { advancedSummary, datePreview } from './occasions/occDates.js';
+import { ViewsGlobal, ViewsOwn } from './occasions/ViewsSection.jsx';
+import { advancedSummary, datePreview, shareFor, weekShare } from './occasions/occDates.js';
 import { libraryDraft } from '../../shared/occasionLibrary.js';
 import MomentCard from './occasions/MomentCard.jsx';
 import { adventPreview, hypeSummary } from './occasions/occHelpers.js';
@@ -23,7 +24,7 @@ import { useCopy } from './schedule/scheduleShared.jsx';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 import {
   upcoming, ctxFrom, daysUntil, normalizeOccasion, resolveLook, resolveOccLayout, occasionProblem, vortPrompt, countdownOf, countdownWords,
-  BEGINS, BEGINS_LABEL, PICKS, PICK_LABEL, LANGS, LANG_LABEL, RANGES, LIMITS, MONTH_EN, ZERO_WORDS, OCC_STYLES, SETTINGS_DEFAULTS, beginsOf, timeEn, STAGE_TEXT_DEFAULTS, LAYOUT_DEFAULTS, LOOK_DEFAULTS, windowDays,
+  CATEGORIES, CATEGORY_LABEL, TAP_FORMS, BEGINS, BEGINS_LABEL, PICKS, PICK_LABEL, LANGS, LANG_LABEL, RANGES, LIMITS, MONTH_EN, ZERO_WORDS, OCC_STYLES, SETTINGS_DEFAULTS, beginsOf, timeEn, STAGE_TEXT_DEFAULTS, LAYOUT_DEFAULTS, LOOK_DEFAULTS, windowDays,
 } from '../../shared/occasions.js';
 
 /**
@@ -52,7 +53,7 @@ const openPreview = (ms) => window.open(`/screen?preview=true${ms ? `&previewAt=
 
 const emptyDraft = () => ({
   on: true, nameEn: '', nameHe: '', rule: { kind: 'hebrew', month: 9, day: 19 }, repeat: 'yearly', year: '', days: 1, adar: 'adar2', missing30: '29',
-  beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', source: '', eventEn: '', eventHe: '',
+  beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', category: 'custom', tapForms: null, autoForms: null, source: '', eventEn: '', eventHe: '',
   zeroKey: 'gutYomTov', zeroEn: '', zeroHe: '', celebrate: true, rail: true, banner: true, takeover: true, style: 'hype',
   explainChecked: false, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
   kind: 'countdown', from: null, total: 8, display: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
@@ -113,6 +114,9 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
           <Field label="What kind" style={{ marginTop: 0 }}>
             <Choices ariaLabel="Kind" value={d.kind} onChange={(v) => set({ kind: v, ...(v === 'countup' && !d.from ? { from } : {}) })}
               options={[{ value: 'countdown', label: 'Countdown to a day' }, { value: 'countup', label: 'Count up: a run of days (Day 3 of 8)' }]} />
+          </Field>
+          <Field label="Which kind of day" style={{ marginTop: 0 }}>
+            <Select ariaLabel="Which kind of day" testId="occ-category" value={d.category || 'custom'} onChange={(v) => set({ category: v })} options={CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))} />
           </Field>
           {countup ? (
             <>
@@ -185,6 +189,12 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
               <Select ariaLabel="Takeover style" value={d.style} onChange={(v) => set({ style: v })} options={OCC_STYLES.map((v) => ({ value: v, label: STYLE_LABEL[v] || v }))} />
             </div>
           </div>
+          {next && (
+            <div>
+              <button type="button" style={btn(false)} onClick={() => copy(shareFor(next, settings, ctxNow), 'Copied. Paste it into WhatsApp.')} data-testid="occ-share">Copy for WhatsApp</button>
+              <Hint>A message with the countdown, the day, the Hebrew date and when it begins{`${d.explainChecked ? ', and the short line about why it is special' : ''}`}.</Hint>
+            </div>
+          )}
         </Step>
 
         <Step n={4} title="Advanced" testId="occ-step-4">
@@ -207,6 +217,7 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
               <Group title="Layout" summary={Object.keys(d.layout || {}).length ? 'Its own layout' : 'Follows the default'} testId="occ-own-layout">
                 <LayoutEditor level="own" layout={d.layout || {}} base={settings.layout} onChange={(l) => set({ layout: l })} />
               </Group>
+              <Group title="Countdown views" summary={Array.isArray(d.tapForms) || d.autoForms ? 'Its own views' : 'Follows the default'} testId="occ-own-views"><ViewsOwn d={d} set={set} s={settings} /></Group>
               <Group title="Sound" summary={d.soundOn == null ? 'Follows the default' : d.soundOn ? 'On' : 'Off'}><SoundOwn d={d} set={set} sound={settings.sound} /></Group>
               <Group title="Advent calendar" summary={d.advent?.on ? 'On' : 'Off'} testId="occ-own-advent"><AdventEditor d={d} set={set} lead={lead} preview={advPrev} /></Group>
               <SwitchRow on={d.touch !== false} onChange={() => set({ touch: d.touch === false })} label="Touch on the TV" note="Lets people tap this countdown on a touch screen (also needs touch switched on for the screen)." />
@@ -341,6 +352,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         <p style={{ ...small, marginTop: '10px' }} data-testid="occ-footnote">
           The starter dates are calendar rules only: a name and a Hebrew date, no explanations. Please check them with your rav and your minhag (for example Yom Tov is one day shorter in Israel). Add your own school events too: a dinner, a trip, a siyum.
         </p>
+        <button type="button" style={btn(false, { marginTop: '6px', marginRight: '8px' })} onClick={() => copy(weekShare(file, ctxNow), 'Copied. Paste it into WhatsApp.')} data-testid="occ-share-week">Copy this week's days</button>
         {canEdit && <button type="button" style={btn(false, { marginTop: '6px' })} onClick={() => change('POST', '/restore-starters', undefined, 'Starter dates put back')} data-testid="occ-restore">Put back starter dates I removed</button>}
       </div>
 
@@ -364,6 +376,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
           <div><span style={label}>Words for every occasion (English)</span><input defaultValue={s.zeroEn} aria-label="Words for every occasion in English" placeholder="Leave empty: each its own" maxLength={LIMITS.zero} onBlur={(e) => e.target.value.trim() !== s.zeroEn && saveSettings({ zeroEn: e.target.value.trim() }, 'Words saved')} style={{ ...fieldStyle, width: '100%' }} disabled={!canEdit} /></div>
           <div><span style={label}>Hebrew</span><input defaultValue={s.zeroHe} dir="rtl" aria-label="Words for every occasion in Hebrew" maxLength={LIMITS.zero} onBlur={(e) => e.target.value.trim() !== s.zeroHe && saveSettings({ zeroHe: e.target.value.trim() }, 'Words saved')} style={{ ...fieldStyle, width: '100%' }} disabled={!canEdit} /></div>
         </div>
+        <SwitchRow on={s.shareEmoji} onChange={() => saveSettings({ shareEmoji: !s.shareEmoji }, s.shareEmoji ? 'Share text without a star' : 'Share text with a star')} label="A star at the start of the WhatsApp message" note="Off by default." testId="occ-share-emoji" />
         <SwitchRow on={s.explain} onChange={() => saveSettings({ explain: !s.explain }, s.explain ? 'Explanations hidden' : 'Explanations shown')} label="Show explanations (only ever with their source)" />
         {s.explain && <SwitchRow on={s.credit} onChange={() => saveSettings({ credit: !s.credit }, s.credit ? 'Source line hidden' : 'Source line shown')} label="Show the source under the explanation" note="Recommended. Off hides the line on the screen; an explanation still needs a source to show." />}
         <Field label="When an occasion begins (unless it has its own)">
@@ -385,6 +398,18 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
 
       <Collapsible id="occ-hype" title="Hype moments" icon="star" summary={hypeSummary(s)}>
         <HypeGlobal s={s} save={saveSettings} canEdit={canEdit} hero={hero} openPreview={openPreview} />
+      </Collapsible>
+
+      <Collapsible id="occ-views" title="Countdown views" icon="play" summary={`${s.tapForms.length} view${s.tapForms.length === 1 ? '' : 's'}${s.autoForms.on ? ` \u00b7 changes every ${s.autoForms.seconds} s` : ''}`}>
+        <ViewsGlobal s={s} save={saveSettings} canEdit={canEdit} />
+      </Collapsible>
+
+      <Collapsible id="occ-cats" title="Which kinds of days show" icon="list" summary={s.showCategories.length === CATEGORIES.length ? 'All kinds' : s.showCategories.map((c) => CATEGORY_LABEL[c]).join(', ') || 'None'}>
+        <Hint style={{ marginTop: 0 }}>For a Countdown with only Chabad days, switch the others off. This covers the page, the coming-up strip, the rail card, the banner and the takeovers. The list above always shows everything.</Hint>
+        {CATEGORIES.map((c) => (
+          <SwitchRow key={c} on={s.showCategories.includes(c)} onChange={() => saveSettings({ showCategories: CATEGORIES.filter((x) => (x === c ? !s.showCategories.includes(c) : s.showCategories.includes(x))) }, `${CATEGORY_LABEL[c]}: ${s.showCategories.includes(c) ? 'hidden' : 'shown'}`)} label={CATEGORY_LABEL[c]} testId={`occ-showcat-${c}`} />
+        ))}
+        {s.showCategories.length === 0 && <Hint style={{ color: colors.danger }}>Nothing is switched on, so the Countdown has nothing to show.</Hint>}
       </Collapsible>
 
       <Collapsible id="occ-words" title="Words for each stage" icon="word" summary={`${Object.keys(s.stageText).length + Object.keys(s.milestoneText).length} of your own lines`}>

@@ -3,6 +3,7 @@ import { SwitchRow } from '../look/kit.jsx';
 import { fieldStyle } from '../look/kit.jsx';
 import { btn, small, colors, adminFonts, Chip, useWide } from './occKit.jsx';
 import { explainChip } from './occHelpers.js';
+import { CATEGORIES, CATEGORY_LABEL } from '../../../shared/occasions.js';
 import { groupByMonth, yearStrip, rowTexts, rowMatches, FILTERS, FILTER_LABEL } from './occDates.js';
 
 /** The next 12 months as small cells with dots for the days in them; tapping one scrolls to that month below. */
@@ -58,12 +59,14 @@ export default function Timeline({ rows, today, tz, canEdit, onEdit, onToggle, o
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [showOff, setShowOff] = useState(false);
+  const [category, setCategory] = useState('all');
+  const have = new Set(rows.map((r) => r.occasion.category || 'custom'));
   const on = rows.filter((r) => r.occasion.on);
   const off = rows.filter((r) => !r.occasion.on);
-  const pass = (r) => rowMatches(r, { query, filter });
+  const pass = (r) => rowMatches(r, { query, filter, category });
   const shownOn = filter === 'off' ? [] : on.filter(pass);
   const shownOff = (filter === 'on' || filter === 'needs') ? [] : off.filter(pass);
-  const groups = useMemo(() => groupByMonth(shownOn), [rows, query, filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  const groups = useMemo(() => groupByMonth(shownOn), [rows, query, filter, category]); // eslint-disable-line react-hooks/exhaustive-deps
   const offOpen = showOff || filter === 'off';
   const rowProps = { today, tz, canEdit, onEdit, onToggle };
   return (
@@ -76,6 +79,14 @@ export default function Timeline({ rows, today, tz, canEdit, onEdit, onToggle, o
             style={{ minHeight: '44px', padding: '0 14px', borderRadius: '999px', cursor: 'pointer', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600, background: filter === f ? colors.accentSoft : colors.card, color: filter === f ? colors.accent : colors.text, border: `1.5px solid ${filter === f ? colors.accent : colors.border}` }}>{FILTER_LABEL[f]}</button>
         ))}
       </div>
+      {have.size > 1 && (
+        <div role="group" aria-label="Kind of day" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {['all', ...CATEGORIES.filter((c) => have.has(c))].map((c) => (
+            <button key={c} type="button" aria-pressed={category === c} onClick={() => setCategory(c)} data-testid={`occ-cat-${c}`}
+              style={{ minHeight: '44px', padding: '0 14px', borderRadius: '999px', cursor: 'pointer', fontFamily: adminFonts.englishBody, fontSize: '14px', fontWeight: 600, background: category === c ? colors.accentSoft : colors.card, color: category === c ? colors.accent : colors.text, border: `1.5px solid ${category === c ? colors.accent : colors.border}` }}>{c === 'all' ? 'All kinds' : CATEGORY_LABEL[c]}</button>
+          ))}
+        </div>
+      )}
       {groups.length === 0 && shownOff.length === 0 && <p style={small} data-testid="occ-empty">{query || filter !== 'all' ? 'Nothing matches. Clear the search or choose All.' : 'Nothing on the list yet.'}</p>}
       {groups.map((g) => (
         <section key={g.key} id={`occ-month-${g.key}`} aria-label={g.label} data-testid={`occ-group-${g.key}`} style={{ scrollMarginTop: '12px' }}>

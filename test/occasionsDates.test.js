@@ -103,3 +103,17 @@ test('the advanced summary says what is customised', () => {
   assert.equal(D.advancedSummary({}, settings), 'Everything follows the defaults');
   assert.equal(D.advancedSummary({ look: { accent: '#aabbcc' }, layout: { scale: 90 }, milestoneOn: false, advent: { on: true }, soundOn: true, stageText: { far: {} } }, settings), 'own look · own layout · 1 hype override · 1 own line of words · advent calendar · sound on');
 });
+
+test('category filter, share helpers', () => {
+  const f = O.normalizeFile(null);
+  const rows = O.upcoming(f, NOW, { ...NY, today: '2026-11-08' }, { includeOff: true });
+  const ids = (category) => rows.filter((r) => D.rowMatches(r, { category })).map((r) => r.id);
+  assert.ok(ids('chabad').includes('s-yud-tes-kislev') && !ids('chabad').includes('s-purim'));
+  assert.ok(ids('yomtov').includes('s-purim') && ids('roshChodesh').includes('s-rc-kislev'));
+  assert.equal(ids('all').length, rows.length); assert.equal(ids('school').length, 0);
+  const row = rows.find((r) => r.id === 's-yud-tes-kislev');
+  const msg = D.shareFor(row, settings, ctxNow);
+  assert.match(msg, /until Yud-Tes Kislev \(Sunday, November 29 · 19 Kislev 5787\) — begins Saturday evening/); assert.ok(msg.includes('\n\n'), 'language both: English and Hebrew');
+  assert.match(D.weekShare({ ...f, settings: { ...settings, language: 'english' } }, () => ({ now: new Date('2026-11-25T15:00:00Z'), ctx: { ...NY, today: '2026-11-25' } })), /^This week:\n• Yud-Tes Kislev/);
+  assert.equal(D.shareLang({ language: 'hebrew' }), 'he');
+});

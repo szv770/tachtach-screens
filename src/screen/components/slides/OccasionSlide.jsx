@@ -419,7 +419,7 @@ function CountBody({ m, L, portrait, font, compact, center, nowMs, fast, lang, m
   if (formId !== 'days' && formId !== 'flip') {
     const fw = formWords(formId, m, nowMs, lang);
     if (fw) {
-      const numH2 = Math.min(scaled(portrait ? 290 : compact ? 260 : 330, L), maxH ? Math.max(150, maxH - 220) : 9999);
+      const numH2 = Math.min(Math.round(scaled(portrait ? 290 : compact ? 260 : 330, L) * (L.cs || 1)), maxH ? Math.max(150, maxH - 220) : 9999);
       return (
         <div data-occ-count={m.form} data-occ-formid={formId} style={{ ...col, gap: portrait ? 14 : 10 }}>
           {tagline}
@@ -443,7 +443,7 @@ function CountBody({ m, L, portrait, font, compact, center, nowMs, fast, lang, m
     }
   }
   if (m.form === 'far' && shows(L, 'ring')) {
-    const ring = Math.min(scaled(portrait ? 560 : compact ? 380 : 440, L), maxH ? Math.max(240, maxH - 70) : 9999);
+    const ring = Math.min(Math.round(scaled(portrait ? 560 : compact ? 380 : 440, L) * (L.cs || 1)), maxH ? Math.max(240, maxH - 70) : 9999);
     return (
       <div data-occ-count="far" style={{ ...col, gap: 18 }}>
         {tagline}
@@ -455,7 +455,7 @@ function CountBody({ m, L, portrait, font, compact, center, nowMs, fast, lang, m
       </div>
     );
   }
-  const numH = Math.min(scaled(portrait ? 290 : compact ? 260 : 330, L), maxH ? Math.max(150, maxH - 200) : 9999);
+  const numH = Math.min(Math.round(scaled(portrait ? 290 : compact ? 260 : 330, L) * (L.cs || 1)), maxH ? Math.max(150, maxH - 200) : 9999);
   const n = m.form === 'far' ? (m.lead?.days || FAR_DAYS) : m.form === 'days' ? FAR_DAYS : m.form === 'hours' ? 24 : 60;
   const left = m.form === 'far' ? (c.days || 0) : m.form === 'days' ? c.days : m.form === 'hours' ? c.hours + (c.minutes > 0 ? 1 : 0) : c.minutes + ((c.seconds || 0) > 0 ? 1 : 0);
   const ticksOn = m.form === 'far' || m.form === 'days' ? shows(L, 'pips') : shows(L, 'bar') && !c.approx;
@@ -830,7 +830,8 @@ function squeezed(L, level) {
   if (level >= 3) show.whySource = false; // the 'Source: ...' line under the why text (never the text itself)
   if (level >= 4) show.dateRange = false; // then the multi-day range, and everything a little smaller
   if (level >= 5) show.dayHe = false; // last: the Hebrew spelling of the civil day (the Hebrew date under it stays)
-  return { ...L, show, k: level >= 4 ? (L.k || 1) * 0.84 : L.k };
+  // the count itself (ring, numerals) is the most elastic part: it gives way too, in steps
+  return { ...L, show, k: level >= 4 ? (L.k || 1) * 0.84 : L.k, cs: level >= 5 ? 0.62 : level >= 4 ? 0.8 : level >= 3 ? 0.9 : 1 };
 }
 function useSqueeze(ref, key) {
   const [level, setLevel] = useState(0);
