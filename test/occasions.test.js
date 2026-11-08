@@ -307,6 +307,12 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   const tk = O.takeoverFor(f, new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
   assert.equal(tk.kind, 'zero'); assert.equal(tk.greeting.en, 'Gut Yom Tov!'); assert.equal(tk.until - row.begin.ms, 3 * 60000);
   assert.equal(items.find((i) => i.display === 'banner').content.headlineEn, 'Tonight: Yud-Tes Kislev · Farbrengen 8 PM, main hall');
+  // the takeover carries the same clear dates as a slide row, and the short 'why' only when it is sourced AND checked
+  assert.equal(tk.dates.toGoLabel.en, 'until it begins'); assert.equal(tk.dates.day.en, 'Sunday, November 29');
+  assert.equal(tk.why, null, 'no short why without a source + check');
+  const tkWhy = O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: true }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
+  assert.equal(tkWhy.why.en, 'A short line.'); assert.equal(tkWhy.why.source, 'Chabad.org');
+  assert.equal(O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: false }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true }).why, null, 'unchecked text never reaches a takeover');
   items = O.occasionItems(f, new Date(row.begin.ms + 5 * 60000), NY, { slideOn: true });
   assert.deepEqual(items.map((i) => i.display), ['banner']);
   // per occasion switch, global switches, and no takeover on an approximate time

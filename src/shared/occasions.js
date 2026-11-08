@@ -1406,6 +1406,7 @@ export function heroModel(row, now, ctx) {
     begins: c.form === 'zero' || c.form === 'day' ? null : pickLang(beginWords(row, today, ctx.tz || DEFAULT_TZ)),
     approx: c.approx && c.form !== 'zero' && c.form !== 'day',
     lead: c.form === 'far' ? { fraction: c.fraction, days: c.lead } : null,
+    leadDays: windowDays(row, s), // the lead-up window (own 'show only in the last N days', else the global one): the 'percent' form measures against it
     zero: c.form === 'zero' ? pickLang(zeroWordsFor(o, s) || (row.begin.evening && today < row.startISO ? COPY.tonight : COPY.today)) : null,
     celebrate: c.form === 'zero' && s.celebrate && o.celebrate !== false,
     dayLabel: c.form === 'day' ? pickLang(evening ? COPY.tonight : COPY.today) : null,
@@ -1620,7 +1621,9 @@ export function takeoverFor(file, now, ctx) {
   const { kind, row: r, until, extra } = best;
   const o = r.occasion;
   const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
-  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind) };
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
+    // the same clear dates + short 'why' as a slide row (the kiosk takeover shows the quiet why line and 'until it begins')
+    dates: datesOf(r, today, tz, pickLang), why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null };
   const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });
   if (kind === 'zero') {
     const evening = r.begin.evening && today < r.startISO;

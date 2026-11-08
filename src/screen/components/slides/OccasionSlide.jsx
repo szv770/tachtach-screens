@@ -390,7 +390,7 @@ function formWords(f, m, nowMs, lang) {
     return { big: String(h), suffix: '', unit: inLang({ en: tg?.en ? `${h === 1 ? COPY.hour.en : COPY.hours.en} ${tg.en}` : (h === 1 ? COPY.hour.en : COPY.hours.en), he: tg?.he ? `${h === 1 ? COPY.hour.he : COPY.hours.he} ${tg.he}` : (h === 1 ? COPY.hour.he : COPY.hours.he) }, lang) };
   }
   if (f === 'percent') {
-    const leadMs = Math.max(1, (m.lead?.days || 30) * 86400000);
+    const leadMs = Math.max(1, (m.leadDays || m.lead?.days || 30) * 86400000);
     const frac = Math.min(0.99, Math.max(0, 1 - rem / leadMs));
     return { big: String(Math.floor(frac * 100)), suffix: '%', unit: inLang(FORM_COPY.percent, lang), bar: frac };
   }
