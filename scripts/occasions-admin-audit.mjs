@@ -54,7 +54,7 @@ for (const [W, H] of [[360, 740], [412, 915]].filter(([w]) => !process.env.ONLY 
   await page.goto(`${BASE}/admin/occasions`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid="occ-onoff"]', { timeout: 8000 });
   // open every collapsible so its controls are scanned too
-  for (const b of await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').all()) await b.click().catch(() => {});
+  for (let i = 0; i < 20 && await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').count(); i++) await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').first().click().catch(() => {});
   await scanChecks(page, `${tag} page`);
   check(`${tag} starter list shows with next dates`, await page.locator('[data-testid^="occ-row-"]').count() >= 10);
   check(`${tag} list is grouped by month`, await page.locator('[data-testid^="occ-group-"]').count() >= 6);
@@ -120,7 +120,7 @@ for (const [W, H] of [[360, 740], [412, 915]].filter(([w]) => !process.env.ONLY 
   check(`${tag} paste from Claude fills short, long and source`, (await page.inputValue('[data-testid="occ-short-en"]')) === 'Pasted short.' && (await page.inputValue('[data-testid="occ-explain-en"]')) === 'Pasted long text.' && (await page.inputValue('[data-testid="occ-source"]')) === 'Likutei Sichos p. 5');
   await page.click('[data-testid="occ-checked"] [role="switch"], [data-testid="occ-checked"] button');
   check(`${tag} sheet: checked shows`, /Checked: shows on the screen/.test(await page.innerText('[data-testid="occ-source-state"]')));
-  check(`${tag} sheet: advanced collapsed with a summary`, await page.locator('[data-testid="occ-advanced"]').count() === 0 && /follow the defaults/.test(await page.innerText('[data-testid="occ-advanced-summary"]')));
+  check(`${tag} sheet: advanced collapsed with a summary`, await page.locator('[data-testid="occ-advanced"]').count() === 0 && /follows the defaults/.test(await page.innerText('[data-testid="occ-advanced-summary"]')));
   await page.click('[data-testid="occ-advanced-toggle"]');
   await scanChecks(page, `${tag} sheet advanced`);
   const sheetFits = await page.evaluate(() => { const d = document.querySelector('[role="dialog"]'); const r = d.getBoundingClientRect(); return r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1; });

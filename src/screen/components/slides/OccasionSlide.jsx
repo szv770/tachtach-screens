@@ -62,7 +62,7 @@ const NAME = {
   side: [118, 46, 160, 50, 32, 70],
   sideLong: [84, 36, 190, 40, 28, 100],
   sideShort: [150, 56, 204, 58, 36, 78],
-  sideShortWhy: [126, 50, 168, 52, 32, 66],
+  sideShortWhy: [116, 48, 150, 50, 32, 62],
   portShort: [150, 56, 200, 62, 36, 84],
   sideWhy: [104, 42, 140, 46, 30, 62],
   sideLongWhy: [80, 34, 176, 38, 28, 92],
@@ -443,15 +443,19 @@ function CountBody({ m, L, portrait, font, compact, center, nowMs, fast, lang, m
     }
   }
   if (m.form === 'far' && shows(L, 'ring')) {
-    const ring = Math.min(Math.round(scaled(portrait ? 560 : compact ? 380 : 440, L) * (L.cs || 1)), maxH ? Math.max(240, maxH - 70) : 9999);
+    const want = Math.round(scaled(portrait ? 560 : compact ? 380 : 440, L) * (L.cs || 1));
+    // a long unit ('DAYS UNTIL IT BEGINS' + the Hebrew) only fits inside a big ring; in a small one it sits under it
+    const inside = Math.min(want, maxH ? Math.max(200, maxH - 70) : 9999) >= 400;
+    const ring = Math.min(want, maxH ? Math.max(200, maxH - (inside ? 70 : 150)) : 9999);
     return (
       <div data-occ-count="far" style={{ ...col, gap: 18 }}>
         {tagline}
         <div style={{ position: 'relative', width: ring, height: ring, flex: 'none', alignSelf: center ? 'center' : 'flex-start', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <ThinRing size={ring} fraction={m.lead?.fraction || 0} />
-          <div style={{ width: '64%' }}><BigNum text={w.big} max={Math.round(ring * 0.5)} height={Math.round(ring * 0.46)} font={font} align="center" /></div>
-          <Unit unit={unit} center size={24} />
+          <div style={{ width: '64%' }}><BigNum text={w.big} max={Math.round(ring * 0.5)} height={Math.round(ring * (inside ? 0.46 : 0.5))} font={font} align="center" /></div>
+          {inside && <Unit unit={unit} center size={24} />}
         </div>
+        {!inside && <Unit unit={unit} center={center} size={24} />}
       </div>
     );
   }
@@ -601,7 +605,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang, forms = []
   const whyBand = blocks.includes('why') && hasText(m.why);
   const infoBlocks = blocks.filter((k) => k !== 'why');
   const info = (
-    <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
+    <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 12, textAlign: center ? 'center' : 'start' }}>
       {infoBlocks.map((k, i) => (k === 'name'
         ? <React.Fragment key={k}><Name name={m.name} L={L} size={whyBand ? (long ? NAME.sideLongWhy : isShort(m.name) ? NAME.sideShortWhy : NAME.sideWhy) : long ? NAME.sideLong : isShort(m.name) ? NAME.sideShort : NAME.side} align={L.align} k={`${m.key}|${whyBand}`} />{i < infoBlocks.length - 1 && <Rule center={center} />}</React.Fragment>
         : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} />))}
@@ -819,14 +823,14 @@ function readSecs(ex) {
 
 /**
  * When the worst content (60-character names, long event lines, a full coming-up strip) does not fit the panel, parts go
- * in order of least importance instead of anything being cut: 1 the coming-up strip, 2 the tick row and the tagline,
+ * in order of least importance instead of anything being cut: 1 the coming-up strip, 2 the tick row, the tagline and the Today strip,
  * 3 the why text's source line, 4 the date range and everything a little smaller, 5 the Hebrew spelling of the civil day
  * (the why text itself shrinks to 28 px, never goes). Measured in layout px after each page renders (and after fonts load).
  */
 function squeezed(L, level) {
   if (!level) return L;
   const show = { ...L.show, coming: false };
-  if (level >= 2) Object.assign(show, { pips: false, bar: false, tagline: false });
+  if (level >= 2) Object.assign(show, { pips: false, bar: false, tagline: false, today: false });
   if (level >= 3) show.whySource = false; // the 'Source: ...' line under the why text (never the text itself)
   if (level >= 4) show.dateRange = false; // then the multi-day range, and everything a little smaller
   if (level >= 5) show.dayHe = false; // last: the Hebrew spelling of the civil day (the Hebrew date under it stays)
