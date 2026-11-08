@@ -7,7 +7,7 @@ import { btn, card, h3, small, label, Select, TextIn, Chip, Group } from './occa
 import ExplainBox from './occasions/ExplainBox.jsx';
 import { HypeGlobal, HypeOwn } from './occasions/HypeSection.jsx';
 import { WordsEditor } from './occasions/WordsSection.jsx';
-import { LookEditor, DisplayField } from './occasions/LookSection.jsx';
+import { LookEditor, DisplayField, StageStyleField, HypeField } from './occasions/LookSection.jsx';
 import { LayoutEditor } from './occasions/LayoutSection.jsx';
 import { SoundGlobal, SoundOwn } from './occasions/SoundSection.jsx';
 import AdventEditor from './occasions/AdventSection.jsx';
@@ -56,7 +56,7 @@ const emptyDraft = () => ({
   beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', category: 'custom', tapForms: null, autoForms: null, source: '', eventEn: '', eventHe: '',
   zeroKey: 'gutYomTov', zeroEn: '', zeroHe: '', celebrate: true, rail: true, banner: true, takeover: true, style: 'hype',
   explainChecked: false, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
-  kind: 'countdown', from: null, total: 8, display: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
+  kind: 'countdown', from: null, total: 8, display: null, stageStyle: null, hype: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
 });
 
 const stepH = { fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: '10px' };
@@ -212,6 +212,8 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
               </Group>
               <Group title="Look" summary={Object.keys(d.look || {}).length ? 'Its own look' : 'Follows the default'} testId="occ-own-look">
                 <DisplayField level="own" value={d.display} base={settings.display} onChange={(v) => set({ display: v })} />
+                <StageStyleField level="own" value={d.stageStyle ?? null} base={settings.stageStyle || 'scroll'} onChange={(v) => set({ stageStyle: v })} />
+                <HypeField level="own" value={d.hype ?? null} base={settings.hype || 'lively'} onChange={(v) => set({ hype: v })} />
                 <LookEditor level="own" look={d.look || {}} base={settings.look} onChange={(l) => set({ look: l })} />
               </Group>
               <Group title="Layout" summary={Object.keys(d.layout || {}).length ? 'Its own layout' : 'Follows the default'} testId="occ-own-layout">
@@ -419,6 +421,8 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
       <Collapsible id="occ-look2" title="Look" icon="palette" summary={`${s.display === 'flip' ? 'Flip clock' : 'Classic'}${s.look.accent ? ` · ${s.look.accent}` : ''}${s.look.photo ? ' · photo' : ''}`}>
         <Hint style={{ marginTop: 0 }}>For every countdown. Each occasion can have its own look in its edit sheet.</Hint>
         <DisplayField level="global" value={s.display} onChange={(v) => saveSettings({ display: v }, `Numbers: ${v === 'flip' ? 'flip clock' : 'classic'}`)} />
+        <StageStyleField level="global" value={s.stageStyle || 'scroll'} onChange={(v) => saveSettings({ stageStyle: v }, `Explanation: ${v}`)} />
+        <HypeField level="global" value={s.hype || 'lively'} onChange={(v) => saveSettings({ hype: v }, `Hype: ${v}`)} />
         <LookEditor level="global" look={s.look} disabled={!canEdit} onChange={(l, msg) => saveSettings({ look: l }, msg)} />
       </Collapsible>
 

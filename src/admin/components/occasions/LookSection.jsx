@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { Field, Hint, Choices, getCsrfToken } from '../look/kit.jsx';
 import { BUILTIN_FONTS } from '../../../shared/fontRoles.js';
-import { RANGES, LOOK_DEFAULTS, PHOTO_URL, DISPLAYS, DISPLAY_LABEL } from '../../../shared/occasions.js';
+import { RANGES, LOOK_DEFAULTS, PHOTO_URL, DISPLAYS, DISPLAY_LABEL, STAGE_STYLE_LIST, HYPES, HYPE_LABEL, HYPE_HINT } from '../../../shared/occasions.js';
 import { withLook } from './occHelpers.js';
 import { btn, small, label, Select, CommitSlider, OwnField, useUploadedFonts, colors } from './occKit.jsx';
 
@@ -51,6 +51,38 @@ export function DisplayField({ level, value, base, onChange }) {
     );
   }
   return <Field label="Numbers style"><Choices ariaLabel="Numbers style" value={value} onChange={onChange} options={DISPLAYS.map((v) => ({ value: v, label: DISPLAY_LABEL[v] }))} /></Field>;
+}
+
+/**
+ * 'How the explanation appears': the Stage style (src/shared/stageStyles.js lists them; a new style shows up here by itself).
+ * `value` null = follow (own level).
+ */
+export function StageStyleField({ level, value, base, onChange }) {
+  const opts = STAGE_STYLE_LIST.map((s) => ({ value: s.id, label: s.label }));
+  const cur = STAGE_STYLE_LIST.find((s) => s.id === (value || base)) || STAGE_STYLE_LIST[0];
+  const hint = <Hint style={{ marginTop: 4 }} data-testid="occ-stage-hint">{cur.description}</Hint>;
+  if (level === 'own') {
+    return (
+      <OwnField title="How the explanation appears" own={value != null} defaultText={(STAGE_STYLE_LIST.find((s) => s.id === base) || STAGE_STYLE_LIST[0]).label} onFollow={() => onChange(null)} onCustom={() => onChange(base)}>
+        <Choices ariaLabel="How the explanation appears" value={value || base} onChange={onChange} options={opts} />{hint}
+      </OwnField>
+    );
+  }
+  return <Field label="How the explanation appears"><Choices ariaLabel="How the explanation appears" value={value} onChange={onChange} options={opts} />{hint}</Field>;
+}
+
+/** 'Hype': how much the energy climbs as the day nears (calm | lively | max). `value` null = follow (own level). */
+export function HypeField({ level, value, base, onChange }) {
+  const opts = HYPES.map((h) => ({ value: h, label: HYPE_LABEL[h] }));
+  const hint = <Hint style={{ marginTop: 4 }} data-testid="occ-hype-hint">{HYPE_HINT[value || base]}</Hint>;
+  if (level === 'own') {
+    return (
+      <OwnField title="Hype" own={value != null} defaultText={HYPE_LABEL[base]} onFollow={() => onChange(null)} onCustom={() => onChange(base)}>
+        <Choices ariaLabel="Hype" value={value || base} onChange={onChange} options={opts} />{hint}
+      </OwnField>
+    );
+  }
+  return <Field label="Hype"><Choices ariaLabel="Hype" value={value} onChange={onChange} options={opts} />{hint}</Field>;
 }
 
 /**
