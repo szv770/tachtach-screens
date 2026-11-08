@@ -30,6 +30,8 @@ import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.j
  * Roles and font roles only; static art; nothing loops, no blur or blend. Portrait and landscape.
  */
 
+/** A one-word name (<= 8 Hebrew / 14 English characters): set larger so it does not look lost in its column. */
+const isShort = (name) => [...(name?.he || '')].length <= 8 && [...(name?.en || '')].length <= 14;
 const isLong = (name) => [...(name?.he || '')].length > 16 || [...(name?.en || '')].length > 24;
 const textOf = (x) => (x && (x.en || x.he) ? x : null);
 
@@ -59,6 +61,9 @@ function Name({ name, L, size, align, k }) {
 const NAME = {
   side: [118, 46, 160, 50, 32, 70],
   sideLong: [84, 36, 190, 40, 28, 100],
+  sideShort: [150, 56, 204, 58, 36, 78],
+  sideShortWhy: [126, 50, 168, 52, 32, 66],
+  portShort: [150, 56, 200, 62, 36, 84],
   sideWhy: [104, 42, 140, 46, 30, 62],
   sideLongWhy: [80, 34, 176, 38, 28, 92],
   port: [116, 46, 160, 52, 32, 72],
@@ -199,7 +204,8 @@ function WhyBlock({ why, L, hero = false, band = false, center, lang, portrait =
   const budget = Math.round((hero ? (portrait ? 420 : 300) : band ? 132 : 300) * kk);
   const ta = center ? 'center' : 'start';
   return (
-    <div data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta, ...(band ? { marginTop: 8, paddingTop: 10, borderTop: '2px solid var(--line)' } : null) }}>
+    <div data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta, ...(band ? { position: 'relative', marginTop: 8, paddingTop: 10, borderTop: '2px solid var(--line)' } : center ? null : { paddingInlineStart: 20, borderInlineStart: '3px solid var(--accentText)' }) }}>
+      {band && <span aria-hidden style={{ position: 'absolute', top: -2, left: 0, width: 72, height: 2, background: 'var(--accentText)' }} />}
       {band ? (
         // the band: the source shares the label's row (one line less), wrapping under it when it is long
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', justifyContent: 'space-between', gap: '2px 32px', width: '100%' }}>
@@ -576,7 +582,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang, forms = []
     const before = at >= 0 ? blocks.slice(0, at + 1) : [];
     const after = at >= 0 ? blocks.slice(at + 1) : blocks;
     const part = (keys) => keys.map((k) => (k === 'name'
-      ? <Name key={k} name={m.name} L={L} size={long ? NAME.portLong : NAME.port} align={L.align} k={m.key} />
+      ? <Name key={k} name={m.name} L={L} size={long ? NAME.portLong : isShort(m.name) ? NAME.portShort : NAME.port} align={L.align} k={m.key} />
       : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait />));
     return (
       <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
@@ -597,7 +603,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang, forms = []
   const info = (
     <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
       {infoBlocks.map((k, i) => (k === 'name'
-        ? <React.Fragment key={k}><Name name={m.name} L={L} size={whyBand ? (long ? NAME.sideLongWhy : NAME.sideWhy) : long ? NAME.sideLong : NAME.side} align={L.align} k={`${m.key}|${whyBand}`} />{i < infoBlocks.length - 1 && <Rule center={center} />}</React.Fragment>
+        ? <React.Fragment key={k}><Name name={m.name} L={L} size={whyBand ? (long ? NAME.sideLongWhy : isShort(m.name) ? NAME.sideShortWhy : NAME.sideWhy) : long ? NAME.sideLong : isShort(m.name) ? NAME.sideShort : NAME.side} align={L.align} k={`${m.key}|${whyBand}`} />{i < infoBlocks.length - 1 && <Rule center={center} />}</React.Fragment>
         : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} />))}
     </div>
   );
@@ -899,6 +905,20 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     return () => clearTimeout(t);
   }, [keyList, page]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Cycled forms: which form of the countdown this page shows now (a tap on the number steps on; auto mode steps by itself).
+  const curPage = pages[Math.min(page, pages.length - 1)];
+  const formList = curPage && curPage.view === 'main' ? formsFor(curPage.m) : [];
+  const formSig = `${curPage?.m.key}|${formList.join()}`;
+  const [formAt, setFormAt] = useState(0);
+  useEffect(() => { setFormAt(0); }, [formSig]);
+  const autoOn = formList.length > 1 && !!curPage?.m.autoForms?.on;
+  const autoSecs = Math.min(300, Math.max(3, Number(curPage?.m.autoForms?.seconds) || 8));
+  useEffect(() => {
+    if (!autoOn) return undefined;
+    const t = setInterval(() => { if (!document.hidden) setFormAt((x) => (x + 1) % formList.length); }, autoSecs * 1000);
+    return () => clearInterval(t);
+  }, [autoOn, autoSecs, formList.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // A tap on the TV (when the admin lets the TV take touch: App sets --tt-pe:none when not): a small finite pop at the tap
   // point on the countdown, or a peek at today's advent card for 8 s. Swipes belong to the rotation; this only reads taps.
   const panelRef = useRef(null);
@@ -934,12 +954,21 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   const nowMs = now.getTime();
   const lang = model.language;
   const advent = cur.view === 'main' && m.advent && m.form !== 'zero';
+  const forms = formList;
   const onTap = (e) => {
-    if (m.touch === false || design.motion === 'minimal') return;
+    if (m.touch === false) return;
     const el = panelRef.current;
     if (!el) return;
     try { if (getComputedStyle(el).getPropertyValue('--tt-pe').trim() === 'none') return; } catch { /* no styles: allow */ }
     const t = Date.now();
+    // a tap on the countdown itself steps to the next form (also on Minimal motion: it just swaps); anywhere else keeps the pop
+    if (forms.length > 1 && e.target?.closest?.('[data-occ-count]')) {
+      if (t - lastTap.current < 300) return;
+      lastTap.current = t;
+      setFormAt((x) => (x + 1) % forms.length);
+      return;
+    }
+    if (design.motion === 'minimal') return;
     if (t - lastTap.current < 800) return;
     lastTap.current = t;
     if (advent && m.advent.today) { setPeek(true); return; }
@@ -956,7 +985,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       {pops.map((p) => <TapPop key={p.id} x={p.x} y={p.y} />)}
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
         <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <Header pager={pager} today={cur.view === 'main' && shows(L, 'today') ? (model.today || m.today) : null} lang={lang} />
+          <Header pager={pager} today={cur.view === 'main' && shows(L, 'today') ? [model.today, m.today].find((x) => x && typeof x === 'object') || null : null} lang={lang} />
           {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} lang={lang} />
             : cur.view === 'step' ? <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />
             : m.form === 'zero' ? <ZeroView m={m} L={L} portrait={portrait} />

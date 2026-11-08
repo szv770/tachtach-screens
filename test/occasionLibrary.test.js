@@ -6,12 +6,12 @@ import * as O from '../src/shared/occasions.js';
 import { hebrewDateOf, isLeapYear } from '../src/shared/hebrewCalendar.js';
 
 test('the library is big enough, keys are unique, every starter is in it, no entry carries a story', () => {
-  assert.ok(L.LIBRARY.length >= 45, `${L.LIBRARY.length} days`);
+  assert.ok(L.LIBRARY.length >= 58, `${L.LIBRARY.length} days`);
   const keys = L.LIBRARY.map((e) => e.key);
   assert.equal(new Set(keys).size, keys.length, 'unique keys');
   for (const s of O.STARTERS) assert.ok(L.libraryEntry(s.key), `starter ${s.key} is in the library`);
   for (const e of L.LIBRARY) {
-    for (const k of Object.keys(e)) assert.ok(['key', 'en', 'he', 'rule', 'days', 'beginsAt', 'zero', 'style', 'celebrate', 'shabbos', 'cat', 'find'].includes(k), `${e.key} has an unexpected field ${k} (no stories, no reasons)`);
+    for (const k of Object.keys(e)) assert.ok(['key', 'en', 'he', 'rule', 'days', 'beginsAt', 'zero', 'style', 'celebrate', 'shabbos', 'cat', 'category', 'find'].includes(k), `${e.key} has an unexpected field ${k} (no stories, no reasons)`);
     assert.ok(L.LIBRARY_CATS.includes(e.cat), e.key);
   }
 });
@@ -29,17 +29,17 @@ test('every entry normalises into a valid occasion and survives the strict check
   assert.ok(L.LIBRARY.length <= O.LIMITS.occasions + 10);
 });
 
-test('next dates 2026-2030 are sane: every year, on the right Hebrew date, with the Shabbos move', () => {
+test('next dates 2026-2035 are sane: every year, on the right Hebrew date, with the Shabbos move', () => {
   for (const e of L.LIBRARY) {
     const o = O.normalizeOccasion(L.libraryDraft(e));
-    const list = O.occurrencesBetween(o, '2026-01-01', '2030-12-31');
+    const list = O.occurrencesBetween(o, '2026-01-01', '2035-12-31');
     if (e.rule.kind === 'roshChodesh') {
-      assert.ok(e.rule.month === 13 ? list.length >= 1 : e.rule.month === 0 ? list.length >= 55 : list.length >= 5, `${e.key}: ${list.length}`);
+      assert.ok(e.rule.month === 13 ? list.length >= 3 : e.rule.month === 0 ? list.length >= 110 : list.length >= 9, `${e.key}: ${list.length}`);
       continue;
     }
-    assert.ok(list.length >= 4 && list.length <= 6, `${e.key}: ${list.length} occurrences`);
+    assert.ok(list.length >= 9 && list.length <= 11, `${e.key}: ${list.length} occurrences`);
     for (const r of list) {
-      assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(r.startISO) && r.startISO >= '2026-01-01' && r.startISO <= '2030-12-31', e.key);
+      assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(r.startISO) && r.startISO >= '2026-01-01' && r.startISO <= '2035-12-31', e.key);
       const h = hebrewDateOf(r.startISO);
       const dow = new Date(`${r.startISO}T12:00:00Z`).getUTCDay();
       if (e.shabbos === 'stay') {

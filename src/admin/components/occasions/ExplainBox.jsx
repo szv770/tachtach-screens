@@ -42,7 +42,7 @@ export default function ExplainBox({ d, set, copyPrompt }) {
   const pasteFromClaude = async () => {
     setNote('');
     try {
-      const t = await navigator.clipboard.readText();
+      const t = await Promise.race([navigator.clipboard.readText(), new Promise((_, no) => setTimeout(() => no(new Error('slow')), 700))]);
       if (t && parseClaudeReply(t).found) { apply(t); return; }
     } catch { /* no clipboard permission: show the box */ }
     setPaste('');

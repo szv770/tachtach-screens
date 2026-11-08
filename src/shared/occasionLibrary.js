@@ -7,7 +7,8 @@
  * Every date is a plain calendar rule that can be checked against any printed luach; the admin panel still says 'check with your
  * rav and your minhag'. Left out on purpose (not certain / not a single plain rule): see docs/claude/FEATURES.md 'Occasions library'.
  *
- * An entry: { key, en, he, rule, days?, beginsAt?, zero, style, celebrate?, shabbos?, cat, find? }
+ * An entry: { key, en, he, rule, days?, beginsAt?, zero, style, celebrate?, shabbos?, cat, category, find? }
+ *   `category` is the occasion's collection (chabad | yomtov | fast | roshChodesh), see CATEGORIES in occasions.js.
  *   `key` of the starter calendar rows is the same key as in STARTERS (so 'Added' also recognises a restored starter).
  *   `find` = extra words the search understands ('hanukkah', 'tisha bav').
  */
@@ -51,7 +52,19 @@ const X = (key, en, he, rule, o = {}) => ({
 const RCM = (key, month, en, he) => X(key, `Rosh Chodesh ${en}`, `ראש חודש ${he}`, RC(month), { zero: 'chodeshTov', style: 'roshchodesh', cat: 'roshchodesh', find: ['rosh chodesh'] });
 
 const extras = [
-  // Chassidic days (dates only; nothing about what happened)
+  // Chassidic days (dates only; nothing about what happened). Left out: see FEATURES.md 'Occasions library'.
+  X('tes-kislev', 'Tes Kislev', 'ט׳ כסלו', H(KISLEV, 9), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['9 kislev'] }),
+  X('yud-daled-kislev', 'Yud-Daled Kislev', 'י״ד כסלו', H(KISLEV, 14), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['14 kislev'] }),
+  X('beis-nissan', 'Beis Nissan', 'ב׳ ניסן', H(NISAN, 2), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['2 nissan'] }),
+  X('yud-gimmel-nissan', 'Yud-Gimmel Nissan', 'י״ג ניסן', H(NISAN, 13), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['13 nissan'] }),
+  X('yud-gimmel-tishrei', 'Yud-Gimmel Tishrei', 'י״ג תשרי', H(TISHREI, 13), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['13 tishrei'] }),
+  X('vov-tishrei', 'Vov Tishrei', 'ו׳ תשרי', H(TISHREI, 6), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['6 tishrei'] }),
+  X('tes-vav-elul', 'Tes-Vav Elul', 'ט״ו אלול', H(ELUL, 15), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['15 elul'] }),
+  X('beis-iyar', 'Beis Iyar', 'ב׳ אייר', H(IYYAR, 2), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['2 iyar'] }),
+  X('chof-ches-sivan', 'Chof-Ches Sivan', 'כ״ח סיון', H(SIVAN, 28), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['28 sivan'] }),
+  X('chof-beis-shvat', 'Chof-Beis Shvat', 'כ״ב שבט', H(SHVAT, 22), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['22 shvat'] }),
+  X('chof-hey-adar', 'Chof-Hey Adar', 'כ״ה אדר', H(ADAR, 25), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['25 adar'] }),
+  X('chof-av', 'Chof Av', 'כ׳ אב', H(AV, 20), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['20 av'] }),
   X('chof-cheshvan', 'Chof Cheshvan', 'כ׳ חשון', H(CHESHVAN, 20), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['20 cheshvan'] }),
   X('chof-daled-teves', 'Chof-Daled Teves', 'כ״ד טבת', H(TEVET, 24), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['24 teves', '24 tevet'] }),
   X('gimmel-tammuz', 'Gimmel Tammuz', 'ג׳ תמוז', H(TAMUZ, 3), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['3 tammuz'] }),
@@ -87,11 +100,12 @@ const extras = [
   RCM('rc-elul', ELUL, 'Elul', 'אלול'),
 ];
 
+const CAT_TO_CATEGORY = { chassidic: 'chabad', yomtov: 'yomtov', minor: 'yomtov', fast: 'fast', roshchodesh: 'roshChodesh' };
 const catIndex = (c) => LIBRARY_CATS.indexOf(c);
 /** Every day the admin can pick, grouped by category and then in calendar order (Tishrei first). */
 export const LIBRARY = Object.freeze([...fromStarters, ...extras]
   .sort((a, b) => catIndex(a.cat) - catIndex(b.cat) || calendarIndex(a.rule) - calendarIndex(b.rule) || a.en.localeCompare(b.en))
-  .map((e) => Object.freeze({ ...e, rule: Object.freeze({ ...e.rule }), find: Object.freeze([...e.find]) })));
+  .map((e) => Object.freeze({ ...e, category: CAT_TO_CATEGORY[e.cat], rule: Object.freeze({ ...e.rule }), find: Object.freeze([...e.find]) })));
 
 const BY_KEY = new Map(LIBRARY.map((e) => [e.key, e]));
 export const libraryEntry = (key) => BY_KEY.get(key) || null;
@@ -102,7 +116,7 @@ export function libraryDraft(entry) {
   if (!e) return null;
   return {
     on: true, nameEn: e.en, nameHe: e.he, rule: { ...e.rule }, repeat: 'yearly', days: e.days || 1, beginsAt: e.beginsAt || 'default',
-    zeroKey: e.zero, style: e.style, celebrate: e.celebrate !== false, shabbos: e.shabbos || 'stay',
+    zeroKey: e.zero, style: e.style, celebrate: e.celebrate !== false, shabbos: e.shabbos || 'stay', category: e.category,
   };
 }
 
