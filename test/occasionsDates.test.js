@@ -41,7 +41,7 @@ test('rowTexts: the day, when it begins, how long until it begins, multi-day ran
   assert.match(a.beginsLine, /^Begins: Sat evening \(Nov 28\) · /);
   assert.equal(a.inLine, 'In 20 days'); assert.equal(a.inSub, 'until it begins'); assert.equal(a.rangeLine, null);
   const c = D.rowTexts(rows.find((r) => r.id === 'c'), '2026-11-08', NY.tz);
-  assert.equal(c.rangeLine, 'Dec 4 evening – Dec 11'); assert.match(c.dayLine, /^The days: Sat, Dec 5 · 25 Kislev · 8 days$/);
+  assert.equal(c.rangeLine, 'Dec 4 evening – Dec 12'); assert.match(c.dayLine, /^The days: Sat, Dec 5 · 25 Kislev · 8 days$/);
   assert.equal(c.inLine, 'In 25 days');
   // tonight / tomorrow evening / on now
   const tonight = O.upcoming(f, new Date('2026-11-28T15:00:00Z'), { ...NY, today: '2026-11-28' }).find((r) => r.id === 'a');
