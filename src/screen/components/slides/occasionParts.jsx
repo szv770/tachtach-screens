@@ -1,7 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { F, he } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
-import { scrimAlpha } from '../../design/useLayout.js';
 
 /**
  * Building blocks shared by the Countdown page (OccasionSlide.jsx) and its full-canvas takeover
@@ -34,6 +33,33 @@ export function daysAndFraction(remainingMs) {
   const whole = Math.floor(H / 24);
   return { whole, glyph: FRACTIONS[Math.min(3, Math.floor((H - whole * 24) / 6))] };
 }
+
+/**
+ * The real size (layout px) of the box an element sits in, so text and numerals are sized for the room they really have
+ * (ResizeObserver; re-read on every change of more than 2 px).
+ */
+export function useBox(guessW = 0, guessH = 0) {
+  const ref = useRef(null);
+  const [box, setBox] = useState({ w: guessW, h: guessH });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+    const read = () => setBox((o) => (Math.abs(o.w - el.clientWidth) > 2 || Math.abs(o.h - el.clientHeight) > 2 ? { w: el.clientWidth, h: el.clientHeight } : o));
+    read();
+    let ro;
+    if (typeof ResizeObserver !== 'undefined') { ro = new ResizeObserver(read); ro.observe(el); }
+    return () => ro?.disconnect();
+  }, []);
+  return [ref, box.w, box.h];
+}
+
+/** One language for an element ('both' = English first, the Hebrew dropped; the other page carries both). */
+export const primary = (x, lang) => {
+  if (!x) return { en: '', he: '' };
+  if (lang === 'hebrew') return { en: '', he: x.he || '' };
+  if (lang === 'english') return { en: x.en || '', he: '' };
+  return x.en ? { en: x.en, he: '' } : { en: '', he: x.he || '' };
+};
 
 /** 'Source' for the line under it (same word as the vort page). */
 export const WHY_SOURCE = Object.freeze({ en: 'Source', he: 'מקור' });
@@ -71,9 +97,6 @@ export function FitText({ max, min, budget, children, style, deps = '', ...rest 
   }, [max, min, budget, deps]);
   return <div ref={ref} style={{ ...style, fontSize: size }} {...rest}>{children}</div>;
 }
-
-/** The text colours the scrim must keep readable (each checked at 4.5:1 against every photo pixel behind it). */
-const TEXT_COLOURS = ['var(--ink)', LABEL_INK, SOFT_INK, ACC];
 
 // ── colour maths (WCAG relative luminance), on colours the browser resolved for us ──
 const parseColor = (c) => {
@@ -121,61 +144,6 @@ export function useSmallAccent(ref, deps) {
     const t = setTimeout(run, 4300);
     return () => clearTimeout(t);
   }, deps); // eslint-disable-line react-hooks/exhaustive-deps
-}
-
-/**
- * The photo's scrim, decided from the picture itself: the photo is drawn (cover-cropped like on screen) onto a tiny canvas,
- * and for each half (the text side and the countdown side; one region in portrait) the scrim is the SMALLEST alpha >= the
- * admin's dim at which every text colour still reads at 4.5:1 over every sampled pixel. A dark photo on a dark theme keeps
- * the admin's light dim; a white one gets what it needs. Returns null until measured / when it cannot be (load error,
- * tainted canvas): the caller then uses the heavy floor.
- */
-function usePhotoScrim(photo, dim, portrait, textSide, hostRef, themeKey) {
-  const [res, setRes] = useState(null);
-  useEffect(() => {
-    setRes(null);
-    if (!photo) return undefined;
-    let alive = true;
-    const img = new Image();
-    img.decoding = 'async';
-    img.onload = () => {
-      if (!alive) return;
-      try {
-        const host = hostRef.current?.parentElement;
-        if (!host || !img.naturalWidth) return;
-        const W = 32; const H = Math.max(8, Math.round((W * host.offsetHeight) / Math.max(1, host.offsetWidth)));
-        const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-        const g = cv.getContext('2d');
-        const sc = Math.max(W / img.naturalWidth, H / img.naturalHeight);
-        g.drawImage(img, (W - img.naturalWidth * sc) / 2, (H - img.naturalHeight * sc) / 2, img.naturalWidth * sc, img.naturalHeight * sc);
-        const d = g.getImageData(0, 0, W, H).data; // throws on a tainted canvas -> fallback
-        const panel = resolveColor(host, 'var(--panel)');
-        const texts = TEXT_COLOURS.map((c) => resolveColor(host, c)).filter(Boolean);
-        if (!panel || !texts.length) return;
-        const base = Math.min(0.97, Math.max(0, (Number(dim) || 0) / 100));
-        const alphaFor = (x0, x1) => {
-          const px = [];
-          for (let y = 0; y < H; y++) for (let x = x0; x < x1; x++) { const i = (y * W + x) * 4; px.push([d[i], d[i + 1], d[i + 2]]); }
-          for (let a = base; a < 0.995; a += 0.01) {
-            let ok = true;
-            for (const p of px) {
-              const bg = [0, 1, 2].map((k) => panel[k] * a + p[k] * (1 - a));
-              if (texts.some((t) => contrastOf(t, bg) < 4.6)) { ok = false; break; }
-            }
-            if (ok) return a;
-          }
-          return 1;
-        };
-        // the halves overlap by 20% so the 44-56% blend between the two alphas is covered by both measurements
-        const left = alphaFor(0, Math.round(W * 0.6)); const right = alphaFor(Math.round(W * 0.4), W);
-        const all = Math.max(left, right);
-        if (alive) setRes(portrait ? { text: all, other: all } : textSide === 'left' ? { text: left, other: right } : { text: right, other: left });
-      } catch { /* tainted / unavailable: keep the floor */ }
-    };
-    img.src = photo;
-    return () => { alive = false; };
-  }, [photo, dim, portrait, textSide, themeKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  return res;
 }
 
 /** 'COUNTDOWN  ספירה לאחור': English small caps + the Hebrew (no caps in Hebrew: a touch larger, normal tracking). */
@@ -239,61 +207,110 @@ export function FormDots({ n, at, center = false }) {
   );
 }
 
-/** A thin progress ring (hairline track + a slightly heavier arc), static. */
-export function ThinRing({ size, fraction }) {
-  const s = 4; const r = (size - s) / 2; const c = 2 * Math.PI * r;
-  const f = Math.max(0, Math.min(1, fraction || 0));
-  return (
-    <svg aria-hidden width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ position: 'absolute', inset: 0 }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--line)" strokeWidth="2" />
-      {f > 0 && <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--accentText)" strokeWidth={s} strokeDasharray={`${(c * f).toFixed(1)} ${c.toFixed(1)}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} />}
-    </svg>
-  );
-}
-
 /**
- * The edge device: a very thin vertical row of tick marks along the panel's edge (minor every 16 px, major every 80 px).
- * Two static gradient strips; 'rich' graphics draw both edges, 'subtle' one, 'off' none.
+ * The quiet wash behind a page without a photo: two static role-coloured gradients (the accent in one corner, the ink at
+ * the foot), no texture, nothing moves. `graphics` 'off' = flat panel.
  */
-export function EdgeTicks({ graphics, side = 'right', inset = 18 }) {
+export function Backdrop({ graphics = 'rich' }) {
   if (graphics === 'off') return null;
-  const sides = graphics === 'rich' ? ['left', 'right'] : [side];
-  return sides.map((sd) => (
-    <React.Fragment key={sd}>
-      <div aria-hidden data-occ-edge="" style={{ position: 'absolute', top: 64, bottom: 64, [sd]: inset, width: 12, pointerEvents: 'none', background: 'repeating-linear-gradient(to bottom, var(--line) 0 2px, transparent 2px 16px)' }} />
-      <div aria-hidden style={{ position: 'absolute', top: 64, bottom: 64, [sd]: inset, width: 24, pointerEvents: 'none', background: 'repeating-linear-gradient(to bottom, color-mix(in srgb, var(--ink) 30%, transparent) 0 2px, transparent 2px 80px)' }} />
-    </React.Fragment>
-  ));
+  return <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accentText) 7%, transparent) 0%, transparent 55%), linear-gradient(0deg, color-mix(in srgb, var(--ink) 3%, transparent) 0%, transparent 40%)' }} />;
+}
+
+/** How much of the panel the photo takes (landscape: a side; portrait: the top), and the text area's matching inset. */
+export const PHOTO_SHARE = { land: 0.4, port: 0.34 };
+
+/**
+ * The uploaded photo as its own pane (owner's reference: a real object BESIDE the values): full-bleed on one side of the
+ * panel (landscape) or along the top (portrait), fading into the panel colour on its inner edge. The text never sits on
+ * the picture, so it keeps the panel's own contrast whatever the photo is; the admin's dim only darkens the picture.
+ * A photo that fails to load simply disappears (the caller is told, so the text takes the whole panel back).
+ */
+export function PhotoPane({ photo, dim = 0, side = 'right', portrait = false, onBad }) {
+  const [bad, setBad] = useState('');
+  if (!photo || bad === photo) return null;
+  const share = portrait ? PHOTO_SHARE.port : PHOTO_SHARE.land;
+  const box = portrait ? { top: 0, left: 0, right: 0, height: `${share * 100}%` } : { top: 0, bottom: 0, [side]: 0, width: `${share * 100}%` };
+  const fadeDir = portrait ? 'to top' : side === 'right' ? 'to right' : 'to left';
+  const d = Math.min(0.9, Math.max(0, (Number(dim) || 0) / 100));
+  return (
+    <div aria-hidden data-occ-photo-pane="" style={{ position: 'absolute', ...box, pointerEvents: 'none', overflow: 'hidden' }}>
+      <img src={photo} alt="" decoding="async" data-occ-photo="" onError={() => { setBad(photo); onBad?.(photo); }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      <div data-occ-scrim="pane" style={{ position: 'absolute', inset: 0, background: `linear-gradient(${fadeDir}, var(--panel) 0%, color-mix(in srgb, var(--panel) ${Math.round(Math.max(d, 0.55) * 100)}%, transparent) 14%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 46%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 100%)` }} />
+    </div>
+  );
 }
 
 /**
- * Backdrop: the uploaded photo (cover) under a scrim of the panel colour, heavier behind the text (`textSide`), or,
- * without a photo, a quiet static wash. A photo that fails to load simply disappears.
+ * The big hero numerals, sized from the room they have: the largest font size at which the number's SHAPE (every digit
+ * as 0, so seconds tick without re-fitting) is no wider than `maxW` and its digits no taller than `maxH` (layout px).
+ * The box is the digits' own height (line-height .74), so its top and bottom sit on the digits and the caption beside it
+ * can align to them. Re-measured when the fonts arrive.
  */
-export function Backdrop({ photo, dim, textSide = 'left', portrait = false, graphics = 'rich', light = false, themeKey = '' }) {
-  const [bad, setBad] = useState('');
-  const ref = useRef(null);
-  const show = photo && bad !== photo;
-  const measured = usePhotoScrim(show ? photo : '', dim, portrait, textSide, ref, `${themeKey}|${light}`);
-  if (!show) {
-    if (graphics === 'off') return null;
-    return <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(160deg, color-mix(in srgb, var(--accentText) 4%, transparent) 0%, transparent 50%), linear-gradient(0deg, color-mix(in srgb, var(--ink) 2%, transparent) 0%, transparent 36%)' }} />;
-  }
-  const floor = scrimAlpha(dim, light);
-  // measured: each half gets exactly what its text needs (a good photo shows); not measured (yet): the heavy floor
-  const a = measured || { text: floor.text, other: portrait ? floor.text : floor.base };
-  const pct = (x) => `${Math.round(Math.min(1, x) * 100)}%`;
-  const dir = textSide === 'left' ? 'to right' : 'to left';
-  const sc = (x) => `color-mix(in srgb, var(--panel) ${pct(x)}, transparent)`;
+export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color = 'var(--ink)', weight = 600, align = 'start' }) {
+  const probe = useRef(null);
+  const [w100, setW100] = useState(0);
+  const shape = String(text).replace(/\d/g, '0');
+  useLayoutEffect(() => {
+    const el = probe.current;
+    if (!el) return undefined;
+    let alive = true;
+    const read = () => { if (alive && el.offsetWidth) setW100((o) => (Math.abs(o - el.offsetWidth) > 0.5 ? el.offsetWidth : o)); };
+    read();
+    document.fonts?.ready?.then(read).catch(() => {});
+    document.fonts?.addEventListener?.('loadingdone', read);
+    return () => { alive = false; document.fonts?.removeEventListener?.('loadingdone', read); };
+  }, [shape, suffix, font, weight]);
+  const byW = w100 ? (maxW * 100) / w100 : maxH;
+  const size = Math.max(min, Math.floor(Math.min(byW, maxH / 0.72)));
+  const box = Math.round(size * 0.74);
   return (
-    <>
-      <img src={photo} alt="" decoding="async" data-occ-photo="" onError={() => setBad(photo)} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }} />
-      <div ref={ref} aria-hidden data-occ-scrim={measured ? 'measured' : 'floor'} data-occ-alpha={`${a.text.toFixed(2)},${a.other.toFixed(2)}`} style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: `linear-gradient(${dir}, ${sc(a.text)} 0%, ${sc(a.text)} 44%, ${sc(a.other)} 56%, ${sc(a.other)} 100%)`,
-      }} />
-    </>
+    <div style={{ position: 'relative', flex: 'none', height: box, display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'flex-start' }}>
+      <span ref={probe} aria-hidden className="tt-num" style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: font, fontWeight: weight, fontSize: 100, lineHeight: 1, letterSpacing: '-.01em' }}>{shape}{suffix && <span style={SUFFIX_STYLE}>{suffix}</span>}</span>
+      <div className="tt-num" data-occ-big="" style={{ fontFamily: font, fontSize: size, fontWeight: weight, lineHeight: 0.74, letterSpacing: '-.01em', color, whiteSpace: 'nowrap', visibility: w100 ? 'visible' : 'hidden', marginLeft: align === 'center' ? 0 : '-.04em' }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
+    </div>
   );
+}
+
+/**
+ * The one progress device: a hairline the width of the column. With `total` it carries one tick per unit (a day / an hour
+ * / a minute), the ones still LEFT in the accent; with `fraction` (no ticks) the part of the lead-up already past is the
+ * accent. Only drawn when it means something (the caller decides); static.
+ */
+export function TickLine({ total = 0, lit = 0, fraction = null, from = 'end', major = 7 }) {
+  if (fraction != null) {
+    const f = Math.max(0, Math.min(1, fraction));
+    return (
+      <div aria-hidden data-occ-progress="" style={{ position: 'relative', flex: 'none', width: '100%', height: 16, display: 'flex', alignItems: 'flex-end' }}>
+        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, background: 'var(--line)' }} />
+        <div style={{ position: 'absolute', left: 0, bottom: 0, width: `${(f * 100).toFixed(2)}%`, height: 4, background: 'var(--accentText)' }} />
+        <div style={{ position: 'absolute', left: `calc(${(f * 100).toFixed(2)}% - 1px)`, bottom: 0, width: 3, height: 16, background: 'var(--accentText)' }} />
+      </div>
+    );
+  }
+  const n = Math.max(1, Math.min(120, Math.round(total)));
+  const on = Math.max(0, Math.min(n, Math.round(lit)));
+  return (
+    <div aria-hidden data-occ-progress="" style={{ position: 'relative', flex: 'none', width: '100%', height: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2, background: 'var(--line)' }} />
+      {Array.from({ length: n }, (_, i) => {
+        const lt = from === 'start' ? i < on : i >= n - on;
+        const big = (n - i) % major === 0 || i === 0;
+        return <span key={i} style={{ position: 'relative', flex: 'none', width: n > 40 ? 2 : 3, height: big ? 24 : 12, background: lt ? 'var(--accentText)' : 'var(--line)' }} />;
+      })}
+    </div>
+  );
+}
+
+/**
+ * 'Begins Saturday evening' -> 'Saturday evening' (the facts page labels the row BEGINS already); a line in another shape
+ * is kept whole. Hebrew: 'מתחיל ביום שבת בערב' -> 'ביום שבת בערב'.
+ */
+export function whenOnly(line) {
+  const t = String(line || '').trim();
+  const en = t.match(/^begins\s+(.+)$/i);
+  if (en) return en[1].charAt(0).toUpperCase() + en[1].slice(1);
+  const h = t.match(/^מתחיל\s+(.+)$/);
+  return h ? h[1] : t;
 }
 
 /**
