@@ -537,7 +537,7 @@ test('stageText: milestone line > stage line > global > built-in; own beats glob
 test('look and layout resolve defaults < global < own, field by field, on every slideModel row', () => {
   const r0 = O.slideModel(file([DINNER]), at('2026-12-11T17:00:00Z'), NY).rows[0];
   assert.deepEqual(r0.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
-  assert.deepEqual(r0.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(r0.layout.scale, 100); assert.equal(r0.layout.side, 'left'); assert.equal(r0.layout.align, 'start');
+  assert.deepEqual(r0.layout.order, ['name', 'date', 'begins', 'why', 'event']); assert.equal(r0.layout.scale, 100); assert.equal(r0.layout.side, 'left'); assert.equal(r0.layout.align, 'start');
   assert.ok(O.LAYOUT_SPEC.show.every((k) => r0.layout.show[k] === true));
   const g = { look: { accent: '#112233', dim: 40, numeralsFont: 'Rubik' }, layout: { show: { ring: false, bar: false }, scale: 90, side: 'right', order: ['date', 'name'] } };
   const own = { look: { accent: '#AABBCC', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg' }, layout: { show: { ring: true }, scale: 110 } };
@@ -545,7 +545,7 @@ test('look and layout resolve defaults < global < own, field by field, on every 
   assert.deepEqual(r.look, { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 40, numeralsFont: 'Rubik' });
   assert.equal(r.layout.show.ring, true); assert.equal(r.layout.show.bar, false); assert.equal(r.layout.show.name, true);
   assert.equal(r.layout.scale, 110); assert.equal(r.layout.side, 'right'); assert.equal(r.layout.align, 'start');
-  assert.deepEqual(r.layout.order, ['date', 'name', 'begins', 'event'], 'a subset keeps the other parts after it');
+  assert.deepEqual(r.layout.order, ['date', 'name', 'begins', 'why', 'event'], 'a subset keeps the other parts after it');
   // an own empty accent means "none", whatever the default says
   assert.equal(O.slideModel(file([{ ...DINNER, look: { accent: '' } }], g), at('2026-12-11T17:00:00Z'), NY).rows[0].look.accent, '');
   // the takeover carries the same resolved look
@@ -561,7 +561,7 @@ test('normalisers: limits, bad values dropped, defaults safe; the document stays
   assert.equal([...s.stageText.days.en].length, O.LIMITS.stageLine); assert.equal(s.stageText.days.he, 'a b'); assert.ok(!('nope' in s.stageText));
   assert.deepEqual(Object.keys(s.milestoneText), ['7']);
   assert.deepEqual(s.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
-  assert.equal(s.layout.scale, 100); assert.equal(s.layout.side, 'left'); assert.deepEqual(s.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(s.layout.show.ring, true); assert.equal(s.layout.show.bar, false); assert.ok(!('evil' in s.layout.show));
+  assert.equal(s.layout.scale, 100); assert.equal(s.layout.side, 'left'); assert.deepEqual(s.layout.order, ['name', 'date', 'begins', 'why', 'event']); assert.equal(s.layout.show.ring, true); assert.equal(s.layout.show.bar, false); assert.ok(!('evil' in s.layout.show));
   assert.deepEqual(O.normalizeSettings({}).milestones, [30, 14, 7, 3, 2, 1]);
   assert.deepEqual(O.normalizeSettings({ milestones: [] }).milestones, [], 'an empty list is allowed (none)');
   assert.equal(O.normalizeMilestones(Array.from({ length: 40 }, (_, i) => i + 1), []).length, O.LIMITS.milestones);
@@ -569,11 +569,11 @@ test('normalisers: limits, bad values dropped, defaults safe; the document stays
   assert.equal(o.milestoneOn, null); assert.equal(o.finalOn, false); assert.deepEqual(o.milestones, [3]);
   assert.deepEqual(o.look, { dim: 70 }); assert.deepEqual(o.layout, { align: 'center' });
   assert.equal(O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 } }).milestones, null);
-  // the worst legal document is far below the 200 kB cap
+  // the worst legal document is far below the 240 kB cap
   const full = { stageText: Object.fromEntries(O.STAGES.map((k) => [k, { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])), milestoneText: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])) };
   assert.equal(Object.keys(O.normalizeMilestoneText(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [String(i + 1), { en: 'x' }])))).length, O.LIMITS.milestoneTexts);
   // the starters, each with every own block filled to its limit, plus the global blocks: still far below the cap
-  const big = O.normalizeFile({ settings: full, occasions: O.STARTERS.map((st, i) => ({ id: `i${i}`, nameEn: `n${i}`, nameHe: 'ש'.repeat(60), rule: st.rule, explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full, milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], look: { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 50, numeralsFont: 'x'.repeat(60) }, layout: { order: ['name', 'date', 'begins', 'event'], show: Object.fromEntries(O.LAYOUT_SPEC.show.map((k) => [k, false])), scale: 100, side: 'left', align: 'start' } })) });
+  const big = O.normalizeFile({ settings: full, occasions: O.STARTERS.map((st, i) => ({ id: `i${i}`, nameEn: `n${i}`, nameHe: 'ש'.repeat(60), rule: st.rule, explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full, milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], look: { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 50, numeralsFont: 'x'.repeat(60) }, layout: { order: ['name', 'date', 'begins', 'why', 'event'], show: Object.fromEntries(O.LAYOUT_SPEC.show.map((k) => [k, false])), scale: 100, side: 'left', align: 'start' } })) });
   assert.ok(O.fileBytes(big) < O.LIMITS.file, `${O.fileBytes(big)} bytes`);
   // the absolute worst case is caught by the store's cap (occasionsStore.mutate), not by the normaliser
   const worst = O.normalizeFile({ occasions: Array.from({ length: 80 }, (_, i) => ({ id: `w${i}`, nameEn: 'n', rule: { kind: 'hebrew', month: 9, day: 1 }, explainHe: 'ש'.repeat(600), explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full })) });
@@ -593,7 +593,7 @@ test('strict checks: settings and occasion patches refuse unknown keys and out-o
     { layout: { scale: 79 } }, { layout: { scale: 126 } }, { layout: { side: 'top' } }, { layout: { align: 'end' } }, { layout: { order: ['name', 'name'] } }, { layout: { order: ['tagline'] } }, { layout: { show: { ring: 'yes' } } }, { layout: { show: { wings: true } } }, { layout: { bogus: 1 } }, { layout: 5 },
   ]) bad(patch);
   const ok = O.setSettings(f, { milestones: [10, 5], milestoneMinutes: 3, milestoneEveryMinutes: 30, milestoneFrom: '08:00', milestoneTo: '20:30', look: { accent: '#c9a24b', dim: 70, numeralsFont: 'Rubik', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.png' }, layout: { show: { tagline: false }, order: ['date'], scale: 120, side: 'right', align: 'center' }, stageText: { far: { en: 'Soon', he: 'בקרוב' } }, milestoneText: { 10: { en: 'Ten!', he: '' } } });
-  assert.deepEqual(ok.settings.milestones, [10, 5]); assert.equal(ok.settings.layout.show.tagline, false); assert.deepEqual(ok.settings.layout.order, ['date', 'name', 'begins', 'event']);
+  assert.deepEqual(ok.settings.milestones, [10, 5]); assert.equal(ok.settings.layout.show.tagline, false); assert.deepEqual(ok.settings.layout.order, ['date', 'name', 'begins', 'why', 'event']);
   assert.equal(ok.settings.look.accent, '#c9a24b'); assert.equal(ok.settings.stageText.far.en, 'Soon'); assert.equal(ok.settings.milestoneText[10].en, 'Ten!');
   // occasions: same strictness
   const addBad = (o) => assert.throws(() => O.addOccasion(f, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, ...o }), O.OccasionsError, JSON.stringify(o).slice(0, 80));
@@ -611,7 +611,7 @@ test('explanation: needs text, a source AND an explicit check; editing text or s
   assert.equal(O.explainShows(e()), false); assert.equal(O.explainState(e()), 'needsCheck'); assert.equal(O.EXPLAIN_CHIP.needsCheck, 'Needs checking');
   assert.match(O.explainWhy(e()), /Hidden until you check it/);
   f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
-  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Checked/);
+  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Shows on the screen/);
   f = O.updateOccasion(f, 'e', { eventEn: 'Hall' }).file; assert.equal(e().explainChecked, true, 'an unrelated edit keeps the check');
   f = O.updateOccasion(f, 'e', { explainEn: 'Changed.' }).file; assert.equal(e().explainChecked, false, 'text changed');
   f = O.updateOccasion(f, 'e', { explainChecked: true }).file;

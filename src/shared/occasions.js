@@ -26,7 +26,7 @@
  * and every countdown that would look precise is marked '~' and never ticks seconds.
  */
 import {
-  fixedFromISO, isoFromFixed, hebrewFromFixed, fixedFromHebrew, daysInMonth, isLeapYear, monthsInYear, gematria, addDaysISO,
+  fixedFromISO, isoFromFixed, hebrewFromFixed, fixedFromHebrew, daysInMonth, isLeapYear, monthsInYear, gematria, addDaysISO, dowOfFixed,
   NISAN, IYYAR, SIVAN, TAMUZ, AV, ELUL, TISHREI, CHESHVAN, KISLEV, TEVET, SHVAT, ADAR, ADAR_II,
 } from './hebrewCalendar.js';
 import { computeZmanimMs } from './zmanim.js';
@@ -41,7 +41,8 @@ export class OccasionsError extends Error {}
 // ── limits and choices ──────────────────────────────────────────────────────
 
 export const LIMITS = Object.freeze({
-  occasions: 80, name: 60, explain: 600, source: 140, event: 120, zero: 40, file: 200000,
+  occasions: 80, name: 60, explain: 600, explainShort: 160, source: 140, event: 120, zero: 40, file: 240000, // 240 kB: under the 256 kB body of the Undo route
+ 
   stageLine: 60, milestones: 12, milestoneTexts: 12, adventDays: 60, adventText: 160, momentText: 80, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
@@ -52,6 +53,9 @@ export const BEGINS_LABEL = Object.freeze({
   time: 'A time I choose',
   midnight: 'Midnight (start of the day)',
 });
+/** What a Hebrew-date occasion does when its day is Shabbos. */
+export const SHABBOS_MOVES = Object.freeze(['stay', 'sunday', 'thursday']);
+export const SHABBOS_LABEL = Object.freeze({ stay: 'Stays on Shabbos', sunday: 'Moves to Sunday', thursday: 'Moves back to Thursday' });
 export const PICKS = Object.freeze(['nearest', 'pinned', 'cycle']);
 export const PICK_LABEL = Object.freeze({ nearest: 'The nearest one', pinned: 'One I choose', cycle: 'A few, taking turns' });
 export const LANGS = Object.freeze(['both', 'hebrew', 'english']);
@@ -104,11 +108,11 @@ const FONT_NAME = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,59}$/u;
 
 /** Parts the Countdown page can draw / the text order (src/shared/layoutConfig.js). */
 export const LAYOUT_SPEC = Object.freeze({
-  show: ['name', 'hebrewName', 'date', 'begins', 'event', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source'],
-  order: ['name', 'date', 'begins', 'event'],
+  show: ['name', 'hebrewName', 'date', 'begins', 'why', 'event', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source'],
+  order: ['name', 'date', 'begins', 'why', 'event'],
 });
 export const LAYOUT_PART_LABEL = Object.freeze({
-  name: 'Name', hebrewName: 'Hebrew name', date: 'Dates', begins: 'When it begins', event: 'Event line', tagline: 'Tagline above the numbers',
+  name: 'Name', hebrewName: 'Hebrew name', date: 'Dates', begins: 'When it begins', why: "Why it's special", event: 'Event line', tagline: 'Tagline above the numbers',
   ring: 'Ring', pips: 'Dots for the days', bar: 'Progress bar', coming: "'Coming up' strip", source: 'Source line',
 });
 export const LAYOUT_DEFAULTS = Object.freeze({
@@ -546,15 +550,20 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     touch: raw.touch !== false,
     adar: raw.adar === 'adar1' ? 'adar1' : 'adar2',
     missing30: raw.missing30 === 'first' ? 'first' : '29',
+    // a Hebrew date that falls on Shabbos (the fasts): 'stay' | 'sunday' (Tisha B'Av, Tzom Gedalya, 17 Tammuz) | 'thursday' (Taanis Esther)
+    shabbos: oneOf(raw.shabbos, SHABBOS_MOVES, 'stay'),
     beginsAt: raw.beginsAt === 'default' || raw.beginsAt == null ? 'default' : oneOf(raw.beginsAt, BEGINS, 'default'),
     time: typeof raw.time === 'string' && HHMM.test(raw.time) ? raw.time : '',
     timeDay: raw.timeDay === 'day' ? 'day' : 'eve',
     showDays: intIn(raw.showDays, RANGES.showDays, 0),
     explainEn: para(raw.explainEn, LIMITS.explain),
     explainHe: para(raw.explainHe, LIMITS.explain),
+    // the short 'why it's special' line (one paragraph, 160 characters at most): same source, same check as the long one
+    explainShortEn: line(raw.explainShortEn, LIMITS.explainShort),
+    explainShortHe: line(raw.explainShortHe, LIMITS.explainShort),
     source: line(raw.source, LIMITS.source),
     // 'I checked this with the source': only meaningful with text; editing text or source resets it (updateOccasion)
-    explainChecked: raw.explainChecked === true && !!(para(raw.explainEn, LIMITS.explain) || para(raw.explainHe, LIMITS.explain)),
+    explainChecked: raw.explainChecked === true && !!(para(raw.explainEn, LIMITS.explain) || para(raw.explainHe, LIMITS.explain) || line(raw.explainShortEn, LIMITS.explainShort) || line(raw.explainShortHe, LIMITS.explainShort)),
     eventEn: line(raw.eventEn, LIMITS.event),
     eventHe: line(raw.eventHe, LIMITS.event),
     zeroEn: line(raw.zeroEn, LIMITS.zero),
@@ -620,8 +629,13 @@ export function occasionProblem(raw) {
   }
   for (const k of ['explainEn', 'explainHe']) {
     if (raw[k] != null && typeof raw[k] !== 'string') return 'Text only, please.';
-    if ([...String(raw[k] || '').trim()].length > LIMITS.explain) return `The explanation is ${LIMITS.explain} characters at most.`;
+    if ([...String(raw[k] || '').trim()].length > LIMITS.explain) return `The whole story is ${LIMITS.explain} characters at most.`;
   }
+  for (const k of ['explainShortEn', 'explainShortHe']) {
+    if (raw[k] != null && typeof raw[k] !== 'string') return 'Text only, please.';
+    if ([...String(raw[k] || '').replace(/\s+/g, ' ').trim()].length > LIMITS.explainShort) return `The one line for the screen is ${LIMITS.explainShort} characters at most.`;
+  }
+  if (raw.shabbos != null && !SHABBOS_MOVES.includes(raw.shabbos)) return 'If it falls on Shabbos: stay, move to Sunday or move to Thursday.';
   if (raw.kind === 'countup' && !normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
   const r = raw.kind === 'countup' && normalizeFrom(raw.from) ? { kind: raw.from.kind, month: raw.from.month, day: raw.from.day } : raw.rule;
   if (!isObj(r) || !['hebrew', 'roshChodesh', 'gregorian'].includes(r.kind)) return 'Choose a Hebrew date or a date on the regular calendar.';
@@ -655,20 +669,28 @@ export function occasionProblem(raw) {
 
 /** Does the source field hold enough to count as a source (3+ characters)? */
 const hasSource = (o) => String(o?.source || '').trim().length >= 3;
+const hasLong = (o) => !!(o && (String(o.explainEn || '').trim() || String(o.explainHe || '').trim()));
+const hasShort = (o) => !!(o && (String(o.explainShortEn || '').trim() || String(o.explainShortHe || '').trim()));
+/** Is there any explanation text at all (the long story or the short line)? */
+export const hasExplainText = (o) => hasLong(o) || hasShort(o);
 /**
  * Does the explanation show on the screen? Only with text AND a source AND the admin's explicit 'I checked this with the
  * source' (owner rule 2026-11: every explanation is verified before it is public). Existing explanations stored before
  * `explainChecked` existed are therefore hidden until someone checks them.
+ * The long story (`explainShows`) and the one-line 'why it's special' (`whyShows`) share the SAME source and the SAME check.
  */
-export const explainShows = (o) => !!(o && (o.explainEn || o.explainHe) && hasSource(o) && o.explainChecked === true);
+export const explainShows = (o) => hasLong(o) && hasSource(o) && o.explainChecked === true;
+export const whyShows = (o) => hasShort(o) && hasSource(o) && o.explainChecked === true;
+/** Either text may show (what the server keeps in the copies that leave it). */
+export const anyExplainShows = (o) => hasExplainText(o) && hasSource(o) && o.explainChecked === true;
 /** 'none' (no text) | 'needsSource' | 'needsCheck' (has a source, not checked) | 'shows'. For the admin's state chip. */
 export function explainState(o) {
-  if (!o || !(String(o.explainEn || '').trim() || String(o.explainHe || '').trim())) return 'none';
+  if (!hasExplainText(o)) return 'none';
   if (!hasSource(o)) return 'needsSource';
   return o.explainChecked === true ? 'shows' : 'needsCheck';
 }
 export const EXPLAIN_CHIP = Object.freeze({
-  none: 'No explanation', needsSource: 'Needs checking', needsCheck: 'Needs checking', shows: 'Checked \u2013 shows on the screen',
+  none: 'No explanation', needsSource: 'Needs checking', needsCheck: 'Needs checking', shows: 'Shows on the screen',
 });
 /** Why an explanation is hidden (plain English for the edit sheet); '' when it shows or there is none. */
 export function explainWhy(o) {
@@ -703,7 +725,7 @@ export function updateOccasion(file, id, patch) {
   if (p) throw new OccasionsError(p);
   // Editing the text or the source un-checks the explanation, unless the same save switches the check on again.
   const same = (k) => String(merged[k] ?? '').trim() === String(cur[k] ?? '').trim();
-  if (!(same('explainEn') && same('explainHe') && same('source')) && pt.explainChecked !== true) merged.explainChecked = false;
+  if (!(same('explainEn') && same('explainHe') && same('explainShortEn') && same('explainShortHe') && same('source')) && pt.explainChecked !== true) merged.explainChecked = false;
   // advent daily cards: the same rule per card (changed text or source un-checks it unless the save says checked again)
   if (isObj(pt.advent) && isObj(pt.advent.daily)) {
     const daily = {};
@@ -796,6 +818,8 @@ function hebrewStart(rule, hy, o) {
     let fixed;
     if (rule.day === 30 && daysInMonth(hy, m) === 29) fixed = fixedFromHebrew(hy, m, 29) + (o.missing30 === 'first' ? 1 : 0);
     else fixed = fixedFromHebrew(hy, m, rule.day);
+    // the fasts: a day that falls on Shabbos moves (Sunday, or back to Thursday for Taanis Esther)
+    if (dowOfFixed(fixed) === 6) { if (o.shabbos === 'sunday') fixed += 1; else if (o.shabbos === 'thursday') fixed -= 2; }
     return { fixed, days: o.days || 1 };
   }
   if (rule.kind === 'roshChodesh') {
@@ -874,7 +898,8 @@ export function ruleWords(o) {
   const yr = o.repeat === 'once' ? ` ${o.year}` : '';
   if (r.kind === 'roshChodesh') return r.month === 0 ? 'Rosh Chodesh, every month' : `Rosh Chodesh ${MONTH_EN[r.month]}${yr}`;
   const adar = r.month === ADAR ? (o.adar === 'adar1' ? ' (Adar I in a leap year)' : ' (Adar II in a leap year)') : '';
-  return `${r.day} ${MONTH_EN[r.month]}${adar}${yr}`;
+  const sh = o.shabbos === 'sunday' ? ' (Sunday when it falls on Shabbos)' : o.shabbos === 'thursday' ? ' (Thursday before when it falls on Shabbos)' : '';
+  return `${r.day} ${MONTH_EN[r.month]}${adar}${sh}${yr}`;
 }
 
 // ── times ───────────────────────────────────────────────────────────────────
@@ -1148,6 +1173,49 @@ export function beginWords(row, today, tz) {
   };
 }
 
+const monthDayEn = (iso) => fmt('en-US', 'UTC', { month: 'short', day: 'numeric' }).format(new Date(`${iso}T12:00:00Z`));
+const monthDayHe = (iso) => fmt('he-IL', 'UTC', { day: 'numeric', month: 'long' }).format(new Date(`${iso}T12:00:00Z`));
+
+/** The short 'why it's special' line as the kiosk row carries it: { en, he, source } or null when the language setting leaves it empty. */
+export function whyOf(o, s, pickLang = (x) => x) {
+  const t = pickLang({ en: o.explainShortEn, he: o.explainShortHe });
+  return t.en || t.he ? { ...t, source: s?.credit === false ? '' : o.source } : null;
+}
+
+/**
+ * CLEAR WORDS for the dates of one row (the countdown counts to the moment the day BEGINS, which is usually the evening
+ * BEFORE the day, so the day and the beginning are always named separately). Every part is { en, he }, empty for a language
+ * the Language setting hides. Hebrew wording: native speaker to confirm (docs/claude/FEATURES.md).
+ *   day        'Sunday, November 29'  /  'יום ראשון, 29 בנובמבר'      the DAY itself (its first day)
+ *   dayRange   'Dec 5 – Dec 12' | null                                a multi-day occasion: first day to last day
+ *   hebrew     '19 Kislev 5787'  /  'י״ט כסלו תשפ״ז'                  the Hebrew date of the day
+ *   beginsLine 'Begins Saturday evening' / 'Begins tonight'          WHEN the countdown reaches zero (day or evening)
+ *   beginsAt   'Shkia 4:30 PM' | null                                the time (marked '~' when approximate); null for midnight
+ *   toGoLabel  'until it begins' (it begins in the evening) | 'to go' the words that follow the big number
+ */
+export function datesOf(row, today, tz, pickLang = (x) => x) {
+  const b = row.begin;
+  const wk = (iso) => ({ en: weekdayEn(iso), he: weekdayHe(iso) });
+  let beginsLine;
+  if (b.dateISO === today) beginsLine = b.evening ? { en: COPY.tonightAt.en, he: `${COPY.begins.he} ${COPY.tonightShort.he}` } : { en: `${COPY.begins.en} ${COPY.todayShort.en}`, he: `${COPY.begins.he} ${COPY.todayShort.he}` };
+  else if (b.evening) beginsLine = { en: `${COPY.begins.en} ${wk(b.dateISO).en} ${COPY.evening.en}`, he: `${COPY.begins.he} ב${wk(b.dateISO).he} ${COPY.evening.he}` };
+  else beginsLine = { en: `${COPY.begins.en} ${wk(b.dateISO).en}`, he: `${COPY.begins.he} ב${wk(b.dateISO).he}` };
+  let beginsAt = null;
+  if (b.at !== 'midnight') {
+    const Z = COPY.zman[b.at] || { en: '', he: '' }; const tl = b.exact ? '' : '~';
+    const tEn = `${tl}${timeEn(b.ms, tz)}`; const tHe = `${tl}${timeHe(b.ms, tz)}`;
+    beginsAt = { en: Z.en ? `${Z.en} ${tEn}` : tEn, he: Z.he ? `${Z.he} ${tHe}` : tHe };
+  }
+  return {
+    day: pickLang(civilWords(row.startISO)),
+    dayRange: row.days > 1 ? pickLang({ en: `${monthDayEn(row.startISO)} \u2013 ${monthDayEn(row.lastISO)}`, he: `${monthDayHe(row.startISO)} \u2013 ${monthDayHe(row.lastISO)}` }) : null,
+    hebrew: pickLang(hebrewWords(row.startISO)),
+    beginsLine: pickLang(beginsLine),
+    beginsAt: beginsAt ? pickLang(beginsAt) : null,
+    toGoLabel: pickLang(b.evening ? { en: 'until it begins', he: 'עד שמתחיל' } : COPY.toGo),
+  };
+}
+
 /** 'in 12 days' / 'tomorrow evening' / 'tonight' / 'now' for the coming-up strip and the rail card. */
 export function whenShort(row, today, now) {
   if (now && now.getTime() >= row.begin.ms) return COPY.nowShort;
@@ -1277,6 +1345,9 @@ export function heroModel(row, now, ctx) {
     dayLabel: c.form === 'day' ? pickLang(evening ? COPY.tonight : COPY.today) : null,
     event: (c.form === 'day' || c.form === 'zero' || c.form === 'hours' || c.form === 'minutes') ? pickLang({ en: o.eventEn, he: o.eventHe }) : null,
     explain: s.explain && explainShows(o) ? { ...pickLang({ en: o.explainEn, he: o.explainHe }), source: s.credit ? o.source : '' } : null,
+    // the short 'why it's special' line: the same source and the same check as `explain`, 160 characters at most
+    why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null,
+    dates: datesOf(row, today, ctx.tz || DEFAULT_TZ, pickLang),
     style: o.style,
     daysLeft,
     // exact zero moment (ms epoch) for the flip clock's all-units view; null when the time is only approximate
@@ -1503,7 +1574,7 @@ const withoutHiddenCards = (o) => {
   for (const [k, c] of Object.entries(d)) daily[k] = dailyTextShows(c) ? c : { ...c, en: '', he: '', source: '', checked: false };
   return { ...o, advent: { ...o.advent, daily } };
 };
-const withoutHiddenExplain = (o) => withoutHiddenCards(explainShows(o) ? o : { ...o, explainEn: '', explainHe: '', source: '', explainChecked: false });
+const withoutHiddenExplain = (o) => withoutHiddenCards(anyExplainShows(o) ? o : { ...o, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', source: '', explainChecked: false });
 /** The kiosk / live copy of the document: switched-off occasions and unchecked explanations stay out. */
 export function forKiosk(file) {
   const f = normalizeFile(file);
@@ -1530,17 +1601,60 @@ export function ctxFrom(settings, cache, now) {
 
 // ── the 'ask Claude' hand-off (the explanation must come with real sources) ──
 
-export const VORT_PROMPT = `I run the screen in a Jewish school. For the day "{NAME}" ({DATE}), I would like a short explanation (a vort) to show on the screen.
+export const VORT_PROMPT = `I run the screen in a Jewish school. For the day "{NAME}" ({DATE}), I would like to show the students why it is special and why we celebrate it: a ONE-LINE version for the screen and a longer one.
 Rules, please follow them strictly:
-1. Only write what you can back with a real, checkable source: the sefer or book, with volume and page (or chapter / siman), or the exact talk (for example a sicha with its date and where it is printed). Give that source.
-2. If you are not certain of a fact, a date, a quote or a source, say "I am not sure" and leave it out. Never invent or guess a source, a story or a quote. Never attribute words to the Rebbe or any person unless a real source says so.
-3. Keep it short: 40 to 70 words in simple English, and the same in Hebrew if you can (optional).
-4. Reply in exactly this form:
-English: <the explanation>
-Hebrew: <the explanation in Hebrew, or leave empty>
-Source: <the exact source>
+1. Only write what you can back with a real, checkable source: the sefer or book, with volume and page (or chapter / siman), or the exact talk (for example a sicha with its date and where it is printed), or a web page. Give that source, with the exact link (URL) when there is one. Chabad.org is an acceptable source: give the exact page.
+2. If you are not certain of a fact, a date, a quote or a source, write "I am not sure" and leave it out. Never invent or guess a source, a story or a quote. Never attribute words to the Rebbe or any person unless a real source says so.
+3. The short version: ONE paragraph, one line, no line breaks, 160 characters at most, simple English (and the same in Hebrew if you can, optional).
+4. The long version: 40 to 100 words in simple English (and the same in Hebrew if you can, optional).
+5. Reply in exactly this form, each label at the start of its own line:
+Short English: <one line, 160 characters at most>
+Short Hebrew: <the same in Hebrew, or leave empty>
+Long English: <the longer explanation>
+Long Hebrew: <the same in Hebrew, or leave empty>
+Source: <the exact source, with the link when there is one>
 Not sure about: <anything you left out, or "nothing">
 I will check the source myself before it goes on the screen.`;
+
+const REPLY_LABELS = [
+  ['explainShortEn', /^short\s+english$|^short$|^one\s*line$|^short\s+version$/i],
+  ['explainShortHe', /^short\s+hebrew$|^hebrew\s+short$/i],
+  ['explainEn', /^long\s+english$|^english$|^long$|^long\s+version$/i],
+  ['explainHe', /^long\s+hebrew$|^hebrew$/i],
+  ['source', /^sources?$/i],
+  ['notSure', /^not\s+sure\s+about$|^not\s+sure$/i],
+];
+const NOT_SURE = /^\s*(?:i\s+am\s+not\s+sure|i'?m\s+not\s+sure|not\s+sure|unsure|none|nothing|n\/a|-)\s*\.?\s*$/i;
+
+/**
+ * Splits Claude's reply to the prompt above into the fields of an occasion. A label starts a line ('Short English:', 'Short Hebrew:',
+ * 'Long English:', 'Long Hebrew:', 'Source:', 'Not sure about:'; the older 'English:' / 'Hebrew:' mean the long text). Text under a
+ * label continues until the next label. 'I am not sure' / 'nothing' as a value means empty. Nothing is cut: a short line that is
+ * too long stays too long (`shortTooLong`) so the admin sees it. Returns { fields: {explainShortEn?, ..., source?}, notSure, found }
+ * where `found` counts the labels it recognised (0 = the reply does not follow the format).
+ */
+export function parseClaudeReply(text) {
+  const lines = String(text ?? '').replace(/\r\n?/g, '\n').split('\n');
+  const got = {};
+  let cur = null;
+  for (const raw of lines) {
+    const m = raw.match(/^\s*(?:[*_#>\-\s]*)([A-Za-z][A-Za-z ]{1,24}?)\s*[*_]*\s*:\s*[*_]*\s*(.*)$/);
+    const hit = m ? REPLY_LABELS.find(([, re]) => re.test(m[1].trim())) : null;
+    if (hit) { cur = hit[0]; got[cur] = [m[2]]; continue; }
+    if (cur) got[cur].push(raw);
+  }
+  const fields = {}; let notSure = '';
+  for (const [k, parts] of Object.entries(got)) {
+    const v = parts.join('\n').replace(/\*\*/g, '').trim();
+    if (k === 'notSure') { notSure = NOT_SURE.test(v) ? '' : line(v, 300); continue; }
+    if (!v || NOT_SURE.test(v)) continue;
+    if (k === 'source') fields.source = line(v, LIMITS.source);
+    else if (k === 'explainShortEn' || k === 'explainShortHe') fields[k] = v.replace(/\s+/g, ' ').replace(/^["\u201c]|["\u201d]$/g, '').trim();
+    else fields[k] = para(v, LIMITS.explain);
+  }
+  const shortTooLong = ['explainShortEn', 'explainShortHe'].some((k) => fields[k] && [...fields[k]].length > LIMITS.explainShort);
+  return { fields, notSure, found: Object.keys(got).length, shortTooLong };
+}
 
 export function vortPrompt(row, nameFallback = '') {
   const name = row?.nameEn || row?.nameHe || nameFallback || 'this day';
