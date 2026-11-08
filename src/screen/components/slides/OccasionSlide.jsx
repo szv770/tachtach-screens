@@ -692,7 +692,7 @@ function useTick(offsetMs, fast) {
 }
 
 /** The rail's progress: the lead-up as one marker (far), a tick per day / hour / minute LEFT nearer the day, count-up days. */
-function railProgress(m, L, hc, nowMs) {
+function railProgress(m, L, hc, nowMs, strong = false, level = 0) {
   const c = m.countdown || {};
   if (hc?.bar != null) return <TickLine fraction={hc.bar} />;
   if (m.run) return shows(L, 'pips') || shows(L, 'bar') ? (m.run.n <= 60 ? <TickLine total={m.run.n} lit={m.run.k} from="start" major={m.run.n > 20 ? 5 : 7} /> : <TickLine fraction={m.run.fraction ?? m.run.k / m.run.n} />) : null;
@@ -702,10 +702,10 @@ function railProgress(m, L, hc, nowMs) {
     const f = Number.isFinite(Number(m.beginMs)) ? 1 - Math.max(0, Number(m.beginMs) - nowMs) / leadMs : (m.lead?.fraction || 0);
     return <TickLine fraction={Math.max(0, Math.min(1, f))} />;
   }
-  if (m.form === 'days') return shows(L, 'pips') ? <TickLine total={FAR_DAYS} lit={c.days} /> : null;
+  if (m.form === 'days') return shows(L, 'pips') ? <TickLine total={FAR_DAYS} lit={c.days} strong={strong} /> : null;
   if (c.approx || !shows(L, 'bar')) return null;
-  if (m.form === 'hours') return <TickLine total={24} lit={c.hours + (c.minutes > 0 ? 1 : 0)} major={6} />;
-  if (m.form === 'minutes') return <TickLine total={60} lit={c.minutes + ((c.seconds || 0) > 0 ? 1 : 0)} major={5} />;
+  if (m.form === 'hours') return <TickLine total={24} lit={c.hours + (c.minutes > 0 ? 1 : 0)} major={6} strong={strong} />;
+  if (m.form === 'minutes') return <TickLine total={60} lit={level >= 5 && !c.minutes ? (c.seconds || 0) : c.minutes + ((c.seconds || 0) > 0 ? 1 : 0)} major={5} strong={strong} />;
   return null;
 }
 
@@ -862,7 +862,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       const size = Math.max(60, Math.floor(Math.min(w100 ? (maxW * 100) / w100 : maxH, (maxH * 100) / mt.ink)));
       const w = Math.max(1, Math.round(((w100 || 50) * size) / 100));
       const pk = cur.view === 'main' && hype.level >= 3 && design.motion !== 'minimal' ? (hype.level === 4 ? String(hc.big).split(':')[0] : String(hc.big)) : '';
-      num = { w, h: Math.round((size * mt.ink) / 100), node: <Digits mt={mt} text={hc.big} suffix={hc.suffix} size={size} font={font} color={hype.level >= 5 ? ACC : 'var(--ink)'} popKey={pk} popFrom={1 + 0.05 * hype.intensity * (hype.level >= 5 ? 1.6 : 1)} /> };
+      num = { w, h: Math.round((size * mt.ink) / 100), node: <Digits mt={mt} text={hc.big} suffix={hc.suffix} size={size} font={font} color={hype.level >= 5 ? ACC : hype.level === 4 ? 'color-mix(in srgb, var(--accentText) 40%, var(--ink))' : 'var(--ink)'} popKey={pk} popFrom={1 + 0.05 * hype.intensity * (hype.level >= 5 ? 1.6 : 1)} /> };
     }
     let size; let nw;
     if (m.form === 'zero') { size = NAME.small; nw = aw; }
@@ -894,7 +894,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     right: today ? <span style={{ color: SOFT_INK }}>{(() => { const h = primary(today.hebrew, lang); return <span className={h.he ? 'tt-he' : undefined} style={{ fontFamily: h.he ? F.he : F.en, fontSize: h.he ? he(26) : 24, fontWeight: 500 }}>{h.en || h.he}</span>; })()}</span> : null,
     compact: hc && hc.kind !== 'flip' && hasText(cu) ? <Label en={cu.en} heText={cu.he} color={SOFT_INK} /> : null,
     pager: pager ? <span className="tt-num" style={{ fontFamily: F.en, fontSize: 24, fontWeight: 600, letterSpacing: '.12em', color: LABEL_INK }}>{pager}</span> : null,
-    progress: counting ? railProgress(m, L, hc, nowMs) : null,
+    progress: counting ? railProgress(m, L, hc, nowMs, hype.level >= 2, hype.level) : null,
   };
   const countAttrs = counting ? { 'data-occ-count': m.run ? 'run' : m.form, 'data-occ-formid': forms.length ? formId : undefined, 'data-occ-forms': forms.length ? forms.join(',') : undefined } : null;
   const bodyInset = photoOn && !portrait ? { [L.side === 'right' ? 'paddingLeft' : 'paddingRight']: `calc(${PHOTO_SHARE.land * 100}% + 8px)` } : null;

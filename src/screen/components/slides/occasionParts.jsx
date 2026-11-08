@@ -311,7 +311,7 @@ export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color =
  * / a minute), the ones still LEFT in the accent; with `fraction` (no ticks) the part of the lead-up already past is the
  * accent. Only drawn when it means something (the caller decides); static.
  */
-export function TickLine({ total = 0, lit = 0, fraction = null, from = 'end', major = 7 }) {
+export function TickLine({ total = 0, lit = 0, fraction = null, from = 'end', major = 7, strong = false }) {
   if (fraction != null) {
     const f = Math.max(0, Math.min(1, fraction));
     return (
@@ -330,7 +330,7 @@ export function TickLine({ total = 0, lit = 0, fraction = null, from = 'end', ma
       {Array.from({ length: n }, (_, i) => {
         const lt = from === 'start' ? i < on : i >= n - on;
         const big = (n - i) % major === 0 || i === 0;
-        return <span key={i} style={{ position: 'relative', flex: 'none', width: n > 40 ? 2 : 3, height: big ? 24 : 12, background: lt ? 'var(--accentText)' : 'var(--line)' }} />;
+        return <span key={i} style={{ position: 'relative', flex: 'none', width: (n > 40 ? 2 : 3) + (strong && lt ? 2 : 0), height: big || (strong && lt) ? 24 : 12, background: lt ? 'var(--accentText)' : 'var(--line)' }} />;
       })}
     </div>
   );

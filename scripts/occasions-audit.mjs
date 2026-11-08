@@ -20,6 +20,9 @@
  * (label, fitted text >= 28 px, muted source line) in the order date > begins > why > event, the day count that reads 'DAYS UNTIL IT
  * BEGINS' (never 'days to go' next to an evening start), the day view's hero line, the milestone takeover's quiet line (dropped, not
  * clipped, when crowded), 160-character worst cases in both languages, three Hebrew fonts, light + dark contrast at 4.5:1.
+ * STAGE (2026-11 redesign): one mounted Stage with acts (main = hero, facts = the day, why, vort = story, step, coming), a
+ * persistent rail, a shared number + name, the flagship paper-scroll reveal and hype levels 0-5. The dates now live in the facts
+ * act, the why in its own (scroll) act; checks wait for the act they need. Each act: <= 5 [data-occ-block] blocks.
  * The model emits `dates` / `why` / `forms` / `today` itself (src/shared/occasions.js): the fixtures only set the occasion's INPUTS
  * (explainShortEn/He + source + explainChecked). Exception: the milestone TAKEOVER's quiet why line needs takeoverFor() to carry
  * `why` / `dates` (it does not yet); those cases inject them through window.__OCC_FX and only WARN when the build ignores it.
@@ -163,6 +166,22 @@ cases.push(
   { tag: 'takeover: milestone with why, worst case', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_TK_W, whyTk: 'either', fonts: true },
 );
 
+// ── the Stage: persistent rail, shared number, the scroll opens and closes, hype levels, Minimal motion, the calm style ──
+const SIXw = W(SIX);
+const HY = (o = {}) => doc([SIXw], { milestoneOn: false, finalOn: false, takeover: false, ...o });
+cases.push(
+  { tag: 'stage: rail persists across acts, the number glides into it, the scroll opens and closes clean', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { date: false } } }], { pick: 'pinned', pinnedId: 'yt', cycleSeconds: 6 }), form: 'far', stage: true, shot: 'land' },
+  { tag: 'stage: calm style (no scroll)', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { date: false } } }], { pick: 'pinned', pinnedId: 'yt', cycleSeconds: 6, stageStyle: 'calm' }), form: 'far', stage: 'calm' },
+  { tag: 'hype 0 (17 days)', time: T('2026-11-01T11:00:00'), occ: HY(), form: 'far', hypeLevel: 0 },
+  { tag: 'hype 1 (10 days)', time: T('2026-11-08T11:00:00'), occ: HY(), form: 'days', hypeLevel: 1 },
+  { tag: 'hype 2 (5 days)', time: T('2026-11-13T11:00:00'), occ: HY(), form: 'days', hypeLevel: 2, sparks: true },
+  { tag: 'hype 3 (last day)', time: T('2026-11-18T12:00:00'), occ: HY(), form: 'hours', hypeLevel: 3, sparks: true },
+  { tag: 'hype 4 (last hour)', time: T('2026-11-18T17:30:00'), occ: HY(), form: 'minutes', hypeLevel: 4, sparks: true },
+  { tag: 'hype 5 (final minute: seconds in the hero)', time: T('2026-11-18T17:59:25'), occ: HY(), form: 'minutes', hypeLevel: 5, sparks: true, secondsHero: true },
+  { tag: 'hype calm caps at 1', time: T('2026-11-18T17:30:00'), occ: HY({ hype: 'calm' }), form: 'minutes', hypeLevel: 1 },
+  { tag: 'hype 4, Minimal motion: nothing animates', time: T('2026-11-18T17:30:00'), occ: HY(), form: 'minutes', hypeLevel: 4, motion: 'minimal' },
+);
+
 cases.push(
   // cycled countdown forms (a tap on the number steps through row.forms; the last day / hour / zero keep their own display)
   { tag: 'forms: tap cycles days > 20¼ > hours > flip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip'], days: [27, 27.3], hoursRange: [648, 654], fonts: true, shot: 'land' },
@@ -187,7 +206,7 @@ const PNG = {
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 
-async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent, fx }) {
+async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent, fx, motion }) {
   const [W, H] = canvas === 'port' ? [900, 1600] : canvas === '4k' ? [3840, 2160] : [1600, 900];
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, timezoneId: 'America/New_York', deviceScaleFactor: 1 });
   const page = await ctx.newPage();
@@ -208,7 +227,7 @@ async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent,
     j.occasionMoment = moment ? { id: 'mtest', kind: moment.kind, text: moment.text, occasionKey: moment.occasionKey, startedAt: time.getTime(), until: time.getTime() + moment.secs * 1000 } : null;
     j.cache = { ...(j.cache || {}), zmanim: null, weather: null };
     j.settings = {
-      ...j.settings, orientation: canvas === 'port' ? 'portrait' : 'landscape', themeAuto: { enabled: false }, theme: theme || 'midnight',
+      ...j.settings, ...(motion ? { motion } : {}), orientation: canvas === 'port' ? 'portrait' : 'landscape', themeAuto: { enabled: false }, theme: theme || 'midnight',
       fontRoles: { ...(j.settings?.fontRoles || {}), ...(font ? { hebrewDisplay: font, hebrewBody: font } : {}) },
       location: noLoc ? { timezone: 'America/New_York' } : { timezone: 'America/New_York', lat: 40.67, lon: -73.94 },
     };
@@ -290,7 +309,7 @@ const probe = (page, sel) => page.evaluate((sel) => {
   out.suffix = panel.querySelector('[data-occ-suffix]')?.textContent || '';
   out.suffixFont = panel.querySelector('[data-occ-suffix]') ? getComputedStyle(panel.querySelector('[data-occ-suffix]')).fontFamily : '';
   out.bigFont = panel.querySelector('[data-occ-count] [data-occ-big]') ? getComputedStyle(panel.querySelector('[data-occ-count] [data-occ-big]')).fontFamily : '';
-  out.progressBar = !!panel.querySelector('[data-occ-count] [data-occ-progress]');
+  out.progressBar = !!panel.querySelector('[data-occ-progress]');
   out.todayEl = !!panel.querySelector('[data-occ-today]');
   out.todayText = panel.querySelector('[data-occ-today]')?.innerText || '';
   out.todayName = panel.querySelector('[data-occ-today-name]')?.innerText || '';
@@ -303,6 +322,19 @@ const probe = (page, sel) => page.evaluate((sel) => {
   out.unit = panel.querySelector('[data-occ-count] [data-occ-unit]')?.innerText || '';
   out.whyBox = (() => { const e = panel.querySelector('[data-occ-why]'); if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })();
   out.display = panel.getAttribute('data-occ-display');
+  out.blocks = panel.querySelectorAll('[data-occ-block]').length;
+  out.hype = Number(panel.getAttribute('data-occ-hype'));
+  out.style = panel.getAttribute('data-occ-style');
+  out.scroll = panel.querySelector('[data-occ-scroll]')?.getAttribute('data-occ-scroll') || '';
+  out.paperClip = panel.querySelector('[data-occ-paper]') ? getComputedStyle(panel.querySelector('[data-occ-paper]')).clipPath : '';
+  out.rods = panel.querySelectorAll('[data-occ-rod]').length;
+  out.stage = !!panel.querySelector('[data-occ-stage]');
+  out.railMark = !!panel.querySelector('[data-occ-block=rail]')?.__audMark;
+  const pane = panel.querySelector('[data-occ-photo-pane]');
+  if (pane) {
+    const pr = pane.getBoundingClientRect(); const fade = pr.width * 0.12; const fadeV = pr.height * 0.12;
+    out.onPhoto = rects.filter(({ b }) => b.right > pr.left + fade && b.left < pr.right - fade && b.bottom > pr.top + fadeV && b.top < pr.bottom - fadeV).map((x) => x.s);
+  } else out.onPhoto = [];
   return out;
 }, sel);
 
@@ -375,41 +407,69 @@ const shot = async (page, name) => {
 };
 
 const HEB = /[\u0590-\u05FF]/;
+/** The paper's clip-path is fully open (no bottom inset left). */
+const paperOpen = (c) => c === 'none' || /^inset\(0px( 0px)?( 0(px|%))?\)$/.test(c);
+/** Wait (real time: the act timers run in real time) until the slide shows act `view`, then let it settle; returns its probe. */
+async function toAct(page, view, settle = 2600, timeout = 70000) {
+  const ok = await page.waitForFunction((v) => document.querySelector('section.tt-panel[data-occ-form]')?.getAttribute('data-occ-view') === v, view, { timeout }).then(() => true).catch(() => false);
+  if (!ok) return null;
+  await page.waitForTimeout(settle);
+  return probe(page, SEL.slide);
+}
+/** The checks every act gets: nothing clips / leaves the panel / overlaps, text >= 24, <= 5 blocks, nothing running. */
+function actChecks(t, v) {
+  check(`${t}: nothing clips or leaves the panel`, v.overflow.length === 0, v.overflow.slice(0, 3).join(' | '));
+  check(`${t}: fitted lines fit, no overlap`, v.fit.length === 0 && v.overlap.length === 0, [...v.fit, ...v.overlap].slice(0, 3).join(' | '));
+  check(`${t}: text >= 24 canvas px`, v.small.every((x) => parseFloat(x) / (v.scale || 1) >= 23.5), v.small.slice(0, 4).join(', '));
+  check(`${t}: <= 5 blocks (${v.blocks})`, v.blocks <= 5, String(v.blocks));
+  check(`${t}: nothing animating once settled`, v.anims.length === 0 && v.infinite === 0, v.anims.slice(0, 3).join(','));
+}
 /** The dates + why checks for one rendered page. */
-async function datesChecks(tag, c, r, canvas) {
-  const evening = /evening/i;
-  if (c.dates) {
-    const day = c.form === 'day' || c.form === 'far' || c.form === 'days' || c.form === 'hours' || c.form === 'minutes';
-    check(`${tag}: THE DAY is written out ('Sunday, November 29') with its Hebrew date`, !day || (c.lang === 'he' ? /כסלו/.test(r.dateBlock) : (c.dayRe || /Sunday, November 29/).test(r.dateBlock) && (c.dayRe || /19 Kislev 5787/.test(r.dateBlock))), r.dateBlock.slice(0, 120));
-    if (c.form !== 'day') {
-      check(`${tag}: 'Begins Saturday evening' label + the zman`, c.lang === 'he' || (/begins saturday evening/i.test(r.beginsBlock) && (c.approx || /Shkia 4:30 PM/.test(r.beginsBlock))), r.beginsBlock.slice(0, 120));
-    }
-    if (c.form === 'far' || c.form === 'days') {
-      check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
-      check(`${tag}: the day count never reads 'days to go' next to an evening start`, !/days?\s+to go/i.test(r.unit) && !/days?\s+to go/i.test(r.text), r.unit);
-    }
-    if (c.flip) check(`${tag}: flip: 'until it begins' under the cells`, /until it begins/i.test(r.unit), r.unit);
-    if (c.range) check(`${tag}: the multi-day range shows`, /Dec 5.*Dec 12/.test(r.dateBlock), r.dateBlock.slice(0, 120));
+async function datesChecks(tag, c, r, canvas, page) {
+  if (c.dates && c.form !== 'day') {
+    check(`${tag}: hero: 'Begins Saturday evening' + the zman, one line`, c.lang === 'he' || (/begins saturday evening/i.test(r.beginsBlock) && (c.approx || /Shkia 4:30 PM/.test(r.beginsBlock))), r.beginsBlock.slice(0, 120));
     if (c.approx) check(`${tag}: approximate: the '~' stays`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
-    // vertical order: date > begins > why > event
-    const t = r.tops; const seq = ['date', 'begins', 'why', 'event'].filter((k) => t[k] != null);
-    // the day view puts the why under the name as its hero line: why > date > event there
-    const want = c.form === 'day' ? ['why', 'date', 'event'] : ['date', 'begins', 'why', 'event'];
-    const sq = want.filter((k) => t[k] != null);
-    check(`${tag}: order ${want.join(' > ')} (${sq.join(' > ')})`, sq.every((k, i) => i === 0 || t[sq[i - 1]] <= t[k] + 1) || r.view !== 'main', JSON.stringify(t));
+  }
+  if (c.dates && (c.form === 'far' || c.form === 'days')) {
+    check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
+    check(`${tag}: the day count never reads 'days to go' next to an evening start`, !/days?\s+to go/i.test(r.unit) && !/days?\s+to go/i.test(r.text), r.unit);
+  }
+  if (c.flip && c.dates) check(`${tag}: flip: 'until it begins' with the cells`, /until it begins/i.test(r.unit), r.unit);
+  if (c.dates || c.why === true) {
+    // the facts act: THE DAY / HEBREW DATE (/ BEGINS); then the why act
+    const f = await toAct(page, 'facts');
+    if (c.dates) {
+      check(`${tag}: facts act comes after the hero`, !!f, 'no facts act');
+      if (f) {
+        check(`${tag}: facts: THE DAY ('Sunday, November 29') + its Hebrew date`, c.lang === 'he' ? /כסלו/.test(f.dateBlock) : (c.dayRe || /Sunday, November 29/).test(f.dateBlock) && (c.dayRe || /19 Kislev 5787/.test(f.dateBlock)), f.dateBlock.slice(0, 120));
+        if (c.range) check(`${tag}: facts: the multi-day range shows`, /Dec 5.*Dec 12/.test(f.dateBlock), f.dateBlock.slice(0, 120));
+        if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the facts`, !HEB.test(f.dateBlock), f.dateBlock);
+        if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the facts`, !/Sunday|Kislev/.test(f.dateBlock), f.dateBlock);
+        actChecks(`${tag} [facts]`, f);
+      }
+    }
   }
   if (c.why === true) {
-    check(`${tag}: the why block shows ('Why we celebrate' + text)`, r.whyEl && /why we celebrate/i.test(r.text) && r.whyText.length > 10, `${r.whyEl} ${r.whyText.slice(0, 40)}`);
-    check(`${tag}: why text >= 28 canvas px (${r.whyFs.toFixed(1)})`, r.whyFs >= 27.5, String(r.whyFs));
-    if (c.form === 'day') check(`${tag}: day view: the why line is the hero (>= 30 px, ${r.whyFs.toFixed(0)})`, r.whyFs >= 29.5, String(r.whyFs));
-    if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the date / why blocks`, !HEB.test(r.dateBlock) && !HEB.test(r.whyText) && !HEB.test(r.beginsBlock), `${r.dateBlock} | ${r.whyText.slice(0, 30)}`);
-    if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the date / why text`, !/[A-Za-z]{4}/.test(r.whyText) && !/Sunday|Kislev/.test(r.dateBlock), `${r.dateBlock} | ${r.whyText.slice(0, 30)}`);
-    // the source line is the first to go when crowded; when it shows it is the real one; the why text itself never goes
-    check(`${tag}: source line is either whole or dropped (never cut) '${r.whySrc.slice(0, 40)}'`, r.whySrc === '' || /^SOURCE: |^Source: /i.test(r.whySrc), r.whySrc);
-    if (/worst case/.test(c.tag)) check(`${tag}: worst case: the 160-character why text is whole on the page`, r.whyText.includes('A short line about why') || HEB.test(r.whyText), r.whyText.slice(0, 40));
+    const w = await toAct(page, 'why', 2600);
+    check(`${tag}: why act ('Why we celebrate' + text)`, !!w && w.whyEl && /why we celebrate|למה חוגגים/i.test(w.text) && w.whyText.length > 10, w ? `${w.whyEl} ${w.whyText.slice(0, 40)}` : 'no why act');
+    if (w) {
+      check(`${tag}: why text >= 28 canvas px (${w.whyFs.toFixed(1)})`, w.whyFs >= 27.5, String(w.whyFs));
+      if (w.style === 'scroll') {
+        check(`${tag}: the scroll is fully open (state ${w.scroll}, clip ${w.paperClip}, 2 rods)`, w.scroll === 'open' && paperOpen(w.paperClip) && w.rods === 2, `${w.scroll} ${w.paperClip} ${w.rods}`);
+      }
+      if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the why`, !HEB.test(w.whyText), w.whyText.slice(0, 30));
+      if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the why`, !/[A-Za-z]{4}/.test(w.whyText), w.whyText.slice(0, 30));
+      check(`${tag}: source line whole or dropped '${w.whySrc.slice(0, 40)}'`, w.whySrc === '' || /^SOURCE: |^Source: /i.test(w.whySrc), w.whySrc);
+      if (/worst case/.test(c.tag)) check(`${tag}: worst case: the 160-character why text is whole`, w.whyText.includes('A short line about why') || HEB.test(w.whyText), w.whyText.slice(0, 40));
+      actChecks(`${tag} [why]`, w);
+      if (c.wcag) {
+        const k = await contrast(page, 4.5);
+        check(`${tag}: why act (on the paper) reads at 4.5:1 (worst ${k.ratio?.toFixed(2)} at ${k.fs}px "${k.s}")`, k.ratio >= 4.5, `${k.bg} ${k.fg}`);
+      }
+    }
   }
-  if (c.why === false) check(`${tag}: no why block`, !r.whyEl && !/why we celebrate/i.test(r.text), r.whyText.slice(0, 40));
-  if (c.explain === true) check(`${tag}: the short why is not the vort text`, !r.text.includes('A long explanation sentence'), '');
+  if (c.why === false) check(`${tag}: no why act`, !/why/.test(r.acts || '') && !r.whyEl && !/why we celebrate/i.test(r.text), r.whyText.slice(0, 40));
+  if (c.explain === true) check(`${tag}: the short why is not the story text`, !r.text.includes('A long explanation sentence'), '');
 }
 
 /** Cycled forms: dots, a tap steps through each form, every form renders clean, 20¼ never promises more than is left, auto mode. */
@@ -430,7 +490,7 @@ async function formsChecks(page, tag, c, r) {
   const seq = c.formsSeq;
   check(`${tag}: ${seq.length} form dots, the first form is '${seq[0]}'`, r.dots === seq.length && r.formId === seq[0] && r.dotOn === 0, `${r.dots} ${r.formId} ${r.dotOn}`);
   for (let i = 1; i <= seq.length; i++) {
-    await page.locator(`${SEL.slide} [data-occ-forms] [data-occ-count]`).first().click();
+    await page.locator(`${SEL.slide} [data-occ-forms][data-occ-count] [data-occ-unit]`).first().click();
     await page.waitForTimeout(750);
     const p = await probeNow();
     const want = seq[i % seq.length];
@@ -469,7 +529,7 @@ async function run(canvas, c, font) {
   const sel = c.takeover ? SEL.takeover : c.moment ? SEL.moment : SEL.slide;
   // advent: pretend yesterday this screen saw every tile still shut, so today's open tiles fade once
   const seedAdvent = c.advent ? ['2026-11-28', '2026-11-29'].map((d) => ({ k: `tt-adv:adv|${d}`, v: { day: 99, prev: null, now: '000000000000' } })) : null;
-  const { page, close } = await open({ canvas, time: c.time, occ: c.occ, noLoc: c.noLoc, font, theme: c.theme, moment: c.moment, seedAdvent, fx: c.fx });
+  const { page, close } = await open({ canvas, time: c.time, occ: c.occ, noLoc: c.noLoc, font, theme: c.theme, moment: c.moment, seedAdvent, fx: c.fx, motion: c.motion });
   try {
     let r = await probe(page, sel);
     if (c.absent) { check(`${tag}: the Countdown is not shown`, r.form === null, r.text.slice(0, 80)); return; }
@@ -513,9 +573,39 @@ async function run(canvas, c, font) {
     if (c.flip) check(`${tag}: flip cells (${r.cells})`, r.display === 'flip' && r.flip >= c.flip, `${r.display} ${r.cells}`);
     if (c.flip && c.form === 'minutes') check(`${tag}: seconds cell while ticking each second`, r.cells.includes('s'), r.cells);
     if (c.run) check(`${tag}: count-up view`, r.run, r.text.slice(0, 80));
-    if (c.fx && !c.takeover) await datesChecks(tag, c, r, canvas);
+    if ((c.dates || c.why !== undefined) && !c.takeover) await datesChecks(tag, c, r, canvas, page);
+    if (c.blocksCheck !== false && !c.takeover && !c.moment && !c.absent) check(`${tag}: hero: <= 5 blocks (${r.blocks})`, r.blocks <= 5, String(r.blocks));
     if (c.fx && c.takeover) takeoverWhyChecks(tag, c, r);
     if (c.formsSeq || c.auto || c.noForms) await formsChecks(page, tag, c, r);
+    if (c.hypeLevel != null) {
+      check(`${tag}: hype level ${c.hypeLevel} (${r.hype})`, r.hype === c.hypeLevel, String(r.hype));
+      const sp = await page.evaluate(() => document.querySelectorAll('[data-occ-sparks] .tt-spark').length);
+      if (c.sparks && !c.motion) check(`${tag}: spark marks appear (${sp})`, sp > 0, String(sp));
+      if (c.hypeLevel <= 1) check(`${tag}: no spark marks at a calm level`, sp === 0, String(sp));
+      if (c.secondsHero) check(`${tag}: the seconds alone in the hero (${r.bigText})`, /^\d{1,2}$/.test(r.bigText), r.bigText);
+      if (c.motion === 'minimal') {
+        await page.clock.setFixedTime(new Date(c.time.getTime() + 60000)); await page.waitForTimeout(1600);
+        const n = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length);
+        check(`${tag}: Minimal motion: no animation even when the minute changes (${n})`, n === 0, String(n));
+      }
+    }
+    if (c.stage) {
+      await page.evaluate(() => { const el = document.querySelector('[data-occ-block=rail]'); if (el) el.__audMark = 1; });
+      const nb = await page.evaluate(() => { const e = document.querySelector('[data-occ-numlayer]'); if (e) e.__audMark = 1; return !!e; });
+      const w = await toAct(page, 'why', 2800);
+      check(`${tag}: the why act comes`, !!w, '');
+      if (w) {
+        check(`${tag}: the rail is the SAME element across acts (persistent anchor)`, w.railMark, '');
+        const kept = await page.evaluate(() => !!document.querySelector('[data-occ-numlayer]')?.__audMark);
+        check(`${tag}: the number is ONE shared element (kept mounted, moved into the rail)`, nb && kept && (await page.evaluate(() => /scale\(0\.|matrix\(0\./.test(getComputedStyle(document.querySelector('[data-occ-numlayer]')).transform) || document.querySelector('[data-occ-numlayer]').style.transform.includes('scale(0'))), '');
+        if (c.stage === 'calm') check(`${tag}: calm style: no scroll`, !w.scroll && w.rods === 0 && w.style === 'calm', `${w.scroll} ${w.rods}`);
+        else check(`${tag}: scroll fully open (${w.scroll}, ${w.paperClip})`, w.scroll === 'open' && paperOpen(w.paperClip) && w.rods === 2, `${w.scroll} ${w.paperClip}`);
+        actChecks(`${tag} [why]`, w);
+        const back = await toAct(page, 'main', 2600);
+        check(`${tag}: back to the hero: no scroll left behind, nothing running`, !!back && !back.scroll && back.rods === 0 && back.anims.length === 0, back ? `${back.scroll} ${back.rods} ${back.anims.join(',')}` : 'no hero');
+        if (back) check(`${tag}: back to the hero: the number is home again (scale 1)`, await page.evaluate(() => /scale\(1\)/.test(document.querySelector('[data-occ-numlayer]')?.style.transform || '')), '');
+      }
+    }
     if (c.todayStrip === true) {
       check(`${tag}: the Today strip shows (TODAY + weekday + Hebrew date)`, r.todayEl && /today/i.test(r.todayText) && /(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Shabbos)/i.test(r.todayText) && /\d/.test(r.todayText), r.todayText);
       if (c.todayName) check(`${tag}: the occasion that is today is named in it`, c.todayName.test(r.todayName), r.todayName);
@@ -538,9 +628,7 @@ async function run(canvas, c, font) {
     if (process.env.SHOT_TAG && SHOTS && c.tag.includes(process.env.SHOT_TAG)) { await page.evaluate(() => document.getElementById('tt-splash')?.remove()); await page.screenshot({ path: `${SHOTS}/dbg-${canvas}-${font || 'std'}.png` }); }
     if (c.contrast) {
       // the scrim is measured from the photo: wait for it, then every line (numerals included) must read at 4.5:1
-      await page.waitForFunction(() => document.querySelector('[data-occ-scrim=measured]'), null, { timeout: 5000 }).catch(() => {});
-      const sc = await page.evaluate(() => { const e = document.querySelector('[data-occ-scrim]'); return e ? `${e.getAttribute('data-occ-scrim')} ${e.getAttribute('data-occ-alpha')}` : 'none'; });
-      check(`${tag}: scrim measured from the photo (${sc})`, /^measured/.test(sc), sc);
+      check(`${tag}: the photo is its own pane and no text sits on it`, r.onPhoto.length === 0 && (await page.evaluate(() => !!document.querySelector('[data-occ-photo-pane]'))), r.onPhoto.slice(0, 3).join(' | '));
       const w = await contrast(page, 4.5);
       check(`${tag}: every line reads at 4.5:1 on the photo (worst ${w.ratio?.toFixed(2)} at ${w.fs}px "${w.s}"; bg ${w.bg} fg ${w.fg})`, w.ratio >= 4.5, '');
       if (c.visible) {
@@ -579,15 +667,14 @@ async function run(canvas, c, font) {
     if (c.explain === true || c.step) {
       // the countdown page first, then the sourced explanation / today's step on its own page
       check(`${tag}: countdown page first`, !r.explain && r.view === 'main', r.view);
-      await page.clock.setFixedTime(new Date(c.time.getTime() + 15000));
-      await page.waitForTimeout(10600);
-      const v = await probe(page, SEL.slide);
+      const v = (await toAct(page, c.step ? 'step' : 'vort', 2800, 90000)) || await probe(page, SEL.slide);
       if (c.step) check(`${tag}: today's step page + source`, v.view === 'step' && v.step && /Hayom Yom/.test(v.source), `${v.view} ${v.source.slice(0, 40)}`);
       else check(`${tag}: vort page: explanation + source shown`, v.view === 'vort' && v.explain && /Source: Sefer Sample/i.test(v.source), `${v.view} ${v.source.slice(0, 40)}`);
       check(`${tag}: second page: nothing clips or leaves the panel`, v.overflow.length === 0, v.overflow.slice(0, 3).join(' | '));
       check(`${tag}: second page: no overlap, fits`, v.overlap.length === 0 && v.fit.length === 0, [...v.overlap, ...v.fit].slice(0, 3).join(' | '));
       check(`${tag}: second page: text >= 24 canvas px`, v.small.every((x) => parseFloat(x) / (v.scale || 1) >= 23.5), v.small.slice(0, 4).join(', '));
       check(`${tag}: second page: nothing animating`, v.anims.length === 0, v.anims.slice(0, 3).join(','));
+      check(`${tag}: second page: <= 5 blocks (${v.blocks})`, v.blocks <= 5, String(v.blocks));
     }
   } finally { await close(); }
 }
