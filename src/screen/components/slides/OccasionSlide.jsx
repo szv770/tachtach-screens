@@ -59,6 +59,8 @@ function Name({ name, L, size, align, k }) {
 const NAME = {
   side: [118, 46, 160, 50, 32, 70],
   sideLong: [84, 36, 190, 40, 28, 100],
+  sideWhy: [104, 42, 140, 46, 30, 62],
+  sideLongWhy: [80, 34, 176, 38, 28, 92],
   port: [116, 46, 160, 52, 32, 72],
   portLong: [92, 40, 200, 42, 28, 100],
   day: [168, 56, 220, 64, 36, 92],
@@ -132,7 +134,7 @@ function DateBlock({ m, center, lang, L, portrait }) {
   return (
     <div data-occ-date="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al, gap: 4, lineHeight: 1.2, textAlign: center ? 'center' : 'start' }}>
       {day.en && <div data-occ-day="" dir={textDir(day.en)} style={{ fontFamily: F.enD, fontSize: Math.round((portrait ? 52 : 46) * k), fontWeight: 600, color: 'var(--ink)', letterSpacing: '-.005em', unicodeBidi: 'isolate' }}><DatePart t={day.en} /></div>}
-      {day.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(Math.round((day.en ? 32 : 46) * k)), fontWeight: day.en ? 400 : 600, color: day.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.3 }}>{day.he}</div>}
+      {day.he && (shows(L, 'dayHe') || !day.en) && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(Math.round((day.en ? 32 : 46) * k)), fontWeight: day.en ? 400 : 600, color: day.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.3 }}>{day.he}</div>}
       {hasText(range) && (
         <div data-occ-range="" style={{ display: 'flex', flexWrap: 'wrap', gap: '0 18px', justifyContent: al, alignItems: 'baseline', color: SOFT_INK, lineHeight: 1.25 }}>
           {range.en && <span style={{ fontFamily: F.en, fontSize: 28, fontWeight: 500 }}><DatePart t={range.en} /></span>}
@@ -167,9 +169,9 @@ function Begins({ m, center, lang }) {
   return (
     <div data-occ-begins="" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 4, lineHeight: 1.25 }}>
       {(enA || heA) && <Label en={enA} heText={heA} size={big ? 26 : 24} style={{ justifyContent: jc }} />}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 22px', alignItems: 'baseline', justifyContent: jc }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 16px', alignItems: 'baseline', justifyContent: jc }}>
         {enB && <span className="tt-num" style={{ fontFamily: F.en, fontSize: big ? 40 : 38, fontWeight: 600, color: ACC }}>{enB}</span>}
-        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(big ? 36 : 34), fontWeight: 500, color: ACC }}>{heB}</span>}
+        {heB && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(big ? 32 : 34), fontWeight: 500, color: ACC }}>{heB}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={COPY.approx.he} />}
     </div>
@@ -182,21 +184,21 @@ function Begins({ m, center, lang }) {
  * source line is the first part of this block to be dropped when the column is crowded (layout.show.whySource).
  * `hero` = the day view, where it is the main line under the name.
  */
-function WhyBlock({ why, L, width, hero = false, center, lang, k }) {
+function WhyBlock({ why, L, width, hero = false, band = false, center, lang, k }) {
   const [boxRef, boxW] = useBoxWidth(width);
   const w = inLang(why, lang);
   if (!why || !hasText(w) || !shows(L, 'why')) return null;
   const src = why.source && shows(L, 'whySource') ? String(why.source) : '';
   const kk = L.k || 1;
-  const { size, height } = whyBox(w, boxW, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round(44 * kk), min: 28 });
+  const { size, height } = whyBox(w, boxW, hero ? { max: Math.round(56 * kk), min: 30 } : { max: Math.round((band ? 40 : 44) * kk), min: 28, row: band });
   const ta = center ? 'center' : 'start';
   return (
-    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
+    <div ref={boxRef} data-occ-why="" style={{ flex: '0 1 auto', width: '100%', minWidth: 0, ...(band ? { marginTop: 12, paddingTop: 12, borderTop: '2px solid var(--line)' } : null), display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: hero ? 10 : 6, textAlign: ta }}>
       <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} color={hero ? ACC : LABEL_INK} size={hero ? 28 : 24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
       <Fit key={`wy|${k}|${size}|${height}|${lang}`} wrap vcenter max={size + 6} min={hero ? 30 : 28} data-occ-why-text="" style={{ flex: '0 1 auto', width: '100%', height, minHeight: Math.min(height, 120), overflow: 'visible', lineHeight: 1.36, textAlign: ta }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
-          {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
-          {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
+        <div style={band ? { display: 'flex', flexDirection: 'row', gap: 48, alignItems: 'flex-start' } : { display: 'flex', flexDirection: 'column', gap: '.4em' }}>
+          {w.en && <div dir={textDir(w.en)} style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
+          {w.he && <div className="tt-he" dir="rtl" style={{ flex: band ? '1 1 0' : undefined, minWidth: 0, fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
         </div>
       </Fit>
       {src && (
@@ -484,10 +486,13 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
     );
   }
   const countLeft = L.side === 'left';
+  // the short 'why' text is long: it gets a band across the whole panel under both columns (EN | HE side by side)
+  const whyBand = blocks.includes('why') && hasText(m.why);
+  const infoBlocks = blocks.filter((k) => k !== 'why');
   const info = (
     <div data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: center ? 'center' : 'flex-start', gap: 14, textAlign: center ? 'center' : 'start' }}>
-      {blocks.map((k, i) => (k === 'name'
-        ? <React.Fragment key={k}><Name name={m.name} L={L} size={long ? NAME.sideLong : NAME.side} align={L.align} k={m.key} />{i < blocks.length - 1 && <Rule center={center} />}</React.Fragment>
+      {infoBlocks.map((k, i) => (k === 'name'
+        ? <React.Fragment key={k}><Name name={m.name} L={L} size={whyBand ? (long ? NAME.sideLongWhy : NAME.sideWhy) : long ? NAME.sideLong : NAME.side} align={L.align} k={`${m.key}|${whyBand}`} />{i < infoBlocks.length - 1 && <Rule center={center} />}</React.Fragment>
         : <Details key={k} m={m} keys={[k]} center={center} lang={lang} L={L} portrait={false} whyWidth={840} />))}
     </div>
   );
@@ -501,6 +506,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
       <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: countLeft ? 'minmax(0, 1fr) minmax(0, 1.08fr)' : 'minmax(0, 1.08fr) minmax(0, 1fr)', columnGap: 52, alignItems: 'stretch', marginTop: 10 }}>
         {countLeft ? <>{count}{info}</> : <>{info}{count}</>}
       </div>
+      {whyBand && <WhyBlock why={m.why} L={L} width={940} band center={center} lang={lang} k={m.key} />}
       {shows(L, 'coming') && <Coming list={coming} portrait={false} />}
     </div>
   );
@@ -703,7 +709,8 @@ function readSecs(ex) {
 /**
  * When the worst content (60-character names, long event lines, a full coming-up strip) does not fit the panel, parts go
  * in order of least importance instead of anything being cut: 1 the coming-up strip, 2 the tick row and the tagline,
- * 3 the why text's source line, 4 the date range and everything a little smaller (the why text itself shrinks to 28 px, never goes). Measured in layout px after each page renders (and after fonts load).
+ * 3 the why text's source line, 4 the date range and everything a little smaller, 5 the Hebrew spelling of the civil day
+ * (the why text itself shrinks to 28 px, never goes). Measured in layout px after each page renders (and after fonts load).
  */
 function squeezed(L, level) {
   if (!level) return L;
@@ -711,6 +718,7 @@ function squeezed(L, level) {
   if (level >= 2) Object.assign(show, { pips: false, bar: false, tagline: false });
   if (level >= 3) show.whySource = false; // the 'Source: ...' line under the why text (never the text itself)
   if (level >= 4) show.dateRange = false; // then the multi-day range, and everything a little smaller
+  if (level >= 5) show.dayHe = false; // last: the Hebrew spelling of the civil day (the Hebrew date under it stays)
   return { ...L, show, k: level >= 4 ? (L.k || 1) * 0.84 : L.k };
 }
 function useSqueeze(ref, key) {
@@ -724,7 +732,7 @@ function useSqueeze(ref, key) {
       if (!el || !el.clientHeight) return;
       // the body, and each column (a crowded column overflows into the strip under it without growing the body)
       const over = [el, ...el.querySelectorAll('[data-occ-col]')].some((c) => c.clientHeight && c.scrollHeight > c.clientHeight + 2);
-      if (over) setLevel((l) => (l < 4 ? l + 1 : l));
+      if (over) setLevel((l) => (l < 5 ? l + 1 : l));
     };
     check();
     let alive = true;
@@ -836,7 +844,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     setPops([{ id: t, x: Math.round((e.clientX - r.left) / k), y: Math.round((e.clientY - r.top) / k) }]);
   };
   return (
-    <Panel ref={panelRef} pad={pad} data-occ-form={m.form} data-occ-view={cur.view} data-occ-display={m.run ? 'run' : advent ? 'advent' : m.display || 'classic'} style={panelVars} onPointerUp={onTap}>
+    <Panel ref={panelRef} pad={pad} data-occ-form={m.form} data-occ-view={cur.view} data-occ-squeeze={squeeze} data-occ-display={m.run ? 'run' : advent ? 'advent' : m.display || 'classic'} style={panelVars} onPointerUp={onTap}>
       {!advent && <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} themeKey={`${design.themeId}|${look.accent}`} />}
       {!advent && <EdgeTicks graphics={design.graphics} side={L.side === 'left' ? 'left' : 'right'} />}
       {m.form === 'zero' && m.celebrate && <Confetti key={`c|${m.key}`} graphics={design.graphics} motion={design.motion} />}

@@ -27,14 +27,16 @@ export const inLang = (x, lang) => (x ? { en: lang === 'hebrew' ? '' : x.en || '
  * Box height (canvas px) for the short why text: enough for its lines at the size the box is meant for, so Fit only
  * shrinks it when the column is crowded. `width` = the column's width; the size steps down with the length.
  */
-export function whyBox(why, width, { max = 44, min = 28 } = {}) {
+export function whyBox(why, width, { max = 44, min = 28, row = false } = {}) {
   const parts = [why?.en, why?.he].filter(Boolean).map((t) => [...String(t)].length);
   if (!parts.length) return { size: min, height: 0 };
   const total = parts.reduce((a, b) => a + b, 0);
   const size = Math.max(min + 4, Math.min(max, total <= 90 ? max : total <= 180 ? max - 8 : max - 14));
-  const per = Math.max(8, Math.floor(width / (size * 0.52)));
-  const lines = parts.reduce((a, n) => a + Math.ceil(n / per), 0);
-  return { size, height: Math.round(lines * size * 1.4 + (parts.length - 1) * size * 0.5 + 10) };
+  // row: the two languages side by side (each in half the width), else stacked
+  const w = row && parts.length > 1 ? (width - 48) / 2 : width;
+  const per = Math.max(8, Math.floor(w / (size * 0.52)));
+  const lines = row ? Math.max(...parts.map((n) => Math.ceil(n / per))) : parts.reduce((a, n) => a + Math.ceil(n / per), 0);
+  return { size, height: Math.round(lines * size * 1.42 + (row ? 0 : (parts.length - 1) * size * 0.5) + 10) };
 }
 
 /** The text colours the scrim must keep readable (each checked at 4.5:1 against every photo pixel behind it). */
