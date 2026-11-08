@@ -560,7 +560,8 @@ async function run(canvas, c, font) {
     if (c.tap && !font) {
       await page.evaluate(() => document.getElementById('tt-splash')?.remove());
       const box = await page.locator(SEL.slide).boundingBox();
-      await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.4);
+      // the header, away from the countdown (a tap ON the countdown steps its form instead, see the 'forms:' cases)
+      await page.mouse.click(box.x + box.width * 0.62, box.y + 46);
       await page.waitForTimeout(120);
       const p = await page.evaluate(() => document.querySelectorAll('[data-occ-pop] .tt-pop').length);
       check(`${tag}: a tap pops (finite)`, p > 0, String(p));
