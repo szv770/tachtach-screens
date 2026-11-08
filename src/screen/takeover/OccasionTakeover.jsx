@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, BigNum, Ticks, EdgeTicks, Backdrop, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, FitText } from '../components/slides/occasionParts.jsx';
+import { Label, HeroNum, TickLine, Backdrop, PhotoPane, PHOTO_SHARE, useBox, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, FitText } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -118,8 +118,9 @@ function useCrowded(ref, key) {
   return crowded;
 }
 
-function CountTk({ tk, now, L, portrait, font }) {
+function CountTk({ tk, now, L, portrait, font, tagline }) {
   const bodyRef = useRef(null);
+  const [boxRef, bw, bh] = useBox(portrait ? 760 : 1390, portrait ? 1300 : 640);
   const whyOn = tk.kind === 'milestone' && shows(L, 'why') && !!(tk.why && (tk.why.en || tk.why.he));
   const crowded = useCrowded(bodyRef, `${tk.key}|${portrait}|${whyOn}`);
   const why = whyOn && !crowded ? tk.why : null;
@@ -135,45 +136,58 @@ function CountTk({ tk, now, L, portrait, font }) {
   const unit = final ? { en: `${COPY.minutes.en} : seconds`, he: `${COPY.minutes.he} : שניות` }
     : toGo || (w.unit && (w.unit.en || w.unit.he) ? w.unit
       : { en: `${days === 1 ? COPY.day.en : COPY.days.en} ${COPY.toGo.en}`, he: `${COPY.toGo.he} ${days === 1 ? COPY.day.he : COPY.days.he}` });
-  const tag = shows(L, 'tagline') ? tk.stageText : null;
-  const center = portrait || L.align === 'center';
-  const numH = Math.round((portrait ? (why ? 440 : 560) : 520) * (L.k || 1));
-  const numbers = (
-    <div data-occ-count={tk.kind} style={{ flex: 'none', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 14 }}>
-      <BigNum text={big} max={Math.round(numH * 1.12)} height={numH} font={font} align={center ? 'center' : 'start'} color={final ? ACC : 'var(--ink)'} />
-      <Label en={unit.en} heText={unit.he} size={30} color={SOFT_INK} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
-      {!final && shows(L, 'pips') && days > 0 && days <= FAR_DAYS && (
-        <div style={{ width: '100%', marginTop: 14, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}><Ticks total={FAR_DAYS} lit={days} align={center ? 'center' : 'start'} height={34} /></div>
-      )}
-      {final && shows(L, 'bar') && (
-        <div style={{ width: '100%', marginTop: 14, display: 'flex', justifyContent: center ? 'center' : 'flex-start' }}><Ticks total={60} lit={Math.min(60, fw.secs)} major={5} height={34} align={center ? 'center' : 'start'} /></div>
-      )}
+  const center = L.align === 'center';
+  const stack = portrait || center;
+  const al = stack && center ? 'center' : 'flex-start';
+  const maxH = Math.round((stack ? Math.min(bh * 0.42, 620) : Math.min(bh * 0.8, 560)) * (L.k || 1));
+  const maxW = stack ? bw : bw * 0.5;
+  const number = (
+    <div data-occ-count={tk.kind} style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al }}>
+      <div key={final ? big : 'n'} className={final ? 'tt-hype-pop' : undefined} style={{ '--pop-from': 1.07 }}>
+        <HeroNum text={big} font={font} maxW={maxW} maxH={maxH} color={final ? ACC : 'var(--ink)'} />
+      </div>
     </div>
   );
-  if (portrait) {
+  const unitEl = <Label en={unit.en} heText={unit.he} size={28} color={SOFT_INK} style={{ justifyContent: al }} />;
+  if (stack) {
     return (
-      <div ref={bodyRef} data-tk-col="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 26, textAlign: 'center' }}>
-        <Tagline t={tag} center />
-        {numbers}
-        <div aria-hidden style={{ width: 96, height: 2, background: 'var(--line)', flex: 'none' }} />
-        <TkName name={tk.name} L={L} portrait center />
-        {why && <WhyLine why={why} L={L} portrait center />}
+      <div ref={(el) => { bodyRef.current = el; boxRef.current = el; }} data-tk-col="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: al, justifyContent: 'safe center', gap: 28, textAlign: center ? 'center' : 'start' }}>
+        <TkName name={tk.name} L={L} portrait center={center} />
+        {number}
+        {unitEl}
+        {why && <WhyLine why={why} L={L} portrait center={center} />}
       </div>
     );
   }
-  const left = L.side === 'left';
-  const nameCol = (
-    <div data-tk-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 22, [left ? 'paddingLeft' : 'paddingRight']: 64, [left ? 'borderLeft' : 'borderRight']: '2px solid var(--line)' }}>
-      <Tagline t={tag} />
-      <TkName name={tk.name} L={L} big />
-      {why && <WhyLine why={why} L={L} />}
+  const left = L.side !== 'right';
+  return (
+    <div ref={(el) => { bodyRef.current = el; boxRef.current = el; }} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
+      <div style={{ display: 'flex', flexDirection: left ? 'row' : 'row-reverse', gap: 72, alignItems: 'stretch' }}>
+        {number}
+        <div data-tk-col="" style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24 }}>
+          {unitEl}
+          <TkName name={tk.name} L={L} big />
+          {why ? <WhyLine why={why} L={L} /> : <span />}
+        </div>
+      </div>
     </div>
   );
-  const numCol = <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', [left ? 'paddingRight' : 'paddingLeft']: 0 }}>{numbers}</div>;
+}
+
+/** The takeover's rail: the kicker (the tagline in the accent, else 'Countdown') and one hairline with the days / seconds left. */
+function TkRail({ tk, L, now, lang }) {
+  const final = tk.kind === 'final';
+  const tag = shows(L, 'tagline') && tk.stageText && (tk.stageText.en || tk.stageText.he) ? tk.stageText : null;
+  const t = tag || COPY.slideTitle;
+  const days = Number.isFinite(tk.daysLeft) ? tk.daysLeft : 0;
+  let prog = <div aria-hidden style={{ height: 2, background: 'var(--line)' }} />;
+  if (final && shows(L, 'bar')) prog = <TickLine total={60} lit={Math.min(60, finalWords(tk.beginMs ?? tk.until, now).secs)} major={5} />;
+  else if (tk.kind === 'milestone' && shows(L, 'pips') && days > 0 && days <= FAR_DAYS) prog = <TickLine total={FAR_DAYS} lit={days} />;
   return (
-    <div ref={bodyRef} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: left ? 'minmax(0, 1fr) minmax(0, 1.1fr)' : 'minmax(0, 1.1fr) minmax(0, 1fr)', columnGap: 64, alignItems: 'stretch' }}>
-      {left ? <>{numCol}{nameCol}</> : <>{nameCol}{numCol}</>}
-    </div>
+    <header style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 32 }}>
+      <Label en={t.en} heText={lang === 'english' ? '' : t.he} size={26} color={tag ? ACC : LABEL_INK} data-occ-tagline={tag ? '' : undefined} />
+      {tk.kind !== 'zero' && prog}
+    </header>
   );
 }
 
@@ -183,7 +197,6 @@ function ZeroTk({ tk, L, portrait }) {
     <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 24 : 14, textAlign: 'center' }}>
       {z.he && <Fit key={`zh|${z.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={72} style={{ flex: 'none', width: '100%', height: portrait ? 340 : 250, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: ACC, lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>}
       {z.en && <Fit key={`ze|${z.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 120 : 104} min={48} style={{ '--t': '450ms', flex: 'none', width: '100%', height: portrait ? 200 : 140, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : ACC, lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>}
-      <div className="tt-bd-up" aria-hidden style={{ '--t': '650ms', width: 96, height: 2, background: 'var(--line)', flex: 'none', margin: '8px 0' }} />
       <div className="tt-bd-up" style={{ '--t': '800ms', width: '100%', flex: 'none' }}><TkName name={tk.name} L={L} portrait={portrait} center /></div>
     </div>
   );
@@ -202,13 +215,11 @@ export const OccasionTakeover = React.memo(function OccasionTakeover({ tk, now, 
   return (
     <div className={`tt-occ-tk${exiting ? ' tt-out' : ''}`} data-occ-takeover={tk.kind} style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'var(--bg)', display: 'flex' }}>
       <Panel ref={panelRef} pad={portrait ? '64px 72px 64px' : '56px 104px 56px'} style={{ borderRadius: 0, ...vars }} data-occ-form={tk.kind}>
-        <Backdrop photo={look.photo} dim={look.dim} textSide={L.side === 'left' ? 'right' : 'left'} portrait={portrait} graphics={design.graphics} light={design.light} themeKey={`${design.themeId}|${look.accent}`} />
-        <EdgeTicks graphics={design.graphics === 'off' ? 'off' : 'rich'} inset={36} />
+        {look.photo ? <PhotoPane photo={look.photo} dim={look.dim} side={L.side === 'right' ? 'left' : 'right'} portrait={portrait} /> : <Backdrop graphics={design.graphics} />}
         {tk.kind === 'zero' && tk.celebrate !== false && <Confetti key={`c|${tk.key}`} graphics={design.graphics} motion={design.motion} />}
-        <div className="tt-occ-rise" style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <header style={{ flex: 'none', display: 'flex', justifyContent: portrait ? 'center' : 'flex-start' }}>
-            <Label en={COPY.slideTitle.en} heText={COPY.slideTitle.he} size={26} />
-          </header>
+        <div className="tt-occ-rise" style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...(look.photo && !portrait ? { [L.side === 'right' ? 'paddingLeft' : 'paddingRight']: `calc(${PHOTO_SHARE.land * 100}% + 8px)` } : null) }}>
+          {look.photo && portrait && <div aria-hidden style={{ flex: 'none', height: `${PHOTO_SHARE.port * 100 - 2}%` }} />}
+          <TkRail tk={tk} L={L} now={now} lang="both" />
           {tk.kind === 'zero' ? <ZeroTk tk={tk} L={L} portrait={portrait} /> : <CountTk tk={tk} now={now} L={L} portrait={portrait} font={font} />}
         </div>
       </Panel>

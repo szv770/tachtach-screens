@@ -162,7 +162,6 @@ export function Label({ en, heText, color = LABEL_INK, size = 24, style, ...rest
  * (every digit as 0), so with tabular figures the seconds tick without re-fitting or jiggling.
  */
 /** A small raised glyph after the numerals (the \u00BC of 20\u00BC, the % of 71%), in the same numerals font. */
-const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign: '.9em', lineHeight: 0, marginLeft: '.06em', letterSpacing: 0 };
 export function BigNum({ text, max, min = 60, height, font, align = 'start', color = 'var(--ink)', weight = 600, flip = false, suffix = '' }) {
   const [size, setSize] = useState(null);
   const shape = String(text).replace(/\d/g, '0');
@@ -241,32 +240,68 @@ export function PhotoPane({ photo, dim = 0, side = 'right', portrait = false, on
 }
 
 /**
- * The big hero numerals, sized from the room they have: the largest font size at which the number's SHAPE (every digit
- * as 0, so seconds tick without re-fitting) is no wider than `maxW` and its digits no taller than `maxH` (layout px).
- * The box is the digits' own height (line-height .74), so its top and bottom sit on the digits and the caption beside it
- * can align to them. Re-measured when the fonts arrive.
+ * The number's SHAPE at 100 px in the numerals font (layout px): its width, and where the digits' ink sits in a line box of
+ * line-height 1 (top of the ink, ink height), measured with the canvas text metrics of the resolved font, so the hero box
+ * is exactly the digits and the caption beside it aligns to their top and baseline whatever font the admin picks.
+ * Re-read when the fonts arrive.
  */
-export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color = 'var(--ink)', weight = 600, align = 'start' }) {
-  const probe = useRef(null);
-  const [w100, setW100] = useState(0);
-  const shape = String(text).replace(/\d/g, '0');
+export function useNumMetrics(probeRef, sig) {
+  const [mt, setMt] = useState({ w: 0, top: 18, ink: 72 });
   useLayoutEffect(() => {
-    const el = probe.current;
+    const el = probeRef.current;
     if (!el) return undefined;
     let alive = true;
-    const read = () => { if (alive && el.offsetWidth) setW100((o) => (Math.abs(o - el.offsetWidth) > 0.5 ? el.offsetWidth : o)); };
+    const read = () => {
+      if (!alive || !el.offsetWidth) return;
+      let top = 18; let ink = 72;
+      try {
+        const g = document.createElement('canvas').getContext('2d');
+        g.font = `600 100px ${getComputedStyle(el).fontFamily}`;
+        const t = g.measureText('0123456789');
+        if (t.actualBoundingBoxAscent > 20 && t.fontBoundingBoxAscent) {
+          const base = (100 - (t.fontBoundingBoxAscent + t.fontBoundingBoxDescent)) / 2 + t.fontBoundingBoxAscent;
+          ink = t.actualBoundingBoxAscent + Math.max(0, t.actualBoundingBoxDescent);
+          top = base - t.actualBoundingBoxAscent;
+        }
+      } catch { /* keep the estimate */ }
+      const w = el.offsetWidth;
+      setMt((o) => (Math.abs(o.w - w) > 0.5 || Math.abs(o.top - top) > 0.3 || Math.abs(o.ink - ink) > 0.3 ? { w, top, ink } : o));
+    };
     read();
     document.fonts?.ready?.then(read).catch(() => {});
     document.fonts?.addEventListener?.('loadingdone', read);
     return () => { alive = false; document.fonts?.removeEventListener?.('loadingdone', read); };
-  }, [shape, suffix, font, weight]);
-  const byW = w100 ? (maxW * 100) / w100 : maxH;
-  const size = Math.max(min, Math.floor(Math.min(byW, maxH / 0.72)));
-  const box = Math.round(size * 0.74);
+  }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  return mt;
+}
+
+export const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign: '.9em', lineHeight: 0, marginLeft: '.06em', letterSpacing: 0 };
+
+/** The hero digits at `size` (box = the digits' own height). `popKey` changes = one finite pop (hype, last day and closer). */
+export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt }) {
   return (
-    <div style={{ position: 'relative', flex: 'none', height: box, display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'flex-start' }}>
-      <span ref={probe} aria-hidden className="tt-num" style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: font, fontWeight: weight, fontSize: 100, lineHeight: 1, letterSpacing: '-.01em' }}>{shape}{suffix && <span style={SUFFIX_STYLE}>{suffix}</span>}</span>
-      <div className="tt-num" data-occ-big="" style={{ fontFamily: font, fontSize: size, fontWeight: weight, lineHeight: 0.74, letterSpacing: '-.01em', color, whiteSpace: 'nowrap', visibility: w100 ? 'visible' : 'hidden', marginLeft: align === 'center' ? 0 : '-.04em' }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
+    <div style={{ display: 'flow-root', height: Math.round((size * mt.ink) / 100) }}>
+      <div key={popKey} className={`tt-num${popKey ? ' tt-hype-pop' : ''}`} data-occ-big="" style={{
+        fontFamily: font, fontSize: size, fontWeight: 600, lineHeight: 1, marginTop: -Math.round((size * mt.top) / 100), letterSpacing: '-.01em', color, whiteSpace: 'nowrap', marginLeft: '-.04em', transformOrigin: '30% 60%', '--pop-from': popFrom,
+      }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
+    </div>
+  );
+}
+
+/**
+ * The big hero numerals, sized from the room they have: the largest font size at which the number's SHAPE (every digit
+ * as 0, so seconds tick without re-fitting) is no wider than `maxW` and its digits' ink no taller than `maxH` (layout px).
+ * The box is exactly the digits' ink, so a caption beside it aligns to their top and baseline.
+ */
+export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color = 'var(--ink)' }) {
+  const probe = useRef(null);
+  const shape = String(text).replace(/\d/g, '0');
+  const mt = useNumMetrics(probe, `${shape}|${suffix}|${font}`);
+  const size = Math.max(min, Math.floor(Math.min(mt.w ? (maxW * 100) / mt.w : maxH, (maxH * 100) / mt.ink)));
+  return (
+    <div style={{ position: 'relative', flex: 'none', width: mt.w ? Math.round((mt.w * size) / 100) : undefined }}>
+      <span ref={probe} aria-hidden className="tt-num" style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: font, fontWeight: 600, fontSize: 100, lineHeight: 1, letterSpacing: '-.01em' }}>{shape}{suffix && <span style={SUFFIX_STYLE}>{suffix}</span>}</span>
+      <div style={{ visibility: mt.w ? 'visible' : 'hidden' }}><Digits text={text} suffix={suffix} size={size} font={font} color={color} mt={mt} /></div>
     </div>
   );
 }

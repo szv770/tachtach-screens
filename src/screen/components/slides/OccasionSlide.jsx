@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, primary, FitText, FORM_COPY, FormDots, daysAndFraction, whenOnly } from './occasionParts.jsx';
+import { Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, primary, FitText, FORM_COPY, FormDots, daysAndFraction, whenOnly, useNumMetrics, Digits, SUFFIX_STYLE } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -225,55 +225,6 @@ function heroCount(m, formId, nowMs, fast, lang, level) {
     return { kind: 'digits', big: String(m.countdown.seconds), unit: inLang(SECONDS, lang) };
   }
   return { kind: 'digits', big: m.words.big, suffix: '', unit: unitWords(m, lang), sub: m.words.sub };
-}
-
-/**
- * The number's SHAPE at 100 px in the numerals font (layout px): its width, and where the digits' ink sits in a line box of
- * line-height 1 (top of the ink, ink height), measured with the canvas text metrics of the resolved font, so the hero box
- * is exactly the digits and the caption beside it aligns to their top and baseline whatever font the admin picks.
- * Re-read when the fonts arrive.
- */
-function useNumMetrics(probeRef, sig) {
-  const [mt, setMt] = useState({ w: 0, top: 18, ink: 72 });
-  useLayoutEffect(() => {
-    const el = probeRef.current;
-    if (!el) return undefined;
-    let alive = true;
-    const read = () => {
-      if (!alive || !el.offsetWidth) return;
-      let top = 18; let ink = 72;
-      try {
-        const g = document.createElement('canvas').getContext('2d');
-        g.font = `600 100px ${getComputedStyle(el).fontFamily}`;
-        const t = g.measureText('0123456789');
-        if (t.actualBoundingBoxAscent > 20 && t.fontBoundingBoxAscent) {
-          const base = (100 - (t.fontBoundingBoxAscent + t.fontBoundingBoxDescent)) / 2 + t.fontBoundingBoxAscent;
-          ink = t.actualBoundingBoxAscent + Math.max(0, t.actualBoundingBoxDescent);
-          top = base - t.actualBoundingBoxAscent;
-        }
-      } catch { /* keep the estimate */ }
-      const w = el.offsetWidth;
-      setMt((o) => (Math.abs(o.w - w) > 0.5 || Math.abs(o.top - top) > 0.3 || Math.abs(o.ink - ink) > 0.3 ? { w, top, ink } : o));
-    };
-    read();
-    document.fonts?.ready?.then(read).catch(() => {});
-    document.fonts?.addEventListener?.('loadingdone', read);
-    return () => { alive = false; document.fonts?.removeEventListener?.('loadingdone', read); };
-  }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
-  return mt;
-}
-
-const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign: '.9em', lineHeight: 0, marginLeft: '.06em', letterSpacing: 0 };
-
-/** The hero digits at `size` (box = the digits' own height). `popKey` changes = one finite pop (hype, last day and closer). */
-function Digits({ text, suffix, size, font, color, popKey, popFrom, mt }) {
-  return (
-    <div style={{ height: Math.round((size * mt.ink) / 100) }}>
-      <div key={popKey} className={`tt-num${popKey ? ' tt-hype-pop' : ''}`} data-occ-big="" style={{
-        fontFamily: font, fontSize: size, fontWeight: 600, lineHeight: 1, marginTop: -Math.round((size * mt.top) / 100), letterSpacing: '-.01em', color, whiteSpace: 'nowrap', marginLeft: '-.04em', transformOrigin: '30% 60%', '--pop-from': popFrom,
-      }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
-    </div>
-  );
 }
 
 /** One quiet line: 'Begins Saturday evening · Shkia 4:30 PM' (one language; the facts act carries both). */
