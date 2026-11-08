@@ -42,7 +42,7 @@ const scanChecks = async (page, tag) => {
   check(`${tag}: text >= 12px`, r.tiny.length === 0, r.tiny.slice(0, 4).join(', '));
 };
 
-for (const [W, H] of [[360, 740], [412, 915]]) {
+for (const [W, H] of [[360, 740], [412, 915]].filter(([w]) => !process.env.ONLY || String(w) === process.env.ONLY)) {
   const tag = `${W}x${H}`;
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await ctx.addCookies([{ name: 'tachtach_session', value: TOKEN, url: BASE }]);
@@ -153,7 +153,7 @@ for (const [W, H] of [[360, 740], [412, 915]]) {
   await page.click('[data-testid="occ-restore"]');
   await page.waitForTimeout(500);
   check(`${tag} no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-  await ctx.close();
+  await ctx.close().catch(() => {});
 }
 await browser.close();
 console.log(`\n${checks - fails.length}/${checks} checks passed`);

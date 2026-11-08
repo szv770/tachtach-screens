@@ -927,6 +927,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   const [pops, setPops] = useState([]);
   const [peek, setPeek] = useState(false);
   const lastTap = useRef(0);
+  const lastForm = useRef(-1000);
   useEffect(() => { if (!peek) return undefined; const t = setTimeout(() => setPeek(false), 8000); return () => clearTimeout(t); }, [peek]);
   useEffect(() => { if (!pops.length) return undefined; const t = setTimeout(() => setPops([]), 900); return () => clearTimeout(t); }, [pops]);
 
@@ -962,10 +963,11 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     if (!el) return;
     try { if (getComputedStyle(el).getPropertyValue('--tt-pe').trim() === 'none') return; } catch { /* no styles: allow */ }
     const t = Date.now();
+    const tp = typeof performance !== 'undefined' ? performance.now() : t; // real time (Date can be moved by ?previewAt=)
     // a tap on the countdown itself steps to the next form (also on Minimal motion: it just swaps); anywhere else keeps the pop
     if (forms.length > 1 && e.target?.closest?.('[data-occ-count]')) {
-      if (t - lastTap.current < 300) return;
-      lastTap.current = t;
+      if (tp - lastForm.current < 300) return;
+      lastForm.current = tp;
       setFormAt((x) => (x + 1) % forms.length);
       return;
     }

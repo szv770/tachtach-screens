@@ -163,7 +163,7 @@ cases.push(
   { tag: 'forms: tap cycles days > 20¼ > hours > flip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip'], days: [27, 27.3], hoursRange: [648, 654], fonts: true, shot: 'land' },
   { tag: 'forms: all six (percent, sleeps)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', tapForms: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'] }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'], days: [27, 27.3], hoursRange: [648, 654], sleeps: 27 },
   { tag: 'forms: in the days form (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { tapForms: ['days', 'daysFraction', 'hours', 'sleeps'] }), form: 'days', formsSeq: ['days', 'daysFraction', 'hours', 'sleeps'], shot: 'port' },
-  { tag: 'forms: auto mode steps by itself', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', autoForms: { on: true, seconds: 3 } }), form: 'far', auto: true },
+  { tag: 'forms: auto mode steps by itself', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', autoForms: { on: true, seconds: 8 } }), form: 'far', auto: true },
   { tag: 'forms: approximate time offers only days', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', noLoc: true, noForms: true },
   { tag: 'forms: the last day keeps its own display', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', noForms: true },
   { tag: 'forms: the last hour keeps its seconds', time: T('2026-11-09T16:20:00'), occ: doc([RCw, YTw, CHw]), form: 'minutes', noForms: true },
@@ -413,10 +413,10 @@ async function formsChecks(page, tag, c, r) {
   if (c.noForms) { check(`${tag}: no form dots (nothing to cycle)`, r.dots === 0 && r.formId === '', `${r.dots} ${r.formId}`); return; }
   if (c.auto) {
     check(`${tag}: starts on the first form`, r.formId === 'days' && r.dots >= 2, `${r.formId} ${r.dots}`);
-    await page.waitForTimeout(3600);
+    await page.waitForTimeout(9000);
     const a = await probeNow();
     check(`${tag}: auto mode moved on by itself (${r.formId} > ${a.formId})`, a.formId !== 'days' && a.dotOn === 1, `${a.formId} ${a.dotOn}`);
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(8300);
     const b = await probeNow();
     check(`${tag}: ...and again (${b.formId})`, b.formId !== a.formId, `${a.formId} ${b.formId}`);
     return;
