@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, FitText } from './occasionParts.jsx';
+import { Label, BigNum, Ticks, ThinRing, EdgeTicks, Backdrop, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, FitText, FORM_COPY, FormDots, daysAndFraction } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -265,10 +265,10 @@ function Sub({ sub, center }) {
  * The unit under the big number. With the model's `dates.toGoLabel` the days read 'DAYS UNTIL IT BEGINS' (the countdown runs
  * to the EVENING BEFORE the day, so a bare 'days to go' next to the day's own date was off by one); without it the old words.
  */
-function unitWords(m, lang) {
+function unitWords(m, lang, n = m.countdown?.days) {
   const tg = inLang(m.dates?.toGoLabel, lang);
   if ((m.form !== 'far' && m.form !== 'days') || !hasText(tg) || !m.countdown) return m.words.unit;
-  const noun = m.countdown.days === 1 ? COPY.day : COPY.days;
+  const noun = n === 1 ? COPY.day : COPY.days;
   return inLang({ en: tg.en ? `${noun.en} ${tg.en}` : noun.en, he: tg.he ? `${noun.he} ${tg.he}` : noun.he }, lang);
 }
 
@@ -346,8 +346,63 @@ function RunCount({ m, L, portrait, font, center, tagline }) {
   );
 }
 
+// ── cycled countdown forms (a tap on the number, or auto mode, steps through row.forms) ──
+export const FORM_IDS = Object.freeze(['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps']);
+/**
+ * The forms a countdown page may cycle through. Only the lead-up forms cycle ('far' / 'days'): the last day, the last hour and
+ * zero keep their own displays (seconds and the zero moment are never hidden by a cycled form). Every cycled form is worked
+ * out from the exact begin time; without one (approximate time) only 'days' is offered. A model without `forms` = no cycling.
+ */
+export function formsFor(m) {
+  if (!m || !Array.isArray(m.forms) || m.run || m.advent || (m.form !== 'far' && m.form !== 'days')) return [];
+  const exact = Number.isFinite(Number(m.beginMs)) && !m.countdown?.approx;
+  const list = [...new Set(m.forms.filter((f) => FORM_IDS.includes(f)))];
+  const out = exact ? list : list.filter((f) => f === 'days');
+  return out.length > 1 || (out.length === 1 && out[0] !== 'days') ? out : [];
+}
+const lastDayLeft = (m, nowMs) => Math.max(0, Number(m.beginMs) - nowMs);
+
+/** The numerals + label of one cycled form: { big, suffix, unit, bar } (rounded DOWN everywhere: never more time than is left). */
+function formWords(f, m, nowMs, lang) {
+  const rem = lastDayLeft(m, nowMs);
+  if (f === 'daysFraction') {
+    const { whole, glyph } = daysAndFraction(rem);
+    return { big: String(whole), suffix: glyph, unit: unitWords(m, lang, glyph ? 0 : whole) };
+  }
+  if (f === 'hours') {
+    const h = Math.floor(rem / 3600000);
+    const tg = inLang(m.dates?.toGoLabel, lang);
+    return { big: String(h), suffix: '', unit: inLang({ en: tg?.en ? `${h === 1 ? COPY.hour.en : COPY.hours.en} ${tg.en}` : (h === 1 ? COPY.hour.en : COPY.hours.en), he: tg?.he ? `${h === 1 ? COPY.hour.he : COPY.hours.he} ${tg.he}` : (h === 1 ? COPY.hour.he : COPY.hours.he) }, lang) };
+  }
+  if (f === 'percent') {
+    const leadMs = Math.max(1, (m.lead?.days || 30) * 86400000);
+    const frac = Math.min(0.99, Math.max(0, 1 - rem / leadMs));
+    return { big: String(Math.floor(frac * 100)), suffix: '%', unit: inLang(FORM_COPY.percent, lang), bar: frac };
+  }
+  if (f === 'sleeps') {
+    const n = m.countdown?.days ?? 0;
+    return { big: String(n), suffix: '', unit: inLang(n === 1 ? FORM_COPY.sleep : FORM_COPY.sleeps, lang) };
+  }
+  return null;
+}
+
+/** The countdown with its form dots: swaps (keyed, so the new form rises in once) when the form changes. */
+function Count(props) {
+  const { forms = [], formAt = 0, center } = props;
+  if (!forms.length) return <CountBody {...props} formId="days" />;
+  const id = forms[Math.min(formAt, forms.length - 1)];
+  return (
+    <div data-occ-forms={forms.join(',')} data-occ-formid={id} style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 16 }}>
+      <div key={id} className="tt-form-in" style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start' }}>
+        <CountBody {...props} formId={id} />
+      </div>
+      <FormDots n={forms.length} at={Math.min(formAt, forms.length - 1)} center={center} />
+    </div>
+  );
+}
+
 /** The countdown itself, in its current form: tagline, the big numerals, the unit, the tick row. */
-function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang, maxH = 0 }) {
+function CountBody({ m, L, portrait, font, compact, center, nowMs, fast, lang, maxH = 0, formId = 'days' }) {
   const w = m.words;
   const c = m.countdown;
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
@@ -355,7 +410,21 @@ function Count({ m, L, portrait, font, compact, center, nowMs, fast, lang, maxH 
   const tagline = tag ? <Label en={tag.en} heText={tag.he} color={ACC} size={26} style={{ justifyContent: center ? 'center' : 'flex-start' }} data-occ-tagline="" /> : null;
   const col = { position: 'relative', flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', textAlign: center ? 'center' : 'start' };
   if (m.run) return <RunCount m={m} L={L} portrait={portrait} font={font} center={center} tagline={tagline} />;
-  if (m.display === 'flip') {
+  if (formId !== 'days' && formId !== 'flip') {
+    const fw = formWords(formId, m, nowMs, lang);
+    if (fw) {
+      const numH2 = Math.min(scaled(portrait ? 290 : compact ? 260 : 330, L), maxH ? Math.max(150, maxH - 220) : 9999);
+      return (
+        <div data-occ-count={m.form} data-occ-formid={formId} style={{ ...col, gap: portrait ? 14 : 10 }}>
+          {tagline}
+          <BigNum text={fw.big} suffix={fw.suffix} max={Math.round(numH2 * 1.12)} height={numH2} font={font} align={center ? 'center' : 'start'} />
+          <Unit unit={fw.unit} center={center} />
+          {fw.bar != null && <div aria-hidden data-occ-progress="" style={{ width: '100%', maxWidth: 560, height: 4, background: 'var(--line)', borderRadius: 2, marginTop: 8, alignSelf: center ? 'center' : 'flex-start' }}><div style={{ width: `${(fw.bar * 100).toFixed(2)}%`, height: '100%', background: 'var(--accentText)', borderRadius: 2 }} /></div>}
+        </div>
+      );
+    }
+  }
+  if (m.display === 'flip' || formId === 'flip') {
     const cells = flipCells(m, nowMs, fast);
     if (cells.length) {
       return (
@@ -419,10 +488,31 @@ function Coming({ list, portrait }) {
   );
 }
 
-function Header({ pager, center }) {
+/** 'TODAY  Sunday · 29 Kislev 5787' (+ the occasion that is today, emphasised): one quiet line in the page header. */
+function TodayStrip({ today, lang }) {
+  if (!today || typeof today !== 'object') return null;
+  const wd = inLang(today.weekday, lang); const hd = inLang(today.hebrew, lang);
+  const names = (Array.isArray(today.occasionsToday) ? today.occasionsToday : []).map((o) => inLang(o?.name, lang)).filter(hasText);
+  const join = (a, b) => [a, b].filter(Boolean).join(' · ');
+  const en = join(wd?.en, hd?.en); const heT = join(wd?.he, hd?.he);
+  if (!en && !heT && !names.length) return null;
   return (
-    <header style={{ flex: 'none', display: 'flex', justifyContent: center && !pager ? 'center' : 'space-between', alignItems: 'baseline', gap: 20 }}>
+    <span data-occ-today="" style={{ display: 'inline-flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '0 16px', minWidth: 0, color: SOFT_INK, lineHeight: 1.3 }}>
+      <span style={{ fontFamily: F.en, fontSize: 24, fontWeight: 600, letterSpacing: '.2em', textTransform: 'uppercase', color: LABEL_INK }}>{inLang(FORM_COPY.today, lang).en || ''}</span>
+      {inLang(FORM_COPY.today, lang).he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(28), fontWeight: 500, color: LABEL_INK }}>{inLang(FORM_COPY.today, lang).he}</span>}
+      {en && <span style={{ fontFamily: F.en, fontSize: 26, fontWeight: 500 }}>{en}</span>}
+      {heT && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(26), fontWeight: 500 }}>{heT}</span>}
+      {names.map((n, i) => <span key={i} data-occ-today-name="" style={{ display: 'inline-flex', gap: 12, alignItems: 'baseline', fontWeight: 700, color: ACC }}>
+        {n.en && <span style={{ fontFamily: F.en, fontSize: 26 }}>{n.en}</span>}{n.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontSize: he(26) }}>{n.he}</span>}</span>)}
+    </span>
+  );
+}
+
+function Header({ pager, center, today, lang }) {
+  return (
+    <header style={{ flex: 'none', display: 'flex', flexWrap: 'wrap', justifyContent: center && !pager && !today ? 'center' : 'space-between', alignItems: 'baseline', gap: '4px 28px' }}>
       <Label en={COPY.slideTitle.en} heText={COPY.slideTitle.he} />
+      <TodayStrip today={today} lang={lang} />
       {pager && <span className="tt-num" style={{ fontFamily: F.en, fontSize: 24, fontWeight: 600, letterSpacing: '.12em', color: LABEL_INK }}>{pager}</span>}
     </header>
   );
@@ -476,7 +566,7 @@ function DayView({ m, L, portrait, coming, lang }) {
   );
 }
 
-function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
+function CountView({ m, L, portrait, coming, font, nowMs, fast, lang, forms = [], formAt = 0 }) {
   const [countRef, , countH] = useBoxWidth(0, true);
   const center = L.align === 'center';
   const long = isLong(m.name);
@@ -493,7 +583,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
         <div style={{ flex: '0 1 auto', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14, marginTop: 10 }}>{part(before)}</div>
         <div style={{ flex: '1 0 auto', width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'inherit', gap: 14 }}>
           {before.length > 0 && <Rule center={center} />}
-          <Count m={m} L={L} portrait font={font} center={center} nowMs={nowMs} fast={fast} lang={lang} />
+          <Count m={m} L={L} portrait font={font} center={center} nowMs={nowMs} fast={fast} lang={lang} forms={forms} formAt={formAt} />
         </div>
         <div style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'inherit', gap: 14 }}>{part(after)}</div>
         {shows(L, 'coming') && <div style={{ width: '100%', flex: 'none' }}><Coming list={coming} portrait /></div>}
@@ -513,7 +603,7 @@ function CountView({ m, L, portrait, coming, font, nowMs, fast, lang }) {
   );
   const count = (
     <div ref={countRef} data-occ-col="" style={{ minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: center ? 'center' : 'flex-start', [countLeft ? 'paddingRight' : 'paddingLeft']: 52, [countLeft ? 'borderRight' : 'borderLeft']: '2px solid var(--line)' }}>
-      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} maxH={countH} />
+      <Count m={m} L={L} portrait={false} font={font} compact={long} center={center} nowMs={nowMs} fast={fast} lang={lang} maxH={Math.max(0, countH - (forms.length ? 40 : 0))} forms={forms} formAt={formAt} />
     </div>
   );
   return (
@@ -866,12 +956,12 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       {pops.map((p) => <TapPop key={p.id} x={p.x} y={p.y} />)}
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
         <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-          <Header pager={pager} />
+          <Header pager={pager} today={cur.view === 'main' && shows(L, 'today') ? (model.today || m.today) : null} lang={lang} />
           {cur.view === 'vort' ? <VortView m={m} ex={cur.ex} portrait={portrait} font={font} lang={lang} />
             : cur.view === 'step' ? <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />
             : m.form === 'zero' ? <ZeroView m={m} L={L} portrait={portrait} />
             : m.form === 'day' && !m.run ? <DayView m={m} L={L} portrait={portrait} coming={coming} lang={lang} />
-              : <CountView m={m} L={L} portrait={portrait} coming={coming} font={font} nowMs={nowMs} fast={fast} lang={lang} />}
+              : <CountView m={m} L={L} portrait={portrait} coming={coming} font={font} nowMs={nowMs} fast={fast} lang={lang} forms={forms} formAt={formAt} />}
         </div>
       )}
     </Panel>

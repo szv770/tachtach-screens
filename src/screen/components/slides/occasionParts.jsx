@@ -18,6 +18,23 @@ export const SOFT_INK = 'color-mix(in srgb, var(--ink) 78%, transparent)';
 export const ACC = 'var(--accentSmall, var(--accentText))';
 /** The label over the short 'why it is special' text (one constants spot; the Hebrew wording: native speaker to confirm). */
 export const WHY_LABEL = Object.freeze({ en: 'Why we celebrate', he: 'למה חוגגים' });
+/** Words of the cycled countdown forms and the Today strip (one constants spot; Hebrew wording: native speaker to confirm). */
+export const FORM_COPY = Object.freeze({
+  sleeps: { en: 'sleeps', he: 'לילות' }, sleep: { en: 'sleep', he: 'לילה' },
+  percent: { en: 'of the way there', he: 'מהדרך עד שמתחיל' },
+  today: { en: 'Today', he: 'היום' },
+});
+const FRACTIONS = ['', '\u00BC', '\u00BD', '\u00BE'];
+/**
+ * 20\u00BC-style days from the REAL time left: whole days, then the quarter of a day by the hours left, rounded DOWN
+ * (0-5 h none, 6-11 h \u00BC, 12-17 h \u00BD, 18-23 h \u00BE), so the page never promises time that is not left.
+ */
+export function daysAndFraction(remainingMs) {
+  const H = Math.max(0, Math.floor(remainingMs / 60000)) / 60;
+  const whole = Math.floor(H / 24);
+  return { whole, glyph: FRACTIONS[Math.min(3, Math.floor((H - whole * 24) / 6))] };
+}
+
 /** 'Source' for the line under it (same word as the vort page). */
 export const WHY_SOURCE = Object.freeze({ en: 'Source', he: 'מקור' });
 /** Language filter for a { en, he } pair under the page's language setting ('both' | 'english' | 'hebrew'). */
@@ -176,19 +193,21 @@ export function Label({ en, heText, color = LABEL_INK, size = 24, style, ...rest
  * The big countdown numerals: one line, as large as the box allows. The size is fitted on the number's SHAPE
  * (every digit as 0), so with tabular figures the seconds tick without re-fitting or jiggling.
  */
-export function BigNum({ text, max, min = 60, height, font, align = 'start', color = 'var(--ink)', weight = 600, flip = false }) {
+/** A small raised glyph after the numerals (the \u00BC of 20\u00BC, the % of 71%), in the same numerals font. */
+const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign: '.9em', lineHeight: 0, marginLeft: '.06em', letterSpacing: 0 };
+export function BigNum({ text, max, min = 60, height, font, align = 'start', color = 'var(--ink)', weight = 600, flip = false, suffix = '' }) {
   const [size, setSize] = useState(null);
   const shape = String(text).replace(/\d/g, '0');
   const jc = align === 'center' ? 'center' : 'flex-start';
   return (
     <div style={{ position: 'relative', flex: 'none', width: '100%', height, display: 'flex', alignItems: 'center', justifyContent: jc }}>
-      <Fit key={shape} max={max} min={min} onSize={setSize} aria-hidden className="tt-num" style={{
+      <Fit key={shape + suffix} max={max} min={min} onSize={setSize} aria-hidden className="tt-num" style={{
         position: 'absolute', inset: 0, visibility: 'hidden', fontFamily: font, fontWeight: weight, lineHeight: 0.9, letterSpacing: '-.005em',
-      }}>{shape}</Fit>
+      }}>{shape}{suffix && <span style={SUFFIX_STYLE}>{suffix}</span>}</Fit>
       <div key={flip ? text : undefined} className={`tt-num${flip ? ' tt-flip' : ''}`} data-occ-big="" style={{
         fontFamily: font, fontSize: size || max, fontWeight: weight, lineHeight: 0.9, letterSpacing: '-.005em', color, whiteSpace: 'nowrap',
-        visibility: size ? 'visible' : 'hidden',
-      }}>{text}</div>
+        visibility: size ? 'visible' : 'hidden', marginLeft: align === 'center' ? 0 : '-.035em', // optical: the digits' side bearing
+      }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
     </div>
   );
 }
@@ -206,6 +225,16 @@ export function Ticks({ total, lit, major = 7, height = 30, maxWidth = 640, alig
         const big = (n - i) % major === 0 || i === 0;
         return <span key={i} style={{ flex: 'none', width: 3, height: big ? height : Math.round(height * 0.55), borderRadius: 1, background: lt ? 'var(--accentText)' : 'var(--line)' }} />;
       })}
+    </div>
+  );
+}
+
+/** The tiny dots under a cycling countdown: which form this is (aria-hidden, static). */
+export function FormDots({ n, at, center = false }) {
+  if (n < 2) return null;
+  return (
+    <div aria-hidden data-occ-dots={n} style={{ flex: 'none', display: 'flex', gap: 8, justifyContent: center ? 'center' : 'flex-start', width: '100%' }}>
+      {Array.from({ length: n }, (_, i) => <span key={i} data-occ-dot={i === at ? 'on' : 'off'} style={{ width: i === at ? 20 : 8, height: 8, borderRadius: 4, background: i === at ? 'var(--accentText)' : 'var(--line)' }} />)}
     </div>
   );
 }

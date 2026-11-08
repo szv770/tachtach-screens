@@ -9,7 +9,7 @@
  */
 import { fontStack, CONDENSED_NUMERALS } from '../../shared/fontRoles.js';
 
-export const SHOW_KEYS = Object.freeze(['name', 'hebrewName', 'date', 'begins', 'why', 'event', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source']);
+export const SHOW_KEYS = Object.freeze(['name', 'hebrewName', 'date', 'begins', 'why', 'event', 'today', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source']);
 export const ORDER_KEYS = Object.freeze(['name', 'date', 'begins', 'why', 'event']);
 export const LAYOUT_DEFAULTS = Object.freeze({ side: 'right', scale: 100, align: 'start' });
 

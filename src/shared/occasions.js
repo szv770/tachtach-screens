@@ -56,6 +56,15 @@ export const BEGINS_LABEL = Object.freeze({
 /** What a Hebrew-date occasion does when its day is Shabbos. */
 export const SHABBOS_MOVES = Object.freeze(['stay', 'sunday', 'thursday']);
 export const SHABBOS_LABEL = Object.freeze({ stay: 'Stays on Shabbos', sunday: 'Moves to Sunday', thursday: 'Moves back to Thursday' });
+/** Collections: which kind of day an occasion is (the Countdown can run 'Chabad days only', see settings.showCategories). */
+export const CATEGORIES = Object.freeze(['chabad', 'yomtov', 'fast', 'roshChodesh', 'school', 'custom']);
+export const CATEGORY_LABEL = Object.freeze({ chabad: 'Chabad days', yomtov: 'Yom Tov and Jewish days', fast: 'Fast days', roshChodesh: 'Rosh Chodesh', school: 'School events', custom: 'My own' });
+/** The views a tap on the TV can cycle through (the kiosk draws them from `beginMs`; examples are for the admin). */
+export const TAP_FORMS = Object.freeze(['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps']);
+export const TAP_FORM_LABEL = Object.freeze({ days: 'Days', daysFraction: 'Days and a quarter', hours: 'Total hours', flip: 'Days : hours : minutes', percent: 'Percent of the way', sleeps: 'Sleeps' });
+export const TAP_FORM_EXAMPLE = Object.freeze({ days: '20 days', daysFraction: '20\u00BC days', hours: '484 hours', flip: '20 : 06 : 12', percent: '71%', sleeps: '20 sleeps' });
+export const DEFAULT_TAP_FORMS = Object.freeze(['days', 'daysFraction', 'hours', 'flip']);
+export const AUTO_DEFAULTS = Object.freeze({ on: false, seconds: 15 });
 export const PICKS = Object.freeze(['nearest', 'pinned', 'cycle']);
 export const PICK_LABEL = Object.freeze({ nearest: 'The nearest one', pinned: 'One I choose', cycle: 'A few, taking turns' });
 export const LANGS = Object.freeze(['both', 'hebrew', 'english']);
@@ -65,7 +74,7 @@ export const RANGES = Object.freeze({
   comingUpCount: { min: 0, max: 4 }, comingUpDays: { min: 7, max: 400 }, zeroMinutes: { min: 1, max: 240 },
   railDays: { min: 1, max: 60 }, takeoverMinutes: { min: 1, max: 30 }, showDays: { min: 0, max: 400 }, days: { min: 1, max: 9 },
   milestoneMinutes: { min: 1, max: 15 }, milestoneDay: { min: 1, max: 365 }, dim: { min: 30, max: 90 },
-  total: { min: 1, max: 400 }, volume: { min: 10, max: 100 }, momentSeconds: { min: 5, max: 60 },
+  total: { min: 1, max: 400 }, volume: { min: 10, max: 100 }, momentSeconds: { min: 5, max: 60 }, autoSeconds: { min: 8, max: 60 },
 });
 export const FAR_DAYS = 14; // more than this many whole days left: the big DAYS form
 
@@ -143,6 +152,7 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   // words per stage / per milestone ({} = the built-in lines), the look and the layout (complete objects)
   stageText: Object.freeze({}), milestoneText: Object.freeze({}), look: LOOK_DEFAULTS, layout: LAYOUT_DEFAULTS,
   display: 'classic', sound: SOUND_DEFAULTS,
+  showCategories: CATEGORIES, tapForms: DEFAULT_TAP_FORMS, autoForms: AUTO_DEFAULTS, shareEmoji: false,
 });
 
 /** Takeover styles an occasion may use at its zero moment (src/shared/takeoverStyles.js ids). */
@@ -230,6 +240,11 @@ export const STARTERS = Object.freeze([
   { key: 'shemini-atzeres', en: 'Shemini Atzeres & Simchas Torah', he: 'שמיני עצרת ושמחת תורה', rule: H(TISHREI, 22), days: 2, beginsAt: 'candles', zero: 'chag', style: 'yomtov', on: true },
   { key: 'rosh-chodesh', en: 'Rosh Chodesh (every month)', he: 'ראש חודש', rule: RC(0), zero: 'chodeshTov', style: 'roshchodesh', on: false },
 ]);
+/** The collection of each starter row (an old stored starter without a category gets this one). */
+export const STARTER_CATEGORY = Object.freeze({
+  'rc-kislev': 'roshChodesh', 'rosh-chodesh': 'roshChodesh', 'yud-kislev': 'chabad', 'yud-tes-kislev': 'chabad', 'hey-teves': 'chabad', 'yud-shvat': 'chabad',
+  'yud-alef-nissan': 'chabad', 'yud-beis-tammuz': 'chabad', 'chai-elul': 'chabad',
+});
 const STARTER_BY_KEY = Object.freeze(Object.fromEntries(STARTERS.map((s) => [s.key, s])));
 
 // ── small helpers ───────────────────────────────────────────────────────────
@@ -400,6 +415,40 @@ export function advProblem(raw) {
 }
 
 /** Sound: { on, chime, at: {milestone, final, zero, moment}, volume }. Complete over SOUND_DEFAULTS. */
+/** An ordered list of tap views: valid, no repeats; null / not a usable list = the fallback. */
+export function normalizeTapForms(raw, fallback) {
+  if (!Array.isArray(raw)) return fallback;
+  const out = [...new Set(raw.filter((f) => TAP_FORMS.includes(f)))];
+  return out.length ? out : fallback;
+}
+/** { on, seconds }: complete (settings) or partial (one occasion: only what is present, null when nothing). */
+export function normalizeAutoForms(raw, partial = false) {
+  const r = isObj(raw) ? raw : {};
+  const out = {};
+  if (typeof r.on === 'boolean') out.on = r.on;
+  const n = typeof r.seconds === 'string' && r.seconds.trim() ? Number(r.seconds) : r.seconds;
+  if (Number.isInteger(n) && n >= RANGES.autoSeconds.min && n <= RANGES.autoSeconds.max) out.seconds = n;
+  if (partial) return Object.keys(out).length ? out : null;
+  return { ...AUTO_DEFAULTS, ...out };
+}
+/** Strict check of tapForms (a list of known views, at least one) and autoForms ({ on?, seconds? }). */
+export function formsProblem(tap, auto, { partial } = {}) {
+  if (tap != null) {
+    if (!Array.isArray(tap) || tap.length < 1 || tap.length > TAP_FORMS.length || tap.some((f) => !TAP_FORMS.includes(f)) || new Set(tap).size !== tap.length) return 'Countdown views: choose at least one, each once.';
+  } else if (!partial) return 'Countdown views: choose at least one, each once.';
+  if (auto != null) {
+    if (!isObj(auto)) return 'Automatic views: on or off and a number of seconds.';
+    for (const [k, v] of Object.entries(auto)) {
+      if (k === 'on') { if (typeof v !== 'boolean') return 'Automatic views: on or off.'; } else if (k === 'seconds') { if (intIn(v, RANGES.autoSeconds, null) == null) return `Seconds per view: ${RANGES.autoSeconds.min} to ${RANGES.autoSeconds.max}.`; } else return `Unknown automatic views setting: ${String(k).slice(0, 20)}.`;
+    }
+  }
+  return null;
+}
+/** Which collections show (an array of CATEGORIES): a list with unknown names loses them; not a list = all. */
+export function normalizeShowCategories(raw) {
+  if (!Array.isArray(raw)) return [...CATEGORIES];
+  return CATEGORIES.filter((c) => raw.includes(c));
+}
 export function normalizeSound(raw) {
   const r = isObj(raw) ? raw : {};
   const at = {};
@@ -484,6 +533,10 @@ export function normalizeSettings(raw) {
     layout: resolveLayout(LAYOUT_DEFAULTS, normalizeLayout(s.layout, LAYOUT_SPEC), null),
     display: oneOf(s.display, DISPLAYS, D.display),
     sound: normalizeSound(s.sound),
+    showCategories: normalizeShowCategories(s.showCategories),
+    tapForms: normalizeTapForms(s.tapForms, [...D.tapForms]),
+    autoForms: normalizeAutoForms(s.autoForms),
+    shareEmoji: bool('shareEmoji'),
   };
 }
 /** The hours the milestone takeovers may appear in (from before to; otherwise the defaults). */
@@ -552,6 +605,10 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     missing30: raw.missing30 === 'first' ? 'first' : '29',
     // a Hebrew date that falls on Shabbos (the fasts): 'stay' | 'sunday' (Tisha B'Av, Tzom Gedalya, 17 Tammuz) | 'thursday' (Taanis Esther)
     shabbos: oneOf(raw.shabbos, SHABBOS_MOVES, 'stay'),
+    // collection: an old or unknown value follows the starter it came from, else 'custom'
+    category: CATEGORIES.includes(raw.category) ? raw.category : (STARTER_CATEGORY[raw.starter] || (starter ? 'yomtov' : 'custom')),
+    tapForms: normalizeTapForms(raw.tapForms, null),
+    autoForms: normalizeAutoForms(raw.autoForms, true),
     beginsAt: raw.beginsAt === 'default' || raw.beginsAt == null ? 'default' : oneOf(raw.beginsAt, BEGINS, 'default'),
     time: typeof raw.time === 'string' && HHMM.test(raw.time) ? raw.time : '',
     timeDay: raw.timeDay === 'day' ? 'day' : 'eve',
@@ -592,7 +649,7 @@ export function starterOccasion(key, id) {
   if (!s) return null;
   return normalizeOccasion({
     id: id || `s-${key}`, on: s.on !== false, starter: key, nameEn: s.en, nameHe: s.he, rule: s.rule, days: s.days || 1,
-    beginsAt: s.beginsAt || 'default', zeroKey: s.zero, style: s.style, celebrate: s.celebrate !== false,
+    beginsAt: s.beginsAt || 'default', zeroKey: s.zero, style: s.style, celebrate: s.celebrate !== false, category: STARTER_CATEGORY[key] || 'yomtov',
   });
 }
 export const starterList = () => STARTERS.map((s) => starterOccasion(s.key));
@@ -635,6 +692,8 @@ export function occasionProblem(raw) {
     if (raw[k] != null && typeof raw[k] !== 'string') return 'Text only, please.';
     if ([...String(raw[k] || '').replace(/\s+/g, ' ').trim()].length > LIMITS.explainShort) return `The one line for the screen is ${LIMITS.explainShort} characters at most.`;
   }
+  if (raw.category != null && !CATEGORIES.includes(raw.category)) return 'Collection: one of the listed kinds.';
+  { const m = formsProblem(raw.tapForms, raw.autoForms, { partial: true }); if (m) return m; }
   if (raw.shabbos != null && !SHABBOS_MOVES.includes(raw.shabbos)) return 'If it falls on Shabbos: stay, move to Sunday or move to Thursday.';
   if (raw.kind === 'countup' && !normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
   const r = raw.kind === 'countup' && normalizeFrom(raw.from) ? { kind: raw.from.kind, month: raw.from.month, day: raw.from.day } : raw.rule;
@@ -772,6 +831,9 @@ export function settingsProblem(patch) {
     if (k === 'look') { const m = lookProblem(v, false); if (m) return m; continue; }
     if (k === 'layout') { const m = layoutProblem(v, LAYOUT_SPEC); if (m) return m; continue; }
     if (k === 'display') { if (!DISPLAYS.includes(v)) return 'Display: classic or flip clock.'; continue; }
+    if (k === 'showCategories') { if (!Array.isArray(v) || v.some((c) => !CATEGORIES.includes(c))) return 'Which kinds of days show: a list of the known kinds.'; continue; }
+    if (k === 'tapForms') { const m = formsProblem(v, null); if (m) return m; continue; }
+    if (k === 'autoForms') { const m = formsProblem([...DEFAULT_TAP_FORMS], v); if (m) return m; continue; }
     if (k === 'sound') { const m = soundProblem(v); if (m) return m; }
   }
   return null;
@@ -1045,6 +1107,10 @@ export function daysUntil(row, today) {
 /** The lead-up window of a row: its own 'show only in the last N days', else the global 'within N days'. */
 export const windowDays = (row, settings) => (row.occasion.showDays > 0 ? row.occasion.showDays : (settings?.withinDays || SETTINGS_DEFAULTS.withinDays));
 
+/** Rows of the collections the Countdown is set to show (settings.showCategories); the admin list is not filtered. */
+export const categoryShown = (o, s) => (s?.showCategories || CATEGORIES).includes(o?.category || 'custom');
+export const visibleRows = (rows, s) => rows.filter((r) => categoryShown(r.occasion, s));
+
 /**
  * What the slide shows: { mode, rows (hero first), coming }.
  * nearest: a running one first (the latest to begin), else the soonest inside its window.
@@ -1055,7 +1121,7 @@ export function pickFor(file, now, ctx) {
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
   const s = normalizeSettings(f.settings);
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
-  const all = upcoming(f, now, { ...ctx, today });
+  const all = visibleRows(upcoming(f, now, { ...ctx, today }), s);
   const running = all.filter((r) => r.running).sort((a, b) => b.begin.ms - a.begin.ms);
   const inWindow = all.filter((r) => !r.running && daysUntil(r, today) <= windowDays(r, s));
   let rows = [];
@@ -1348,6 +1414,9 @@ export function heroModel(row, now, ctx) {
     // the short 'why it's special' line: the same source and the same check as `explain`, 160 characters at most
     why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null,
     dates: datesOf(row, today, ctx.tz || DEFAULT_TZ, pickLang),
+    // the views a tap on the TV cycles through (first = the default view) and the automatic rotation; the kiosk draws them from beginMs
+    forms: o.tapForms || s.tapForms,
+    autoForms: { ...s.autoForms, ...(o.autoForms || {}) },
     style: o.style,
     daysLeft,
     // exact zero moment (ms epoch) for the flip clock's all-units view; null when the time is only approximate
@@ -1364,6 +1433,20 @@ export function heroModel(row, now, ctx) {
   };
 }
 
+/**
+ * The 'Today' header data: { hebrew: {en,he} ('28 Cheshvan 5787'), weekday: {en,he} ('Sunday' / 'יום ראשון'), occasionsToday: [{ key, name: {en,he}, dayIndex: {k,n}|null }] }
+ * occasionsToday = the days running now (the collections that show), with 'day k of n' for a multi-day one. Hebrew wording: native speaker to confirm.
+ */
+export function todayOf(f, s, now, c, pl) {
+  const today = c.today;
+  const rows = visibleRows(upcoming(f, now, c), s).filter((r) => r.running);
+  return {
+    hebrew: pl(hebrewWords(today)),
+    weekday: pl({ en: weekdayEn(today), he: weekdayHe(today) }),
+    occasionsToday: rows.map((r) => ({ key: `${r.id}|${r.startISO}`, name: pl({ en: r.nameEn || r.nameHe, he: r.nameHe || r.nameEn }), dayIndex: dayIndexOf(r, now, { ...c, settings: s, today }) })),
+  };
+}
+
 /** The slide model: { rows: [heroModel...], coming: [{ key, name, when }], title, approx }. */
 export function slideModel(file, now, ctx) {
   const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
@@ -1377,6 +1460,7 @@ export function slideModel(file, now, ctx) {
     cycleSeconds: s.cycleSeconds,
     rows: p.rows.map((r) => heroModel(r, now, c)),
     coming: p.coming.map((r) => ({ key: `${r.id}|${r.startISO}`, name: pl({ en: r.nameEn || r.nameHe, he: r.nameHe || r.nameEn }), when: pl(whenShort(r, p.today, now)) })),
+    today: todayOf(f, s, now, c, pl),
     language: lang,
   };
 }
@@ -1400,7 +1484,7 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
   const s = normalizeSettings(f.settings);
   if (!s.rail && !s.banner) return [];
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
-  const rows = upcoming(f, now, { ...ctx, today });
+  const rows = visibleRows(upcoming(f, now, { ...ctx, today }), s);
   const out = [];
   const lang = s.language;
   const en = (x) => (lang === 'hebrew' ? '' : x); const he = (x) => (lang === 'english' ? '' : x);
@@ -1500,7 +1584,7 @@ export function takeoverFor(file, now, ctx) {
   const today = ctx.today || p.date;
   const c = { ...ctx, today };
   const t = now.getTime();
-  const rows = upcoming(f, now, c);
+  const rows = visibleRows(upcoming(f, now, c), s);
   const lang = s.language;
   const pickLang = (x) => ({ en: lang === 'hebrew' ? '' : (x?.en || ''), he: lang === 'english' ? '' : (x?.he || '') });
   const every = s.milestoneEveryMinutes;
@@ -1597,6 +1681,96 @@ export function ctxFrom(settings, cache, now) {
   const tz = settings?.location?.timezone || DEFAULT_TZ;
   const zmanim = cache?.zmanim || null;
   return { tz, today: zonedParts(now, tz).date, loc: locationOf(settings, cache), zmanim, fresh: zmanimFreshFor(zmanim, now, tz) };
+}
+
+// ── the countdown views and the share text ──────────────────────────────────
+
+const QUARTER = ['', '\u00BC', '\u00BD', '\u00BE'];
+/**
+ * One view of a countdown as words: { big: '20\u00BC', unit: {en,he} } or null when this view has nothing to say (the kiosk then
+ * skips it). Pure; the TV computes the same numbers from `beginMs` every second.
+ *   days '20' days · daysFraction '20\u00BC' days (quarters, rounded down) · hours total hours · percent of the lead-up window · sleeps = nights to go
+ */
+export function formWords(form, row, now, settings, today) {
+  const ms = row.begin.ms - now.getTime();
+  if (ms <= 0) return null;
+  const s = settings || SETTINGS_DEFAULTS;
+  const T = COPY;
+  const un = (n, one, many) => ({ en: n === 1 ? one.en : many.en, he: n === 1 ? one.he : many.he });
+  if (form === 'days' || form === 'daysFraction') {
+    const n = ms / 86400000; const whole = Math.floor(n);
+    if (form === 'days') return whole >= 1 ? { big: String(whole), unit: un(whole, T.day, T.days) } : null;
+    const q = Math.floor((n - whole) * 4);
+    if (whole === 0 && q === 0) return null;
+    return { big: `${whole || ''}${QUARTER[q]}`, unit: un(whole === 1 && q === 0 ? 1 : 2, T.day, T.days) };
+  }
+  if (form === 'hours') { const h = Math.floor(ms / 3600000); return h >= 1 ? { big: String(h), unit: un(h, T.hour, T.hours) } : null; }
+  if (form === 'percent') {
+    const lead = windowDays(row, s) * 86400000;
+    const pct = Math.max(0, Math.min(99, Math.floor((1 - ms / lead) * 100)));
+    return lead > 0 ? { big: `${pct}%`, unit: { en: 'of the way', he: 'מהדרך' } } : null;
+  }
+  if (form === 'sleeps') {
+    const d = daysUntil(row, today || zonedParts(now, DEFAULT_TZ).date);
+    return d >= 1 ? { big: String(d), unit: un(d, { en: 'sleep', he: 'שינה' }, { en: 'sleeps', he: 'שינות' }) } : null;
+  }
+  return null; // 'flip' is the kiosk's own clock
+}
+
+const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+/** The count as words for a message: '20\u00BC days' / '5 hours' / '12 minutes' ('' once it has begun). */
+function countWords(row, now, s, today) {
+  const f = formWords('daysFraction', row, now, s, today) || formWords('hours', row, now, s, today);
+  if (f) return { en: `${f.big} ${f.unit.en}`, he: `${f.big} ${f.unit.he}` };
+  const m = Math.max(1, Math.ceil((row.begin.ms - now.getTime()) / 60000));
+  return { en: `${m} ${m === 1 ? 'minute' : 'minutes'}`, he: `${m} דקות` };
+}
+
+/**
+ * A message to paste into WhatsApp: '20\u00BC days until Yud-Tes Kislev (Sunday, November 29 \u00B7 19 Kislev 5787) \u2014 begins Saturday evening'
+ * plus, only when it shows on the screen (a source AND the check), the short 'why' line. lang 'en' | 'he' | 'both'. No emoji
+ * unless `emoji` (settings.shareEmoji). Pure: the row comes from upcoming() / pickFor().
+ */
+export function shareText(row, { lang = 'en', settings, now = new Date(), tz = DEFAULT_TZ, today, emoji = false } = {}) {
+  const s = settings || SETTINGS_DEFAULTS;
+  const t = today || zonedParts(now, tz).date;
+  const o = row.occasion;
+  const d = datesOf(row, t, tz);
+  const running = now.getTime() >= row.begin.ms;
+  const mk = (l) => {
+    const en = l === 'en';
+    const name = en ? (row.nameEn || row.nameHe) : (row.nameHe || row.nameEn);
+    const day = en ? d.day.en : d.day.he; const heb = en ? d.hebrew.en : d.hebrew.he;
+    const cw = running ? null : countWords(row, now, s, t);
+    const head = running
+      ? (en ? `${name} is on now` : `${name} עכשיו`)
+      : (en ? `${cw.en} until ${name}` : `עוד ${cw.he} ל${name}`);
+    const begins = running ? '' : ` \u2014 ${en ? lowerFirst(d.beginsLine.en) : d.beginsLine.he}`;
+    let text = `${emoji ? '\u2B50 ' : ''}${head} (${day} \u00B7 ${heb})${begins}`;
+    const why = whyShows(o) && s.explain !== false ? (en ? o.explainShortEn : o.explainShortHe) : '';
+    if (why) text += `\n${why}${s.credit !== false && o.source ? ` (${en ? 'Source' : 'מקור'}: ${o.source})` : ''}`;
+    return text;
+  };
+  return lang === 'both' ? `${mk('en')}\n\n${mk('he')}` : mk(lang === 'he' ? 'he' : 'en');
+}
+
+/** 'This week's days' for a message: every day that begins (or is running) in the next 7 days, soonest first. */
+export function weekShareText(file, now, ctx, { lang = 'en', emoji = false } = {}) {
+  const f = file && Array.isArray(file.occasions) ? file : normalizeFile(file);
+  const s = normalizeSettings(f.settings);
+  const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
+  const rows = visibleRows(upcoming(f, now, { ...ctx, today }), s).filter((r) => r.running || daysUntil(r, today) <= 7);
+  const one = (l) => {
+    const en = l === 'en';
+    if (!rows.length) return en ? 'No special days this week.' : 'אין ימים מיוחדים השבוע.';
+    const lines = rows.map((r) => {
+      const d = datesOf(r, today, ctx.tz || DEFAULT_TZ);
+      const nm = en ? (r.nameEn || r.nameHe) : (r.nameHe || r.nameEn);
+      return `${emoji ? '\u2B50 ' : '\u2022 '}${nm} \u2014 ${en ? d.day.en : d.day.he} \u00B7 ${en ? d.hebrew.en : d.hebrew.he} (${en ? (r.running ? 'on now' : lowerFirst(d.beginsLine.en)) : (r.running ? 'עכשיו' : d.beginsLine.he)})`;
+    });
+    return `${en ? 'This week' : 'השבוע'}:\n${lines.join('\n')}`;
+  };
+  return lang === 'both' ? `${one('en')}\n\n${one('he')}` : one(lang === 'he' ? 'he' : 'en');
 }
 
 // ── the 'ask Claude' hand-off (the explanation must come with real sources) ──

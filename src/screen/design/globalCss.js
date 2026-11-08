@@ -67,6 +67,9 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-smooth .tt-flip, .m-lively .tt-flip { animation: ttFlip 340ms cubic-bezier(.2,.7,.3,1) both; transform-origin: 50% 50%; }
 @keyframes ttFlip { from { opacity: 0; transform: perspective(900px) rotateX(-80deg); } }
 .tt-adv-open { opacity: 0; }
+/* Countdown forms (a tap or auto mode swaps days / 20\u00BC / hours / flip ...): the new form rises in once (transform + opacity, finite); Minimal = instant swap. */
+.m-smooth .tt-form-in, .m-lively .tt-form-in { animation: ttFormIn 380ms cubic-bezier(.22,.7,.2,1) both; }
+@keyframes ttFormIn { from { opacity: 0; transform: translate3d(0, 18px, 0); } }
 .m-smooth .tt-adv-open, .m-lively .tt-adv-open { animation: ttAdvOpen 1400ms ease-in-out 700ms both; }
 @keyframes ttAdvOpen { from { opacity: 1; } to { opacity: 0; } }
 .tt-pop { opacity: 0; }
@@ -89,7 +92,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-adv-open, .tt-pop, .tt-occ-num { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }
