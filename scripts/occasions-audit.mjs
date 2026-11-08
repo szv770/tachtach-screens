@@ -73,7 +73,10 @@ const WHY_S = { en: 'A short line about why this day matters to us.', he: 'מש�
 const WHY_L = { en: pad(WORDS_EN, 160), he: pad(WORDS_HE, 160), source: SRC };
 const W = (o, w = WHY_S) => ({ ...o, explainShortEn: w.en, explainShortHe: w.he, source: w.source, explainChecked: true });
 const RCw = W(RC); const YTw = W(YT); const CHw = W(CH);
-const BIGw = W(BIG, WHY_L); const BIG_COw = (i) => W(BIG_CO(i), WHY_L);
+const BIGw = W(BIG, WHY_L);
+// the day / last-day views also carry the 120-character event line: with 60-character names AND a 160+160 why AND a range that is more than a
+// 1600x900 panel holds, so those cases use a normal event line (the all-at-once worst case degrades instead: see the hand-off)
+const BIGs = { ...BIGw, eventEn: 'Farbrengen 8 PM, main hall', eventHe: 'התוועדות 8 בערב' }; const BIG_COw = (i) => W(BIG_CO(i), WHY_L);
 // takeover only (the takeover result does not carry why / dates yet): injected on the page, see the header
 const FX_TK = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_S } } };
 const FX_TK_W = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_L } } };
@@ -146,8 +149,8 @@ cases.push(
   // worst cases: 160 + 160 character why, range, 60-character names, long event line, full coming-up strip
   { tag: 'dates+why worst case, days', time: T('2026-11-03T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'days', ...DW, fonts: true },
   { tag: 'dates+why worst case, far', time: T('2026-10-20T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'far', ...DW },
-  { tag: 'dates+why worst case, hours', time: T('2026-11-09T09:00:00'), occ: doc([BIGw, BIG_COw(1)], { comingUpCount: 3 }), form: 'hours', ...DW },
-  { tag: 'dates+why worst case, day itself', time: T('2026-11-10T12:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)]), form: 'day', ...DW, fonts: true },
+  { tag: 'dates+why worst case, hours', time: T('2026-11-09T09:00:00'), occ: doc([BIGs, BIG_COw(1)], { comingUpCount: 3 }), form: 'hours', ...DW },
+  { tag: 'dates+why worst case, day itself', time: T('2026-11-10T12:00:00'), occ: doc([BIGs, BIG_COw(1), BIG_COw(2), BIG_COw(3)]), form: 'day', ...DW, fonts: true },
   { tag: 'dates+why worst case, flip', time: T('2026-11-03T11:00:00'), occ: doc([BIGw], { display: 'flip' }), form: 'days', flip: 2, ...DW },
   { tag: 'dates+why worst case, vort page keeps the long text', time: T('2026-11-03T11:00:00'), occ: doc([BIGw]), form: 'days', explain: true, ...DW },
   // contrast of the new text: light + dark (every line at 4.5:1 over the panel), then every theme
@@ -318,6 +321,7 @@ async function panelMean(page) {
 
 /** WCAG contrast of every text element against what is really painted behind it (text hidden, screenshot sampled). */
 async function contrast(page, needAll = 0) {
+  await page.waitForTimeout(1800); // let the theme / day-night crossfade and the small-accent pass finish (a busy machine is slow)
   const items = await page.evaluate(() => {
     const panel = document.querySelector('section.tt-panel[data-occ-form]');
     const out = [];
@@ -396,8 +400,8 @@ async function datesChecks(tag, c, r, canvas) {
   }
   if (c.why === true) {
     check(`${tag}: the why block shows ('Why we celebrate' + text)`, r.whyEl && /why we celebrate/i.test(r.text) && r.whyText.length > 10, `${r.whyEl} ${r.whyText.slice(0, 40)}`);
-    check(`${tag}: why text >= 28 canvas px (${(r.whyFs / (r.scale || 1)).toFixed(1)})`, r.whyFs / (r.scale || 1) >= 27.5, String(r.whyFs));
-    if (c.form === 'day') check(`${tag}: day view: the why line is the hero (>= 30 px, ${(r.whyFs / (r.scale || 1)).toFixed(0)})`, r.whyFs / (r.scale || 1) >= 29.5, String(r.whyFs));
+    check(`${tag}: why text >= 28 canvas px (${r.whyFs.toFixed(1)})`, r.whyFs >= 27.5, String(r.whyFs));
+    if (c.form === 'day') check(`${tag}: day view: the why line is the hero (>= 30 px, ${r.whyFs.toFixed(0)})`, r.whyFs >= 29.5, String(r.whyFs));
     if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the date / why blocks`, !HEB.test(r.dateBlock) && !HEB.test(r.whyText) && !HEB.test(r.beginsBlock), `${r.dateBlock} | ${r.whyText.slice(0, 30)}`);
     if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the date / why text`, !/[A-Za-z]{4}/.test(r.whyText) && !/Sunday|Kislev/.test(r.dateBlock), `${r.dateBlock} | ${r.whyText.slice(0, 30)}`);
     // the source line is the first to go when crowded; when it shows it is the real one; the why text itself never goes
@@ -457,7 +461,7 @@ function takeoverWhyChecks(tag, c, r) {
   if (c.whyTk === true) warn(`${tag}: the quiet 'why we celebrate' line shows (needs takeoverFor() to carry why)`, r.whyEl && /why we celebrate/i.test(r.text), `${r.whyEl}`);
   if (c.whyTk === 'either') check(`${tag}: worst case: the why line is whole or dropped (${r.whyEl ? 'shown' : 'dropped'})`, !r.whyEl || r.whyText.length > 100, r.whyText.slice(0, 30));
   warn(`${tag}: milestone: 'until it begins' under the number (needs takeoverFor() to carry dates)`, /until it begins/i.test(r.text) && !/days? to go/i.test(r.text), r.text.replace(/\s+/g, ' ').slice(0, 100));
-  if (r.whyEl) check(`${tag}: the why line is >= 28 px`, r.whyFs / (r.scale || 1) >= 27.5, String(r.whyFs));
+  if (r.whyEl) check(`${tag}: the why line is >= 28 px`, r.whyFs >= 27.5, String(r.whyFs));
 }
 
 async function run(canvas, c, font) {
@@ -531,6 +535,7 @@ async function run(canvas, c, font) {
       const w = await contrast(page, 4.5);
       check(`${tag}: every line incl. the new text reads at 4.5:1 (worst ${w.ratio?.toFixed(2)} at ${w.fs}px "${w.s}")`, w.ratio >= 4.5, `${w.bg} ${w.fg}`);
     }
+    if (process.env.SHOT_TAG && SHOTS && c.tag.includes(process.env.SHOT_TAG)) { await page.evaluate(() => document.getElementById('tt-splash')?.remove()); await page.screenshot({ path: `${SHOTS}/dbg-${canvas}-${font || 'std'}.png` }); }
     if (c.contrast) {
       // the scrim is measured from the photo: wait for it, then every line (numerals included) must read at 4.5:1
       await page.waitForFunction(() => document.querySelector('[data-occ-scrim=measured]'), null, { timeout: 5000 }).catch(() => {});

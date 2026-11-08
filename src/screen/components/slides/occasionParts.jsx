@@ -277,7 +277,7 @@ export function Backdrop({ photo, dim, textSide = 'left', portrait = false, grap
   const measured = usePhotoScrim(show ? photo : '', dim, portrait, textSide, ref, `${themeKey}|${light}`);
   if (!show) {
     if (graphics === 'off') return null;
-    return <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(160deg, color-mix(in srgb, var(--accentText) 7%, transparent) 0%, transparent 50%), linear-gradient(0deg, color-mix(in srgb, var(--ink) 4%, transparent) 0%, transparent 36%)' }} />;
+    return <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'linear-gradient(160deg, color-mix(in srgb, var(--accentText) 4%, transparent) 0%, transparent 50%), linear-gradient(0deg, color-mix(in srgb, var(--ink) 2%, transparent) 0%, transparent 36%)' }} />;
   }
   const floor = scrimAlpha(dim, light);
   // measured: each half gets exactly what its text needs (a good photo shows); not measured (yet): the heavy floor
