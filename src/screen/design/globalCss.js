@@ -75,6 +75,31 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .tt-pop { opacity: 0; }
 .m-smooth .tt-pop, .m-lively .tt-pop { animation: ttPop 760ms cubic-bezier(.15,.8,.3,1) both; }
 @keyframes ttPop { from { opacity: 1; transform: translate3d(0,0,0) rotate(var(--pr)) scale(.4); } 70% { opacity: 1; } to { opacity: 0; transform: translate3d(var(--px), var(--py), 0) rotate(var(--pr)) scale(1); } }
+/* Countdown STAGE (src/screen/stage/): an act's lines rise in once with a stagger; the paper scroll unrolls / rolls up once
+   (clip-path on the sheet + translate3d/rotateX on the lower rod, same curve); hype pops / settle / sparks / the rail flash
+   play once per change. All finite; Minimal motion and reduced motion: settled at once (the scroll just fades). */
+.m-smooth .tt-act [data-s], .m-lively .tt-act [data-s] { animation: ttSmIn 560ms cubic-bezier(.22,.7,.2,1) calc(260ms + var(--i, 0) * 90ms) both; }
+.m-smooth .tt-scroll-go .tt-scroll-paper, .m-lively .tt-scroll-go .tt-scroll-paper { animation: ttUnroll var(--open) cubic-bezier(.3,.75,.25,1) both; will-change: clip-path; }
+.m-smooth .tt-scroll-go .tt-scroll-rod, .m-lively .tt-scroll-go .tt-scroll-rod { animation: ttRodDown var(--open) cubic-bezier(.3,.75,.25,1) both; will-change: transform; }
+.m-smooth .tt-scroll-go [data-s], .m-lively .tt-scroll-go [data-s] { animation: ttSmIn 620ms cubic-bezier(.22,.7,.2,1) calc(var(--open) * .32 + var(--i, 0) * 80ms) both; }
+.m-smooth .tt-scroll-close .tt-scroll-paper, .m-lively .tt-scroll-close .tt-scroll-paper { animation: ttRollUp var(--close) cubic-bezier(.55,0,.7,.35) both; }
+.m-smooth .tt-scroll-close .tt-scroll-rod, .m-lively .tt-scroll-close .tt-scroll-rod { animation: ttRodUp var(--close) cubic-bezier(.55,0,.7,.35) both; }
+.m-smooth .tt-scroll-close [data-s], .m-lively .tt-scroll-close [data-s] { animation: none; }
+.m-minimal .tt-scroll-go .tt-scroll-paper { animation: ttFadeIn 400ms linear both; }
+@keyframes ttUnroll { 0% { clip-path: inset(0 0 100% 0); } 84% { clip-path: inset(0 0 -1.4% 0); } 100% { clip-path: inset(0 0 0 0); } }
+@keyframes ttRodDown { 0% { transform: translate3d(0, 0, 0) rotateX(6deg); } 84% { transform: translate3d(0, calc(var(--rh) * 1.014), 0) rotateX(.5deg); } 100% { transform: translate3d(0, var(--rh), 0) rotateX(0deg); } }
+@keyframes ttRollUp { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 100% 0); } }
+@keyframes ttRodUp { from { transform: translate3d(0, var(--rh), 0) rotateX(0deg); } to { transform: translate3d(0, 0, 0) rotateX(5deg); } }
+.m-smooth .tt-hype-pop, .m-lively .tt-hype-pop { animation: ttHypePop var(--pop-ms, 420ms) cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes ttHypePop { from { transform: scale(var(--pop-from, 1.08)); } to { transform: scale(1); } }
+.m-smooth .tt-hype-settle, .m-lively .tt-hype-settle { animation: ttHypeSettle 520ms cubic-bezier(.3,.7,.3,1) var(--settle-delay, 700ms) both; }
+@keyframes ttHypeSettle { 0% { transform: translate3d(0, 0, 0); } 30% { transform: translate3d(0, var(--settle, 3px), 0); } 100% { transform: translate3d(0, 0, 0); } }
+.tt-spark { opacity: 1; }
+.m-smooth .tt-spark, .m-lively .tt-spark { animation: ttSpark 700ms cubic-bezier(.2,.8,.3,1) calc(500ms + var(--i, 0) * 60ms) both; }
+@keyframes ttSpark { from { opacity: 0; transform: translate3d(var(--sx, 0), var(--sy, 0), 0) rotate(var(--sr)) scaleX(.2); } }
+.tt-rail-flash { opacity: 0; }
+.m-smooth .tt-rail-flash, .m-lively .tt-rail-flash { animation: ttRailFlash 1100ms ease-out both; }
+@keyframes ttRailFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
 .m-smooth .tt-occ-num, .m-lively .tt-occ-num { animation: ttBdHero 700ms cubic-bezier(.2,.8,.3,1) both; }
 @keyframes ttBdFall {
   0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)) rotateX(0deg); }
@@ -92,7 +117,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }

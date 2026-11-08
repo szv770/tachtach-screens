@@ -62,3 +62,20 @@ test('stage styles registry: ids, default, unknown -> default; occasions accepts
     assert.equal(g.settings.hype, 'lively');
   }
 });
+
+test('actsFor: hero first, facts / why / story / coming only when there is something, reveal time added, hero shorter near the day', async () => {
+  const { actsFor, totalSecs, hasFacts } = await import('../src/screen/stage/acts.js');
+  const dates = { day: { en: 'Sunday, November 29', he: '' }, hebrew: { en: '19 Kislev 5787', he: '' } };
+  const why = { en: 'A short line about why.', he: '', source: 'Sefer' };
+  const r = { form: 'far', dates, why, explain: { en: 'Long story here.', he: '', source: 'Sefer' } };
+  const a = actsFor(r, { cycleSeconds: 10, style: 'scroll', level: 0 });
+  assert.deepEqual(a.map((x) => x.id), ['main', 'facts', 'why', 'vort']);
+  const calm = actsFor(r, { cycleSeconds: 10, style: 'calm', level: 0 });
+  assert.ok(a[2].secs > calm[2].secs, 'the scroll adds its unroll + roll-up time');
+  assert.equal(totalSecs(a), a.reduce((t, x) => t + x.secs, 0) + 1);
+  assert.deepEqual(actsFor({ form: 'zero', dates, why }, {}).map((x) => x.id), ['main']);
+  assert.deepEqual(actsFor({ form: 'far' }, { coming: true }).map((x) => x.id), ['main', 'coming']);
+  assert.deepEqual(actsFor(r, { layout: { show: { why: false, source: false, date: false } } }).map((x) => x.id), ['main']);
+  assert.equal(hasFacts({ form: 'day', event: { en: 'x' } }, null), false);
+  assert.ok(actsFor(r, { cycleSeconds: 10, level: 4, hype: 'lively' })[0].secs < 10);
+});
