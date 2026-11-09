@@ -30,7 +30,7 @@ import { actsFor, readSecs } from '../../stage/acts.js';
  * (the rail's date). Roles and font roles only; nothing loops; no blur or blend. Portrait and landscape.
  */
 
-const GUT = 56;
+const GUT = 80;
 const isShort = (name) => [...(name?.he || '')].length <= 8 && [...(name?.en || '')].length <= 14;
 const isLong = (name) => [...(name?.he || '')].length > 16 || [...(name?.en || '')].length > 24;
 const hasText = (x) => !!(x && (x.en || x.he));
@@ -237,12 +237,12 @@ function BeginsLine({ m, lang, center }) {
   else return null;
   const rtl = textDir(a || b) === 'rtl';
   const fam = rtl ? F.he : F.en;
-  const fs = rtl ? he(32) : 32;
+  const fs = rtl ? he(30) : 28;
   return (
     <div data-occ-begins="" data-occ-block="begins" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6 }}>
       <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 16px', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', lineHeight: 1.28 }}>
         {a && <span className={rtl ? 'tt-he' : undefined} style={{ fontFamily: fam, fontSize: fs, fontWeight: 500, color: SOFT_INK }}>{a}</span>}
-        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: rtl ? he(38) : 38, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
+        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: fs, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={lang === 'english' ? '' : COPY.approx.he} color={SOFT_INK} />}
     </div>
@@ -274,7 +274,7 @@ function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, grap
     <div data-s="" data-occ-block="count" style={{ '--i': 1, flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al, gap: 6 }}>
       {hasText(u) && <Label en={u.en} heText={u.he} color={SOFT_INK} data-occ-unit="" style={{ justifyContent: al }} />}
       {hasText(sub) && <Label en={sub.en} heText={sub.he} color={LABEL_INK} style={{ justifyContent: al }} />}
-      {forms.length > 1 && <div style={{ marginTop: 8, width: '100%' }}><FormDots n={forms.length} at={Math.min(formAt, forms.length - 1)} center={center} /></div>}
+      {forms.length > 1 && <div style={{ marginTop: 6, width: '100%' }}><FormDots n={forms.length} at={Math.min(formAt, forms.length - 1)} center={center} /></div>}
     </div>
   );
   const begins = shows(L, 'begins') ? <div data-s="" style={{ '--i': 2 }}><BeginsLine m={m} lang={lang} center={center} /></div> : null;
@@ -886,7 +886,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   const rail = {
     left: today ? <TodayStrip today={today} lang={lang} /> : <Label en={titleL.en} heText={titleL.he} />,
     right: today && !(photoOn && !portrait) ? <span style={{ color: SOFT_INK }}>{(() => { const h = primary(today.hebrew, lang); return <span className={h.he ? 'tt-he' : undefined} style={{ fontFamily: h.he ? F.he : F.en, fontSize: h.he ? he(26) : 24, fontWeight: 500 }}>{h.en || h.he}</span>; })()}</span> : null,
-    compact: hc && hc.kind !== 'flip' && hasText(cu) ? <Label en={cu.en} heText={cu.he} color={SOFT_INK} /> : null,
+    compact: hc && hc.kind !== 'flip' && hasText(cu) ? <Label en={cu.en} heText={cu.he} color={SOFT_INK} size={portrait ? 30 : 24} /> : null,
     pager: pager ? <span className="tt-num" style={{ fontFamily: F.en, fontSize: 24, fontWeight: 600, letterSpacing: '.12em', color: LABEL_INK }}>{pager}</span> : null,
     progress: counting ? railProgress(m, L, hc, nowMs, hype.level >= 2, hype.level) : null,
   };

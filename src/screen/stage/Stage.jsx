@@ -21,8 +21,8 @@ import { useBox } from '../components/slides/occasionParts.jsx';
  * { id, secs, reveal, closes (the reveal rolls up after it), turns (another act follows), kick (restart its time) }; actKey; recipe (styles.js); motion; light; portrait; hype { level, intensity }; countAttrs (data
  * attributes for the act area while counting); flashKey (changes = the rail flashes its accent once).
  */
-export const RAIL_NUM_H = 40;
-export const RAIL_NAME_H = 50;
+/** The rail's compact number / name heights (canvas px): larger on a portrait screen, where the rail is read from further down. */
+export const railSizes = (portrait) => (portrait ? { num: 64, name: 64 } : { num: 46, name: 52 });
 
 function offsetIn(el, root) {
   let x = 0; let y = 0; let e = el;
@@ -42,6 +42,7 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
   const [closing, setClosing] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const still = motion === 'minimal' || reduced();
+  const { num: RAIL_NUM_H, name: RAIL_NAME_H } = railSizes(portrait);
 
   // where the shared elements go in this act: its own slot (hero) or the rail
   useLayoutEffect(() => {
@@ -95,7 +96,7 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
   );
   return (
     <div ref={rootRef} data-occ-stage={act.id} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <Rail rail={rail} hero={hero} railName={railName} railNum={railNum} still={still} flashKey={flashKey} />
+      <Rail rail={rail} hero={hero} railName={railName} railNum={railNum} still={still} flashKey={flashKey} nameH={RAIL_NAME_H} />
       <div ref={areaRef} data-occ-col="" {...(countAttrs || {})} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: portrait ? 36 : 24 }}>
         {/* the reveal stays mounted from the first reveal act to the last: only the act on it changes */}
         {Reveal ? <Reveal key="reveal" closing={closing} openMs={recipe.reveal.open} closeMs={recipe.reveal.close} light={light} portrait={portrait}>{actEl}</Reveal> : actEl}
@@ -107,7 +108,7 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
 }
 
 /** The persistent anchor: one row of quiet text and one hairline that carries the progress. */
-function Rail({ rail, hero, railName, railNum, still, flashKey }) {
+function Rail({ rail, hero, railName, railNum, still, flashKey, nameH: RAIL_NAME_H }) {
   const fade = (on) => ({ opacity: on ? 1 : 0, transition: still ? 'none' : 'opacity 420ms ease-out', visibility: on ? 'visible' : 'hidden' });
   const first = useRef(true);
   useEffect(() => { first.current = false; }, []);

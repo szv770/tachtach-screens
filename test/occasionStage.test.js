@@ -80,3 +80,15 @@ test('actsFor: hero first, facts / why / story / coming only when there is somet
   assert.equal(hasFacts({ form: 'day', event: { en: 'x' } }, null), false);
   assert.ok(actsFor(r, { cycleSeconds: 10, level: 4, hype: 'lively' })[0].secs < 10);
 });
+
+test('motifs stay faithful: the menorah (chanukah style) only ever belongs to Chanukah; the Chabad days use the chassidic style', async () => {
+  const { STARTERS } = await import('../src/shared/occasions.js').then((m) => ({ STARTERS: m.STARTERS || m.STARTER_OCCASIONS || [] }));
+  const lib = await import('../src/shared/occasionLibrary.js');
+  const all = [...STARTERS, ...(lib.OCCASION_LIBRARY || lib.LIBRARY || [])];
+  assert.ok(all.length > 10, 'the starter / library lists are exported');
+  for (const o of all) if (o.style === 'chanukah') assert.match(String(o.key), /chanukah/, `${o.key} must not use the menorah style`);
+  for (const k of ['yud-tes-kislev', 'yud-kislev', 'hey-teves', 'yud-shvat']) {
+    const o = all.find((x) => x.key === k);
+    assert.ok(o && o.style === 'chassidic', `${k} uses the chassidic (single light) style`);
+  }
+});

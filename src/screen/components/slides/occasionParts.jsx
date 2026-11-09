@@ -202,7 +202,7 @@ export function FormDots({ n, at, center = false }) {
   if (n < 2) return null;
   return (
     <div aria-hidden data-occ-dots={n} style={{ flex: 'none', display: 'flex', gap: 8, justifyContent: center ? 'center' : 'flex-start', width: '100%' }}>
-      {Array.from({ length: n }, (_, i) => <span key={i} data-occ-dot={i === at ? 'on' : 'off'} style={{ width: i === at ? 20 : 8, height: 8, borderRadius: 4, background: i === at ? 'var(--accentText)' : 'var(--line)' }} />)}
+      {Array.from({ length: n }, (_, i) => <span key={i} data-occ-dot={i === at ? 'on' : 'off'} style={{ width: i === at ? 16 : 6, height: 6, borderRadius: 3, background: i === at ? 'var(--accentText)' : 'var(--line)' }} />)}
     </div>
   );
 }
