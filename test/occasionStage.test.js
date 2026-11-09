@@ -71,7 +71,8 @@ test('actsFor: hero first, facts / why / story / coming only when there is somet
   const a = actsFor(r, { cycleSeconds: 10, style: 'scroll', level: 0 });
   assert.deepEqual(a.map((x) => x.id), ['main', 'facts', 'why', 'vort']);
   const calm = actsFor(r, { cycleSeconds: 10, style: 'calm', level: 0 });
-  assert.ok(a[2].secs > calm[2].secs, 'the scroll adds its unroll + roll-up time');
+  assert.ok(totalSecs(a) > totalSecs(calm) && a[1].secs > calm[1].secs && a[a.length - 1].secs > calm[calm.length - 1].secs, 'the scroll adds its unroll time once (first act) and its roll-up time once (last act)');
+  assert.ok(a.slice(1).every((x) => x.reveal) && a[1].opens && a[a.length - 1].closes && !a[0].reveal);
   assert.equal(totalSecs(a), a.reduce((t, x) => t + x.secs, 0) + 1);
   assert.deepEqual(actsFor({ form: 'zero', dates, why }, {}).map((x) => x.id), ['main']);
   assert.deepEqual(actsFor({ form: 'far' }, { coming: true }).map((x) => x.id), ['main', 'coming']);

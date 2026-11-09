@@ -23,6 +23,8 @@
  * STAGE (2026-11 redesign): one mounted Stage with acts (main = hero, facts = the day, why, vort = story, step, coming), a
  * persistent rail, a shared number + name, the flagship paper-scroll reveal and hype levels 0-5. The dates now live in the facts
  * act, the why in its own (scroll) act; checks wait for the act they need. Each act: <= 5 [data-occ-block] blocks.
+ * 2026-11-09: every act after the hero sits on ONE scroll that opens once and closes once (transform only); long texts are
+ * paged on it, never cut; the hero's 'Begins' line and the facts are checked per occasion (not only Yud-Tes Kislev).
  * The model emits `dates` / `why` / `forms` / `today` itself (src/shared/occasions.js): the fixtures only set the occasion's INPUTS
  * (explainShortEn/He + source + explainChecked). Exception: the milestone TAKEOVER's quiet why line needs takeoverFor() to carry
  * `why` / `dates` (it does not yet); those cases inject them through window.__OCC_FX and only WARN when the build ignores it.
@@ -427,7 +429,9 @@ function actChecks(t, v) {
 /** The dates + why checks for one rendered page. */
 async function datesChecks(tag, c, r, canvas, page) {
   if (c.dates && c.form !== 'day') {
-    check(`${tag}: hero: 'Begins Saturday evening' + the zman, one line`, c.lang === 'he' || (/begins saturday evening/i.test(r.beginsBlock) && (c.approx || /Shkia 4:30 PM/.test(r.beginsBlock))), r.beginsBlock.slice(0, 120));
+    // the hero's one 'Begins' line: when (an evening / tonight) + the zman; the pinned Yud-Tes Kislev cases check the exact words
+    const yt = /pinned, 27 days/.test(c.tag);
+    check(`${tag}: hero: 'Begins <evening>' + the zman`, c.lang === 'he' || ((yt ? /begins saturday evening/i : /begins (\w+ evening|tonight)/i).test(r.beginsBlock) && (yt ? /Shkia 4:30 PM/ : /Shkia ~?\d{1,2}:\d\d PM/).test(r.beginsBlock)), r.beginsBlock.slice(0, 120));
     if (c.approx) check(`${tag}: approximate: the '~' stays`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
   }
   if (c.dates && (c.form === 'far' || c.form === 'days')) {
@@ -441,8 +445,10 @@ async function datesChecks(tag, c, r, canvas, page) {
     if (c.dates) {
       check(`${tag}: facts act comes after the hero`, !!f, 'no facts act');
       if (f) {
-        check(`${tag}: facts: THE DAY ('Sunday, November 29') + its Hebrew date`, c.lang === 'he' ? /כסלו/.test(f.dateBlock) : (c.dayRe || /Sunday, November 29/).test(f.dateBlock) && (c.dayRe || /19 Kislev 5787/.test(f.dateBlock)), f.dateBlock.slice(0, 120));
-        if (c.range) check(`${tag}: facts: the multi-day range shows`, /Dec 5.*Dec 12/.test(f.dateBlock), f.dateBlock.slice(0, 120));
+        const yt = /pinned, 27 days/.test(c.tag);
+        const flat = f.dateBlock.replace(/\s+/g, ' ');
+        check(`${tag}: facts: the day ('Sunday, November 29') + its Hebrew date`, c.lang === 'he' ? /כסלו|חשון/.test(flat) : (c.dayRe || (yt ? /Sunday, November 29/ : /(Sun|Mon|Tues|Wednes|Thurs|Fri|Satur)day, (November|December) \d+/)).test(flat) && (c.dayRe || (yt ? /19 Kislev 5787/ : /\d+ (Cheshvan|Kislev) 5787/).test(flat)), flat.slice(0, 120));
+        if (c.range) check(`${tag}: facts: the multi-day range shows`, /Dec 5.*Dec 12/.test(flat), flat.slice(0, 120));
         if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the facts`, !HEB.test(f.dateBlock), f.dateBlock);
         if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the facts`, !/Sunday|Kislev/.test(f.dateBlock), f.dateBlock);
         actChecks(`${tag} [facts]`, f);
@@ -491,7 +497,7 @@ async function formsChecks(page, tag, c, r) {
   check(`${tag}: ${seq.length} form dots, the first form is '${seq[0]}'`, r.dots === seq.length && r.formId === seq[0] && r.dotOn === 0, `${r.dots} ${r.formId} ${r.dotOn}`);
   for (let i = 1; i <= seq.length; i++) {
     await page.locator(`${SEL.slide} [data-occ-forms][data-occ-count] [data-occ-unit]`).first().click();
-    await page.waitForTimeout(750);
+    await page.waitForTimeout(1200); // the shared number / name glide to their new places (820 ms)
     const p = await probeNow();
     const want = seq[i % seq.length];
     const t = `${tag} [tap ${i} > ${want}]`;
@@ -512,7 +518,7 @@ async function formsChecks(page, tag, c, r) {
     if (want === 'hours') check(`${t}: labelled hours`, /hours?/i.test(p.text), p.text.slice(0, 120));
     if (want === 'flip') check(`${t}: flip cells (${p.cells})`, p.flip >= 3, p.cells);
     if (want === 'percent') check(`${t}: a percent (${p.bigText}%) with a hairline bar`, n >= 0 && n <= 99 && p.suffix === '%' && p.progressBar, `${p.bigText} ${p.suffix} ${p.progressBar}`);
-    if (want === 'sleeps') check(`${t}: N sleeps (${p.bigText})`, (!c.sleeps || n === c.sleeps) && /sleeps?/i.test(p.text) && /לילות|לילה/.test(p.text), p.text.slice(0, 140));
+    if (want === 'sleeps') check(`${t}: N sleeps (${p.bigText})`, (!c.sleeps || n === c.sleeps) && (/sleeps?/i.test(p.text) || /לילות|לילה/.test(p.text)), p.text.slice(0, 140));
   }
 }
 

@@ -40,6 +40,7 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
   const [tf, setTf] = useState({ num: null, name: null });
   const [ready, setReady] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const still = motion === 'minimal' || reduced();
 
   // where the shared elements go in this act: its own slot (hero) or the rail
@@ -47,42 +48,57 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
     const root = rootRef.current;
     if (!root) return;
     const at = (q) => { const el = root.querySelector(q); return el ? offsetIn(el, root) : null; };
-    const place = (item, own, inRail) => {
+    const place = (item, own, inRail, prev) => {
       if (!item) return null;
       const r = own || inRail;
-      if (!r || !item.h) return { t: 'translate3d(0,0,0) scale(1)', o: 0 };
+      if (!r || !item.h) return { t: prev?.t || 'translate3d(0,0,0) scale(1)', o: 0 };
       const s = r.h / item.h;
       return { t: `translate3d(${Math.round(r.x)}px, ${Math.round(r.y)}px, 0) scale(${s.toFixed(4)})`, o: 1, rail: !own };
     };
-    const num = place(geo.num, at('[data-slot=num]'), hero ? null : at('[data-slot=railnum]'));
-    const name = place(geo.name, at('[data-slot=name]'), hero || geo.name?.long ? null : at('[data-slot=railname]'));
+    const num = place(geo.num, at('[data-slot=num]'), hero ? null : at('[data-slot=railnum]'), tf.num);
+    const name = place(geo.name, at('[data-slot=name]'), hero || geo.name?.long ? null : at('[data-slot=railname]'), tf.name);
     const sig = JSON.stringify({ num, name });
     if (sig !== JSON.stringify(tf)) setTf({ num, name });
     if (!ready) requestAnimationFrame(() => setReady(true));
   });
 
-  // a reveal act rolls back up just before it ends
+  // every act leaves the same way: its lines fade up and out just before the next act; the LAST reveal act instead rolls
+  // the reveal (the paper scroll) back up, which stays open across the reveal acts before it
+  const revealOn = !!(act.reveal && recipe.Reveal);
   useEffect(() => {
-    setClosing(false);
-    if (!act.reveal || !recipe.Reveal || still) return undefined;
-    const t = setTimeout(() => setClosing(true), Math.max(1000, act.secs * 1000 - recipe.reveal.close - 120));
+    setClosing(false); setLeaving(false);
+    if (still || !act.turns) return undefined;
+    const ms = act.secs * 1000;
+    const t = revealOn && act.closes
+      ? setTimeout(() => setClosing(true), Math.max(1000, ms - recipe.reveal.close - 120))
+      : setTimeout(() => setLeaving(true), Math.max(1000, ms - 320));
     return () => clearTimeout(t);
   }, [actKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ease = hype.level >= 2 ? recipe.glide.slam : recipe.glide.ease;
   const trans = ready && !still ? `transform ${recipe.glide.ms}ms ${ease}, opacity 420ms ease-out` : 'none';
-  const layer = (t, w, h, extra) => ({ position: 'absolute', left: 0, top: 0, width: w, height: h, transformOrigin: '0 0', transform: t?.t || 'translate3d(0,0,0)', opacity: t ? t.o : 0, transition: trans, willChange: 'transform', zIndex: 2, pointerEvents: 'none', ...extra });
+  // a shared element with no place in this act (a long name outside the hero) fades out and is then really hidden, so it
+  // can never sit (invisible) over the rail's text
+  const layer = (t, w, h, extra) => {
+    const on = !!(t && t.o);
+    return { position: 'absolute', left: 0, top: 0, width: w, height: h, transformOrigin: '0 0', transform: t?.t || 'translate3d(0,0,0)', opacity: on ? 1 : 0, visibility: on ? 'visible' : 'hidden',
+      transition: trans === 'none' ? 'none' : `${trans}, visibility 0s linear ${on ? 0 : 420}ms`, willChange: 'transform', zIndex: 2, pointerEvents: 'none', ...extra };
+  };
   const content = renderAct({ ...geo, areaW, areaH, closing });
-  const Reveal = act.reveal ? recipe.Reveal : null;
+  const Reveal = revealOn ? recipe.Reveal : null;
   const railName = geo.name && !geo.name.long ? { w: Math.round(geo.name.w * (RAIL_NAME_H / geo.name.box)), h: Math.round(geo.name.h * (RAIL_NAME_H / geo.name.box)) } : null;
   const railNum = geo.num ? { w: Math.round(geo.num.w * (RAIL_NUM_H / geo.num.h)), h: RAIL_NUM_H } : null;
+  const actEl = (
+    <div key={actKey} className={`tt-act${leaving ? ' tt-act-out' : ''}${settle && hero ? ' tt-hype-settle' : ''}`} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...(settle && hero ? { '--settle': `${settle}px` } : null) }}>
+      {content}
+    </div>
+  );
   return (
     <div ref={rootRef} data-occ-stage={act.id} style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <Rail rail={rail} hero={hero} railName={railName} railNum={railNum} still={still} flashKey={flashKey} />
-      <div ref={areaRef} data-occ-col="" {...(countAttrs || {})} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: portrait ? 40 : 28 }}>
-        <div key={actKey} className={`tt-act${settle && hero ? ' tt-hype-settle' : ''}`} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...(settle && hero ? { '--settle': `${settle}px` } : null) }}>
-          {Reveal ? <Reveal closing={closing} openMs={recipe.reveal.open} closeMs={recipe.reveal.close} light={light} portrait={portrait}>{content}</Reveal> : content}
-        </div>
+      <div ref={areaRef} data-occ-col="" {...(countAttrs || {})} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', marginTop: portrait ? 36 : 24 }}>
+        {/* the reveal stays mounted from the first reveal act to the last: only the act on it changes */}
+        {Reveal ? <Reveal key="reveal" closing={closing} openMs={recipe.reveal.open} closeMs={recipe.reveal.close} light={light} portrait={portrait}>{actEl}</Reveal> : actEl}
         {geo.num && <div data-occ-numlayer="" style={layer(tf.num, geo.num.w, geo.num.h)}>{geo.num.node}</div>}
         {geo.name && <div data-occ-namelayer={tf.name?.rail ? 'rail' : 'hero'} style={layer(tf.name, geo.name.w, geo.name.h)}>{geo.name.node(!!tf.name?.rail, trans)}</div>}
       </div>

@@ -9,8 +9,9 @@
  *   vort   the story: the long sourced explanation, one language per act when long (reveal act)
  *   coming the 'Coming up' list (added once, after the last row, by the caller)
  *
- * Reveal acts get the style's reveal time on top of their reading time (STAGE_REVEAL_MS), so the text holds for the whole
- * reading time while fully open. The hero gets shorter as the day nears (heroSeconds: the number comes back more often).
+ * Every act after the hero is a reveal act: the style's reveal opens ONCE after the hero and closes ONCE before the hero
+ * returns (the first gets the opening time, the last the closing time on top of its reading time: STAGE_REVEAL_MS), so the
+ * acts in between simply change on the open paper. The hero gets shorter as the day nears (heroSeconds: the number comes back more often).
  */
 import { STAGE_REVEAL_MS, stageStyleOf } from '../../shared/stageStyles.js';
 import { heroSeconds } from '../../shared/occasionHype.js';
@@ -48,15 +49,20 @@ export function actsFor(row, opts = {}) {
   const L = opts.layout;
   const style = stageStyleOf(opts.style ?? row.stageStyle);
   const rv = STAGE_REVEAL_MS[style] || { open: 0, close: 0 };
-  const extra = Math.ceil((rv.open + rv.close) / 1000);
   const base = Number(opts.cycleSeconds) || 10;
   const out = [{ id: 'main', secs: heroSeconds(base, opts.level ?? -1, opts.hype) }];
   if (row.form === 'zero') return out;
-  if (hasFacts(row, L)) out.push({ id: 'facts', secs: 8 });
-  if (hasText(row.why) && on(L, 'why')) out.push({ id: 'why', secs: readSecs(row.why, 8, 16) + extra, reveal: true });
-  if (row.advent?.today) out.push({ id: 'step', ex: row.advent.today, secs: Math.max(12, readSecs(row.advent.today)) + extra, reveal: true });
-  if (row.explain && on(L, 'source')) for (const ex of vortParts(row.explain)) out.push({ id: 'vort', ex, secs: readSecs(ex) + extra, reveal: true });
-  if (opts.coming) out.push({ id: 'coming', secs: 8 });
+  // every act after the hero is a REVEAL act: the style's reveal (the paper scroll) opens once after the hero, stays open
+  // while the acts change on it, and closes once before the hero comes back
+  if (hasFacts(row, L)) out.push({ id: 'facts', secs: 8, reveal: true });
+  if (hasText(row.why) && on(L, 'why')) out.push({ id: 'why', secs: readSecs(row.why, 8, 16), reveal: true });
+  if (row.advent?.today) out.push({ id: 'step', ex: row.advent.today, secs: Math.max(12, readSecs(row.advent.today)), reveal: true });
+  if (row.explain && on(L, 'source')) for (const ex of vortParts(row.explain)) out.push({ id: 'vort', ex, secs: readSecs(ex, 10, 60), reveal: true });
+  if (opts.coming) out.push({ id: 'coming', secs: 8, reveal: true });
+  if (out.length > 1) {
+    out[1].secs += Math.ceil(rv.open / 1000); out[1].opens = true;
+    out[out.length - 1].secs += Math.ceil(rv.close / 1000); out[out.length - 1].closes = true;
+  }
   return out;
 }
 

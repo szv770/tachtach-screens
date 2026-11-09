@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, inLang, primary, FitText, FORM_COPY, FormDots, daysAndFraction, whenOnly, useNumMetrics, Digits, SUFFIX_STYLE } from './occasionParts.jsx';
+import { Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, inLang, primary, FORM_COPY, Kicker, ActHead, SourceLine, StoryText, PageDots, READ, FormDots, daysAndFraction, whenOnly, useNumMetrics, Digits, SUFFIX_STYLE } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -81,15 +81,15 @@ const nameHeight = (name, L, size) => {
   return { h: (heOn ? size[2] : 0) + (enOn ? (heOn ? size[5] : size[2]) : 0) + (heOn && enOn ? 4 : 0), box: size[2] };
 };
 
-/** A one-line name for the acts whose shared name cannot fit the rail (long names): Hebrew display + English inline. */
-function NameLine({ name, L, lang }) {
+/** The name inside an act, for names too long for the rail: Hebrew display + English, small (`compact`: on the paper). */
+function NameLine({ name, L, lang, compact = false }) {
   const n = inLang(name, lang);
   const heOn = shows(L, 'hebrewName') && n.he; const enOn = shows(L, 'name') && n.en;
   if (!heOn && !enOn) return null;
   return (
-    <div data-occ-nameline="" data-s="" style={{ '--i': 0, flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 22px', marginBottom: 24, lineHeight: 1.25 }}>
-      {heOn && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(44), fontWeight: 700 }}>{n.he}</span>}
-      {enOn && <span dir={textDir(n.en)} style={{ fontFamily: F.enD, fontSize: 34, fontWeight: 400, color: SOFT_INK }}>{bidiNodes(n.en)}</span>}
+    <div data-occ-nameline="" data-s="" style={{ '--i': 0, flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '2px 22px', marginBottom: compact ? 0 : 8, lineHeight: 1.22 }}>
+      {heOn && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(compact ? 32 : 40), fontWeight: 700 }}>{n.he}</span>}
+      {enOn && <span dir={textDir(n.en)} style={{ fontFamily: F.enD, fontSize: compact ? 26 : 30, fontWeight: 400, color: SOFT_INK }}>{bidiNodes(n.en)}</span>}
     </div>
   );
 }
@@ -240,9 +240,9 @@ function BeginsLine({ m, lang, center }) {
   const fs = rtl ? he(32) : 32;
   return (
     <div data-occ-begins="" data-occ-block="begins" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6 }}>
-      <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 14px', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', lineHeight: 1.3 }}>
+      <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 16px', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', lineHeight: 1.28 }}>
         {a && <span className={rtl ? 'tt-he' : undefined} style={{ fontFamily: fam, fontSize: fs, fontWeight: 500, color: SOFT_INK }}>{a}</span>}
-        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: fs, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
+        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: Math.round(fs * 1.2), fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={lang === 'english' ? '' : COPY.approx.he} color={SOFT_INK} />}
     </div>
@@ -265,7 +265,7 @@ function Sparks({ level, intensity, x, y }) {
 }
 
 /** The hero act while counting: [number | unit · name · begins] side by side (landscape), or stacked (portrait / centre / photo). */
-function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, graphics }) {
+function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, graphics, numFirst = false }) {
   const tag = shows(L, 'tagline') ? textOf(m.stageText) : null;
   const t = tag ? primary(tag, lang) : null;
   const u = primary(hc.unit, lang); const sub = hc.sub ? primary(hc.sub, lang) : null;
@@ -279,19 +279,21 @@ function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, grap
   );
   const begins = shows(L, 'begins') ? <div data-s="" style={{ '--i': 2 }}><BeginsLine m={m} lang={lang} center={center} /></div> : null;
   const sparks = hype.level >= 2 && graphics !== 'off' && geo.num ? <Sparks level={hype.level} intensity={hype.intensity} x={geo.num.w + 10} y={6} /> : null;
-  const kicker = t && hasText(t) ? <div data-s="" style={{ '--i': 0, flex: 'none', marginBottom: stack ? 28 : 36 }}><Label en={t.en} heText={t.he} color={ACC} data-occ-tagline="" data-occ-block="tagline" style={{ justifyContent: al }} /></div> : null;
+  const kicker = t && hasText(t) ? <div data-s="" style={{ '--i': 0, flex: 'none', marginBottom: stack ? 28 : 36, display: 'flex', justifyContent: al }}><Kicker en={t.en} heText={t.he} center={center} data-occ-tagline="" data-occ-block="tagline" /></div> : null;
   if (stack) {
     return (
       <div data-occ-col="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: al }}>
         {kicker}
-        {geo.name && <div data-slot="name" style={{ flex: 'none', width: geo.name.w, height: geo.name.h }} />}
-        <div style={{ position: 'relative', flex: 'none', marginTop: 40 }}>
+        {!numFirst && geo.name && <div data-slot="name" style={{ flex: 'none', width: geo.name.w, height: geo.name.h }} />}
+        <div style={{ position: 'relative', flex: 'none', marginTop: numFirst ? 0 : 40 }}>
           {geo.num && <div data-slot="num" style={{ width: geo.num.w, height: geo.num.h }} />}
           {sparks}
         </div>
         <div style={{ height: 22, flex: 'none' }} />
         {unit}
-        <div style={{ height: 28, flex: 'none' }} />
+        {/* beside a photo the number leads (it is the star), then the name */}
+        {numFirst && geo.name && <div data-slot="name" style={{ flex: 'none', marginTop: 30, width: geo.name.w, height: geo.name.h }} />}
+        <div style={{ height: numFirst ? 22 : 28, flex: 'none' }} />
         {begins}
       </div>
     );
@@ -305,7 +307,11 @@ function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, grap
           {geo.num && <div data-slot="num" style={{ width: geo.num.w, height: geo.num.h }} />}
           {sparks}
         </div>
-        <div data-occ-col="" style={{ flex: '1 1 0', minWidth: 0, minHeight: geo.num?.h || 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+        <div data-occ-col="" style={{ position: 'relative', flex: '1 1 0', minWidth: 0, minHeight: geo.num?.h || 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 20 }}>
+          {/* the set's one divider: a hairline with an accent head, drawn once (it stands between the number and its words) */}
+          <span aria-hidden className="tt-rule-in" style={{ position: 'absolute', [left ? 'left' : 'right']: -(GUT / 2) - 1, top: 0, bottom: 0, width: 2, background: 'var(--line)' }}>
+            <span style={{ position: 'absolute', left: -1, top: 0, width: 4, height: 56, borderRadius: 2, background: 'var(--accentText)' }} />
+          </span>
           {unit}
           {geo.name && <div data-slot="name" style={{ flex: 'none', width: geo.name.w, height: geo.name.h }} />}
           {begins || <span />}
@@ -323,7 +329,7 @@ function DayAct({ geo, m, L, lang, center }) {
   const al = center ? 'center' : 'flex-start';
   return (
     <div data-occ-col="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', alignItems: al, textAlign: center ? 'center' : 'start' }}>
-      {hasText(dl) && <div data-s="" style={{ '--i': 0, marginBottom: 20 }}><Label en={dl.en} heText={dl.he} color={ACC} data-occ-block="kicker" /></div>}
+      {hasText(dl) && <div data-s="" style={{ '--i': 0, marginBottom: 20 }}><Kicker en={dl.en} heText={dl.he} center={center} data-occ-block="kicker" /></div>}
       {geo.name && <div data-slot="name" style={{ flex: 'none', width: geo.name.w, height: geo.name.h }} />}
       <div data-s="" data-occ-block="meta" style={{ '--i': 1, marginTop: 32, display: 'flex', flexDirection: 'column', alignItems: al, gap: 12 }}>
         {di && <Label en={lang === 'hebrew' ? '' : `${COPY.dayOf.en} ${di.k} ${COPY.of.en} ${di.n}`} heText={lang === 'english' ? '' : `${COPY.dayOf.he} ${di.k} ${COPY.of.he} ${di.n}`} color={SOFT_INK} data-occ-dayof="" />}
@@ -350,154 +356,133 @@ function ZeroAct({ geo, m, L, portrait }) {
   );
 }
 
-/**
- * One group of facts: LABEL | English (left) | Hebrew (right), every column on one grid so groups line up; portrait puts the
- * label over the two values. Hebrew-only: the grid runs right to left with Hebrew labels.
- */
-function FactGroup({ rows, lang, portrait, attr }) {
-  const both = lang === 'both';
-  const rtl = lang === 'hebrew';
-  const LW = 220;
-  const cols = portrait ? (both ? 'minmax(0, 1.15fr) minmax(0, 1fr)' : 'minmax(0, 1fr)') : (both ? `${LW}px minmax(0, 1.2fr) minmax(0, 1fr)` : `${LW}px minmax(0, 1fr)`);
-  const val = (t, isHe, soft, date) => (t ? (
-    <div className={isHe ? 'tt-he' : undefined} dir={isHe ? 'rtl' : 'ltr'} style={{ minWidth: 0, fontFamily: isHe ? F.he : F.en, fontSize: isHe ? he(34) : 34, fontWeight: soft ? 400 : 500, color: soft ? SOFT_INK : 'var(--ink)', lineHeight: 1.3, textAlign: 'start', overflowWrap: 'anywhere' }}>{isHe || !date ? t : <DatePart t={t} />}</div>
-  ) : <div />);
+/** One cell of the facts act: a small-caps label, a headline (display role), quiet lines under it. */
+function FactCell({ label, head, headHe = false, big = false, subs = [], k, end = false, attr, i = 1 }) {
+  if (!head && !subs.some((x) => x && x.t)) return null;
+  const hs = Math.max(30, Math.round((big ? 56 : 40) * k));
+  const ss = Math.max(26, Math.round(30 * k));
+  const al = end ? 'flex-end' : 'flex-start';
   return (
-    <div {...attr} dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 'none', display: 'grid', gridTemplateColumns: cols, columnGap: 40, rowGap: portrait ? 8 : 18, alignItems: 'baseline' }}>
-      {rows.map((r, i) => {
-        const lab = rtl ? { en: '', he: r.label.he } : { en: r.label.en, he: '' };
-        return (
-          <React.Fragment key={i}>
-            <div style={portrait ? { gridColumn: '1 / -1', marginTop: i ? 14 : 0 } : null}>{r.label.en || r.label.he ? <Label en={lab.en} heText={lab.he} /> : null}</div>
-            {lang !== 'hebrew' && <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>{val(r.en, false, false, r.date)}{r.en2 && val(r.en2, false, true, true)}</div>}
-            {lang !== 'english' && <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>{val(r.he, true)}{r.he2 && val(r.he2, true, true)}</div>}
-          </React.Fragment>
-        );
-      })}
+    <div {...attr} data-s="" style={{ '--i': i, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: al, gap: 8, textAlign: end ? 'end' : 'start' }}>
+      {(label.en || label.he) && <Label en={label.en} heText={label.he} />}
+      {head && (
+        <div className={headHe ? 'tt-he' : undefined} dir={headHe ? 'rtl' : textDir(head)} style={{ maxWidth: '100%', fontFamily: headHe ? F.heD : F.enD, fontSize: headHe ? he(hs) : hs, fontWeight: big ? (headHe ? 700 : 600) : 500, letterSpacing: headHe ? 0 : '-.01em', color: 'var(--ink)', lineHeight: 1.16, overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>
+          {headHe ? head : <DatePart t={head} />}
+        </div>
+      )}
+      {subs.filter((x) => x && x.t).map((x, j) => (
+        <div key={j} className={x.he ? 'tt-he' : x.num ? 'tt-num' : undefined} dir={x.he ? 'rtl' : textDir(x.t)} style={{ maxWidth: '100%', fontFamily: x.he ? F.he : F.en, fontSize: x.strong ? Math.max(30, Math.round(44 * k)) : x.he ? he(ss) : ss, fontWeight: x.strong ? 600 : 500, color: x.strong ? 'var(--ink)' : SOFT_INK, lineHeight: 1.26, overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>{x.he ? x.t : bidiNodes(x.t)}</div>
+      ))}
     </div>
   );
 }
 
-/** The facts act: the day, its Hebrew date, when it begins (and the event line), in the layout's order. */
+/**
+ * The facts act ('The day'): the civil day and its Hebrew date as two headlines (English left, Hebrew right), then under one
+ * hairline when it begins (the zman large) and what is on. One language: the same grid in that language (Hebrew runs right
+ * to left). Sizes follow the layout scale, so the squeeze makes a crowded act smaller instead of cutting anything.
+ */
 function FactsAct({ m, L, lang, portrait, long }) {
   const d = m.dates && typeof m.dates === 'object' ? m.dates : null;
   const L2 = (x) => inLang(x, lang) || { en: '', he: '' };
-  const groups = [];
-  for (const key of orderedBlocks(L)) {
-    if (key === 'date' && d) {
-      const day = L2(d.day); const heb = L2(d.hebrew); const rg = shows(L, 'dateRange') ? L2(d.dayRange) : { en: '', he: '' };
-      const rows = [];
-      // the civil day reads in English when both languages show (its Hebrew spelling only in Hebrew-only); the Hebrew date in both
-      const civilHe = lang === 'both' && day.en ? '' : day.he;
-      if (hasText(day)) rows.push({ label: FACT.day, en: day.en, he: civilHe, en2: rg.en, he2: civilHe ? rg.he : '', date: true });
-      if (hasText(heb)) rows.push({ label: FACT.hebrew, en: heb.en, he: heb.he, date: true });
-      if (rows.length) groups.push({ key, rows, attr: { 'data-occ-date': '' } });
-    } else if (key === 'date' && hasText(m.hebrewDate)) {
-      groups.push({ key, rows: [{ label: FACT.hebrew, en: L2(m.hebrewDate).en, he: L2(m.hebrewDate).he }], attr: { 'data-occ-date': '' } });
-    }
-    if (key === 'begins' && m.form !== 'day' && d && hasText(d.beginsLine)) {
-      const l = L2(d.beginsLine); const t = L2(d.beginsAt || {});
-      const j = (a, b) => [whenOnly(a), b].filter(Boolean).join(' · ');
-      groups.push({ key, rows: [{ label: FACT.begins, en: l.en ? j(l.en, t.en) : '', he: l.he ? j(l.he, t.he) : '' }], attr: { 'data-occ-fact-begins': '' } });
-    }
-    if (key === 'event' && m.form !== 'day' && hasText(m.event)) {
-      const e = L2(m.event);
-      groups.push({ key, rows: [{ label: FACT.event, en: e.en, he: e.he }], attr: { 'data-occ-event': '' } });
-    }
+  const rtl = lang === 'hebrew';
+  const both = lang === 'both';
+  const k = (L.k || 1) * (L.cs || 1);
+  const lab = (x) => (rtl ? { en: '', he: x.he } : { en: x.en, he: '' });
+  const keys = new Set(orderedBlocks(L));
+  const top = []; const low = [];
+  if (keys.has('date') && d) {
+    const day = L2(d.day); const heb = L2(d.hebrew); const rg = shows(L, 'dateRange') ? L2(d.dayRange) : { en: '', he: '' };
+    if (hasText(day)) top.push(rtl || !day.en ? { label: lab(FACT.day), head: day.he, headHe: true, subs: [{ t: rg.he, he: true }] } : { label: lab(FACT.day), head: day.en, subs: [{ t: rg.en, num: true }] });
+    if (hasText(heb)) top.push(heb.he ? { label: lab(FACT.hebrew), head: heb.he, headHe: true, subs: [{ t: heb.en }], end: both && !portrait } : { label: lab(FACT.hebrew), head: heb.en });
+  } else if (keys.has('date') && hasText(m.hebrewDate)) {
+    const h = L2(m.hebrewDate);
+    top.push(h.he ? { label: lab(FACT.hebrew), head: h.he, headHe: true, subs: [{ t: h.en }] } : { label: lab(FACT.hebrew), head: h.en });
   }
+  if (keys.has('begins') && m.form !== 'day' && d && hasText(d.beginsLine)) {
+    const l = L2(d.beginsLine); const t = L2(d.beginsAt || {});
+    const j = (a, b) => [whenOnly(a), b].filter(Boolean).join(' · ');
+    low.push(l.en
+      ? { label: lab(FACT.begins), head: whenOnly(l.en), subs: [{ t: t.en, strong: true, num: true }, { t: l.he ? j(l.he, t.he) : '', he: true }], attr: { 'data-occ-fact-begins': '' } }
+      : { label: lab(FACT.begins), head: whenOnly(l.he), headHe: true, subs: [{ t: t.he, strong: true, he: true }], attr: { 'data-occ-fact-begins': '' } });
+  }
+  if (keys.has('event') && m.form !== 'day' && hasText(m.event)) {
+    const e = L2(m.event);
+    low.push(e.en ? { label: lab(FACT.event), head: e.en, subs: [{ t: e.he, he: true }], attr: { 'data-occ-event': '' } } : { label: lab(FACT.event), head: e.he, headHe: true, attr: { 'data-occ-event': '' } });
+  }
+  const grid = (n) => ({ display: 'grid', gridTemplateColumns: portrait || n < 2 ? 'minmax(0, 1fr)' : 'minmax(0, max-content) minmax(0, max-content)', justifyContent: 'space-between', columnGap: 48, rowGap: 26, alignItems: 'start' });
   return (
-    <div data-occ-col="" data-occ-facts="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
-      {long && <NameLine name={m.name} L={L} lang={lang} />}
-      <div data-occ-block="facts" style={{ display: 'flex', flexDirection: 'column', gap: portrait ? 30 : 26 }}>
-        {groups.map((g, i) => (
-          <div key={g.key} data-s="" style={{ '--i': i + 1, paddingTop: i ? (portrait ? 28 : 24) : 0, borderTop: i ? '2px solid var(--line)' : 'none' }}>
-            <FactGroup rows={g.rows} lang={lang} portrait={portrait} attr={g.attr} />
-          </div>
-        ))}
+    <div data-occ-col="" data-occ-facts="" data-occ-block="facts" dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: portrait ? 30 : 26 }}>
+      <ActHead en={rtl ? '' : FACT.day.en} heText={rtl ? FACT.day.he : ''} />
+      {long && <NameLine name={m.name} L={L} lang={lang} compact />}
+      <div data-occ-col="" style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: portrait ? 30 : 28 }}>
+        {top.length > 0 && <div data-occ-date="" style={grid(top.length)}>{top.map((c, i) => <FactCell key={i} {...c} label={{ en: '', he: '' }} big k={k} i={i + 1} />)}</div>}
+        {top.length > 0 && low.length > 0 && <span aria-hidden data-s="" style={{ '--i': 3, flex: 'none', height: 2, background: 'var(--line)' }} />}
+        {low.length > 0 && <div style={grid(low.length)}>{low.map((c, i) => <FactCell key={i} {...c} k={k} i={i + 3} />)}</div>}
       </div>
     </div>
   );
 }
 
-/** 'Why we celebrate': the short sourced line as a pull quote, English left and Hebrew right (landscape), its source small. */
-function WhyAct({ m, L, lang, portrait, geo, inPaper, long }) {
+/** The foot of a reading act: the source on one side, the page dots of a paged text on the other. */
+function ReadFoot({ source, pg, attr, i = 2 }) {
+  if (!source && !(pg.n > 1)) return null;
+  return (
+    <div data-s="" style={{ '--i': i, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24, minWidth: 0 }}>
+      {source ? <SourceLine text={source} {...attr} /> : <span />}
+      {pg.n > 1 && <div style={{ flex: 'none' }}><PageDots n={pg.n} at={pg.at} /></div>}
+    </div>
+  );
+}
+
+/** 'Why we celebrate': the short sourced line, set large in the reading roles, English beside Hebrew (landscape), its source under it. */
+function WhyAct({ m, L, lang, portrait, long, holdMs }) {
+  const [pg, setPg] = useState({ n: 1, at: 0 });
   const w = inLang(m.why, lang);
   if (!hasText(w)) return null;
   const src = m.why.source && shows(L, 'whySource') ? String(m.why.source) : '';
-  const cols = !portrait && w.en && w.he;
-  const budget = Math.max(120, Math.round(geo.areaH - (inPaper ? 140 : 40) - (src ? 60 : 0) - 56 - (long ? 80 : 0)));
   return (
-    <div data-occ-col="" data-occ-why="" data-occ-block="why" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 20 }}>
-      {long && <NameLine name={m.name} L={L} lang={lang} />}
-      <div data-s="" style={{ '--i': 0 }}><Label en={lang === 'hebrew' ? '' : WHY_LABEL.en} heText={lang === 'hebrew' ? WHY_LABEL.he : ''} color={ACC} /></div>
-      <div data-s="" style={{ '--i': 1 }}>
-        <FitText max={Math.round(52 * (L.k || 1))} min={28} budget={budget} deps={`${m.key}|${lang}|${w.en}|${w.he}|${geo.areaW}`} data-occ-why-text="" style={{ width: '100%', lineHeight: 1.36 }}>
-          <div style={cols ? { display: 'flex', gap: 56, alignItems: 'flex-start' } : { display: 'flex', flexDirection: 'column', gap: '.5em' }}>
-            {w.en && <div dir={textDir(w.en)} style={{ flex: cols ? '1.15 1 0' : undefined, minWidth: 0, fontFamily: textDir(w.en) === 'rtl' ? F.he : F.enD, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(w.en)}</div>}
-            {w.he && <div className="tt-he" dir="rtl" style={{ flex: cols ? '1 1 0' : undefined, minWidth: 0, fontFamily: F.he, fontWeight: 400, color: 'var(--ink)', lineHeight: 1.42 }}>{bidiNodes(w.he)}</div>}
-          </div>
-        </FitText>
-      </div>
-      {src && (
-        <div data-s="" data-occ-why-source="" dir="auto" style={{ '--i': 2, fontFamily: F.en, fontSize: 24, fontWeight: 500, color: SOFT_INK, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
-          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {bidiNodes(src)}
-        </div>
-      )}
+    <div data-occ-col="" data-occ-why="" data-occ-block="why" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <ActHead en={lang === 'hebrew' ? '' : WHY_LABEL.en} heText={lang === 'hebrew' ? WHY_LABEL.he : ''} />
+      {long && shows(L, 'actName') && <NameLine name={m.name} L={L} lang={lang} compact />}
+      <StoryText key={`w|${m.key}|${lang}`} en={w.en} he={w.he} cols={!portrait} max={Math.round(58 * (L.k || 1))} min={28} holdMs={holdMs} onPages={(n, at) => setPg((o) => (o.n === n && o.at === at ? o : { n, at }))} data-occ-why-text="" data-s="" />
+      <ReadFoot source={src} pg={pg} attr={{ 'data-occ-why-source': '' }} />
     </div>
   );
 }
 
-/** The story act: the long sourced explanation, fitted (28 px at the least, never cut), its source under it. */
-function VortAct({ m, ex, L, lang, portrait, geo, inPaper, long }) {
-  const cols = !portrait && ex.en && ex.he;
-  const h = Math.max(140, Math.round(geo.areaH - (inPaper ? 140 : 40) - (ex.source ? 60 : 0) - 60 - (long ? 80 : 0)));
+/** The story act: the long sourced explanation in the reading roles; fitted, and paged when it is longer than the paper (never cut). */
+function VortAct({ m, ex, L, lang, portrait, long, holdMs }) {
+  const [pg, setPg] = useState({ n: 1, at: 0 });
   return (
-    <div data-occ-col="" data-occ-explain="" data-occ-block="story" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 20 }}>
-      {long && <NameLine name={m.name} L={L} lang={lang} />}
-      <div data-s="" style={{ '--i': 0 }}><Label en={lang === 'hebrew' ? '' : STORY.en} heText={lang === 'hebrew' ? STORY.he : ''} color={ACC} /></div>
-      <div data-s="" style={{ '--i': 1 }}>
-        <Fit key={`x|${m.key}|${ex.en ? 'e' : ''}${ex.he ? 'h' : ''}|${h}|${geo.areaW}`} wrap max={Math.round(46 * (L.k || 1))} min={28} style={{ width: '100%', height: h, lineHeight: 1.38, textAlign: 'start' }}>
-          <div style={cols ? { display: 'flex', gap: 56, alignItems: 'flex-start' } : { display: 'flex', flexDirection: 'column', gap: '.5em' }}>
-            {ex.en && <div dir={textDir(ex.en)} style={{ flex: cols ? '1 1 0' : undefined, minWidth: 0, fontFamily: textDir(ex.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', whiteSpace: 'pre-line', unicodeBidi: 'isolate' }}>{bidiNodes(ex.en)}</div>}
-            {ex.he && <div className="tt-he" dir="rtl" style={{ flex: cols ? '1 1 0' : undefined, minWidth: 0, fontFamily: F.he, fontWeight: 400, color: 'var(--ink)', whiteSpace: 'pre-line', lineHeight: 1.45 }}>{bidiNodes(ex.he)}</div>}
-          </div>
-        </Fit>
-      </div>
-      {ex.source && (
-        <div data-s="" data-occ-source="" dir="auto" style={{ '--i': 2, fontFamily: F.en, fontSize: 24, fontWeight: 500, color: SOFT_INK, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
-          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{COPY.source.en}</span>: {bidiNodes(ex.source)}
-        </div>
-      )}
+    <div data-occ-col="" data-occ-explain="" data-occ-block="story" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <ActHead en={lang === 'hebrew' ? '' : STORY.en} heText={lang === 'hebrew' ? STORY.he : ''} />
+      {long && shows(L, 'actName') && <NameLine name={m.name} L={L} lang={lang} compact />}
+      <StoryText key={`x|${m.key}|${ex.en ? 'e' : ''}${ex.he ? 'h' : ''}`} en={ex.en} he={ex.he} cols={!portrait} max={Math.round(46 * (L.k || 1))} min={28} holdMs={holdMs} onPages={(n, at) => setPg((o) => (o.n === n && o.at === at ? o : { n, at }))} enStyle={{ whiteSpace: 'pre-line' }} heStyle={{ whiteSpace: 'pre-line' }} data-s="" />
+      <ReadFoot source={ex.source} pg={pg} attr={{ 'data-occ-source': '' }} />
     </div>
   );
 }
 
 /** The advent's daily card ('Today's step'): text and / or a photo, the source under it (text only ever with a source). */
-function StepView({ step, m, portrait, k }) {
+function StepView({ step, portrait, k }) {
   const photo = lookOf({ photo: step.photo }).photo;
   const txt = !!(step.en || step.he);
   return (
     <div data-occ-step="" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div data-s="" style={{ '--i': 0, flex: 'none', display: 'flex', flexWrap: 'wrap', alignItems: 'baseline', gap: '4px 24px' }}>
-        <Label en={STEP.en} heText={STEP.he} color={ACC} />
-      </div>
+      <ActHead en={STEP.en} heText={STEP.he} />
       <div data-s="" style={{ '--i': 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: portrait ? 'column' : 'row', gap: 32, alignItems: 'stretch' }}>
         {photo && <div style={{ flex: txt ? '0 0 44%' : 1, minHeight: 0, minWidth: 0, borderRadius: 16, overflow: 'hidden', background: 'color-mix(in srgb, var(--ink) 6%, transparent)' }}><img src={photo} alt="" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /></div>}
         {txt && (
           <Fit key={`st|${k}`} wrap vcenter max={56} min={28} style={{ flex: 1, minHeight: 0, minWidth: 0, lineHeight: 1.32, textAlign: 'start' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '.45em' }}>
-              {step.en && <div dir={textDir(step.en)} style={{ fontFamily: textDir(step.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(step.en)}</div>}
-              {step.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: step.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.45 }}>{bidiNodes(step.he)}</div>}
+              {step.en && <div dir={textDir(step.en)} style={{ fontFamily: textDir(step.en) === 'rtl' ? READ.he : READ.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{bidiNodes(step.en)}</div>}
+              {step.he && <div className="tt-he" dir="rtl" style={{ fontFamily: READ.he, fontWeight: 500, color: step.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.45 }}>{bidiNodes(step.he)}</div>}
             </div>
           </Fit>
         )}
       </div>
-      {step.source && (
-        <div data-s="" data-occ-source="" dir="auto" style={{ '--i': 2, flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: SOFT_INK, lineHeight: 1.3, overflowWrap: 'anywhere' }}>
-          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{COPY.source.en}</span>: {bidiNodes(step.source)}
-        </div>
-      )}
-      {m.name && null}
+      {step.source && <div data-s="" style={{ '--i': 2, flex: 'none' }}><SourceLine text={step.source} label={COPY.source.en} data-occ-source="" /></div>}
     </div>
   );
 }
@@ -506,20 +491,22 @@ function StepView({ step, m, portrait, k }) {
 function ComingAct({ list, lang, portrait }) {
   if (!list?.length) return null;
   return (
-    <div data-occ-col="" data-occ-coming="" data-occ-block="coming" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: 18 }}>
-      <div data-s="" style={{ '--i': 0 }}><Label en={lang === 'hebrew' ? '' : COPY.comingUp.en} heText={lang === 'hebrew' ? COPY.comingUp.he : ''} color={ACC} /></div>
-      {list.map((c, i) => {
-        const n = inLang(c.name, lang);
-        return (
-          <div key={c.key} data-s="" style={{ '--i': i + 1, display: 'flex', flexDirection: portrait ? 'column' : 'row', alignItems: portrait ? 'flex-start' : 'baseline', justifyContent: 'space-between', gap: portrait ? 4 : 32, paddingTop: 18, borderTop: '2px solid var(--line)' }}>
-            <span style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 20px', alignItems: 'baseline', minWidth: 0 }}>
-              {n.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(44), fontWeight: 700 }}>{n.he}</span>}
-              {n.en && <span style={{ fontFamily: F.enD, fontSize: 32, fontWeight: n.he ? 400 : 600, color: n.he ? SOFT_INK : 'var(--ink)', overflowWrap: 'anywhere' }}>{bidiNodes(n.en)}</span>}
-            </span>
-            <span className="tt-num" style={{ flex: 'none', fontFamily: F.en, fontSize: 30, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{c.when.en || c.when.he}</span>
-          </div>
-        );
-      })}
+    <div data-occ-col="" data-occ-coming="" data-occ-block="coming" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <ActHead en={lang === 'hebrew' ? '' : COPY.comingUp.en} heText={lang === 'hebrew' ? COPY.comingUp.he : ''} />
+      <div data-occ-col="" style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
+        {list.map((c, i) => {
+          const n = inLang(c.name, lang);
+          return (
+            <div key={c.key} data-s="" style={{ '--i': i + 1, display: 'flex', flexDirection: portrait ? 'column' : 'row', alignItems: portrait ? 'flex-start' : 'baseline', justifyContent: 'space-between', gap: portrait ? 4 : 32, padding: '18px 0', borderTop: i ? '2px solid var(--line)' : 'none' }}>
+              <span style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 20px', alignItems: 'baseline', minWidth: 0 }}>
+                {n.he && <span className="tt-he" dir="rtl" style={{ fontFamily: F.heD, fontSize: he(44), fontWeight: 700 }}>{n.he}</span>}
+                {n.en && <span style={{ fontFamily: F.enD, fontSize: 32, fontWeight: n.he ? 400 : 600, color: n.he ? SOFT_INK : 'var(--ink)', overflowWrap: 'anywhere' }}>{bidiNodes(n.en)}</span>}
+              </span>
+              <span className="tt-num" style={{ flex: 'none', fontFamily: F.en, fontSize: 30, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{c.when.en || c.when.he}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -624,7 +611,7 @@ function AdventMain({ m, L, portrait, font, pager, nowMs, fast, lang, peek }) {
       </div>
       {peek && a.today && (
         <div data-occ-peek="" style={{ position: 'absolute', zIndex: 3, inset: portrait ? '18% 40px' : '12% 14%', borderRadius: 28, padding: '32px 40px', background: 'var(--panel)', border: '2px solid var(--line)', display: 'flex', flexDirection: 'column' }}>
-          <StepView step={a.today} m={m} portrait={portrait} k={`peek|${m.key}`} />
+          <StepView step={a.today} portrait={portrait} k={`peek|${m.key}`} />
         </div>
       )}
     </>
@@ -639,6 +626,7 @@ function AdventMain({ m, L, portrait, font, pager, nowMs, fast, lang, peek }) {
 function squeezed(L, level) {
   if (!level) return L;
   const show = { ...L.show };
+  if (level >= 1) show.actName = false; // the long name inside the reading acts goes first
   if (level >= 2) show.tagline = false;
   if (level >= 3) show.whySource = false;
   if (level >= 4) show.dateRange = false;
@@ -730,7 +718,10 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       const L = layoutOf(r.layout);
       const hy = hypeOf(r, Date.now() + clockOffset, r.hype);
       const acts = actsFor(r, { cycleSeconds: model.cycleSeconds, level: hy.level, hype: hy.setting, style: r.stageStyle, layout: L, coming: i === rows.length - 1 && !!model.coming?.length && shows(L, 'coming') });
-      return acts.map((a) => ({ m: r, view: a.id, ex: a.ex, secs: a.secs, reveal: !!a.reveal }));
+      // auto mode steps the hero through its forms: the hero stays for one full round of them
+      const fl = formsFor(r);
+      const round = fl.length > 1 && r.autoForms?.on ? fl.length * Math.min(300, Math.max(3, Number(r.autoForms.seconds) || 8)) + 1 : 0;
+      return acts.map((a) => ({ m: r, view: a.id, ex: a.ex, secs: a.id === 'main' ? Math.max(a.secs, round) : a.secs, reveal: !!a.reveal, closes: !!a.closes }));
     });
   }, [model, levels]); // eslint-disable-line react-hooks/exhaustive-deps
   const n = model?.rows.length || 0;
@@ -858,7 +849,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       num = { w, h: h + 44, node: <div data-occ-count-layer=""><FlipRow cells={hc.cells} font={font} h={h} lang={lang} /></div> };
     } else if (hc) {
       const maxW = stack ? aw * (photoOn ? 1 : 0.92) : aw * 0.5;
-      const maxH = (stack ? Math.min(ah * 0.44, 600) : Math.min(ah * 0.78, 500)) * k;
+      const maxH = (stack ? Math.min(ah * (photoOn && !portrait && !center ? 0.5 : 0.44), 600) : Math.min(ah * 0.78, 500)) * k;
       const size = Math.max(60, Math.floor(Math.min(w100 ? (maxW * 100) / w100 : maxH, (maxH * 100) / mt.ink)));
       const w = Math.max(1, Math.round(((w100 || 50) * size) / 100));
       const pk = cur.view === 'main' && hype.level >= 3 && design.motion !== 'minimal' ? (hype.level === 4 ? String(hc.big).split(':')[0] : String(hc.big)) : '';
@@ -867,6 +858,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     let size; let nw;
     if (m.form === 'zero') { size = NAME.small; nw = aw; }
     else if (m.form === 'day' && !m.run) { size = portrait ? (long ? NAME.dayPortLong : NAME.dayPort) : (long ? NAME.dayLong : NAME.day); nw = aw; }
+    else if (stack && photoOn && !portrait && !center) { size = long ? NAME.sideLong : isShort(m.name) ? NAME.sideShort : NAME.side; nw = aw; }
     else if (stack) { size = long ? NAME.stackLong : isShort(m.name) ? NAME.stackShort : NAME.stack; nw = aw; }
     else { size = long ? NAME.sideLong : isShort(m.name) ? NAME.sideShort : NAME.side; nw = Math.max(240, aw - (num?.w || 0) - GUT); }
     const nh = nameHeight(m.name, L, size);
@@ -874,16 +866,16 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     return { num, name };
   };
 
+  const holdMs = Math.max(4000, (cur.secs || 10) * 1000 - (cur.reveal ? recipe.reveal.open + recipe.reveal.close : 0) - 600);
   const renderAct = (geo) => {
-    const inPaper = cur.reveal && !!recipe.Reveal;
     if (cur.view === 'facts') return <FactsAct m={m} L={L} lang={lang} portrait={portrait} long={long} />;
-    if (cur.view === 'why') return <WhyAct m={m} L={L} lang={lang} portrait={portrait} geo={geo} inPaper={inPaper} long={long} />;
-    if (cur.view === 'vort') return <VortAct m={m} ex={cur.ex} L={L} lang={lang} portrait={portrait} geo={geo} inPaper={inPaper} long={long} />;
-    if (cur.view === 'step') return <StepView step={cur.ex} m={m} portrait={portrait} k={m.key} />;
+    if (cur.view === 'why') return <WhyAct m={m} L={L} lang={lang} portrait={portrait} long={long} holdMs={holdMs} />;
+    if (cur.view === 'vort') return <VortAct m={m} ex={cur.ex} L={L} lang={lang} portrait={portrait} long={long} holdMs={holdMs} />;
+    if (cur.view === 'step') return <StepView step={cur.ex} portrait={portrait} k={m.key} />;
     if (cur.view === 'coming') return <ComingAct list={coming} lang={lang} portrait={portrait} />;
     if (m.form === 'zero') return <ZeroAct geo={geo} m={m} L={L} portrait={portrait} />;
     if (m.form === 'day' && !m.run) return <DayAct geo={geo} m={m} L={L} lang={lang} center={center} />;
-    return <HeroAct geo={geo} m={m} L={L} lang={lang} hc={hc} stack={stack} center={center} forms={forms} formAt={formAt} hype={hype} graphics={design.graphics} />;
+    return <HeroAct geo={geo} m={m} L={L} lang={lang} hc={hc} stack={stack} center={center} forms={forms} formAt={formAt} hype={hype} graphics={design.graphics} numFirst={photoOn && !portrait && !center} />;
   };
 
   const today = shows(L, 'today') ? [model.today, m.today].find((x) => x && typeof x === 'object') || null : null;
@@ -891,7 +883,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   const titleL = primary(COPY.slideTitle, lang);
   const rail = {
     left: today ? <TodayStrip today={today} lang={lang} /> : <Label en={titleL.en} heText={titleL.he} />,
-    right: today ? <span style={{ color: SOFT_INK }}>{(() => { const h = primary(today.hebrew, lang); return <span className={h.he ? 'tt-he' : undefined} style={{ fontFamily: h.he ? F.he : F.en, fontSize: h.he ? he(26) : 24, fontWeight: 500 }}>{h.en || h.he}</span>; })()}</span> : null,
+    right: today && !(photoOn && !portrait) ? <span style={{ color: SOFT_INK }}>{(() => { const h = primary(today.hebrew, lang); return <span className={h.he ? 'tt-he' : undefined} style={{ fontFamily: h.he ? F.he : F.en, fontSize: h.he ? he(26) : 24, fontWeight: 500 }}>{h.en || h.he}</span>; })()}</span> : null,
     compact: hc && hc.kind !== 'flip' && hasText(cu) ? <Label en={cu.en} heText={cu.he} color={SOFT_INK} /> : null,
     pager: pager ? <span className="tt-num" style={{ fontFamily: F.en, fontSize: 24, fontWeight: 600, letterSpacing: '.12em', color: LABEL_INK }}>{pager}</span> : null,
     progress: counting ? railProgress(m, L, hc, nowMs, hype.level >= 2, hype.level) : null,
@@ -908,7 +900,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
         <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...bodyInset }}>
           {photoOn && portrait && <div aria-hidden style={{ flex: 'none', height: `${PHOTO_SHARE.port * 100 - 2}%` }} />}
-          <Stage plan={plan} renderAct={renderAct} rail={rail} act={{ id: cur.view, secs: cur.secs || 10, reveal: !!cur.reveal }} actKey={`${m.key}|${cur.view}|${page}`}
+          <Stage plan={plan} renderAct={renderAct} rail={rail} act={{ id: cur.view, secs: cur.secs || 10, reveal: !!cur.reveal, closes: !!cur.closes, turns: pages.length > 1 }} actKey={`${m.key}|${cur.view}|${page}`}
             recipe={recipe} motion={design.motion} light={design.light} portrait={portrait} hype={hype} countAttrs={countAttrs} flashKey={flashKey}
             settle={hype.level >= 3 && design.motion !== 'minimal' ? Math.round((hype.level - 1) * hype.intensity) : 0} />
         </div>

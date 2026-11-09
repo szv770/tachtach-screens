@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { F, he } from '../../design/ui.jsx';
+import { F, he, bidiNodes } from '../../design/ui.jsx';
+import { textDir } from '../../../shared/bidi.js';
 import { Fit } from '../../design/fit.jsx';
 
 /**
@@ -216,7 +217,7 @@ export function Backdrop({ graphics = 'rich' }) {
 }
 
 /** How much of the panel the photo takes (landscape: a side; portrait: the top), and the text area's matching inset. */
-export const PHOTO_SHARE = { land: 0.4, port: 0.34 };
+export const PHOTO_SHARE = { land: 0.42, port: 0.34 };
 
 /**
  * The uploaded photo as its own pane (owner's reference: a real object BESIDE the values): full-bleed on one side of the
@@ -233,8 +234,11 @@ export function PhotoPane({ photo, dim = 0, side = 'right', portrait = false, on
   const d = Math.min(0.9, Math.max(0, (Number(dim) || 0) / 100));
   return (
     <div aria-hidden data-occ-photo-pane="" style={{ position: 'absolute', ...box, pointerEvents: 'none', overflow: 'hidden' }}>
-      <img src={photo} alt="" decoding="async" data-occ-photo="" onError={() => { setBad(photo); onBad?.(photo); }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
-      <div data-occ-scrim="pane" style={{ position: 'absolute', inset: 0, background: `linear-gradient(${fadeDir}, var(--panel) 0%, color-mix(in srgb, var(--panel) ${Math.round(Math.max(d, 0.55) * 100)}%, transparent) 14%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 46%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 100%)` }} />
+      <img src={photo} alt="" decoding="async" data-occ-photo="" className="tt-photo-in" onError={() => { setBad(photo); onBad?.(photo); }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+      {/* the inner edge melts into the panel over the first third; the rest keeps only the admin's dim, so the picture really shows */}
+      <div data-occ-scrim="pane" style={{ position: 'absolute', inset: 0, background: `linear-gradient(${fadeDir}, var(--panel) 0%, color-mix(in srgb, var(--panel) ${Math.round(Math.max(d, 0.5) * 100)}%, transparent) 12%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 34%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 100%)` }} />
+      {/* the set's hairline closes the picture on its inner side */}
+      <div style={{ position: 'absolute', ...(portrait ? { left: 0, right: 0, bottom: 0, height: 2 } : { top: 0, bottom: 0, [side === 'right' ? 'left' : 'right']: 0, width: 2 }), background: 'var(--line)' }} />
     </div>
   );
 }
@@ -277,13 +281,19 @@ export function useNumMetrics(probeRef, sig) {
 
 export const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign: '.9em', lineHeight: 0, marginLeft: '.06em', letterSpacing: 0 };
 
-/** The hero digits at `size` (box = the digits' own height). `popKey` changes = one finite pop (hype, last day and closer). */
+/**
+ * The hero digits at `size` (box = the digits' own height). On mount each digit rises in once, one after the other (finite;
+ * the class is dropped afterwards so a ticking second never replays it). `popKey` changes = one finite pop (hype, last day
+ * and closer).
+ */
 export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt }) {
+  const [intro, setIntro] = useState(true);
+  useEffect(() => { const t = setTimeout(() => setIntro(false), 1600); return () => clearTimeout(t); }, []);
   return (
     <div style={{ display: 'flow-root', height: Math.round((size * mt.ink) / 100) }}>
       <div key={popKey} className={`tt-num${popKey ? ' tt-hype-pop' : ''}`} data-occ-big="" style={{
         fontFamily: font, fontSize: size, fontWeight: 600, lineHeight: 1, marginTop: -Math.round((size * mt.top) / 100), letterSpacing: '-.01em', color, whiteSpace: 'nowrap', marginLeft: '-.04em', transformOrigin: '30% 60%', '--pop-from': popFrom,
-      }}>{text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
+      }}>{intro && !popKey ? [...String(text)].map((ch, i) => <span key={i} className="tt-digit" style={{ display: 'inline-block', '--i': i }}>{ch}</span>) : text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
     </div>
   );
 }
@@ -346,6 +356,143 @@ export function whenOnly(line) {
   if (en) return en[1].charAt(0).toUpperCase() + en[1].slice(1);
   const h = t.match(/^מתחיל\s+(.+)$/);
   return h ? h[1] : t;
+}
+
+// ── the Countdown's shared KIT: every act of the page and the takeovers are set with these, so the set reads as one ──
+/** Reading text (the why, the story, today's step): the Torah-text font roles; headlines keep the display roles. */
+export const READ = Object.freeze({ en: F.te, he: F.th });
+
+/** The kicker: a short accent bar + a small-caps label in the text accent. Opens the hero (tagline), every act and the takeovers. */
+export function Kicker({ en, heText, size = 24, center = false, style, ...rest }) {
+  if (!en && !heText) return null;
+  return (
+    <span dir={!en && heText ? 'rtl' : 'ltr'} style={{ display: 'inline-flex', alignItems: 'center', gap: 16, justifyContent: center ? 'center' : 'flex-start', maxWidth: '100%', ...style }}>
+      <span aria-hidden style={{ flex: 'none', width: 36, height: 4, borderRadius: 2, background: 'var(--accentText)' }} />
+      <Label en={en} heText={heText} size={size} color={ACC} {...rest} />
+    </span>
+  );
+}
+
+/** An act's head: the kicker, then one hairline to the edge (and an optional quiet note at its end). */
+export function ActHead({ en, heText, note = null, i = 0 }) {
+  return (
+    <div data-s="" style={{ '--i': i, flex: 'none', display: 'flex', alignItems: 'center', gap: 20, minWidth: 0 }}>
+      <Kicker en={en} heText={heText} style={{ flex: 'none' }} />
+      <span aria-hidden style={{ flex: '1 1 0', height: 2, background: 'var(--line)' }} />
+      {note}
+    </div>
+  );
+}
+
+/** 'SOURCE: Hayom Yom, 19 Kislev' (the one source line of the set). */
+export function SourceLine({ text, label = WHY_SOURCE.en, style, ...rest }) {
+  if (!text) return null;
+  return (
+    <div dir="auto" {...rest} style={{ minWidth: 0, fontFamily: F.en, fontSize: 24, fontWeight: 500, color: SOFT_INK, lineHeight: 1.3, overflowWrap: 'anywhere', ...style }}>
+      <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{label}</span>: {bidiNodes(String(text))}
+    </div>
+  );
+}
+
+const WORD_END = /[.!?:;\u05C3]["'\u05F4\u201D)]?$/;
+/**
+ * Reading text that ALWAYS fits its box (the box is whatever room the act really has: flex 1): the largest size in
+ * [min, max] at which the whole text fits; when even `min` is too big, the text is PAGED instead of shrunk or cut: one
+ * language per page, each page as many whole words as fit at `min` (ending on a sentence where one is near), every page
+ * then set as large as its own text allows. Pages turn by themselves inside the act's time (`holdMs`, shared by length).
+ * Measured once per text / box / font change in a hidden copy (never per frame). `cols` = English and Hebrew side by side.
+ * `onPages(n, at)` tells the caller (for its 'page 1 / 3' mark).
+ */
+export function StoryText({ en = '', he: heT = '', cols = false, max, min = 28, holdMs = 20000, onPages, enStyle, heStyle, ...rest }) {
+  const [boxRef, w, h] = useBox();
+  const measRef = useRef(null);
+  const [plan, setPlan] = useState(null);
+  const [at, setAt] = useState(0);
+  const [fontTick, setFontTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const bump = () => { if (alive) setFontTick((x) => x + 1); };
+    document.fonts?.ready?.then(bump).catch(() => {});
+    document.fonts?.addEventListener?.('loadingdone', bump);
+    return () => { alive = false; document.fonts?.removeEventListener?.('loadingdone', bump); };
+  }, []);
+  useLayoutEffect(() => {
+    const m = measRef.current;
+    if (!m || !w || !h) return;
+    const eEl = m.children[0]; const hEl = m.children[1];
+    const put = (a, b, two) => {
+      eEl.textContent = a || ''; hEl.textContent = b || '';
+      eEl.style.display = a ? 'block' : 'none'; hEl.style.display = b ? 'block' : 'none';
+      m.style.flexDirection = two && a && b ? 'row' : 'column';
+    };
+    const fitsAt = (px) => { m.style.fontSize = `${px}px`; return m.offsetHeight <= h && m.scrollWidth <= w + 1; };
+    const best = () => {
+      if (fitsAt(max)) return max;
+      if (!fitsAt(min)) return 0;
+      let lo = min; let hi = max;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (fitsAt(mid)) lo = mid; else hi = mid; }
+      return lo;
+    };
+    put(en, heT, cols);
+    let size = best();
+    if (!size && cols && en && heT) { put(en, heT, false); size = best(); if (size) { setPlan({ pages: [{ en, he: heT, size, stack: true }] }); return; } }
+    if (size) { setPlan({ pages: [{ en, he: heT, size }] }); return; }
+    const pages = [];
+    for (const [text, isHe] of [[en, false], [heT, true]]) {
+      let words = String(text || '').split(/\s+/).filter(Boolean);
+      const set = (n) => { const t = words.slice(0, n).join(' '); put(isHe ? '' : t, isHe ? t : '', false); return t; };
+      while (words.length) {
+        set(words.length);
+        let n = words.length;
+        if (!fitsAt(min)) {
+          let lo = 1; let hi = words.length;
+          while (hi - lo > 1) { const mid = (lo + hi) >> 1; set(mid); if (fitsAt(min)) lo = mid; else hi = mid; }
+          n = lo;
+          for (let k = n; k > Math.floor(n * 0.6); k--) if (WORD_END.test(words[k - 1])) { n = k; break; }
+        }
+        const t = set(n);
+        pages.push({ en: isHe ? '' : t, he: isHe ? t : '', size: best() || min });
+        words = words.slice(n);
+      }
+    }
+    setPlan({ pages });
+  }, [en, heT, cols, w, h, max, min, fontTick]);
+  const pages = plan?.pages || [];
+  const n = pages.length;
+  const sig = pages.map((p) => `${p.en.length}.${p.he.length}`).join();
+  useEffect(() => { setAt(0); }, [sig]);
+  useEffect(() => { onPages?.(n, Math.min(at, Math.max(0, n - 1))); }, [n, at]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (n < 2 || at >= n - 1) return undefined;
+    const len = (p) => p.en.length + p.he.length;
+    const total = pages.reduce((t, p) => t + len(p), 0) || 1;
+    const t = setTimeout(() => setAt((x) => Math.min(n - 1, x + 1)), Math.max(3500, Math.round((holdMs * len(pages[at])) / total)));
+    return () => clearTimeout(t);
+  }, [sig, at, holdMs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pg = pages[Math.min(at, n - 1)] || { en, he: heT, size: min };
+  const two = cols && pg.en && pg.he && !pg.stack;
+  const wrap = (twoCols) => ({ display: 'flex', flexDirection: twoCols ? 'row' : 'column', gap: twoCols ? 56 : '.5em', alignItems: twoCols ? 'center' : 'stretch', width: '100%' });
+  const eS = { flex: '1.12 1 0', minWidth: 0, fontFamily: READ.en, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.34, overflowWrap: 'anywhere', unicodeBidi: 'isolate', ...enStyle };
+  const hS = { flex: '1 1 0', minWidth: 0, fontFamily: READ.he, fontWeight: 500, color: 'var(--ink)', lineHeight: 1.5, overflowWrap: 'anywhere', ...heStyle };
+  return (
+    <div ref={boxRef} {...rest} style={{ position: 'relative', flex: '1 1 0', minHeight: 0, minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', fontSize: pg.size, visibility: plan ? 'visible' : 'hidden' }}>
+      <div key={at} className={at ? 'tt-page-in' : undefined} style={wrap(two)}>
+        {pg.en && <div dir={textDir(pg.en)} style={{ ...eS, ...(two ? null : { flex: 'none' }), ...(textDir(pg.en) === 'rtl' ? { fontFamily: READ.he } : null) }}>{bidiNodes(pg.en)}</div>}
+        {two && <span aria-hidden style={{ flex: 'none', alignSelf: 'stretch', width: 2, background: 'var(--line)', margin: '0 -28px' }} />}
+        {pg.he && <div className="tt-he" dir="rtl" style={{ ...hS, ...(two ? null : { flex: 'none' }) }}>{bidiNodes(pg.he)}</div>}
+      </div>
+      <div ref={measRef} aria-hidden style={{ ...wrap(false), position: 'absolute', left: 0, top: 0, visibility: 'hidden', pointerEvents: 'none' }}>
+        <div style={eS} />
+        <div className="tt-he" dir="rtl" style={hS} />
+      </div>
+    </div>
+  );
+}
+
+/** 'page 2 / 3' of a paged text, as small static dots (aria-hidden). */
+export function PageDots({ n, at }) {
+  if (!n || n < 2) return null;
+  return <FormDots n={n} at={at} />;
 }
 
 /**
