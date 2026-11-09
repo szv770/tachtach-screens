@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, HeroNum, TickLine, Backdrop, PhotoPane, PHOTO_SHARE, useBox, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, WHY_SOURCE, FitText } from '../components/slides/occasionParts.jsx';
+import { Label, HeroNum, TickLine, Backdrop, PhotoPane, PHOTO_SHARE, useBox, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, FitText, Kicker, SourceLine, READ } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -14,7 +14,9 @@ import { playOnce } from './occasionSound.js';
  *   milestone  'N DAYS TO GO' (a few minutes on a milestone day)
  *   final      the last minute(s): M:SS, re-rendered each second only in this kind
  *   zero       the greeting + the name, a FINITE confetti burst (never on Minimal motion), then it settles
- * Same restrained look as the Countdown page (occasionParts.jsx). Entry: a short fade/rise; exit: a short fade
+ * One set with the Countdown page (the shared kit in occasionParts.jsx): the kicker with its accent bar, the rail hairline,
+ * the hairline divider with an accent head between the number and its words, display roles for the name, reading roles for
+ * the why line, the same source line and the same rise-in. Entry: a short fade/rise; exit: a short fade
  * (OccasionTakeoverLayer keeps the last frame for EXIT_MS). Nothing loops. Mounted by App.jsx under the same
  * precedence as every takeover (a freeze / Shabbos cover hides it; an announcement takeover wins over it).
  *
@@ -77,18 +79,14 @@ function WhyLine({ why, L, portrait, center }) {
   const ta = center ? 'center' : 'start';
   return (
     <div data-occ-why="" style={{ flex: 'none', width: '100%', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6, textAlign: ta }}>
-      <Label en={WHY_LABEL.en} heText={WHY_LABEL.he} size={24} style={{ justifyContent: center ? 'center' : 'flex-start' }} />
+      <Kicker en={WHY_LABEL.en} heText={WHY_LABEL.he} size={24} center={center} />
       <FitText max={Math.round(40 * (L.k || 1))} min={28} budget={Math.round((portrait ? 220 : 170) * (L.k || 1))} deps={`${w.en}|${w.he}`} data-occ-why-text="" style={{ flex: 'none', width: '100%', lineHeight: 1.36, textAlign: ta }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.4em' }}>
-          {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? F.he : F.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{w.en}</div>}
-          {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: F.he, fontWeight: 400, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{w.he}</div>}
+          {w.en && <div dir={textDir(w.en)} style={{ fontFamily: textDir(w.en) === 'rtl' ? READ.he : READ.en, fontWeight: 500, color: 'var(--ink)', unicodeBidi: 'isolate' }}>{w.en}</div>}
+          {w.he && <div className="tt-he" dir="rtl" style={{ fontFamily: READ.he, fontWeight: 500, color: w.en ? SOFT_INK : 'var(--ink)', lineHeight: 1.42 }}>{w.he}</div>}
         </div>
       </FitText>
-      {why.source && (
-        <div data-occ-why-source="" dir="auto" style={{ flex: 'none', fontFamily: F.en, fontSize: 24, fontWeight: 500, color: LABEL_INK, lineHeight: 1.3, overflowWrap: 'anywhere', textAlign: ta }}>
-          <span style={{ letterSpacing: '.16em', textTransform: 'uppercase', fontWeight: 600 }}>{WHY_SOURCE.en}</span>: {String(why.source)}
-        </div>
-      )}
+      {why.source && <SourceLine text={why.source} data-occ-why-source="" style={{ flex: 'none', color: LABEL_INK, textAlign: ta }} />}
     </div>
   );
 }
@@ -144,7 +142,7 @@ function CountTk({ tk, now, L, portrait, font, tagline }) {
   const number = (
     <div data-occ-count={tk.kind} style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: al }}>
       <div key={final ? big : 'n'} className={final ? 'tt-hype-pop' : undefined} style={{ '--pop-from': 1.07 }}>
-        <HeroNum text={big} font={font} maxW={maxW} maxH={maxH} color={final ? ACC : 'var(--ink)'} />
+        <HeroNum text={big} font={font} maxW={maxW} maxH={maxH} color={final ? ACC : 'var(--ink)'} intro={!final} />
       </div>
     </div>
   );
@@ -164,7 +162,10 @@ function CountTk({ tk, now, L, portrait, font, tagline }) {
     <div ref={(el) => { bodyRef.current = el; boxRef.current = el; }} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center' }}>
       <div style={{ display: 'flex', flexDirection: left ? 'row' : 'row-reverse', gap: 72, alignItems: 'stretch' }}>
         {number}
-        <div data-tk-col="" style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24 }}>
+        <div data-tk-col="" style={{ position: 'relative', flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 24 }}>
+          <span aria-hidden className="tt-rule-in" style={{ position: 'absolute', [left ? 'left' : 'right']: -37, top: 0, bottom: 0, width: 2, background: 'var(--line)' }}>
+            <span style={{ position: 'absolute', left: -1, top: 0, width: 4, height: 64, borderRadius: 2, background: 'var(--accentText)' }} />
+          </span>
           {unitEl}
           <TkName name={tk.name} L={L} big />
           {why ? <WhyLine why={why} L={L} /> : <span />}
@@ -185,7 +186,7 @@ function TkRail({ tk, L, now, lang }) {
   else if (tk.kind === 'milestone' && shows(L, 'pips') && days > 0 && days <= FAR_DAYS) prog = <TickLine total={FAR_DAYS} lit={days} />;
   return (
     <header style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 32 }}>
-      <Label en={t.en} heText={lang === 'english' ? '' : t.he} size={26} color={tag ? ACC : LABEL_INK} data-occ-tagline={tag ? '' : undefined} />
+      <Kicker en={t.en} heText={lang === 'english' ? '' : t.he} size={26} data-occ-tagline={tag ? '' : undefined} />
       {tk.kind !== 'zero' && prog}
     </header>
   );

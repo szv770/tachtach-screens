@@ -286,8 +286,8 @@ export const SUFFIX_STYLE = { fontSize: '.42em', fontWeight: 500, verticalAlign:
  * the class is dropped afterwards so a ticking second never replays it). `popKey` changes = one finite pop (hype, last day
  * and closer).
  */
-export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt }) {
-  const [intro, setIntro] = useState(true);
+export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt, intro: introOn = true }) {
+  const [intro, setIntro] = useState(introOn);
   useEffect(() => { const t = setTimeout(() => setIntro(false), 1600); return () => clearTimeout(t); }, []);
   return (
     <div style={{ display: 'flow-root', height: Math.round((size * mt.ink) / 100) }}>
@@ -303,7 +303,7 @@ export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt })
  * as 0, so seconds tick without re-fitting) is no wider than `maxW` and its digits' ink no taller than `maxH` (layout px).
  * The box is exactly the digits' ink, so a caption beside it aligns to their top and baseline.
  */
-export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color = 'var(--ink)' }) {
+export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color = 'var(--ink)', intro = true }) {
   const probe = useRef(null);
   const shape = String(text).replace(/\d/g, '0');
   const mt = useNumMetrics(probe, `${shape}|${suffix}|${font}`);
@@ -311,7 +311,7 @@ export function HeroNum({ text, suffix = '', font, maxW, maxH, min = 60, color =
   return (
     <div style={{ position: 'relative', flex: 'none', width: mt.w ? Math.round((mt.w * size) / 100) : undefined }}>
       <span ref={probe} aria-hidden className="tt-num" style={{ position: 'absolute', left: 0, top: 0, visibility: 'hidden', whiteSpace: 'nowrap', fontFamily: font, fontWeight: 600, fontSize: 100, lineHeight: 1, letterSpacing: '-.01em' }}>{shape}{suffix && <span style={SUFFIX_STYLE}>{suffix}</span>}</span>
-      <div style={{ visibility: mt.w ? 'visible' : 'hidden' }}><Digits text={text} suffix={suffix} size={size} font={font} color={color} mt={mt} /></div>
+      <div style={{ visibility: mt.w ? 'visible' : 'hidden' }}><Digits text={text} suffix={suffix} size={size} font={font} color={color} mt={mt} intro={intro} /></div>
     </div>
   );
 }
@@ -366,7 +366,7 @@ export const READ = Object.freeze({ en: F.te, he: F.th });
 export function Kicker({ en, heText, size = 24, center = false, style, ...rest }) {
   if (!en && !heText) return null;
   return (
-    <span dir={!en && heText ? 'rtl' : 'ltr'} style={{ display: 'inline-flex', alignItems: 'center', gap: 16, justifyContent: center ? 'center' : 'flex-start', maxWidth: '100%', ...style }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 16, justifyContent: center ? 'center' : 'flex-start', maxWidth: '100%', ...style }}>
       <span aria-hidden style={{ flex: 'none', width: 36, height: 4, borderRadius: 2, background: 'var(--accentText)' }} />
       <Label en={en} heText={heText} size={size} color={ACC} {...rest} />
     </span>
@@ -423,7 +423,8 @@ export function StoryText({ en = '', he: heT = '', cols = false, max, min = 28, 
     const put = (a, b, two) => {
       eEl.textContent = a || ''; hEl.textContent = b || '';
       eEl.style.display = a ? 'block' : 'none'; hEl.style.display = b ? 'block' : 'none';
-      m.style.flexDirection = two && a && b ? 'row' : 'column';
+      const row = !!(two && a && b);
+      m.style.flexDirection = row ? 'row' : 'column'; m.style.gap = row ? '58px' : '.5em'; m.style.alignItems = row ? 'center' : 'stretch';
     };
     const fitsAt = (px) => { m.style.fontSize = `${px}px`; return m.offsetHeight <= h && m.scrollWidth <= w + 1; };
     const best = () => {

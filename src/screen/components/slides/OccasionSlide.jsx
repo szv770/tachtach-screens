@@ -242,7 +242,7 @@ function BeginsLine({ m, lang, center }) {
     <div data-occ-begins="" data-occ-block="begins" style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: center ? 'center' : 'flex-start', gap: 6 }}>
       <div dir={rtl ? 'rtl' : 'ltr'} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 16px', alignItems: 'baseline', justifyContent: center ? 'center' : 'flex-start', lineHeight: 1.28 }}>
         {a && <span className={rtl ? 'tt-he' : undefined} style={{ fontFamily: fam, fontSize: fs, fontWeight: 500, color: SOFT_INK }}>{a}</span>}
-        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: Math.round(fs * 1.2), fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
+        {b && <span className={rtl ? 'tt-he' : 'tt-num'} style={{ fontFamily: fam, fontSize: rtl ? he(38) : 38, fontWeight: 600, color: 'var(--ink)', whiteSpace: 'nowrap' }}>{b}</span>}
       </div>
       {m.approx && <Label en={`~ ${COPY.approx.en}`} heText={lang === 'english' ? '' : COPY.approx.he} color={SOFT_INK} />}
     </div>
@@ -255,7 +255,7 @@ function Sparks({ level, intensity, x, y }) {
   return (
     <div aria-hidden data-occ-sparks={n} style={{ position: 'absolute', left: x, top: y, width: 0, height: 0, pointerEvents: 'none' }}>
       {Array.from({ length: n }, (_, i) => {
-        const deg = -78 + (i / Math.max(1, n - 1)) * 70; // a fan of short rays, up and to the right of the number
+        const deg = -104 + (i / Math.max(1, n - 1)) * 62; // a fan of short rays, up from the number's top right corner (clear of the divider)
         const a = (deg * Math.PI) / 180;
         const r = 18; const len = i % 2 ? 18 : 30;
         return <span key={i} className="tt-spark" style={{ position: 'absolute', left: Math.round(Math.cos(a) * r), top: Math.round(Math.sin(a) * r) - 2, width: len, height: 4, borderRadius: 2, background: 'var(--accentText)', transform: `rotate(${Math.round(deg)}deg)`, transformOrigin: '0 50%', '--i': i, '--sr': `${Math.round(deg)}deg`, '--sx': `${Math.round(-Math.cos(a) * 10)}px`, '--sy': `${Math.round(-Math.sin(a) * 10)}px` }} />;
@@ -278,7 +278,7 @@ function HeroAct({ geo, m, L, lang, hc, stack, center, forms, formAt, hype, grap
     </div>
   );
   const begins = shows(L, 'begins') ? <div data-s="" style={{ '--i': 2 }}><BeginsLine m={m} lang={lang} center={center} /></div> : null;
-  const sparks = hype.level >= 2 && graphics !== 'off' && geo.num ? <Sparks level={hype.level} intensity={hype.intensity} x={geo.num.w + 10} y={6} /> : null;
+  const sparks = hype.level >= 2 && graphics !== 'off' && geo.num ? <Sparks level={hype.level} intensity={hype.intensity} x={geo.num.w - 6} y={-8} /> : null;
   const kicker = t && hasText(t) ? <div data-s="" style={{ '--i': 0, flex: 'none', marginBottom: stack ? 28 : 36, display: 'flex', justifyContent: al }}><Kicker en={t.en} heText={t.he} center={center} data-occ-tagline="" data-occ-block="tagline" /></div> : null;
   if (stack) {
     return (
@@ -357,7 +357,7 @@ function ZeroAct({ geo, m, L, portrait }) {
 }
 
 /** One cell of the facts act: a small-caps label, a headline (display role), quiet lines under it. */
-function FactCell({ label, head, headHe = false, big = false, subs = [], k, end = false, attr, i = 1 }) {
+function FactCell({ label, head, headHe = false, date = false, big = false, subs = [], k, end = false, attr, i = 1 }) {
   if (!head && !subs.some((x) => x && x.t)) return null;
   const hs = Math.max(30, Math.round((big ? 56 : 40) * k));
   const ss = Math.max(26, Math.round(30 * k));
@@ -367,7 +367,7 @@ function FactCell({ label, head, headHe = false, big = false, subs = [], k, end 
       {(label.en || label.he) && <Label en={label.en} heText={label.he} />}
       {head && (
         <div className={headHe ? 'tt-he' : undefined} dir={headHe ? 'rtl' : textDir(head)} style={{ maxWidth: '100%', fontFamily: headHe ? F.heD : F.enD, fontSize: headHe ? he(hs) : hs, fontWeight: big ? (headHe ? 700 : 600) : 500, letterSpacing: headHe ? 0 : '-.01em', color: 'var(--ink)', lineHeight: 1.16, overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>
-          {headHe ? head : <DatePart t={head} />}
+          {headHe ? head : date ? <DatePart t={head} /> : bidiNodes(head)}
         </div>
       )}
       {subs.filter((x) => x && x.t).map((x, j) => (
@@ -393,7 +393,7 @@ function FactsAct({ m, L, lang, portrait, long }) {
   const top = []; const low = [];
   if (keys.has('date') && d) {
     const day = L2(d.day); const heb = L2(d.hebrew); const rg = shows(L, 'dateRange') ? L2(d.dayRange) : { en: '', he: '' };
-    if (hasText(day)) top.push(rtl || !day.en ? { label: lab(FACT.day), head: day.he, headHe: true, subs: [{ t: rg.he, he: true }] } : { label: lab(FACT.day), head: day.en, subs: [{ t: rg.en, num: true }] });
+    if (hasText(day)) top.push(rtl || !day.en ? { label: lab(FACT.day), head: day.he, headHe: true, subs: [{ t: rg.he, he: true }] } : { label: lab(FACT.day), head: day.en, date: true, subs: [{ t: rg.en, num: true }] });
     if (hasText(heb)) top.push(heb.he ? { label: lab(FACT.hebrew), head: heb.he, headHe: true, subs: [{ t: heb.en }], end: both && !portrait } : { label: lab(FACT.hebrew), head: heb.en });
   } else if (keys.has('date') && hasText(m.hebrewDate)) {
     const h = L2(m.hebrewDate);
@@ -726,6 +726,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
   }, [model, levels]); // eslint-disable-line react-hooks/exhaustive-deps
   const n = model?.rows.length || 0;
   const [page, setPage] = useState(0);
+  const [kick, setKick] = useState(0); // a tap on the number: the hero's time starts again (the viewer is using it)
   const base = Number(slide?.duration) || 0;
   const keyList = pages.map((p) => `${p.m.key}:${p.view}:${p.ex ? `${p.ex.en ? 'e' : ''}${p.ex.he ? 'h' : ''}` : ''}`).join(',');
   const asked = useRef('');
@@ -737,7 +738,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
     const cur = pages[Math.min(page, pages.length - 1)];
     const t = setTimeout(() => setPage((x) => (x + 1) % pages.length), cur.secs * 1000);
     return () => clearTimeout(t);
-  }, [keyList, page]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [keyList, page, kick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const curPage = pages[Math.min(page, pages.length - 1)];
   const formList = curPage && curPage.view === 'main' ? formsFor(curPage.m) : [];
@@ -823,6 +824,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       if (tp - lastForm.current < 300) return;
       lastForm.current = tp;
       setFormAt((x) => (x + 1) % forms.length);
+      setKick((x) => x + 1);
       return;
     }
     if (design.motion === 'minimal') return;
@@ -900,7 +902,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
       {advent ? <AdventMain m={m} L={L} portrait={portrait} font={font} pager={pager} nowMs={nowMs} fast={fast} lang={lang} peek={peek} /> : (
         <div ref={bodyRef} style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', ...bodyInset }}>
           {photoOn && portrait && <div aria-hidden style={{ flex: 'none', height: `${PHOTO_SHARE.port * 100 - 2}%` }} />}
-          <Stage plan={plan} renderAct={renderAct} rail={rail} act={{ id: cur.view, secs: cur.secs || 10, reveal: !!cur.reveal, closes: !!cur.closes, turns: pages.length > 1 }} actKey={`${m.key}|${cur.view}|${page}`}
+          <Stage plan={plan} renderAct={renderAct} rail={rail} act={{ id: cur.view, secs: cur.secs || 10, reveal: !!cur.reveal, closes: !!cur.closes, turns: pages.length > 1, kick }} actKey={`${m.key}|${cur.view}|${page}`}
             recipe={recipe} motion={design.motion} light={design.light} portrait={portrait} hype={hype} countAttrs={countAttrs} flashKey={flashKey}
             settle={hype.level >= 3 && design.motion !== 'minimal' ? Math.round((hype.level - 1) * hype.intensity) : 0} />
         </div>

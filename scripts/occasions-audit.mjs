@@ -130,7 +130,7 @@ const cases = [
   { tag: 'takeover: zero', time: T('2026-11-18T18:00:20'), occ: doc([SIX]), takeover: 'zero', zero: true, fonts: true },
   { tag: 'takeover: worst case name, milestone', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
   // live moments (admin fired; real time)
-  { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
+  { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { cycleSeconds: 30 }), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
   { tag: 'moment: shout-out', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'shoutout', text: { en: 'Mazel tov to the 8th grade on finishing Mishnayos!', he: 'מזל טוב לכיתה ח׳ על סיום משניות!' }, occasionKey: '', secs: 15 } },
   { tag: 'moment: ten', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'ten', text: { en: '', he: '' }, occasionKey: 'yt', secs: 10 }, ten: true },
 ];

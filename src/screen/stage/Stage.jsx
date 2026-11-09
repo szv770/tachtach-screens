@@ -18,7 +18,7 @@ import { useBox } from '../components/slides/occasionParts.jsx';
  *
  * Props: plan(areaW, areaH) -> { num: { w, h, node } | null, name: { w, h, box, node(compact) } | null } (the shared
  * elements at hero size); renderAct(geo) -> the act content; rail: { left, right(compact), progress, compact }; act
- * { id, secs, reveal }; actKey; recipe (styles.js); motion; light; portrait; hype { level, intensity }; countAttrs (data
+ * { id, secs, reveal, closes (the reveal rolls up after it), turns (another act follows), kick (restart its time) }; actKey; recipe (styles.js); motion; light; portrait; hype { level, intensity }; countAttrs (data
  * attributes for the act area while counting); flashKey (changes = the rail flashes its accent once).
  */
 export const RAIL_NUM_H = 40;
@@ -73,7 +73,7 @@ export function Stage({ plan, renderAct, rail, act, actKey, recipe, motion, ligh
       ? setTimeout(() => setClosing(true), Math.max(1000, ms - recipe.reveal.close - 120))
       : setTimeout(() => setLeaving(true), Math.max(1000, ms - 320));
     return () => clearTimeout(t);
-  }, [actKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [actKey, act.kick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const ease = hype.level >= 2 ? recipe.glide.slam : recipe.glide.ease;
   const trans = ready && !still ? `transform ${recipe.glide.ms}ms ${ease}, opacity 420ms ease-out` : 'none';
