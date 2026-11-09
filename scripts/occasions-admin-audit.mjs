@@ -1,17 +1,45 @@
 #!/usr/bin/env node
 /**
  * Phone checks of admin > Screen > Occasions against a THROWAWAY server (scratch TACHTACH_DATA_DIR, never real data):
- *   TOKEN=<session token of an admin> node scripts/occasions-admin-audit.mjs http://localhost:3100
+ *   1. node scripts/occasions-admin-audit.mjs --seed /tmp/x/data     (writes a test login into a SCRATCH folder; refuses the real data/)
+ *   2. npm run build && TACHTACH_DATA_DIR=/tmp/x/data PORT=3100 node server.js &
+ *   3. node scripts/occasions-admin-audit.mjs http://localhost:3100   (TOKEN=<session token> overrides the seeded login)
+ * Without TOKEN it signs in with the seeded test session; a session the server does not accept stops the run with a plain
+ * message (it used to crash inside Playwright with 'cookie value undefined' when TOKEN was not set).
  * Needs Playwright (/opt/node-tools) + chromium (/opt/pw-browsers/chromium). At 360x740 and 412x915 (touch):
  * no sideways page scroll, taps >= 44 px, inputs >= 16 px, every control named, text >= 12 px, no console errors, the sheet fits,
  * then a real flow: add an occasion with a Hebrew date -> 'Next:' line -> explanation hidden without a source -> shown with one ->
  * save -> it is on the list -> switch it off -> Undo -> remove it -> put the starter dates back.
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { createRequire } from 'module';
+
+const SEED_TOKEN = 'occ-audit-token-1';
+if (process.argv[2] === '--seed') {
+  const dir = path.resolve(process.argv[3] || '');
+  const real = path.resolve(new URL('../data', import.meta.url).pathname);
+  if (!process.argv[3] || dir === real) { console.error('Give a scratch data folder (never the real data/).'); process.exit(2); }
+  fs.mkdirSync(dir, { recursive: true });
+  const iso = (h) => new Date(Date.now() + h * 3600000).toISOString();
+  const hash = crypto.createHash('sha256').update(SEED_TOKEN).digest('hex');
+  fs.writeFileSync(path.join(dir, 'users.json'), JSON.stringify({ version: 1, users: [{ id: 'u1', username: 'admin', name: 'Admin', role: 'admin', passwordHash: '$2b$12$abcdefghijklmnopqrstuuJ6zv8q6v5sM0fQz2kM7c0vD6q3P0o1y', totpSecret: null, totpEnabled: false, lastTotpStep: 0, trustedDevices: [], sessions: [{ hash, createdAt: iso(0), expiresAt: iso(24 * 20), lastSeen: iso(0) }], createdAt: iso(0), lastLoginAt: null }], links: [], preauth: [], lockouts: {} }));
+  console.log('seeded', dir);
+  process.exit(0);
+}
+
 const require = createRequire('/opt/node-tools/');
 const { chromium } = require('playwright');
 const BASE = process.argv.find((a) => a.startsWith('http')) || 'http://localhost:3100';
-const TOKEN = process.env.TOKEN;
+const TOKEN = process.env.TOKEN || SEED_TOKEN;
+{
+  const r = await fetch(`${BASE}/api/state`, { headers: { cookie: `tachtach_session=${TOKEN}` }, redirect: 'manual' }).catch((e) => ({ status: 0, err: e }));
+  if (r.status !== 200) {
+    console.error(`Cannot sign in at ${BASE} (GET /api/state -> ${r.status || r.err?.message}). Seed a scratch data folder first:\n  node scripts/occasions-admin-audit.mjs --seed <scratch dir>, start the server with TACHTACH_DATA_DIR=<scratch dir>, or pass TOKEN=<session token>.`);
+    process.exit(2);
+  }
+}
 const fails = []; let checks = 0;
 const check = (name, ok, info = '') => { checks++; if (!ok) fails.push(`${name} ${info}`); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} ${ok ? '' : info}`); };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
