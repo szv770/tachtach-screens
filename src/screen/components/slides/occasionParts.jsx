@@ -217,7 +217,7 @@ export function Backdrop({ graphics = 'rich' }) {
 }
 
 /** How much of the panel the photo takes (landscape: a side; portrait: the top), and the text area's matching inset. */
-export const PHOTO_SHARE = { land: 0.42, port: 0.34 };
+export const PHOTO_SHARE = { land: 0.42, port: 0.4 };
 
 /**
  * The uploaded photo as its own pane (owner's reference: a real object BESIDE the values): full-bleed on one side of the
@@ -236,7 +236,7 @@ export function PhotoPane({ photo, dim = 0, side = 'right', portrait = false, on
     <div aria-hidden data-occ-photo-pane="" style={{ position: 'absolute', ...box, pointerEvents: 'none', overflow: 'hidden' }}>
       <img src={photo} alt="" decoding="async" data-occ-photo="" className="tt-photo-in" onError={() => { setBad(photo); onBad?.(photo); }} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
       {/* the inner edge melts into the panel over the first third; the rest keeps only the admin's dim, so the picture really shows */}
-      <div data-occ-scrim="pane" style={{ position: 'absolute', inset: 0, background: `linear-gradient(${fadeDir}, var(--panel) 0%, color-mix(in srgb, var(--panel) ${Math.round(Math.max(d, 0.5) * 100)}%, transparent) 12%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 34%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 100%)` }} />
+      <div data-occ-scrim="pane" style={{ position: 'absolute', inset: 0, background: `linear-gradient(${fadeDir}, var(--panel) 0%, color-mix(in srgb, var(--panel) ${Math.round(Math.max(d, 0.5) * 100)}%, transparent) ${portrait ? 8 : 12}%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) ${portrait ? 24 : 34}%, color-mix(in srgb, var(--panel) ${Math.round(d * 100)}%, transparent) 100%)` }} />
       {/* the set's hairline closes the picture on its inner side */}
       <div style={{ position: 'absolute', ...(portrait ? { left: 0, right: 0, bottom: 0, height: 2 } : { top: 0, bottom: 0, [side === 'right' ? 'left' : 'right']: 0, width: 2 }), background: 'var(--line)' }} />
     </div>
@@ -292,7 +292,8 @@ export function Digits({ text, suffix, size, font, color, popKey, popFrom, mt, i
   return (
     <div style={{ display: 'flow-root', height: Math.round((size * mt.ink) / 100) }}>
       <div key={popKey} className={`tt-num${popKey ? ' tt-hype-pop' : ''}`} data-occ-big="" style={{
-        fontFamily: font, fontSize: size, fontWeight: 600, lineHeight: 1, marginTop: -Math.round((size * mt.top) / 100), letterSpacing: '-.01em', color, whiteSpace: 'nowrap', marginLeft: '-.04em', transformOrigin: '30% 60%', '--pop-from': popFrom,
+        // a line box exactly as tall as the digits' ink (so the element's box IS the digits: nothing invisible sticks up into the line above)
+        fontFamily: font, fontSize: size, fontWeight: 600, lineHeight: mt.ink / 100, marginTop: -Math.round((size * (mt.top - (100 - mt.ink) / 2)) / 100), letterSpacing: '-.01em', color, whiteSpace: 'nowrap', marginLeft: '-.04em', transformOrigin: '30% 60%', '--pop-from': popFrom,
       }}>{intro && !popKey ? [...String(text)].map((ch, i) => <span key={i} className="tt-digit" style={{ display: 'inline-block', '--i': i }}>{ch}</span>) : text}{suffix && <span data-occ-suffix="" style={SUFFIX_STYLE}>{suffix}</span>}</div>
     </div>
   );

@@ -359,8 +359,8 @@ function ZeroAct({ geo, m, L, portrait }) {
 /** One cell of the facts act: a small-caps label, a headline (display role), quiet lines under it. */
 function FactCell({ label, head, headHe = false, date = false, big = false, subs = [], k, end = false, attr, i = 1 }) {
   if (!head && !subs.some((x) => x && x.t)) return null;
-  const hs = Math.max(30, Math.round((big ? 56 : 40) * k));
-  const ss = Math.max(26, Math.round(30 * k));
+  const hs = Math.max(28, Math.round((big ? 56 : 40) * k));
+  const ss = Math.max(24, Math.round(30 * k));
   const al = end ? 'flex-end' : 'flex-start';
   return (
     <div {...attr} data-s="" style={{ '--i': i, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: al, gap: 8, textAlign: end ? 'end' : 'start' }}>
@@ -371,7 +371,7 @@ function FactCell({ label, head, headHe = false, date = false, big = false, subs
         </div>
       )}
       {subs.filter((x) => x && x.t).map((x, j) => (
-        <div key={j} className={x.he ? 'tt-he' : x.num ? 'tt-num' : undefined} dir={x.he ? 'rtl' : textDir(x.t)} style={{ maxWidth: '100%', fontFamily: x.he ? F.he : F.en, fontSize: x.strong ? Math.max(30, Math.round(44 * k)) : x.he ? he(ss) : ss, fontWeight: x.strong ? 600 : 500, color: x.strong ? 'var(--ink)' : SOFT_INK, lineHeight: 1.26, overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>{x.he ? x.t : bidiNodes(x.t)}</div>
+        <div key={j} className={x.he ? 'tt-he' : x.num ? 'tt-num' : undefined} dir={x.he ? 'rtl' : textDir(x.t)} style={{ maxWidth: '100%', fontFamily: x.he ? F.he : F.en, fontSize: x.strong ? Math.max(28, Math.round(44 * k)) : x.he ? he(ss) : ss, fontWeight: x.strong ? 600 : 500, color: x.strong ? 'var(--ink)' : SOFT_INK, lineHeight: 1.26, overflowWrap: 'anywhere', unicodeBidi: 'isolate' }}>{x.he ? x.t : bidiNodes(x.t)}</div>
       ))}
     </div>
   );
@@ -410,12 +410,12 @@ function FactsAct({ m, L, lang, portrait, long }) {
     const e = L2(m.event);
     low.push(e.en ? { label: lab(FACT.event), head: e.en, subs: [{ t: e.he, he: true }], attr: { 'data-occ-event': '' } } : { label: lab(FACT.event), head: e.he, headHe: true, attr: { 'data-occ-event': '' } });
   }
-  const grid = (n) => ({ display: 'grid', gridTemplateColumns: portrait || n < 2 ? 'minmax(0, 1fr)' : 'minmax(0, max-content) minmax(0, max-content)', justifyContent: 'space-between', columnGap: 48, rowGap: 26, alignItems: 'start' });
+  const grid = (n) => ({ display: 'grid', gridTemplateColumns: portrait || n < 2 ? 'minmax(0, 1fr)' : 'minmax(0, max-content) minmax(0, max-content)', justifyContent: 'space-between', columnGap: 48, rowGap: Math.max(10, Math.round(26 * k)), alignItems: 'start' });
   return (
     <div data-occ-col="" data-occ-facts="" data-occ-block="facts" dir={rtl ? 'rtl' : 'ltr'} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: portrait ? 30 : 26 }}>
       <ActHead en={rtl ? '' : FACT.day.en} heText={rtl ? FACT.day.he : ''} />
-      {long && <NameLine name={m.name} L={L} lang={lang} compact />}
-      <div data-occ-col="" style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: portrait ? 30 : 28 }}>
+      {long && shows(L, 'actName') && <NameLine name={m.name} L={L} lang={lang} compact />}
+      <div data-occ-col="" style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'safe center', gap: Math.max(10, Math.round((portrait ? 30 : 28) * k)) }}>
         {top.length > 0 && <div data-occ-date="" style={grid(top.length)}>{top.map((c, i) => <FactCell key={i} {...c} label={{ en: '', he: '' }} big k={k} i={i + 1} />)}</div>}
         {top.length > 0 && low.length > 0 && <span aria-hidden data-s="" style={{ '--i': 3, flex: 'none', height: 2, background: 'var(--line)' }} />}
         {low.length > 0 && <div style={grid(low.length)}>{low.map((c, i) => <FactCell key={i} {...c} k={k} i={i + 3} />)}</div>}
