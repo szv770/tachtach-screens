@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { numeralsStack } from '../design/useLayout.js';
-import { Label, EdgeTicks, SOFT_INK, ACC, useSmallAccent } from '../components/slides/occasionParts.jsx';
+import { Label, SOFT_INK, ACC, useSmallAccent } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { COPY } from '../../shared/occasions.js';
 import { playOnce } from './occasionSound.js';
@@ -42,7 +42,6 @@ function MomentView({ mo, name, nowMs, tail }) {
   return (
     <div className="tt-occ-tk" data-occ-moment={mo.kind} style={{ position: 'absolute', inset: 0, zIndex: 110, background: 'var(--bg)', display: 'flex' }}>
       <Panel ref={panelRef} pad={portrait ? '64px 72px' : '56px 104px'} style={{ borderRadius: 0 }}>
-        <EdgeTicks graphics={design.graphics === 'off' ? 'off' : 'rich'} inset={36} />
         {burst && <Confetti key={`mc|${mo.id}`} graphics={design.graphics} motion={design.motion} />}
         <div style={{ position: 'relative', zIndex: 1, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: portrait ? 26 : 16, textAlign: 'center' }}>
           {counting ? (

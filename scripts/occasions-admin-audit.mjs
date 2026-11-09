@@ -1,17 +1,45 @@
 #!/usr/bin/env node
 /**
  * Phone checks of admin > Screen > Occasions against a THROWAWAY server (scratch TACHTACH_DATA_DIR, never real data):
- *   TOKEN=<session token of an admin> node scripts/occasions-admin-audit.mjs http://localhost:3100
+ *   1. node scripts/occasions-admin-audit.mjs --seed /tmp/x/data     (writes a test login into a SCRATCH folder; refuses the real data/)
+ *   2. npm run build && TACHTACH_DATA_DIR=/tmp/x/data PORT=3100 node server.js &
+ *   3. node scripts/occasions-admin-audit.mjs http://localhost:3100   (TOKEN=<session token> overrides the seeded login)
+ * Without TOKEN it signs in with the seeded test session; a session the server does not accept stops the run with a plain
+ * message (it used to crash inside Playwright with 'cookie value undefined' when TOKEN was not set).
  * Needs Playwright (/opt/node-tools) + chromium (/opt/pw-browsers/chromium). At 360x740 and 412x915 (touch):
  * no sideways page scroll, taps >= 44 px, inputs >= 16 px, every control named, text >= 12 px, no console errors, the sheet fits,
  * then a real flow: add an occasion with a Hebrew date -> 'Next:' line -> explanation hidden without a source -> shown with one ->
  * save -> it is on the list -> switch it off -> Undo -> remove it -> put the starter dates back.
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { createRequire } from 'module';
+
+const SEED_TOKEN = 'occ-audit-token-1';
+if (process.argv[2] === '--seed') {
+  const dir = path.resolve(process.argv[3] || '');
+  const real = path.resolve(new URL('../data', import.meta.url).pathname);
+  if (!process.argv[3] || dir === real) { console.error('Give a scratch data folder (never the real data/).'); process.exit(2); }
+  fs.mkdirSync(dir, { recursive: true });
+  const iso = (h) => new Date(Date.now() + h * 3600000).toISOString();
+  const hash = crypto.createHash('sha256').update(SEED_TOKEN).digest('hex');
+  fs.writeFileSync(path.join(dir, 'users.json'), JSON.stringify({ version: 1, users: [{ id: 'u1', username: 'admin', name: 'Admin', role: 'admin', passwordHash: '$2b$12$abcdefghijklmnopqrstuuJ6zv8q6v5sM0fQz2kM7c0vD6q3P0o1y', totpSecret: null, totpEnabled: false, lastTotpStep: 0, trustedDevices: [], sessions: [{ hash, createdAt: iso(0), expiresAt: iso(24 * 20), lastSeen: iso(0) }], createdAt: iso(0), lastLoginAt: null }], links: [], preauth: [], lockouts: {} }));
+  console.log('seeded', dir);
+  process.exit(0);
+}
+
 const require = createRequire('/opt/node-tools/');
 const { chromium } = require('playwright');
 const BASE = process.argv.find((a) => a.startsWith('http')) || 'http://localhost:3100';
-const TOKEN = process.env.TOKEN;
+const TOKEN = process.env.TOKEN || SEED_TOKEN;
+{
+  const r = await fetch(`${BASE}/api/state`, { headers: { cookie: `tachtach_session=${TOKEN}` }, redirect: 'manual' }).catch((e) => ({ status: 0, err: e }));
+  if (r.status !== 200) {
+    console.error(`Cannot sign in at ${BASE} (GET /api/state -> ${r.status || r.err?.message}). Seed a scratch data folder first:\n  node scripts/occasions-admin-audit.mjs --seed <scratch dir>, start the server with TACHTACH_DATA_DIR=<scratch dir>, or pass TOKEN=<session token>.`);
+    process.exit(2);
+  }
+}
 const fails = []; let checks = 0;
 const check = (name, ok, info = '') => { checks++; if (!ok) fails.push(`${name} ${info}`); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} ${ok ? '' : info}`); };
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
@@ -42,7 +70,7 @@ const scanChecks = async (page, tag) => {
   check(`${tag}: text >= 12px`, r.tiny.length === 0, r.tiny.slice(0, 4).join(', '));
 };
 
-for (const [W, H] of [[360, 740], [412, 915]]) {
+for (const [W, H] of [[360, 740], [412, 915]].filter(([w]) => !process.env.ONLY || String(w) === process.env.ONLY)) {
   const tag = `${W}x${H}`;
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   await ctx.addCookies([{ name: 'tachtach_session', value: TOKEN, url: BASE }]);
@@ -54,31 +82,80 @@ for (const [W, H] of [[360, 740], [412, 915]]) {
   await page.goto(`${BASE}/admin/occasions`, { waitUntil: 'networkidle' });
   await page.waitForSelector('[data-testid="occ-onoff"]', { timeout: 8000 });
   // open every collapsible so its controls are scanned too
-  for (const b of await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').all()) await b.click().catch(() => {});
+  for (let i = 0; i < 20 && await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').count(); i++) await page.locator('[data-testid="occ-panel"] button[aria-expanded="false"]').first().click().catch(() => {});
   await scanChecks(page, `${tag} page`);
   check(`${tag} starter list shows with next dates`, await page.locator('[data-testid^="occ-row-"]').count() >= 10);
+  check(`${tag} list is grouped by month`, await page.locator('[data-testid^="occ-group-"]').count() >= 6);
+  const firstRow = await page.locator('[data-testid^="occ-row-"]').first().innerText();
+  check(`${tag} row names the day, when it begins and until it begins`, /The days?:/.test(firstRow) && /Begins:/.test(firstRow) && /until it begins|On now/.test(firstRow), firstRow.slice(0, 120));
+  check(`${tag} year strip`, await page.locator('[data-testid^="occ-strip-"]').count() === 12);
+  await page.fill('[data-testid="occ-search"]', 'yud tes');
+  check(`${tag} search narrows the list`, await page.locator('[data-testid^="occ-row-"]').count() === 1);
+  await page.fill('[data-testid="occ-search"]', '');
+  await page.click('[data-testid="occ-filter-needs"]');
+  check(`${tag} filter: needs an explanation`, await page.locator('[data-testid^="occ-row-"]').count() >= 10);
+  await page.click('[data-testid="occ-filter-all"]');
   check(`${tag} footnote says verify with your rav`, /check them with your rav/.test(await page.innerText('[data-testid="occ-footnote"]')));
   check(`${tag} preview buttons`, await page.locator('[data-testid^="occ-preview-"]').count() === 5);
 
-  // add an occasion
+  // Add: the library first
   await page.click('[data-testid="occ-add"]');
+  await page.waitForSelector('[data-testid="occ-library"]');
+  await scanChecks(page, `${tag} library`);
+  check(`${tag} library: starters say Added`, await page.locator('[data-testid="occ-lib-yud-tes-kislev"]').isDisabled());
+  await page.fill('[data-testid="occ-library-search"]', 'tisha');
+  check(`${tag} library: search finds Tisha B'Av`, await page.locator('[data-testid="occ-lib-tisha-bav"]').count() === 1);
+  await page.click('[data-testid="occ-lib-tisha-bav"]');
+  await page.waitForSelector('[data-testid="occ-sheet"]');
+  check(`${tag} library: tapping adds it and opens the edit sheet`, (await page.inputValue('[data-testid="occ-name-en"]')).includes('Tisha'));
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(400);
+  check(`${tag} library: it is on the list`, await page.locator('[data-testid^="occ-row-"]', { hasText: "Tisha B'Av" }).count() === 1);
+
+  // Make my own: type-it date, pickers, explanation
+  await page.click('[data-testid="occ-add"]');
+  await page.click('[data-testid="occ-make-own"]');
   await page.waitForSelector('[data-testid="occ-sheet"]');
   await scanChecks(page, `${tag} sheet`);
+  check(`${tag} sheet: four steps`, await page.locator('[data-testid^="occ-step-"]').count() === 4);
   check(`${tag} sheet: Save disabled without a name`, await page.locator('[data-testid="occ-save"]').isDisabled());
+  await page.fill('[data-testid="occ-type-date"]', 'Yud Tes Kislev');
+  await page.waitForSelector('[data-testid="occ-typed-state"]');
+  check(`${tag} type it: understood and fills the name`, /Understood: 19 Kislev/.test(await page.innerText('[data-testid="occ-typed-state"]')) && (await page.inputValue('[data-testid="occ-name-en"]')) === 'Yud-Tes Kislev');
+  const prev = await page.innerText('[data-testid="occ-date-preview"]');
+  check(`${tag} preview: Hebrew date, next day, evening it begins, next years`, /Hebrew: 19 Kislev/.test(prev) && /Next: \w+day, \w+ \d+, \d{4}/.test(prev) && /evening before/.test(prev) && /After that: \d{4}/.test(prev), prev);
+  await page.fill('[data-testid="occ-type-date"]', 'gibberish');
+  check(`${tag} type it: not understood`, /Not understood/.test(await page.innerText('[data-testid="occ-typed-state"]')));
+  await page.click('[data-testid="occ-month-10"]');
+  await page.click('[data-testid="occ-day-5"]');
   await page.fill('[data-testid="occ-name-en"]', `Audit day ${W}`);
-  await page.selectOption('[data-testid="occ-month"]', '10');
-  await page.selectOption('[data-testid="occ-day"]', '5');
-  await page.waitForSelector('[data-testid="occ-next"]');
-  check(`${tag} sheet: Next line names the Hebrew date`, /5 Teves/.test(await page.innerText('[data-testid="occ-next"]')), await page.innerText('[data-testid="occ-next"]'));
-  await page.fill('[data-testid="occ-explain-en"]', 'Some words about the day.');
-  check(`${tag} sheet: explanation hidden without a source`, /Hidden: add the source/.test(await page.innerText('[data-testid="occ-source-state"]')));
+  await page.waitForFunction(() => /Hebrew: 5 Teves/.test(document.querySelector('[data-testid="occ-next"]')?.textContent || ''));
+  check(`${tag} pickers: month and day chips set the date`, /5 Teves/.test(await page.innerText('[data-testid="occ-next"]')));
+  await page.locator('[data-testid="occ-from-regular"] button').first().click();
+  await page.fill('[data-testid="occ-regular-date"]', '2026-11-29');
+  check(`${tag} from a regular date: shows the Hebrew date`, /19 Kislev 5787/.test(await page.innerText('[data-testid="occ-regular-words"]')));
+  await page.click('[data-testid="occ-repeat-hebrew"]');
+  await page.waitForFunction(() => /Hebrew: 19 Kislev/.test(document.querySelector('[data-testid="occ-next"]')?.textContent || ''));
+  await page.fill('[data-testid="occ-short-en"]', 'A short line.');
+  check(`${tag} sheet: short line counted`, /13 \/ 160/.test(await page.innerText('[data-testid="occ-short-en-count"]')));
+  check(`${tag} sheet: hidden without a source`, /Hidden: add the source/.test(await page.innerText('[data-testid="occ-source-state"]')));
   await page.fill('[data-testid="occ-source"]', 'Sefer Sample, p. 12');
-  check(`${tag} sheet: shown with a source`, /Shows on the screen/.test(await page.innerText('[data-testid="occ-source-state"]')));
+  check(`${tag} sheet: needs the check`, /Hidden until you check/.test(await page.innerText('[data-testid="occ-source-state"]')));
+  await page.click('[data-testid="occ-paste-claude"]');
+  await page.waitForSelector('[data-testid="occ-paste-box"]');
+  await page.fill('[data-testid="occ-paste-box"]', 'Short English: Pasted short.\nLong English: Pasted long text.\nSource: Likutei Sichos p. 5\nNot sure about: nothing');
+  await page.click('[data-testid="occ-paste-apply"]');
+  check(`${tag} paste from Claude fills short, long and source`, (await page.inputValue('[data-testid="occ-short-en"]')) === 'Pasted short.' && (await page.inputValue('[data-testid="occ-explain-en"]')) === 'Pasted long text.' && (await page.inputValue('[data-testid="occ-source"]')) === 'Likutei Sichos p. 5');
+  await page.click('[data-testid="occ-checked"] [role="switch"], [data-testid="occ-checked"] button');
+  check(`${tag} sheet: checked shows`, /Checked: shows on the screen/.test(await page.innerText('[data-testid="occ-source-state"]')));
+  check(`${tag} sheet: advanced collapsed with a summary`, await page.locator('[data-testid="occ-advanced"]').count() === 0 && /follows the defaults/.test(await page.innerText('[data-testid="occ-advanced-summary"]')));
+  await page.click('[data-testid="occ-advanced-toggle"]');
+  await scanChecks(page, `${tag} sheet advanced`);
   const sheetFits = await page.evaluate(() => { const d = document.querySelector('[role="dialog"]'); const r = d.getBoundingClientRect(); return r.bottom <= window.innerHeight + 1 && r.right <= window.innerWidth + 1; });
   check(`${tag} sheet fits the screen`, sheetFits);
   await page.click('[data-testid="occ-save"]');
   await page.waitForFunction((w) => [...document.querySelectorAll('[data-testid^="occ-row-"]')].some((e) => e.textContent.includes(`Audit day ${w}`)), W);
-  check(`${tag} saved: on the list with 'with explanation'`, await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).filter({ hasText: 'with explanation' }).count() === 1);
+  check(`${tag} saved: chip says Shows on the screen`, await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).filter({ hasText: 'Shows on the screen' }).count() === 1);
   await page.waitForTimeout(400);
   check(`${tag} sheet closed and scroll lock released`, await page.locator('[role="dialog"]').count() === 0 && (await page.evaluate(() => document.body.style.overflow)) !== 'hidden');
 
@@ -86,23 +163,25 @@ for (const [W, H] of [[360, 740], [412, 915]]) {
   const row = page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` });
   await row.locator('button[aria-pressed="true"]').click();
   await page.waitForTimeout(500);
-  check(`${tag} off: leaves the list (switched-off hidden)`, await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).count() === 0);
+  check(`${tag} off: leaves the timeline (collapsed under Switched off)`, await page.locator('[data-testid^="occ-group-"] [data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).count() === 0);
   const undo = page.getByRole('button', { name: 'Undo' }).last();
   if (await undo.count()) { await undo.click(); await page.waitForTimeout(700); }
-  check(`${tag} Undo brings it back`, await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).count() === 1);
+  check(`${tag} Undo brings it back`, await page.locator('[data-testid^="occ-group-"] [data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).count() === 1);
 
-  // remove it
-  await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).locator('[data-testid^="occ-edit-"]').click();
-  await page.click('[data-testid="occ-delete"]');
-  await page.getByRole('button', { name: 'Remove', exact: true }).click();
-  await page.waitForTimeout(700);
-  check(`${tag} removed`, await page.locator('[data-testid^="occ-row-"]', { hasText: `Audit day ${W}` }).count() === 0);
+  // remove it (and the library one)
+  for (const name of [`Audit day ${W}`, "Tisha B'Av"]) {
+    await page.locator('[data-testid^="occ-row-"]', { hasText: name }).first().locator('[data-testid^="occ-edit-"]').click();
+    await page.click('[data-testid="occ-delete"]');
+    await page.getByRole('button', { name: 'Remove', exact: true }).click();
+    await page.waitForTimeout(700);
+    check(`${tag} removed ${name}`, await page.locator('[data-testid^="occ-row-"]', { hasText: name }).count() === 0);
+  }
 
   // restore starters
   await page.click('[data-testid="occ-restore"]');
   await page.waitForTimeout(500);
   check(`${tag} no console errors`, errors.length === 0, errors.slice(0, 3).join(' | '));
-  await ctx.close();
+  await ctx.close().catch(() => {});
 }
 await browser.close();
 console.log(`\n${checks - fails.length}/${checks} checks passed`);

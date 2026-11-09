@@ -67,11 +67,57 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-smooth .tt-flip, .m-lively .tt-flip { animation: ttFlip 340ms cubic-bezier(.2,.7,.3,1) both; transform-origin: 50% 50%; }
 @keyframes ttFlip { from { opacity: 0; transform: perspective(900px) rotateX(-80deg); } }
 .tt-adv-open { opacity: 0; }
+/* Countdown forms (a tap or auto mode swaps days / 20\u00BC / hours / flip ...): the new form rises in once (transform + opacity, finite); Minimal = instant swap. */
+.m-smooth .tt-form-in, .m-lively .tt-form-in { animation: ttFormIn 380ms cubic-bezier(.22,.7,.2,1) both; }
+@keyframes ttFormIn { from { opacity: 0; transform: translate3d(0, 18px, 0); } }
 .m-smooth .tt-adv-open, .m-lively .tt-adv-open { animation: ttAdvOpen 1400ms ease-in-out 700ms both; }
 @keyframes ttAdvOpen { from { opacity: 1; } to { opacity: 0; } }
 .tt-pop { opacity: 0; }
 .m-smooth .tt-pop, .m-lively .tt-pop { animation: ttPop 760ms cubic-bezier(.15,.8,.3,1) both; }
 @keyframes ttPop { from { opacity: 1; transform: translate3d(0,0,0) rotate(var(--pr)) scale(.4); } 70% { opacity: 1; } to { opacity: 0; transform: translate3d(var(--px), var(--py), 0) rotate(var(--pr)) scale(1); } }
+/* Countdown STAGE (src/screen/stage/): an act's lines rise in once with a stagger; the paper scroll unrolls / rolls up once
+   (clip-path on the sheet + translate3d/rotateX on the lower rod, same curve); hype pops / settle / sparks / the rail flash
+   play once per change. All finite; Minimal motion and reduced motion: settled at once (the scroll just fades). */
+.m-smooth .tt-act [data-s], .m-lively .tt-act [data-s] { animation: ttSmIn 560ms cubic-bezier(.22,.7,.2,1) calc(200ms + var(--i, 0) * 90ms) both; }
+.m-smooth .tt-act-out, .m-lively .tt-act-out { animation: ttActOut 300ms ease-in both; }
+@keyframes ttActOut { to { opacity: 0; transform: translate3d(0, -10px, 0); } }
+.m-smooth .tt-page-in, .m-lively .tt-page-in { animation: ttSmIn 520ms cubic-bezier(.22,.7,.2,1) both; }
+.m-smooth .tt-digit, .m-lively .tt-digit { animation: ttDigitIn 760ms cubic-bezier(.2,.8,.2,1) calc(120ms + var(--i, 0) * 90ms) both; }
+@keyframes ttDigitIn { from { opacity: 0; transform: translate3d(0, .16em, 0); } }
+.m-smooth .tt-rule-in, .m-lively .tt-rule-in { animation: ttRuleIn 700ms cubic-bezier(.3,.7,.2,1) 380ms both; transform-origin: 50% 0; }
+@keyframes ttRuleIn { from { opacity: 0; transform: scaleY(0); } }
+.m-smooth .tt-photo-in, .m-lively .tt-photo-in { animation: ttPhotoIn 1800ms cubic-bezier(.2,.6,.2,1) both; }
+@keyframes ttPhotoIn { from { opacity: 0; transform: scale(1.06); } }
+/* The paper scroll: TRANSFORM + OPACITY only. A window slides down over the sheet (-100% -> 0) while the sheet counter-slides
+   (+100% -> 0): the paper stands still and is uncovered from the top; the lower rod travels the same distance (--rh) on the
+   same curve and clock (and is a little thicker while the paper is wound on it). Rolling up = the mirror image. */
+.m-smooth .tt-scroll, .m-lively .tt-scroll { animation: ttFadeIn 260ms ease-out both; }
+.m-smooth .tt-scroll-go .tt-scroll-win, .m-lively .tt-scroll-go .tt-scroll-win { animation: ttWinOpen var(--open) cubic-bezier(.45,.05,.15,1) 250ms both; will-change: transform; }
+.m-smooth .tt-scroll-go .tt-scroll-paper, .m-lively .tt-scroll-go .tt-scroll-paper { animation: ttPaperOpen var(--open) cubic-bezier(.45,.05,.15,1) 250ms both; will-change: transform; }
+.m-smooth .tt-scroll-go .tt-scroll-rod, .m-lively .tt-scroll-go .tt-scroll-rod { animation: ttRodDown var(--open) cubic-bezier(.45,.05,.15,1) 250ms both; will-change: transform; }
+.m-smooth .tt-scroll-opening [data-s], .m-lively .tt-scroll-opening [data-s] { animation: ttSmIn 640ms cubic-bezier(.22,.7,.2,1) calc(250ms + var(--open) * .34 + var(--i, 0) * 150ms) both; }
+.m-smooth .tt-scroll-close .tt-scroll-win, .m-lively .tt-scroll-close .tt-scroll-win { animation: ttWinClose var(--close) cubic-bezier(.55,0,.25,1) 180ms both; }
+.m-smooth .tt-scroll-close .tt-scroll-paper, .m-lively .tt-scroll-close .tt-scroll-paper { animation: ttPaperClose var(--close) cubic-bezier(.55,0,.25,1) 180ms both; }
+.m-smooth .tt-scroll-close .tt-scroll-rod, .m-lively .tt-scroll-close .tt-scroll-rod { animation: ttRodUp var(--close) cubic-bezier(.55,0,.25,1) 180ms both; }
+.m-smooth .tt-scroll-close .tt-act, .m-lively .tt-scroll-close .tt-act { animation: ttFadeOut 260ms ease-in both; }
+.m-smooth .tt-scroll.tt-scroll-close, .m-lively .tt-scroll.tt-scroll-close { animation: ttFadeOut 200ms ease-in calc(var(--close) + 60ms) both; }
+.m-minimal .tt-scroll-go .tt-scroll-box { animation: ttFadeIn 400ms linear both; }
+@keyframes ttWinOpen { from { transform: translate3d(0, -100%, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes ttPaperOpen { from { transform: translate3d(0, 100%, 0); } to { transform: translate3d(0, 0, 0); } }
+@keyframes ttRodDown { from { transform: translate3d(0, 0, 0) scaleY(1.3); } to { transform: translate3d(0, var(--rh), 0) scaleY(1); } }
+@keyframes ttWinClose { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, -100%, 0); } }
+@keyframes ttPaperClose { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, 100%, 0); } }
+@keyframes ttRodUp { from { transform: translate3d(0, var(--rh), 0) scaleY(1); } to { transform: translate3d(0, 0, 0) scaleY(1.3); } }
+.m-smooth .tt-hype-pop, .m-lively .tt-hype-pop { animation: ttHypePop var(--pop-ms, 420ms) cubic-bezier(.2,1.3,.4,1) both; }
+@keyframes ttHypePop { from { transform: scale(var(--pop-from, 1.08)); } to { transform: scale(1); } }
+.m-smooth .tt-hype-settle, .m-lively .tt-hype-settle { animation: ttHypeSettle 520ms cubic-bezier(.3,.7,.3,1) var(--settle-delay, 700ms) both; }
+@keyframes ttHypeSettle { 0% { transform: translate3d(0, 0, 0); } 30% { transform: translate3d(0, var(--settle, 3px), 0); } 100% { transform: translate3d(0, 0, 0); } }
+.tt-spark { opacity: 1; }
+.m-smooth .tt-spark, .m-lively .tt-spark { animation: ttSpark 700ms cubic-bezier(.2,.8,.3,1) calc(500ms + var(--i, 0) * 60ms) both; }
+@keyframes ttSpark { from { opacity: 0; transform: translate3d(var(--sx, 0), var(--sy, 0), 0) rotate(var(--sr)) scaleX(.2); } }
+.tt-rail-flash { opacity: 0; }
+.m-smooth .tt-rail-flash, .m-lively .tt-rail-flash { animation: ttRailFlash 1100ms ease-out both; }
+@keyframes ttRailFlash { 0% { opacity: 0; } 25% { opacity: 1; } 100% { opacity: 0; } }
 .m-smooth .tt-occ-num, .m-lively .tt-occ-num { animation: ttBdHero 700ms cubic-bezier(.2,.8,.3,1) both; }
 @keyframes ttBdFall {
   0%   { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)) rotateX(0deg); }
@@ -89,7 +135,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-adv-open, .tt-pop, .tt-occ-num { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-act-out, .tt-page-in, .tt-digit, .tt-rule-in, .tt-photo-in, .tt-scroll, .tt-scroll-win, .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-scroll .tt-act, .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }

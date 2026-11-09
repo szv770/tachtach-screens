@@ -307,6 +307,12 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   const tk = O.takeoverFor(f, new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
   assert.equal(tk.kind, 'zero'); assert.equal(tk.greeting.en, 'Gut Yom Tov!'); assert.equal(tk.until - row.begin.ms, 3 * 60000);
   assert.equal(items.find((i) => i.display === 'banner').content.headlineEn, 'Tonight: Yud-Tes Kislev · Farbrengen 8 PM, main hall');
+  // the takeover carries the same clear dates as a slide row, and the short 'why' only when it is sourced AND checked
+  assert.equal(tk.dates.toGoLabel.en, 'until it begins'); assert.equal(tk.dates.day.en, 'Sunday, November 29');
+  assert.equal(tk.why, null, 'no short why without a source + check');
+  const tkWhy = O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: true }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
+  assert.equal(tkWhy.why.en, 'A short line.'); assert.equal(tkWhy.why.source, 'Chabad.org');
+  assert.equal(O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: false }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true }).why, null, 'unchecked text never reaches a takeover');
   items = O.occasionItems(f, new Date(row.begin.ms + 5 * 60000), NY, { slideOn: true });
   assert.deepEqual(items.map((i) => i.display), ['banner']);
   // per occasion switch, global switches, and no takeover on an approximate time
@@ -537,7 +543,7 @@ test('stageText: milestone line > stage line > global > built-in; own beats glob
 test('look and layout resolve defaults < global < own, field by field, on every slideModel row', () => {
   const r0 = O.slideModel(file([DINNER]), at('2026-12-11T17:00:00Z'), NY).rows[0];
   assert.deepEqual(r0.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
-  assert.deepEqual(r0.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(r0.layout.scale, 100); assert.equal(r0.layout.side, 'left'); assert.equal(r0.layout.align, 'start');
+  assert.deepEqual(r0.layout.order, ['name', 'date', 'begins', 'why', 'event']); assert.equal(r0.layout.scale, 100); assert.equal(r0.layout.side, 'left'); assert.equal(r0.layout.align, 'start');
   assert.ok(O.LAYOUT_SPEC.show.every((k) => r0.layout.show[k] === true));
   const g = { look: { accent: '#112233', dim: 40, numeralsFont: 'Rubik' }, layout: { show: { ring: false, bar: false }, scale: 90, side: 'right', order: ['date', 'name'] } };
   const own = { look: { accent: '#AABBCC', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg' }, layout: { show: { ring: true }, scale: 110 } };
@@ -545,7 +551,7 @@ test('look and layout resolve defaults < global < own, field by field, on every 
   assert.deepEqual(r.look, { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 40, numeralsFont: 'Rubik' });
   assert.equal(r.layout.show.ring, true); assert.equal(r.layout.show.bar, false); assert.equal(r.layout.show.name, true);
   assert.equal(r.layout.scale, 110); assert.equal(r.layout.side, 'right'); assert.equal(r.layout.align, 'start');
-  assert.deepEqual(r.layout.order, ['date', 'name', 'begins', 'event'], 'a subset keeps the other parts after it');
+  assert.deepEqual(r.layout.order, ['date', 'name', 'begins', 'why', 'event'], 'a subset keeps the other parts after it');
   // an own empty accent means "none", whatever the default says
   assert.equal(O.slideModel(file([{ ...DINNER, look: { accent: '' } }], g), at('2026-12-11T17:00:00Z'), NY).rows[0].look.accent, '');
   // the takeover carries the same resolved look
@@ -561,7 +567,7 @@ test('normalisers: limits, bad values dropped, defaults safe; the document stays
   assert.equal([...s.stageText.days.en].length, O.LIMITS.stageLine); assert.equal(s.stageText.days.he, 'a b'); assert.ok(!('nope' in s.stageText));
   assert.deepEqual(Object.keys(s.milestoneText), ['7']);
   assert.deepEqual(s.look, { accent: '', photo: '', dim: 60, numeralsFont: '' });
-  assert.equal(s.layout.scale, 100); assert.equal(s.layout.side, 'left'); assert.deepEqual(s.layout.order, ['name', 'date', 'begins', 'event']); assert.equal(s.layout.show.ring, true); assert.equal(s.layout.show.bar, false); assert.ok(!('evil' in s.layout.show));
+  assert.equal(s.layout.scale, 100); assert.equal(s.layout.side, 'left'); assert.deepEqual(s.layout.order, ['name', 'date', 'begins', 'why', 'event']); assert.equal(s.layout.show.ring, true); assert.equal(s.layout.show.bar, false); assert.ok(!('evil' in s.layout.show));
   assert.deepEqual(O.normalizeSettings({}).milestones, [30, 14, 7, 3, 2, 1]);
   assert.deepEqual(O.normalizeSettings({ milestones: [] }).milestones, [], 'an empty list is allowed (none)');
   assert.equal(O.normalizeMilestones(Array.from({ length: 40 }, (_, i) => i + 1), []).length, O.LIMITS.milestones);
@@ -569,11 +575,11 @@ test('normalisers: limits, bad values dropped, defaults safe; the document stays
   assert.equal(o.milestoneOn, null); assert.equal(o.finalOn, false); assert.deepEqual(o.milestones, [3]);
   assert.deepEqual(o.look, { dim: 70 }); assert.deepEqual(o.layout, { align: 'center' });
   assert.equal(O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 } }).milestones, null);
-  // the worst legal document is far below the 200 kB cap
+  // the worst legal document is far below the 240 kB cap
   const full = { stageText: Object.fromEntries(O.STAGES.map((k) => [k, { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])), milestoneText: Object.fromEntries(Array.from({ length: 12 }, (_, i) => [String(i + 1), { en: 'x'.repeat(60), he: 'ש'.repeat(60) }])) };
   assert.equal(Object.keys(O.normalizeMilestoneText(Object.fromEntries(Array.from({ length: 40 }, (_, i) => [String(i + 1), { en: 'x' }])))).length, O.LIMITS.milestoneTexts);
   // the starters, each with every own block filled to its limit, plus the global blocks: still far below the cap
-  const big = O.normalizeFile({ settings: full, occasions: O.STARTERS.map((st, i) => ({ id: `i${i}`, nameEn: `n${i}`, nameHe: 'ש'.repeat(60), rule: st.rule, explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full, milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], look: { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 50, numeralsFont: 'x'.repeat(60) }, layout: { order: ['name', 'date', 'begins', 'event'], show: Object.fromEntries(O.LAYOUT_SPEC.show.map((k) => [k, false])), scale: 100, side: 'left', align: 'start' } })) });
+  const big = O.normalizeFile({ settings: full, occasions: O.STARTERS.map((st, i) => ({ id: `i${i}`, nameEn: `n${i}`, nameHe: 'ש'.repeat(60), rule: st.rule, explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full, milestones: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], look: { accent: '#aabbcc', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.jpg', dim: 50, numeralsFont: 'x'.repeat(60) }, layout: { order: ['name', 'date', 'begins', 'why', 'event'], show: Object.fromEntries(O.LAYOUT_SPEC.show.map((k) => [k, false])), scale: 100, side: 'left', align: 'start' } })) });
   assert.ok(O.fileBytes(big) < O.LIMITS.file, `${O.fileBytes(big)} bytes`);
   // the absolute worst case is caught by the store's cap (occasionsStore.mutate), not by the normaliser
   const worst = O.normalizeFile({ occasions: Array.from({ length: 80 }, (_, i) => ({ id: `w${i}`, nameEn: 'n', rule: { kind: 'hebrew', month: 9, day: 1 }, explainHe: 'ש'.repeat(600), explainEn: 'y'.repeat(600), source: 's'.repeat(140), ...full })) });
@@ -593,7 +599,7 @@ test('strict checks: settings and occasion patches refuse unknown keys and out-o
     { layout: { scale: 79 } }, { layout: { scale: 126 } }, { layout: { side: 'top' } }, { layout: { align: 'end' } }, { layout: { order: ['name', 'name'] } }, { layout: { order: ['tagline'] } }, { layout: { show: { ring: 'yes' } } }, { layout: { show: { wings: true } } }, { layout: { bogus: 1 } }, { layout: 5 },
   ]) bad(patch);
   const ok = O.setSettings(f, { milestones: [10, 5], milestoneMinutes: 3, milestoneEveryMinutes: 30, milestoneFrom: '08:00', milestoneTo: '20:30', look: { accent: '#c9a24b', dim: 70, numeralsFont: 'Rubik', photo: '/uploads/0a1b2c3d-1111-2222-3333-444455556666.png' }, layout: { show: { tagline: false }, order: ['date'], scale: 120, side: 'right', align: 'center' }, stageText: { far: { en: 'Soon', he: 'בקרוב' } }, milestoneText: { 10: { en: 'Ten!', he: '' } } });
-  assert.deepEqual(ok.settings.milestones, [10, 5]); assert.equal(ok.settings.layout.show.tagline, false); assert.deepEqual(ok.settings.layout.order, ['date', 'name', 'begins', 'event']);
+  assert.deepEqual(ok.settings.milestones, [10, 5]); assert.equal(ok.settings.layout.show.tagline, false); assert.deepEqual(ok.settings.layout.order, ['date', 'name', 'begins', 'why', 'event']);
   assert.equal(ok.settings.look.accent, '#c9a24b'); assert.equal(ok.settings.stageText.far.en, 'Soon'); assert.equal(ok.settings.milestoneText[10].en, 'Ten!');
   // occasions: same strictness
   const addBad = (o) => assert.throws(() => O.addOccasion(f, { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, ...o }), O.OccasionsError, JSON.stringify(o).slice(0, 80));
@@ -611,7 +617,7 @@ test('explanation: needs text, a source AND an explicit check; editing text or s
   assert.equal(O.explainShows(e()), false); assert.equal(O.explainState(e()), 'needsCheck'); assert.equal(O.EXPLAIN_CHIP.needsCheck, 'Needs checking');
   assert.match(O.explainWhy(e()), /Hidden until you check it/);
   f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
-  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Checked/);
+  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Shows on the screen/);
   f = O.updateOccasion(f, 'e', { eventEn: 'Hall' }).file; assert.equal(e().explainChecked, true, 'an unrelated edit keeps the check');
   f = O.updateOccasion(f, 'e', { explainEn: 'Changed.' }).file; assert.equal(e().explainChecked, false, 'text changed');
   f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
@@ -824,4 +830,170 @@ test('uploads cleanup keeps advent photos too', async () => {
   const { uploadFilesFromOccasions } = await import('../src/shared/uploadRefs.js');
   const refs = uploadFilesFromOccasions({ occasions: [{ advent: { photo: '/uploads/aaaaaaaa-1111-2222-3333-000000000001.jpg', daily: { 3: { photo: '/uploads/bbbbbbbb-1111-2222-3333-000000000002.png' } } } }] });
   assert.deepEqual(refs.sort(), ['aaaaaaaa-1111-2222-3333-000000000001', 'bbbbbbbb-1111-2222-3333-000000000002']);
+});
+
+// ── clear dates, short why, collections, views, share text, today ───────────
+
+const YT = { id: 'yt', nameEn: 'Yud-Tes Kislev', nameHe: 'י״ט כסלו', rule: { kind: 'hebrew', month: 9, day: 19 } };
+const NOW1 = at('2026-11-08T15:00:00Z'); // Sunday 8 Nov 2026 10:00 New York
+
+test('dates: the DAY, the evening it BEGINS, the time, and the words after the number (English and Hebrew)', () => {
+  const m = O.slideModel(file([YT]), NOW1, NY).rows[0];
+  assert.deepEqual(m.dates.day, { en: 'Sunday, November 29', he: 'יום ראשון, 29 בנובמבר' });
+  assert.equal(m.dates.dayRange, null);
+  assert.deepEqual(m.dates.hebrew, { en: '19 Kislev 5787', he: 'י״ט כסלו תשפ״ז' });
+  assert.deepEqual(m.dates.beginsLine, { en: 'Begins Saturday evening', he: 'מתחיל ביום שבת בערב' });
+  assert.match(m.dates.beginsAt.en, /^Shkia \d{1,2}:\d{2} PM$/); assert.match(m.dates.beginsAt.he, /^שקיעה \d{2}:\d{2}$/);
+  assert.deepEqual(m.dates.toGoLabel, { en: 'until it begins', he: 'עד שמתחיל' });
+  // a multi-day one has a range; midnight has no time and says 'to go'
+  const ch = O.slideModel(file([{ id: 'c', nameEn: 'Chanukah', rule: { kind: 'hebrew', month: 9, day: 25 }, days: 8, beginsAt: 'midnight' }]), at('2026-11-30T15:00:00Z'), { ...NY }).rows[0];
+  assert.deepEqual(ch.dates.dayRange, { en: 'Dec 5 – Dec 12', he: '5 בדצמבר – 12 בדצמבר' });
+  assert.equal(ch.dates.beginsAt, null); assert.deepEqual(ch.dates.toGoLabel, { en: 'to go', he: 'עוד' }); assert.equal(ch.dates.beginsLine.en, 'Begins Saturday');
+  // today / tonight; approximate times carry the tilde; the Language setting empties a language
+  const tonight = O.slideModel(file([YT]), at('2026-11-28T15:00:00Z'), NY).rows[0];
+  assert.equal(tonight.dates.beginsLine.en, 'Begins tonight'); assert.equal(tonight.dates.beginsLine.he, 'מתחיל הערב');
+  const approx = O.slideModel(file([YT]), NOW1, { tz: 'America/New_York', loc: null, zmanim: null, fresh: false }).rows[0];
+  assert.match(approx.dates.beginsAt.en, /~/);
+  const en = O.slideModel(file([YT], { language: 'english' }), NOW1, NY).rows[0];
+  assert.equal(en.dates.day.he, ''); assert.equal(en.dates.hebrew.he, '');
+});
+
+test('why: the short line shares the source and the check with the long story; hidden copies carry neither', () => {
+  const base = { ...YT, explainShortEn: 'Short line.', explainShortHe: 'שורה קצרה.' };
+  const row = (o, st) => O.slideModel(file([{ ...base, ...o }], st), NOW1, NY).rows[0];
+  assert.equal(row({}).why, null, 'no source');
+  assert.equal(row({ source: 'Sefer X p. 1' }).why, null, 'not checked');
+  assert.deepEqual(row({ source: 'Sefer X p. 1', explainChecked: true }).why, { en: 'Short line.', he: 'שורה קצרה.', source: 'Sefer X p. 1' });
+  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { credit: false }).why.source, '');
+  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { explain: false }).why, null);
+  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { language: 'hebrew' }).why.en, '');
+  assert.equal(row({ source: 'ab', explainChecked: true }).why, null, 'a source needs 3+ characters');
+  // short only (no long text) still counts for the state and the check
+  const f = O.updateOccasion(O.addOccasion(O.normalizeFile(null), { ...YT, nameEn: 'N', explainShortEn: 'S' }).file, O.normalizeFile(null).occasions.length ? undefined : undefined, {});
+  assert.equal(f, null);
+  let g = O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: YT.rule, explainShortEn: 'S', source: 'Sefer Z', explainChecked: true });
+  assert.equal(g.occasion.explainChecked, true); assert.equal(O.explainState(g.occasion), 'shows');
+  const id = g.occasion.id; g = g.file;
+  g = O.updateOccasion(g, id, { explainShortEn: 'S2' }).file; assert.equal(g.occasions.find((o) => o.id === id).explainChecked, false, 'editing the short line un-checks');
+  g = O.updateOccasion(g, id, { explainShortHe: 'ש', explainChecked: true }).file; assert.equal(g.occasions.find((o) => o.id === id).explainChecked, true);
+  // 160 characters, one paragraph, strict
+  assert.match(O.occasionProblem({ ...YT, explainShortEn: 'x'.repeat(161) }), /160/);
+  assert.equal(O.occasionProblem({ ...YT, explainShortEn: 'x'.repeat(160) }), null);
+  assert.equal(O.normalizeOccasion({ ...YT, explainShortEn: 'a\nb\n  c' }).explainShortEn, 'a b c');
+  // what leaves the server: unchecked short text is stripped, checked stays
+  const k = O.forKiosk(file([{ ...base, id: 'h' }, { ...base, id: 'v', source: 'Sefer Q', explainChecked: true }]));
+  assert.equal(k.occasions.find((o) => o.id === 'h').explainShortEn, ''); assert.equal(k.occasions.find((o) => o.id === 'v').explainShortEn, 'Short line.');
+  assert.equal(O.forViewer(file([{ ...base, id: 'h' }])).occasions[0].explainShortHe, '');
+  // layout: 'why' is a part, shown by default, in the default order
+  assert.ok(O.LAYOUT_SPEC.show.includes('why') && O.LAYOUT_DEFAULTS.show.why === true); assert.deepEqual(O.LAYOUT_DEFAULTS.order, ['name', 'date', 'begins', 'why', 'event']);
+  assert.equal(O.occasionProblem({ ...YT, layout: { show: { why: false }, order: ['why', 'name'] } }), null);
+});
+
+test("Claude's reply splits into the short line, the story and the source", () => {
+  const r = O.parseClaudeReply('Short English: **One line.**\nShort Hebrew: שורה\nLong English: First para\nsecond line\nLong Hebrew: I am not sure\nSource: Likutei Sichos 1 p. 5 https://www.chabad.org/x\nNot sure about: the year');
+  assert.deepEqual(r.fields, { explainShortEn: 'One line.', explainShortHe: 'שורה', explainEn: 'First para\nsecond line', source: 'Likutei Sichos 1 p. 5 https://www.chabad.org/x' });
+  assert.equal(r.notSure, 'the year'); assert.equal(r.found, 6); assert.equal(r.shortTooLong, false);
+  const old = O.parseClaudeReply('English: Old long\nHebrew: ישן\nSource: S1 p2');
+  assert.equal(old.fields.explainEn, 'Old long'); assert.equal(old.fields.explainHe, 'ישן');
+  assert.equal(O.parseClaudeReply('Short English: ' + 'x'.repeat(200)).shortTooLong, true);
+  assert.equal(O.parseClaudeReply('just some chatter').found, 0); assert.equal(O.parseClaudeReply('').found, 0); assert.equal(O.parseClaudeReply(null).found, 0);
+  assert.deepEqual(O.parseClaudeReply('Source: nothing').fields, {}, '"nothing" is empty');
+  { const pr = O.vortPrompt({ nameEn: 'X', startISO: '2026-11-29' }); assert.match(pr, /Short English:[\s\S]*Long English:[\s\S]*Source:/); assert.ok(pr.includes('I am not sure') && pr.includes('160') && pr.includes('Chabad.org')); }
+});
+
+test('Shabbos move field is strict and survives a round trip', () => {
+  assert.equal(O.occasionProblem({ ...YT, shabbos: 'monday' }) !== null, true);
+  assert.equal(O.normalizeOccasion({ ...YT, shabbos: 'sunday' }).shabbos, 'sunday'); assert.equal(O.normalizeOccasion({ ...YT, shabbos: 'zzz' }).shabbos, 'stay');
+});
+
+test('collections: starters, unknown values, and the Countdown can run one collection only', () => {
+  const f = O.normalizeFile(null);
+  const cat = (key) => f.occasions.find((o) => o.starter === key).category;
+  assert.equal(cat('yud-tes-kislev'), 'chabad'); assert.equal(cat('pesach'), 'yomtov'); assert.equal(cat('rc-kislev'), 'roshChodesh');
+  assert.equal(O.normalizeOccasion({ ...YT, category: 'nonsense' }).category, 'custom'); assert.equal(O.normalizeOccasion({ ...YT }).category, 'custom');
+  assert.equal(O.normalizeOccasion({ ...YT, starter: 'purim' }).category, 'yomtov', 'an old stored starter follows its starter');
+  assert.equal(O.occasionProblem({ ...YT, category: 'x' }) !== null, true);
+  assert.deepEqual(O.normalizeFile({ settings: { showCategories: ['chabad', 'bogus', 'chabad'] }, occasions: [] }).settings.showCategories, ['chabad']);
+  assert.deepEqual(O.normalizeSettings({}).showCategories, [...O.CATEGORIES]);
+  assert.match(O.settingsProblem({ showCategories: ['x'] }), /kinds/);
+  // 'Chabad days only': the nearest, the coming-up strip, the rail card and the takeovers skip the other collections
+  const two = O.normalizeFile({ settings: { showCategories: ['chabad'], comingUpDays: 400, withinDays: 400 }, occasions: [
+    { id: 'p', nameEn: 'Purim-ish', rule: { kind: 'hebrew', month: 9, day: 12 }, category: 'yomtov' },
+    { id: 'c', nameEn: 'Chabad day', rule: { kind: 'hebrew', month: 9, day: 19 }, category: 'chabad' }] });
+  const m = O.slideModel(two, NOW1, NY);
+  assert.equal(m.rows[0].id, 'c'); assert.ok(!m.coming.some((x) => x.key.startsWith('p|')));
+  const all = O.slideModel(O.normalizeFile({ ...two, settings: { ...two.settings, showCategories: [...O.CATEGORIES] } }), NOW1, NY);
+  assert.equal(all.rows[0].id, 'p');
+  const railNow = at('2026-11-19T15:00:00Z'); // 3 days before 12 Kislev (the yomtov one)
+  assert.equal(O.occasionItems(two, railNow, NY, { slideOn: true }).filter((i) => i.id.includes('-p-')).length, 0);
+  assert.ok(O.occasionItems(O.normalizeFile({ ...two, settings: { ...two.settings, showCategories: [...O.CATEGORIES] } }), railNow, NY, { slideOn: true }).some((i) => i.id.includes('-p-')));
+  const tkDoc = (cats) => O.normalizeFile({ settings: { showCategories: cats }, occasions: [{ id: 'p', nameEn: 'P', rule: { kind: 'hebrew', month: 9, day: 12 }, category: 'yomtov' }] });
+  assert.equal(O.takeoverFor(tkDoc(['chabad']), railNow, { ...NY, slideOn: true }), null);
+  assert.equal(O.takeoverFor(tkDoc([...O.CATEGORIES]), railNow, { ...NY, slideOn: true })?.kind, 'milestone');
+  assert.deepEqual(O.slideModel(O.normalizeFile({ settings: { showCategories: [] }, occasions: [{ id: 'c', nameEn: 'C', rule: { kind: 'hebrew', month: 9, day: 19 } }] }), NOW1, NY).rows, []);
+});
+
+test('countdown views: tap forms and automatic rotation, settings and per occasion, strict', () => {
+  const s = O.normalizeSettings({});
+  assert.deepEqual(s.tapForms, ['days', 'daysFraction', 'hours', 'flip']); assert.deepEqual(s.autoForms, { on: false, seconds: 15 });
+  assert.deepEqual(O.normalizeSettings({ tapForms: ['sleeps', 'bogus', 'sleeps', 'percent'] }).tapForms, ['sleeps', 'percent']);
+  assert.deepEqual(O.normalizeSettings({ tapForms: [] }).tapForms, ['days', 'daysFraction', 'hours', 'flip'], 'empty = the default');
+  assert.deepEqual(O.normalizeSettings({ autoForms: { on: true, seconds: 5 } }).autoForms, { on: true, seconds: 15 }, 'out of range seconds = the default');
+  for (const bad of [{ tapForms: [] }, { tapForms: ['x'] }, { tapForms: ['days', 'days'] }, { tapForms: 'days' }, { autoForms: { seconds: 7 } }, { autoForms: { seconds: 61 } }, { autoForms: { on: 'yes' } }, { autoForms: { x: 1 } }, { autoForms: 3 }]) assert.notEqual(O.settingsProblem(bad), null, JSON.stringify(bad));
+  assert.equal(O.settingsProblem({ tapForms: ['percent', 'days'], autoForms: { on: true, seconds: 8 } }), null);
+  assert.equal(O.normalizeOccasion({ ...YT, tapForms: ['hours'], autoForms: { on: true } }).autoForms.on, true);
+  assert.equal(O.normalizeOccasion({ ...YT, tapForms: [] }).tapForms, null); assert.equal(O.normalizeOccasion({ ...YT, autoForms: {} }).autoForms, null);
+  assert.notEqual(O.occasionProblem({ ...YT, tapForms: ['x'] }), null); assert.notEqual(O.occasionProblem({ ...YT, autoForms: { seconds: 2 } }), null); assert.equal(O.occasionProblem({ ...YT, tapForms: null, autoForms: null }), null);
+  // the rows carry the resolved views
+  const r = O.slideModel(file([{ ...YT, tapForms: ['sleeps', 'hours'], autoForms: { on: true } }], { autoForms: { on: false, seconds: 20 } }), NOW1, NY).rows[0];
+  assert.deepEqual(r.forms, ['sleeps', 'hours']); assert.deepEqual(r.autoForms, { on: true, seconds: 20 });
+  const d = O.slideModel(file([YT]), NOW1, NY).rows[0]; assert.deepEqual(d.forms, ['days', 'daysFraction', 'hours', 'flip']); assert.deepEqual(d.autoForms, { on: false, seconds: 15 });
+  // the words of each view
+  const row = O.pickFor(file([YT]), NOW1, NY).rows[0];
+  const fw = (f, n = NOW1) => O.formWords(f, row, n, O.SETTINGS_DEFAULTS, '2026-11-08');
+  assert.equal(fw('days').big, '20'); assert.match(fw('daysFraction').big, /^20[¼½¾]?$/); assert.equal(fw('days').unit.en, 'days');
+  assert.equal(fw('hours').big, String(Math.floor((row.begin.ms - NOW1.getTime()) / 3600000))); assert.equal(fw('sleeps').big, '20'); assert.match(fw('percent').big, /^\d+%$/); assert.equal(fw('flip'), null);
+  assert.equal(O.formWords('days', row, new Date(row.begin.ms + 1000), O.SETTINGS_DEFAULTS), null, 'nothing once it has begun');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (1.25 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '1¼');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (0.5 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '½');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - 3600000), O.SETTINGS_DEFAULTS), null);
+  for (const f of O.TAP_FORMS) assert.ok(O.TAP_FORM_EXAMPLE[f] && O.TAP_FORM_LABEL[f]);
+});
+
+test('share text: count, the day, the Hebrew date, when it begins; the why line only when it shows; no emoji unless asked', () => {
+  const row = O.pickFor(file([YT]), NOW1, NY).rows[0];
+  const opt = { settings: O.normalizeSettings({}), now: NOW1, tz: NY.tz, today: '2026-11-08' };
+  const en = O.shareText(row, { ...opt, lang: 'en' });
+  assert.match(en, /^\d+[¼½¾]? days until Yud-Tes Kislev \(Sunday, November 29 · 19 Kislev 5787\) — begins Saturday evening$/);
+  assert.ok(!/[⭐\u{1F300}-\u{1FAFF}]/u.test(en));
+  const he = O.shareText(row, { ...opt, lang: 'he' });
+  assert.match(he, /^עוד .+ ליום? ?י״ט כסלו|^עוד .+ ל/); assert.ok(he.includes('יום ראשון, 29 בנובמבר') && he.includes('י״ט כסלו תשפ״ז') && he.includes('מתחיל ביום שבת בערב'));
+  assert.equal(O.shareText(row, { ...opt, lang: 'both' }).split('\n\n').length, 2);
+  assert.ok(O.shareText(row, { ...opt, emoji: true }).startsWith('⭐ '));
+  const withWhy = (o) => O.pickFor(file([{ ...YT, explainShortEn: 'Short line.', ...o }]), NOW1, NY).rows[0];
+  assert.ok(!O.shareText(withWhy({}), opt).includes('Short line'), 'hidden: no source');
+  assert.ok(!O.shareText(withWhy({ source: 'Sefer X p. 1' }), opt).includes('Short line'), 'hidden: not checked');
+  const shown = O.shareText(withWhy({ source: 'Sefer X p. 1', explainChecked: true }), opt);
+  assert.ok(shown.endsWith('\nShort line. (Source: Sefer X p. 1)'));
+  assert.ok(!O.shareText(withWhy({ source: 'Sefer X p. 1', explainChecked: true }), { ...opt, settings: O.normalizeSettings({ credit: false }) }).includes('Source:'));
+  // on now, and hours / minutes close to it
+  const on = O.pickFor(file([YT]), at('2026-11-29T15:00:00Z'), NY).rows[0];
+  assert.match(O.shareText(on, { ...opt, now: at('2026-11-29T15:00:00Z'), today: '2026-11-29' }), /^Yud-Tes Kislev is on now \(/);
+  const close = O.shareText(row, { ...opt, now: new Date(row.begin.ms - 5 * 3600000 - 60000), today: '2026-11-28' });
+  assert.match(close, /^[45]½? hours? until|^4 hours until|^5 hours until|^\d+ hours until/);
+  // this week's days
+  const wk = O.weekShareText(file([YT, { id: 'far', nameEn: 'Far', rule: { kind: 'hebrew', month: 1, day: 15 } }]), at('2026-11-25T15:00:00Z'), NY, { lang: 'en' });
+  assert.ok(wk.startsWith('This week:\n• Yud-Tes Kislev — Sunday, November 29') && !wk.includes('Far'));
+  assert.equal(O.weekShareText(file([YT]), NOW1, NY), 'No special days this week.');
+  assert.ok(O.weekShareText(file([YT]), at('2026-11-25T15:00:00Z'), NY, { lang: 'both' }).includes('השבוע'));
+});
+
+test("'Today' block for the TV: Hebrew date, weekday, the days running now (day k of n)", () => {
+  const f = file([{ id: 'c', nameEn: 'Chanukah', nameHe: 'חנוכה', rule: { kind: 'hebrew', month: 9, day: 25 }, days: 8 }, YT]);
+  const t0 = O.slideModel(f, NOW1, NY).today;
+  assert.deepEqual(t0.hebrew, { en: '28 Cheshvan 5787', he: 'כ״ח חשון תשפ״ז' }); assert.deepEqual(t0.weekday, { en: 'Sunday', he: 'יום ראשון' }); assert.deepEqual(t0.occasionsToday, []);
+  const t1 = O.slideModel(f, at('2026-12-07T17:00:00Z'), NY).today; // Monday 7 Dec, noon: day 3 of Chanukah
+  assert.equal(t1.occasionsToday.length, 1); assert.deepEqual(t1.occasionsToday[0].name, { en: 'Chanukah', he: 'חנוכה' }); assert.deepEqual(t1.occasionsToday[0].dayIndex, { k: 3, n: 8 });
+  const t2 = O.slideModel(file([YT], { language: 'english' }), at('2026-11-29T17:00:00Z'), NY).today;
+  assert.equal(t2.occasionsToday[0].name.he, ''); assert.equal(t2.weekday.he, ''); assert.equal(t2.occasionsToday[0].dayIndex, null);
 });

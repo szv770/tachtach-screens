@@ -14,14 +14,14 @@ test('milestone chips: add / remove with plain-English errors, biggest first, ca
 });
 
 test('order list: up/down buttons and drag and drop never lose or repeat a part', () => {
-  const o = ['name', 'date', 'begins', 'event'];
-  assert.deepEqual(H.moveItem(o, 1, -1), ['date', 'name', 'begins', 'event']);
-  assert.deepEqual(H.moveItem(o, 3, 1), o); assert.deepEqual(H.moveItem(o, 0, -1), o);
-  assert.deepEqual(H.reorder(o, 0, 2), ['date', 'begins', 'name', 'event']);
-  assert.deepEqual(H.reorder(o, 3, 0), ['event', 'name', 'date', 'begins']);
+  const o = ['name', 'date', 'begins', 'why', 'event'];
+  assert.deepEqual(H.moveItem(o, 1, -1), ['date', 'name', 'begins', 'why', 'event']);
+  assert.deepEqual(H.moveItem(o, 4, 1), o); assert.deepEqual(H.moveItem(o, 0, -1), o);
+  assert.deepEqual(H.reorder(o, 0, 2), ['date', 'begins', 'name', 'why', 'event']);
+  assert.deepEqual(H.reorder(o, 4, 0), ['event', 'name', 'date', 'begins', 'why']);
   assert.deepEqual(H.reorder(o, 1, 1), o); assert.deepEqual(H.reorder(o, 9, 0), o);
-  assert.deepEqual(H.fullOrder(['event']), ['event', 'name', 'date', 'begins']);
-  for (const p of [H.reorder(o, 0, 3), H.moveItem(o, 2, 1)]) assert.deepEqual([...p].sort(), [...o].sort());
+  assert.deepEqual(H.fullOrder(['event']), ['event', 'name', 'date', 'begins', 'why']);
+  for (const p of [H.reorder(o, 0, 4), H.moveItem(o, 2, 1)]) assert.deepEqual([...p].sort(), [...o].sort());
 });
 
 test('follow the default: layout, look and lines drop a field instead of writing a copy of the default', () => {
@@ -42,7 +42,7 @@ test('explanation chip and the auto un-check on edits', () => {
   assert.deepEqual(H.explainChip({}), { text: 'No explanation', tone: 'none' });
   assert.equal(H.explainChip({ explainEn: 'x', source: '' }).text, 'Needs checking');
   assert.equal(H.explainChip({ explainEn: 'x', source: 'abc' }).text, 'Needs checking');
-  assert.deepEqual(H.explainChip({ explainEn: 'x', source: 'abc', explainChecked: true }), { text: 'Checked – shows on the screen', tone: 'ok' });
+  assert.deepEqual(H.explainChip({ explainEn: 'x', source: 'abc', explainChecked: true }), { text: 'Shows on the screen', tone: 'ok' });
   const d = { explainEn: 'a', explainHe: '', source: 'abc', explainChecked: true };
   assert.deepEqual(H.onExplainEdit(d, { explainEn: 'a' }), { explainEn: 'a' }, 'same text: still checked');
   assert.deepEqual(H.onExplainEdit(d, { explainEn: 'b' }), { explainEn: 'b', explainChecked: false });

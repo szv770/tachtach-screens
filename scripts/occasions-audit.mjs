@@ -15,7 +15,19 @@
  * display fonts (Rubik, Frank Ruhl Libre, Suez One); the flip display; a count-up; the advent grid with and without a photo
  * (+ today's step page, + tiles opened today fade once); takeovers (milestone, final minute with tabular seconds, zero);
  * live moments (burst, shout-out, ten); a tap pop; text contrast over a white and a black photo in a dark and a light theme.
- * Exit code 1 on any failed check.
+ * DATES + WHY (owner 2026-11: 'what the date is, why it is special'): rows that carry `dates` (the day, its Hebrew date, 'Begins
+ * Saturday evening', the zman, 'until it begins') and `why` (a short sourced line): the day block, the begins block, the why block
+ * (label, fitted text >= 28 px, muted source line) in the order date > begins > why > event, the day count that reads 'DAYS UNTIL IT
+ * BEGINS' (never 'days to go' next to an evening start), the day view's hero line, the milestone takeover's quiet line (dropped, not
+ * clipped, when crowded), 160-character worst cases in both languages, three Hebrew fonts, light + dark contrast at 4.5:1.
+ * STAGE (2026-11 redesign): one mounted Stage with acts (main = hero, facts = the day, why, vort = story, step, coming), a
+ * persistent rail, a shared number + name, the flagship paper-scroll reveal and hype levels 0-5. The dates now live in the facts
+ * act, the why in its own (scroll) act; checks wait for the act they need. Each act: <= 5 [data-occ-block] blocks.
+ * 2026-11-09: every act after the hero sits on ONE scroll that opens once and closes once (transform only); long texts are
+ * paged on it, never cut; the hero's 'Begins' line and the facts are checked per occasion (not only Yud-Tes Kislev).
+ * The model emits `dates` / `why` / `forms` / `today` itself (src/shared/occasions.js): the fixtures only set the occasion's INPUTS
+ * (explainShortEn/He + source + explainChecked). Exception: the milestone TAKEOVER's quiet why line needs takeoverFor() to carry
+ * `why` / `dates` (it does not yet); those cases inject them through window.__OCC_FX and only WARN when the build ignores it.
  */
 import { createRequire } from 'module';
 const require = createRequire('/opt/node-tools/');
@@ -29,6 +41,8 @@ const BASE = args.find((a) => a.startsWith('http')) || 'http://localhost:3100';
 const SHOTS = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : null;
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const QUICK = args.includes('--quick');
+const CANVAS = args.includes('--canvas') ? args[args.indexOf('--canvas') + 1] : null; // land | port | 4k: run one canvas (parallel shards)
+const PART = args.includes('--part') ? args[args.indexOf('--part') + 1].split('/').map(Number) : null; // N/M: every M-th case
 const fails = []; let checks = 0;
 const check = (name, ok, info = '') => { checks++; if (!ok) fails.push(`${name} ${info}`); console.log(`${ok ? 'ok  ' : 'FAIL'} ${name} ${ok ? '' : String(info).replace(/\s+/g, ' ').slice(0, 220)}`); };
 
@@ -56,6 +70,22 @@ const RUN = { id: 'run', nameEn: 'Mivtza Chanukah', nameHe: 'מבצע חנוכה
   // the stored (normalised) shape the server sends: a one-time 8-day occasion from 1 Nov 2026
   rule: { kind: 'gregorian', month: 11, day: 1 }, repeat: 'once', year: 2026, days: 8 };
 const ADV = (photo) => ({ ...YT, id: 'adv', advent: { on: true, photo, grid: '4x3', daily: { 7: { en: 'Learn one chapter of Tanya with a friend today.', he: 'ללמוד פרק תניא עם חבר', source: 'Hayom Yom, 19 Kislev', checked: true } } } });
+// ── dates + why fixtures: the occasion INPUTS (the model derives `dates`, `why`, `forms`, `today` from them) ──
+const WORDS_EN = 'A short line about why this day matters to us and why the whole yeshiva celebrates it together every single year without fail';
+const WORDS_HE = 'משפט קצר על כך שהיום הזה חשוב לנו ועל כך שכל הישיבה חוגגת אותו יחד מדי שנה בלי יוצא מן הכלל ובשמחה גדולה מאוד של כולם';
+const pad = (t, n) => { let o = t; while ([...o].length < n) o += ` ${t}`; return [...o].slice(0, n).join('').trim(); };
+const WHY_S = { en: 'A short line about why this day matters to us.', he: 'משפט קצר על כך שהיום הזה חשוב לנו.', source: 'Sefer Sample, page 120' };
+const WHY_L = { en: pad(WORDS_EN, 160), he: pad(WORDS_HE, 160), source: SRC };
+const W = (o, w = WHY_S) => ({ ...o, explainShortEn: w.en, explainShortHe: w.he, source: w.source, explainChecked: true });
+const RCw = W(RC); const YTw = W(YT); const CHw = W(CH);
+const BIGw = W(BIG, WHY_L);
+// the day / last-day views also carry the 120-character event line: with 60-character names AND a 160+160 why AND a range that is more than a
+// 1600x900 panel holds, so those cases use a normal event line (the all-at-once worst case degrades instead: see the hand-off)
+const BIGs = { ...BIGw, eventEn: 'Farbrengen 8 PM, main hall', eventHe: 'התוועדות 8 בערב' }; const BIG_COw = (i) => W(BIG_CO(i), WHY_L);
+// takeover only (the takeover result does not carry why / dates yet): injected on the page, see the header
+const FX_TK = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_S } } };
+const FX_TK_W = { six: { dates: { toGoLabel: { en: 'until it begins', he: 'עד שמתחיל' } }, why: { ...WHY_L } } };
+const warn = (name, ok, info = '') => { if (ok) check(name, true); else { console.log(`WARN ${name} ${String(info).slice(0, 120)}`); } };
 const doc = (occasions, settings = {}) => ({ version: 1, settings: { withinDays: 30, ...settings }, occasions });
 
 // New York, 2026: Rosh Chodesh Kislev = 10-11 Nov (eve 9 Nov, shkia ~4:43 PM), Yud-Tes Kislev = 29 Nov (eve 28 Nov), Chanukah 5 Dec
@@ -100,10 +130,74 @@ const cases = [
   { tag: 'takeover: zero', time: T('2026-11-18T18:00:20'), occ: doc([SIX]), takeover: 'zero', zero: true, fonts: true },
   { tag: 'takeover: worst case name, milestone', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
   // live moments (admin fired; real time)
-  { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
+  { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { cycleSeconds: 30 }), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
   { tag: 'moment: shout-out', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'shoutout', text: { en: 'Mazel tov to the 8th grade on finishing Mishnayos!', he: 'מזל טוב לכיתה ח׳ על סיום משניות!' }, occasionKey: '', secs: 15 } },
   { tag: 'moment: ten', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'ten', text: { en: '', he: '' }, occasionKey: 'yt', secs: 10 }, ten: true },
 ];
+
+const DW = { dates: true, why: true };
+cases.push(
+  // the date block, the why block, the label: every form, landscape + portrait (+ 4K on some)
+  { tag: 'dates+why, far (pinned, 27 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', big: 120, ...DW, shot: 'land', fonts: true },
+  { tag: 'dates+why, days (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', big: 150, ...DW, shot: 'port', fonts: true },
+  { tag: 'dates+why, hours (last day)', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', big: 150, ...DW },
+  { tag: 'dates+why, minutes (last hour)', time: T('2026-11-09T16:20:00'), occ: doc([RCw, YTw, CHw]), form: 'minutes', big: 150, ...DW },
+  { tag: 'dates+why, day itself (hero)', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', ...DW, hero: true, fonts: true },
+  { tag: 'dates+why, flip (until it begins)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { display: 'flip' }), form: 'days', flip: 3, ...DW },
+  { tag: 'dates+why, multi-day range', time: T('2026-11-25T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'ch' }), form: 'days', ...DW, range: true, dayRe: /December 5/ },
+  { tag: 'dates+why, no why (dates only)', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', dates: true, why: false },
+  { tag: 'dates+why, why hidden by layout', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { why: false } } }, RC, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', dates: true, why: false },
+  { tag: 'dates+why, approximate time', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', noLoc: true, approx: true, dates: true },
+  // languages (the data side filters; the page filters too)
+  { tag: 'dates+why, English only', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { language: 'english' }), form: 'days', ...DW, lang: 'en' },
+  { tag: 'dates+why, Hebrew only', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { language: 'hebrew' }), form: 'days', ...DW, lang: 'he' },
+  // worst cases: 160 + 160 character why, range, 60-character names, long event line, full coming-up strip
+  { tag: 'dates+why worst case, days', time: T('2026-11-03T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'days', ...DW, fonts: true },
+  { tag: 'dates+why worst case, far', time: T('2026-10-20T11:00:00'), occ: doc([BIGw, BIG_COw(1), BIG_COw(2), BIG_COw(3)], { comingUpCount: 3 }), form: 'far', ...DW },
+  { tag: 'dates+why worst case, hours', time: T('2026-11-09T09:00:00'), occ: doc([BIGs, BIG_COw(1)], { comingUpCount: 3 }), form: 'hours', ...DW },
+  { tag: 'dates+why worst case, day itself', time: T('2026-11-10T12:00:00'), occ: doc([BIGs, BIG_COw(1), BIG_COw(2), BIG_COw(3)]), form: 'day', ...DW, fonts: true },
+  { tag: 'dates+why worst case, flip', time: T('2026-11-03T11:00:00'), occ: doc([BIGw], { display: 'flip' }), form: 'days', flip: 2, ...DW },
+  { tag: 'dates+why worst case, vort page keeps the long text', time: T('2026-11-03T11:00:00'), occ: doc([BIGw]), form: 'days', explain: true, ...DW },
+  // contrast of the new text: light + dark (every line at 4.5:1 over the panel), then every theme
+  { tag: 'dates+why contrast, dark theme', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, wcag: true },
+  { tag: 'dates+why contrast, light theme', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, wcag: true, theme: 'ivory' },
+  { tag: 'dates+why contrast, day view, light theme', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', ...DW, wcag: true, theme: 'ivory' },
+  { tag: 'dates+why all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, themes: true },
+  // the milestone takeover's quiet line
+  { tag: 'takeover: milestone with why', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fx: FX_TK, whyTk: true, fonts: true, shot: 'land' },
+  { tag: 'takeover: milestone with why, worst case', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_TK_W, whyTk: 'either', fonts: true },
+);
+
+// ── the Stage: persistent rail, shared number, the scroll opens and closes, hype levels, Minimal motion, the calm style ──
+const SIXw = W(SIX);
+const HY = (o = {}) => doc([SIXw], { milestoneOn: false, finalOn: false, takeover: false, ...o });
+cases.push(
+  { tag: 'stage: rail persists across acts, the number glides into it, the scroll opens and closes clean', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { date: false } } }], { pick: 'pinned', pinnedId: 'yt', cycleSeconds: 6 }), form: 'far', stage: true, shot: 'land' },
+  { tag: 'stage: calm style (no scroll)', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { date: false } } }], { pick: 'pinned', pinnedId: 'yt', cycleSeconds: 6, stageStyle: 'calm' }), form: 'far', stage: 'calm' },
+  { tag: 'hype 0 (17 days)', time: T('2026-11-01T11:00:00'), occ: HY(), form: 'far', hypeLevel: 0 },
+  { tag: 'hype 1 (10 days)', time: T('2026-11-08T11:00:00'), occ: HY(), form: 'days', hypeLevel: 1 },
+  { tag: 'hype 2 (5 days)', time: T('2026-11-13T11:00:00'), occ: HY(), form: 'days', hypeLevel: 2, sparks: true },
+  { tag: 'hype 3 (last day)', time: T('2026-11-18T12:00:00'), occ: HY(), form: 'hours', hypeLevel: 3, sparks: true },
+  { tag: 'hype 4 (last hour)', time: T('2026-11-18T17:30:00'), occ: HY(), form: 'minutes', hypeLevel: 4, sparks: true },
+  { tag: 'hype 5 (final minute: seconds in the hero)', time: T('2026-11-18T17:59:25'), occ: HY(), form: 'minutes', hypeLevel: 5, sparks: true, secondsHero: true },
+  { tag: 'hype calm caps at 1', time: T('2026-11-18T17:30:00'), occ: HY({ hype: 'calm' }), form: 'minutes', hypeLevel: 1 },
+  { tag: 'hype 4, Minimal motion: nothing animates', time: T('2026-11-18T17:30:00'), occ: HY(), form: 'minutes', hypeLevel: 4, motion: 'minimal' },
+);
+
+cases.push(
+  // cycled countdown forms (a tap on the number steps through row.forms; the last day / hour / zero keep their own display)
+  { tag: 'forms: tap cycles days > 20¼ > hours > flip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip'], days: [27, 27.3], hoursRange: [648, 654], fonts: true, shot: 'land' },
+  { tag: 'forms: all six (percent, sleeps)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', tapForms: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'] }), form: 'far', formsSeq: ['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps'], days: [27, 27.3], hoursRange: [648, 654], sleeps: 27 },
+  { tag: 'forms: in the days form (8 days)', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { tapForms: ['days', 'daysFraction', 'hours', 'sleeps'] }), form: 'days', formsSeq: ['days', 'daysFraction', 'hours', 'sleeps'], shot: 'port' },
+  { tag: 'forms: auto mode steps by itself', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt', autoForms: { on: true, seconds: 8 } }), form: 'far', auto: true },
+  { tag: 'forms: approximate time offers only days', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', noLoc: true, noForms: true },
+  { tag: 'forms: the last day keeps its own display', time: T('2026-11-09T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'hours', noForms: true },
+  { tag: 'forms: the last hour keeps its seconds', time: T('2026-11-09T16:20:00'), occ: doc([RCw, YTw, CHw]), form: 'minutes', noForms: true },
+  // the Today strip in the header
+  { tag: 'today strip', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', todayStrip: true },
+  { tag: 'today strip with the occasion that is today', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', todayStrip: true, todayName: /Yud-Tes Kislev/ },
+  { tag: 'today strip switched off in the layout', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YTw, layout: { show: { today: false } } }, RC, CH], { pick: 'pinned', pinnedId: 'yt' }), form: 'far', todayStrip: false },
+);
 
 const PNG = {
   [WHITE]: await sharp({ create: { width: 64, height: 36, channels: 3, background: '#ffffff' } }).png().toBuffer(),
@@ -114,13 +208,14 @@ const PNG = {
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--no-sandbox'] });
 
-async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent }) {
+async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent, fx, motion }) {
   const [W, H] = canvas === 'port' ? [900, 1600] : canvas === '4k' ? [3840, 2160] : [1600, 900];
   const ctx = await browser.newContext({ viewport: { width: W, height: H }, timezoneId: 'America/New_York', deviceScaleFactor: 1 });
   const page = await ctx.newPage();
   page.on('pageerror', (e) => console.log(`  page error: ${String(e.message || e).slice(0, 200)}`));
   page.on('console', (m) => { if (m.type() === 'error' && !/Failed to load resource|stream/.test(m.text())) console.log(`  console error: ${m.text().slice(0, 300)}`); });
   await page.clock.setFixedTime(time);
+  if (fx) await page.addInitScript((v) => { window.__OCC_FX = v; }, fx);
   if (seedAdvent) await page.addInitScript((list) => { try { if (!sessionStorage.getItem('aud-seeded')) { for (const s of list) localStorage.setItem(s.k, JSON.stringify(s.v)); sessionStorage.setItem('aud-seeded', '1'); } } catch {} }, seedAdvent);
   await page.route('**/uploads/*.png', (route) => {
     const p = new URL(route.request().url()).pathname;
@@ -134,7 +229,7 @@ async function open({ canvas, time, occ, noLoc, font, theme, moment, seedAdvent 
     j.occasionMoment = moment ? { id: 'mtest', kind: moment.kind, text: moment.text, occasionKey: moment.occasionKey, startedAt: time.getTime(), until: time.getTime() + moment.secs * 1000 } : null;
     j.cache = { ...(j.cache || {}), zmanim: null, weather: null };
     j.settings = {
-      ...j.settings, orientation: canvas === 'port' ? 'portrait' : 'landscape', themeAuto: { enabled: false }, theme: theme || 'midnight',
+      ...j.settings, ...(motion ? { motion } : {}), orientation: canvas === 'port' ? 'portrait' : 'landscape', themeAuto: { enabled: false }, theme: theme || 'midnight',
       fontRoles: { ...(j.settings?.fontRoles || {}), ...(font ? { hebrewDisplay: font, hebrewBody: font } : {}) },
       location: noLoc ? { timezone: 'America/New_York' } : { timezone: 'America/New_York', lat: 40.67, lon: -73.94 },
     };
@@ -166,7 +261,7 @@ const probe = (page, sel) => page.evaluate((sel) => {
     }
   }
   // auto-fitted boxes (vcenter Fit: the inner div) must fit their box: otherwise a line, a descender or nikud sticks out
-  for (const el of panel.querySelectorAll('[data-occ-name] > div, .tt-bd-hero, .tt-bd-up')) {
+  for (const el of panel.querySelectorAll('[data-occ-name] > div, .tt-bd-hero, .tt-bd-up, [data-occ-why-text]')) {
     const inner = el.firstElementChild;
     if (!inner || el.closest('[aria-hidden]') || !el.clientHeight) continue;
     if (inner.offsetHeight > el.clientHeight + 3 || inner.scrollWidth > el.clientWidth + 2) out.fit.push(`"${el.textContent.slice(0, 24)}" ${inner.scrollWidth}x${inner.offsetHeight}>${el.clientWidth}x${el.clientHeight}`);
@@ -183,7 +278,7 @@ const probe = (page, sel) => page.evaluate((sel) => {
     if (b.right > pb.right + 1 || b.left < pb.left - 1 || b.bottom > pb.bottom + 1 || b.top < pb.top - 1) out.overflow.push(`outside the panel: "${t.textContent.trim().slice(0, 24)}"`);
     const fs = parseFloat(cs.fontSize);
     if (fs < 24) out.small.push(`${fs}px "${t.textContent.trim().slice(0, 20)}"`);
-    rects.push({ b, s: t.textContent.trim().slice(0, 18), blk: el.closest('[data-occ-name],[data-occ-date],[data-occ-begins],[data-occ-event],[data-occ-count],[data-occ-coming],[data-occ-tagline],header,[data-occ-card],[data-occ-step]') });
+    rects.push({ b, s: t.textContent.trim().slice(0, 18), blk: el.closest('[data-occ-name],[data-occ-date],[data-occ-begins],[data-occ-why],[data-occ-today],[data-occ-event],[data-occ-count],[data-occ-coming],[data-occ-tagline],header,[data-occ-card],[data-occ-step]') });
   }
   // text of different blocks never overlaps (a too-tall line box from a display font would)
   const tol = 3 * scale;
@@ -208,7 +303,40 @@ const probe = (page, sel) => page.evaluate((sel) => {
   out.fading = panel.querySelectorAll('.tt-adv-open').length;
   out.step = !!panel.querySelector('[data-occ-step]');
   out.run = !!panel.querySelector('[data-occ-count=run]');
+  const topOf = (q) => { const e = panel.querySelector(q); return e ? e.getBoundingClientRect().top : null; };
+  out.tops = { date: topOf('[data-occ-date]'), begins: topOf('[data-occ-begins]'), why: topOf('[data-occ-why]'), event: topOf('[data-occ-event]') };
+  out.formId = panel.querySelector('[data-occ-formid]')?.getAttribute('data-occ-formid') || '';
+  out.dots = Number(panel.querySelector('[data-occ-dots]')?.getAttribute('data-occ-dots') || 0);
+  out.dotOn = [...panel.querySelectorAll('[data-occ-dot]')].findIndex((d) => d.getAttribute('data-occ-dot') === 'on');
+  out.suffix = panel.querySelector('[data-occ-suffix]')?.textContent || '';
+  out.suffixFont = panel.querySelector('[data-occ-suffix]') ? getComputedStyle(panel.querySelector('[data-occ-suffix]')).fontFamily : '';
+  out.bigFont = panel.querySelector('[data-occ-count] [data-occ-big]') ? getComputedStyle(panel.querySelector('[data-occ-count] [data-occ-big]')).fontFamily : '';
+  out.progressBar = !!panel.querySelector('[data-occ-progress]');
+  out.todayEl = !!panel.querySelector('[data-occ-today]');
+  out.todayText = panel.querySelector('[data-occ-today]')?.innerText || '';
+  out.todayName = panel.querySelector('[data-occ-today-name]')?.innerText || '';
+  out.whyEl = !!panel.querySelector('[data-occ-why]');
+  out.whyText = panel.querySelector('[data-occ-why-text]')?.textContent || '';
+  out.whyFs = panel.querySelector('[data-occ-why-text]') ? parseFloat(getComputedStyle(panel.querySelector('[data-occ-why-text]')).fontSize) : 0;
+  out.whySrc = panel.querySelector('[data-occ-why-source]')?.textContent || '';
+  out.dateBlock = panel.querySelector('[data-occ-date]')?.innerText || '';
+  out.beginsBlock = panel.querySelector('[data-occ-begins]')?.innerText || '';
+  out.unit = panel.querySelector('[data-occ-count] [data-occ-unit]')?.innerText || '';
+  out.whyBox = (() => { const e = panel.querySelector('[data-occ-why]'); if (!e) return null; const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom }; })();
   out.display = panel.getAttribute('data-occ-display');
+  out.blocks = panel.querySelectorAll('[data-occ-block]').length;
+  out.hype = Number(panel.getAttribute('data-occ-hype'));
+  out.style = panel.getAttribute('data-occ-style');
+  out.scroll = panel.querySelector('[data-occ-scroll]')?.getAttribute('data-occ-scroll') || '';
+  out.paperClip = panel.querySelector('[data-occ-paper]') ? getComputedStyle(panel.querySelector('[data-occ-paper]')).clipPath : '';
+  out.rods = panel.querySelectorAll('[data-occ-rod]').length;
+  out.stage = !!panel.querySelector('[data-occ-stage]');
+  out.railMark = !!panel.querySelector('[data-occ-block=rail]')?.__audMark;
+  const pane = panel.querySelector('[data-occ-photo-pane]');
+  if (pane) {
+    const pr = pane.getBoundingClientRect(); const fade = pr.width * 0.12; const fadeV = pr.height * 0.12;
+    out.onPhoto = rects.filter(({ b }) => b.right > pr.left + fade && b.left < pr.right - fade && b.bottom > pr.top + fadeV && b.top < pr.bottom - fadeV).map((x) => x.s);
+  } else out.onPhoto = [];
   return out;
 }, sel);
 
@@ -227,6 +355,7 @@ async function panelMean(page) {
 
 /** WCAG contrast of every text element against what is really painted behind it (text hidden, screenshot sampled). */
 async function contrast(page, needAll = 0) {
+  await page.waitForTimeout(1800); // let the theme / day-night crossfade and the small-accent pass finish (a busy machine is slow)
   const items = await page.evaluate(() => {
     const panel = document.querySelector('section.tt-panel[data-occ-form]');
     const out = [];
@@ -279,12 +408,134 @@ const shot = async (page, name) => {
   console.log(`shot ${SHOTS}/${name}.png`);
 };
 
+const HEB = /[\u0590-\u05FF]/;
+/** The paper's clip-path is fully open (no bottom inset left). */
+const paperOpen = (c) => c === 'none' || /^inset\(0px( 0px)?( 0(px|%))?\)$/.test(c);
+/** Wait (real time: the act timers run in real time) until the slide shows act `view`, then let it settle; returns its probe. */
+async function toAct(page, view, settle = 2600, timeout = 70000) {
+  const ok = await page.waitForFunction((v) => document.querySelector('section.tt-panel[data-occ-form]')?.getAttribute('data-occ-view') === v, view, { timeout }).then(() => true).catch(() => false);
+  if (!ok) return null;
+  await page.waitForTimeout(settle);
+  return probe(page, SEL.slide);
+}
+/** The checks every act gets: nothing clips / leaves the panel / overlaps, text >= 24, <= 5 blocks, nothing running. */
+function actChecks(t, v) {
+  check(`${t}: nothing clips or leaves the panel`, v.overflow.length === 0, v.overflow.slice(0, 3).join(' | '));
+  check(`${t}: fitted lines fit, no overlap`, v.fit.length === 0 && v.overlap.length === 0, [...v.fit, ...v.overlap].slice(0, 3).join(' | '));
+  check(`${t}: text >= 24 canvas px`, v.small.every((x) => parseFloat(x) / (v.scale || 1) >= 23.5), v.small.slice(0, 4).join(', '));
+  check(`${t}: <= 5 blocks (${v.blocks})`, v.blocks <= 5, String(v.blocks));
+  check(`${t}: nothing animating once settled`, v.anims.length === 0 && v.infinite === 0, v.anims.slice(0, 3).join(','));
+}
+/** The dates + why checks for one rendered page. */
+async function datesChecks(tag, c, r, canvas, page) {
+  if (c.dates && c.form !== 'day') {
+    // the hero's one 'Begins' line: when (an evening / tonight) + the zman; the pinned Yud-Tes Kislev cases check the exact words
+    const yt = /pinned, 27 days/.test(c.tag);
+    check(`${tag}: hero: 'Begins <evening>' + the zman`, c.lang === 'he' || ((yt ? /begins saturday evening/i : /begins (\w+ evening|tonight)/i).test(r.beginsBlock) && (yt ? /Shkia 4:30 PM/ : /Shkia ~?\d{1,2}:\d\d PM/).test(r.beginsBlock)), r.beginsBlock.slice(0, 120));
+    if (c.approx) check(`${tag}: approximate: the '~' stays`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
+  }
+  if (c.dates && (c.form === 'far' || c.form === 'days')) {
+    check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
+    check(`${tag}: the day count never reads 'days to go' next to an evening start`, !/days?\s+to go/i.test(r.unit) && !/days?\s+to go/i.test(r.text), r.unit);
+  }
+  if (c.flip && c.dates) check(`${tag}: flip: 'until it begins' with the cells`, /until it begins/i.test(r.unit), r.unit);
+  if (c.dates || c.why === true) {
+    // the facts act: THE DAY / HEBREW DATE (/ BEGINS); then the why act
+    const f = await toAct(page, 'facts');
+    if (c.dates) {
+      check(`${tag}: facts act comes after the hero`, !!f, 'no facts act');
+      if (f) {
+        const yt = /pinned, 27 days/.test(c.tag);
+        const flat = f.dateBlock.replace(/\s+/g, ' ');
+        check(`${tag}: facts: the day ('Sunday, November 29') + its Hebrew date`, c.lang === 'he' ? /כסלו|חשון/.test(flat) : (c.dayRe || (yt ? /Sunday, November 29/ : /(Sun|Mon|Tues|Wednes|Thurs|Fri|Satur)day, (November|December) \d+/)).test(flat) && (c.dayRe || (yt ? /19 Kislev 5787/ : /\d+ (Cheshvan|Kislev) 5787/).test(flat)), flat.slice(0, 120));
+        if (c.range) check(`${tag}: facts: the multi-day range shows`, /Dec 5.*Dec 12/.test(flat), flat.slice(0, 120));
+        if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the facts`, !HEB.test(f.dateBlock), f.dateBlock);
+        if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the facts`, !/Sunday|Kislev/.test(f.dateBlock), f.dateBlock);
+        actChecks(`${tag} [facts]`, f);
+      }
+    }
+  }
+  if (c.why === true) {
+    const w = await toAct(page, 'why', 2600);
+    check(`${tag}: why act ('Why we celebrate' + text)`, !!w && w.whyEl && /why we celebrate|למה חוגגים/i.test(w.text) && w.whyText.length > 10, w ? `${w.whyEl} ${w.whyText.slice(0, 40)}` : 'no why act');
+    if (w) {
+      check(`${tag}: why text >= 28 canvas px (${w.whyFs.toFixed(1)})`, w.whyFs >= 27.5, String(w.whyFs));
+      if (w.style === 'scroll') {
+        check(`${tag}: the scroll is fully open (state ${w.scroll}, clip ${w.paperClip}, 2 rods)`, w.scroll === 'open' && paperOpen(w.paperClip) && w.rods === 2, `${w.scroll} ${w.paperClip} ${w.rods}`);
+      }
+      if (c.lang === 'en') check(`${tag}: English only: no Hebrew in the why`, !HEB.test(w.whyText), w.whyText.slice(0, 30));
+      if (c.lang === 'he') check(`${tag}: Hebrew only: no English in the why`, !/[A-Za-z]{4}/.test(w.whyText), w.whyText.slice(0, 30));
+      check(`${tag}: source line whole or dropped '${w.whySrc.slice(0, 40)}'`, w.whySrc === '' || /^SOURCE: |^Source: /i.test(w.whySrc), w.whySrc);
+      if (/worst case/.test(c.tag)) check(`${tag}: worst case: the 160-character why text is whole`, w.whyText.includes('A short line about why') || HEB.test(w.whyText), w.whyText.slice(0, 40));
+      actChecks(`${tag} [why]`, w);
+      if (c.wcag) {
+        const k = await contrast(page, 4.5);
+        check(`${tag}: why act (on the paper) reads at 4.5:1 (worst ${k.ratio?.toFixed(2)} at ${k.fs}px "${k.s}")`, k.ratio >= 4.5, `${k.bg} ${k.fg}`);
+      }
+    }
+  }
+  if (c.why === false) check(`${tag}: no why act`, !/why/.test(r.acts || '') && !r.whyEl && !/why we celebrate/i.test(r.text), r.whyText.slice(0, 40));
+  if (c.explain === true) check(`${tag}: the short why is not the story text`, !r.text.includes('A long explanation sentence'), '');
+}
+
+/** Cycled forms: dots, a tap steps through each form, every form renders clean, 20¼ never promises more than is left, auto mode. */
+async function formsChecks(page, tag, c, r) {
+  await page.evaluate(() => document.getElementById('tt-splash')?.remove());
+  const probeNow = () => probe(page, SEL.slide);
+  if (c.noForms) { check(`${tag}: no form dots (nothing to cycle)`, r.dots === 0 && r.formId === '', `${r.dots} ${r.formId}`); return; }
+  if (c.auto) {
+    check(`${tag}: starts on the first form`, r.formId === 'days' && r.dots >= 2, `${r.formId} ${r.dots}`);
+    await page.waitForTimeout(9000);
+    const a = await probeNow();
+    check(`${tag}: auto mode moved on by itself (${r.formId} > ${a.formId})`, a.formId !== 'days' && a.dotOn === 1, `${a.formId} ${a.dotOn}`);
+    await page.waitForTimeout(8300);
+    const b = await probeNow();
+    check(`${tag}: ...and again (${b.formId})`, b.formId !== a.formId, `${a.formId} ${b.formId}`);
+    return;
+  }
+  const seq = c.formsSeq;
+  check(`${tag}: ${seq.length} form dots, the first form is '${seq[0]}'`, r.dots === seq.length && r.formId === seq[0] && r.dotOn === 0, `${r.dots} ${r.formId} ${r.dotOn}`);
+  for (let i = 1; i <= seq.length; i++) {
+    await page.locator(`${SEL.slide} [data-occ-forms][data-occ-count] [data-occ-unit]`).first().click();
+    await page.waitForTimeout(1200); // the shared number / name glide to their new places (820 ms)
+    const p = await probeNow();
+    const want = seq[i % seq.length];
+    const t = `${tag} [tap ${i} > ${want}]`;
+    check(`${t}: the form is '${want}'`, p.formId === want && p.dotOn === i % seq.length, `${p.formId} ${p.dotOn}`);
+    check(`${t}: nothing clips or leaves the panel`, p.overflow.length === 0, p.overflow.slice(0, 3).join(' | '));
+    check(`${t}: fitted lines fit, no overlap`, p.fit.length === 0 && p.overlap.length === 0, [...p.fit, ...p.overlap].slice(0, 3).join(' | '));
+    check(`${t}: text >= 24 canvas px`, p.small.every((x) => parseFloat(x) / (p.scale || 1) >= 23.5), p.small.slice(0, 3).join(', '));
+    check(`${t}: nothing animating once it has settled`, p.anims.length === 0 && p.infinite === 0, p.anims.slice(0, 3).join(','));
+    const n = Number(String(p.bigText).replace(/[^\d]/g, ''));
+    if (want === 'days') check(`${t}: whole days = the calendar days`, c.days ? n === c.days[0] : true, p.bigText);
+    if (want === 'daysFraction') {
+      const frac = { '': 0, '\u00BC': 0.25, '\u00BD': 0.5, '\u00BE': 0.75 }[p.suffix];
+      check(`${t}: a quarter glyph or none ('${p.bigText}')`, frac !== undefined, p.suffix);
+      check(`${t}: the glyph is set in the numerals font`, !p.suffix || p.suffixFont === p.bigFont, `${p.suffixFont} | ${p.bigFont}`);
+      if (c.days) check(`${t}: never promises more time than is left (${n + frac} <= ${c.days[1]})`, n + (frac || 0) <= c.days[1] && n + (frac || 0) >= c.days[0] - 0.01, `${n} ${p.suffix}`);
+    }
+    if (want === 'hours' && c.hoursRange) check(`${t}: total hours (${p.bigText}) inside ${c.hoursRange}`, n >= c.hoursRange[0] && n <= c.hoursRange[1] && /^\d+$/.test(p.bigText), p.bigText);
+    if (want === 'hours') check(`${t}: labelled hours`, /hours?/i.test(p.text), p.text.slice(0, 120));
+    if (want === 'flip') check(`${t}: flip cells (${p.cells})`, p.flip >= 3, p.cells);
+    if (want === 'percent') check(`${t}: a percent (${p.bigText}%) with a hairline bar`, n >= 0 && n <= 99 && p.suffix === '%' && p.progressBar, `${p.bigText} ${p.suffix} ${p.progressBar}`);
+    if (want === 'sleeps') check(`${t}: N sleeps (${p.bigText})`, (!c.sleeps || n === c.sleeps) && (/sleeps?/i.test(p.text) || /לילות|לילה/.test(p.text)), p.text.slice(0, 140));
+  }
+}
+
+/** The milestone takeover's quiet why line: there, with its source, or (crowded) dropped cleanly: never clipped. */
+function takeoverWhyChecks(tag, c, r) {
+  if (c.whyTk === true) warn(`${tag}: the quiet 'why we celebrate' line shows (needs takeoverFor() to carry why)`, r.whyEl && /why we celebrate/i.test(r.text), `${r.whyEl}`);
+  if (c.whyTk === 'either') check(`${tag}: worst case: the why line is whole or dropped (${r.whyEl ? 'shown' : 'dropped'})`, !r.whyEl || r.whyText.length > 100, r.whyText.slice(0, 30));
+  warn(`${tag}: milestone: 'until it begins' under the number (needs takeoverFor() to carry dates)`, /until it begins/i.test(r.text) && !/days? to go/i.test(r.text), r.text.replace(/\s+/g, ' ').slice(0, 100));
+  if (r.whyEl) check(`${tag}: the why line is >= 28 px`, r.whyFs >= 27.5, String(r.whyFs));
+}
+
 async function run(canvas, c, font) {
   const tag = `${canvas}${font ? ` [${font}]` : ''} ${c.tag}`;
   const sel = c.takeover ? SEL.takeover : c.moment ? SEL.moment : SEL.slide;
   // advent: pretend yesterday this screen saw every tile still shut, so today's open tiles fade once
   const seedAdvent = c.advent ? ['2026-11-28', '2026-11-29'].map((d) => ({ k: `tt-adv:adv|${d}`, v: { day: 99, prev: null, now: '000000000000' } })) : null;
-  const { page, close } = await open({ canvas, time: c.time, occ: c.occ, noLoc: c.noLoc, font, theme: c.theme, moment: c.moment, seedAdvent });
+  const { page, close } = await open({ canvas, time: c.time, occ: c.occ, noLoc: c.noLoc, font, theme: c.theme, moment: c.moment, seedAdvent, fx: c.fx, motion: c.motion });
   try {
     let r = await probe(page, sel);
     if (c.absent) { check(`${tag}: the Countdown is not shown`, r.form === null, r.text.slice(0, 80)); return; }
@@ -328,6 +579,44 @@ async function run(canvas, c, font) {
     if (c.flip) check(`${tag}: flip cells (${r.cells})`, r.display === 'flip' && r.flip >= c.flip, `${r.display} ${r.cells}`);
     if (c.flip && c.form === 'minutes') check(`${tag}: seconds cell while ticking each second`, r.cells.includes('s'), r.cells);
     if (c.run) check(`${tag}: count-up view`, r.run, r.text.slice(0, 80));
+    if ((c.dates || c.why !== undefined) && !c.takeover) await datesChecks(tag, c, r, canvas, page);
+    if (c.blocksCheck !== false && !c.takeover && !c.moment && !c.absent) check(`${tag}: hero: <= 5 blocks (${r.blocks})`, r.blocks <= 5, String(r.blocks));
+    if (c.fx && c.takeover) takeoverWhyChecks(tag, c, r);
+    if (c.formsSeq || c.auto || c.noForms) await formsChecks(page, tag, c, r);
+    if (c.hypeLevel != null) {
+      check(`${tag}: hype level ${c.hypeLevel} (${r.hype})`, r.hype === c.hypeLevel, String(r.hype));
+      const sp = await page.evaluate(() => document.querySelectorAll('[data-occ-sparks] .tt-spark').length);
+      if (c.sparks && !c.motion) check(`${tag}: spark marks appear (${sp})`, sp > 0, String(sp));
+      if (c.hypeLevel <= 1) check(`${tag}: no spark marks at a calm level`, sp === 0, String(sp));
+      if (c.secondsHero) check(`${tag}: the seconds alone in the hero (${r.bigText})`, /^\d{1,2}$/.test(r.bigText), r.bigText);
+      if (c.motion === 'minimal') {
+        await page.clock.setFixedTime(new Date(c.time.getTime() + 60000)); await page.waitForTimeout(1600);
+        const n = await page.evaluate(() => document.getAnimations().filter((a) => a.playState === 'running').length);
+        check(`${tag}: Minimal motion: no animation even when the minute changes (${n})`, n === 0, String(n));
+      }
+    }
+    if (c.stage) {
+      await page.evaluate(() => { const el = document.querySelector('[data-occ-block=rail]'); if (el) el.__audMark = 1; });
+      const nb = await page.evaluate(() => { const e = document.querySelector('[data-occ-numlayer]'); if (e) e.__audMark = 1; return !!e; });
+      const w = await toAct(page, 'why', 2800);
+      check(`${tag}: the why act comes`, !!w, '');
+      if (w) {
+        check(`${tag}: the rail is the SAME element across acts (persistent anchor)`, w.railMark, '');
+        const kept = await page.evaluate(() => !!document.querySelector('[data-occ-numlayer]')?.__audMark);
+        check(`${tag}: the number is ONE shared element (kept mounted, moved into the rail)`, nb && kept && (await page.evaluate(() => /scale\(0\.|matrix\(0\./.test(getComputedStyle(document.querySelector('[data-occ-numlayer]')).transform) || document.querySelector('[data-occ-numlayer]').style.transform.includes('scale(0'))), '');
+        if (c.stage === 'calm') check(`${tag}: calm style: no scroll`, !w.scroll && w.rods === 0 && w.style === 'calm', `${w.scroll} ${w.rods}`);
+        else check(`${tag}: scroll fully open (${w.scroll}, ${w.paperClip})`, w.scroll === 'open' && paperOpen(w.paperClip) && w.rods === 2, `${w.scroll} ${w.paperClip}`);
+        actChecks(`${tag} [why]`, w);
+        const back = await toAct(page, 'main', 2600);
+        check(`${tag}: back to the hero: no scroll left behind, nothing running`, !!back && !back.scroll && back.rods === 0 && back.anims.length === 0, back ? `${back.scroll} ${back.rods} ${back.anims.join(',')}` : 'no hero');
+        if (back) check(`${tag}: back to the hero: the number is home again (scale 1)`, await page.evaluate(() => /scale\(1\)/.test(document.querySelector('[data-occ-numlayer]')?.style.transform || '')), '');
+      }
+    }
+    if (c.todayStrip === true) {
+      check(`${tag}: the Today strip shows (TODAY + weekday + Hebrew date)`, r.todayEl && /today/i.test(r.todayText) && /(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Shabbos)/i.test(r.todayText) && /\d/.test(r.todayText), r.todayText);
+      if (c.todayName) check(`${tag}: the occasion that is today is named in it`, c.todayName.test(r.todayName), r.todayName);
+    }
+    if (c.todayStrip === false) check(`${tag}: no Today strip`, !r.todayEl);
     if (c.text) check(`${tag}: shows ${c.text}`, c.text.test(r.text), r.text.slice(0, 120));
     if (c.pager) check(`${tag}: pager ${c.pager}`, c.pager.test(r.text), r.text.slice(0, 80));
     if (c.approx) check(`${tag}: approximate time says ~`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
@@ -338,11 +627,14 @@ async function run(canvas, c, font) {
       const a = r.bigText;
       check(`${tag}: shows M:SS`, /^\d{1,2}:\d\d$/.test(a), a);
     }
+    if (c.wcag) {
+      const w = await contrast(page, 4.5);
+      check(`${tag}: every line incl. the new text reads at 4.5:1 (worst ${w.ratio?.toFixed(2)} at ${w.fs}px "${w.s}")`, w.ratio >= 4.5, `${w.bg} ${w.fg}`);
+    }
+    if (process.env.SHOT_TAG && SHOTS && c.tag.includes(process.env.SHOT_TAG)) { await page.evaluate(() => document.getElementById('tt-splash')?.remove()); await page.screenshot({ path: `${SHOTS}/dbg-${canvas}-${font || 'std'}.png` }); }
     if (c.contrast) {
       // the scrim is measured from the photo: wait for it, then every line (numerals included) must read at 4.5:1
-      await page.waitForFunction(() => document.querySelector('[data-occ-scrim=measured]'), null, { timeout: 5000 }).catch(() => {});
-      const sc = await page.evaluate(() => { const e = document.querySelector('[data-occ-scrim]'); return e ? `${e.getAttribute('data-occ-scrim')} ${e.getAttribute('data-occ-alpha')}` : 'none'; });
-      check(`${tag}: scrim measured from the photo (${sc})`, /^measured/.test(sc), sc);
+      check(`${tag}: the photo is its own pane and no text sits on it`, r.onPhoto.length === 0 && (await page.evaluate(() => !!document.querySelector('[data-occ-photo-pane]'))), r.onPhoto.slice(0, 3).join(' | '));
       const w = await contrast(page, 4.5);
       check(`${tag}: every line reads at 4.5:1 on the photo (worst ${w.ratio?.toFixed(2)} at ${w.fs}px "${w.s}"; bg ${w.bg} fg ${w.fg})`, w.ratio >= 4.5, '');
       if (c.visible) {
@@ -357,7 +649,7 @@ async function run(canvas, c, font) {
       // every registered theme: the page's small text (< 32 px) at 4.5:1, larger at 3:1 (accent text is pulled toward the ink)
       const bad = [];
       for (const th of THEME_IDS) {
-        const o = await open({ canvas, time: c.time, occ: c.occ, theme: th });
+        const o = await open({ canvas, time: c.time, occ: c.occ, theme: th, fx: c.fx });
         await o.page.waitForTimeout(500);
         const w = await contrast(o.page); await o.close();
         if (w.score < 1) bad.push(`${th}: ${w.ratio.toFixed(2)} at ${w.fs}px "${w.s}"`);
@@ -369,7 +661,8 @@ async function run(canvas, c, font) {
     if (c.tap && !font) {
       await page.evaluate(() => document.getElementById('tt-splash')?.remove());
       const box = await page.locator(SEL.slide).boundingBox();
-      await page.mouse.click(box.x + box.width * 0.3, box.y + box.height * 0.4);
+      // the header, away from the countdown (a tap ON the countdown steps its form instead, see the 'forms:' cases)
+      await page.mouse.click(box.x + box.width * 0.62, box.y + 46);
       await page.waitForTimeout(120);
       const p = await page.evaluate(() => document.querySelectorAll('[data-occ-pop] .tt-pop').length);
       check(`${tag}: a tap pops (finite)`, p > 0, String(p));
@@ -380,22 +673,23 @@ async function run(canvas, c, font) {
     if (c.explain === true || c.step) {
       // the countdown page first, then the sourced explanation / today's step on its own page
       check(`${tag}: countdown page first`, !r.explain && r.view === 'main', r.view);
-      await page.clock.setFixedTime(new Date(c.time.getTime() + 15000));
-      await page.waitForTimeout(10600);
-      const v = await probe(page, SEL.slide);
+      const v = (await toAct(page, c.step ? 'step' : 'vort', 2800, 90000)) || await probe(page, SEL.slide);
       if (c.step) check(`${tag}: today's step page + source`, v.view === 'step' && v.step && /Hayom Yom/.test(v.source), `${v.view} ${v.source.slice(0, 40)}`);
       else check(`${tag}: vort page: explanation + source shown`, v.view === 'vort' && v.explain && /Source: Sefer Sample/i.test(v.source), `${v.view} ${v.source.slice(0, 40)}`);
       check(`${tag}: second page: nothing clips or leaves the panel`, v.overflow.length === 0, v.overflow.slice(0, 3).join(' | '));
       check(`${tag}: second page: no overlap, fits`, v.overlap.length === 0 && v.fit.length === 0, [...v.overlap, ...v.fit].slice(0, 3).join(' | '));
       check(`${tag}: second page: text >= 24 canvas px`, v.small.every((x) => parseFloat(x) / (v.scale || 1) >= 23.5), v.small.slice(0, 4).join(', '));
       check(`${tag}: second page: nothing animating`, v.anims.length === 0, v.anims.slice(0, 3).join(','));
+      check(`${tag}: second page: <= 5 blocks (${v.blocks})`, v.blocks <= 5, String(v.blocks));
     }
   } finally { await close(); }
 }
 
-const FOURK = ['days (8 days)', 'minutes (last hour)', 'worst case text, days', 'zero (celebration)', 'flip, days', 'takeover: milestone (7 days)', 'advent with a photo (+ step page, tiles open once)'];
+const FOURK = ['dates+why, days (8 days)', 'dates+why worst case, days', 'takeover: milestone with why', 'days (8 days)', 'minutes (last hour)', 'worst case text, days', 'zero (celebration)', 'flip, days', 'takeover: milestone (7 days)', 'advent with a photo (+ step page, tiles open once)'];
 for (const canvas of ['land', 'port', '4k']) {
-  for (const c of cases) {
+  if (CANVAS && canvas !== CANVAS) continue;
+  for (const [ci, c] of cases.entries()) {
+    if (PART && ci % PART[1] !== PART[0]) continue;
     if (ONLY && !c.tag.includes(ONLY)) continue;
     if (canvas === '4k' && !FOURK.includes(c.tag)) continue;
     if (QUICK && canvas === '4k') continue;

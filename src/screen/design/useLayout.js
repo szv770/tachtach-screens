@@ -9,8 +9,8 @@
  */
 import { fontStack, CONDENSED_NUMERALS } from '../../shared/fontRoles.js';
 
-export const SHOW_KEYS = Object.freeze(['name', 'hebrewName', 'date', 'begins', 'event', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source']);
-export const ORDER_KEYS = Object.freeze(['name', 'date', 'begins', 'event']);
+export const SHOW_KEYS = Object.freeze(['name', 'hebrewName', 'date', 'begins', 'why', 'event', 'today', 'tagline', 'ring', 'pips', 'bar', 'coming', 'source']);
+export const ORDER_KEYS = Object.freeze(['name', 'date', 'begins', 'why', 'event']);
 export const LAYOUT_DEFAULTS = Object.freeze({ side: 'right', scale: 100, align: 'start' });
 
 /** layout → { show, order, side, scale (80-125), k (scale as a factor), align }, never throws. */
@@ -21,7 +21,14 @@ export function layoutOf(raw) {
   for (const k of SHOW_KEYS) show[k] = s[k] !== false;
   const seen = new Set();
   const order = (Array.isArray(r.order) ? r.order : []).filter((k) => ORDER_KEYS.includes(k) && !seen.has(k) && seen.add(k));
-  for (const k of ORDER_KEYS) if (!seen.has(k)) order.push(k); // a key missing from a stored order still has a place
+  // a key missing from a stored order (an order saved before 'why' existed) still has a place: right after the default
+  // neighbour before it ('why' lands after 'begins', not at the very end)
+  ORDER_KEYS.forEach((k, i) => {
+    if (seen.has(k)) return;
+    let at = 0;
+    for (let j = i - 1; j >= 0; j--) { const p = order.indexOf(ORDER_KEYS[j]); if (p >= 0) { at = p + 1; break; } }
+    order.splice(at, 0, k);
+  });
   const n = Number(r.scale);
   const scale = Number.isFinite(n) ? Math.min(125, Math.max(80, Math.round(n))) : LAYOUT_DEFAULTS.scale;
   return {
