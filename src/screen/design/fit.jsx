@@ -115,7 +115,9 @@ export function useGroupFit({ max, floor, deps }) {
     const wraps = new Set();
     for (const [id, el] of els.current) {
       el.style.fontSize = `${final}px`;
-      if (el.scrollWidth > el.clientWidth + 1) wraps.add(id);
+      el.style.whiteSpace = 'nowrap';
+      // leave the DOM in the state React renders for it, or a later identical `wraps` set would never repaint
+      if (el.scrollWidth > el.clientWidth + 1) { wraps.add(id); el.style.whiteSpace = 'normal'; }
     }
     setSize(final);
     setWrapIds(wraps);

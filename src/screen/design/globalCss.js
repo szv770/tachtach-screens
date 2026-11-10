@@ -57,6 +57,19 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-smooth .tt-bd-up, .m-lively .tt-bd-up { animation: ttBdUp 650ms cubic-bezier(.22,.7,.2,1) var(--t, 0ms) both; }
 .m-smooth .tt-bd-late, .m-lively .tt-bd-late { animation-delay: calc(1250ms + var(--n, 1) * 240ms + var(--t2, 0ms)); }
 .m-smooth .tt-bd-n, .m-lively .tt-bd-n { animation: ttBdPop 800ms cubic-bezier(.2,.9,.25,1.2) both; animation-delay: calc(1000ms + var(--i, 0) * 240ms); }
+/* Test Averages slide (slides/AveragesSlide.jsx): pillars rise (3rd, 2nd, then the leader), the crown drops, rows slide in one by one,
+   the average bars grow. All finite, transform + opacity only, one animation per element; Minimal motion and reduced motion settle at once. */
+.m-smooth .tt-av-rise, .m-lively .tt-av-rise { transform-origin: 50% 100%; animation: ttAvRise 900ms cubic-bezier(.2,.85,.25,1.04) var(--d, 0ms) both; }
+.m-smooth .tt-av-crown, .m-lively .tt-av-crown { animation: ttAvCrown 700ms cubic-bezier(.2,.9,.3,1.25) 1500ms both; }
+.m-smooth .tt-av-in, .m-lively .tt-av-in { animation: ttAvIn 560ms cubic-bezier(.22,.7,.2,1) calc(var(--i, 0) * 70ms + 150ms) both; }
+.m-smooth .tt-av-bar, .m-lively .tt-av-bar { transform-origin: 0 50%; animation: ttAvBar 1100ms cubic-bezier(.2,.8,.2,1) calc(var(--i, 0) * 70ms + 350ms) both; }
+.m-smooth .tt-av-pop, .m-lively .tt-av-pop { animation: ttAvPop 650ms cubic-bezier(.2,.9,.25,1.25) var(--d, 0ms) both; }
+.m-minimal .tt-av-in, .m-minimal .tt-av-rise, .m-minimal .tt-av-pop { animation: ttFadeIn 400ms linear both; }
+@keyframes ttAvRise { from { opacity: 0; transform: scaleY(.04); } 30% { opacity: 1; } }
+@keyframes ttAvCrown { from { opacity: 0; transform: translate3d(0, -60px, 0) scale(.6) rotate(-8deg); } }
+@keyframes ttAvIn { from { opacity: 0; transform: translate3d(-24px, 0, 0); } }
+@keyframes ttAvBar { from { transform: scaleX(0); } }
+@keyframes ttAvPop { from { opacity: 0; transform: scale(.5); } }
 /* Countdown takeover (takeover/OccasionTakeover.jsx): a short fade in + a small rise of the content, a short fade out. Finite. */
 .m-smooth .tt-occ-tk, .m-lively .tt-occ-tk { animation: ttFadeIn 520ms ease-out both; }
 .m-minimal .tt-occ-tk { animation: ttFadeIn 400ms linear both; }
@@ -135,7 +148,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-act-out, .tt-page-in, .tt-digit, .tt-rule-in, .tt-photo-in, .tt-scroll, .tt-scroll-win, .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-scroll .tt-act, .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-av-rise, .tt-av-crown, .tt-av-in, .tt-av-bar, .tt-av-pop, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-act-out, .tt-page-in, .tt-digit, .tt-rule-in, .tt-photo-in, .tt-scroll, .tt-scroll-win, .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-scroll .tt-act, .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }

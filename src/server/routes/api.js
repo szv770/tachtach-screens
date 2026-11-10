@@ -12,6 +12,7 @@ import { normalizeWebUrl } from '../../shared/embedCheck.js';
 import { readDailyWords } from './daily-words.js';
 import { readDailyStories } from './daily-stories.js';
 import { readMenu } from '../menuStore.js';
+import { averagesForKiosk } from '../averagesStore.js';
 import { readShiurim } from '../shiurimStore.js';
 import { occasionsForKiosk } from '../occasionsStore.js';
 import { readRoster } from './roster.js';
@@ -1485,6 +1486,7 @@ router.get('/preview-state', async (req, res) => {
       dailyWords: await readDailyWords(), // full history, so a past date previews the word that really showed
       dailyStories: await readDailyStories(), // same: a past date previews the story that really showed
       menu: await readMenu(), // the whole document, so any preview date resolves
+      averages: await averagesForKiosk(), // names class: admin preview only (an authenticated route)
       shiurim: await readShiurim(), // likewise (a preview date can be any day)
       occasions: await occasionsForKiosk(), // the calendar is the same whatever the date
       _previewDate: dateStr,

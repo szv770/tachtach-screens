@@ -29,6 +29,8 @@ export const LATE_BUILTINS = [
   { id: 'speaker', type: 'SPEAKER', label: 'Guest speaker', duration: 15, enabled: false, order: 110 },
   // Off until the owner turns it on (Slides or Screen > Occasions). Only in the rotation when an occasion is inside its window
   // (src/shared/occasions.js); it is also the one switch for the occasions' rail card / banner / takeover.
+  // Off until the owner turns it on (Slides or Screen > Test Averages). Only in the rotation when at least one student has enough scores.
+  { id: 'averages', type: 'AVERAGES', label: 'Test averages', duration: 20, enabled: false, order: 112 },
   { id: 'occasion', type: 'OCCASION', label: 'Countdown', duration: 15, enabled: false, order: 111 },
 ];
 

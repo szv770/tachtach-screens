@@ -123,6 +123,7 @@ const MATRIX = {
   '/api/daily-words':                     [1, 1, 0, 0],
   '/api/daily-stories':                   [1, 1, 0, 0],
   '/api/menu':                            [1, 1, 0, 0],
+  '/api/averages':                        [1, 1, 0, 0],
   '/api/shiurim':                         [1, 1, 0, 0],
   '/api/occasions':                       [1, 1, 0, 0],
   '/api/roster':                          [1, 1, 0, 0],

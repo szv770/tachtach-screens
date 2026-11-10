@@ -101,6 +101,8 @@ export const SETTINGS_INDEX = [
   S('daily-word', 'Today\'s word / story: show a different one, choose, write one just for today, hide, back to automatic', 'daily word story today change different random hide skip automatic one-off picks from unshown', { match: 'picks from' }),
   S('daily-story', 'Daily Story', 'story thought vort mashal inspiration archive coming up pin import', { match: 'Daily Story' }),
   S('slides', 'Daily Story slide: seconds on screen and name', 'story thought seconds duration pencil edit slide more settings', { slide: { kind: 'edit', type: 'DAILY_STORY' } }),
+  S('averages', 'Test Averages (Gemoro and Girsa test scores, leaderboard)', 'test averages scores marks grades gemoro girsa gemara leaderboard top most improved prize csv google sheet paste import students', { match: 'On the screen' }),
+  S('averages', 'Import test scores (paste, CSV, Google Sheet)', 'import paste csv spreadsheet google sheet link sync template scores students', { match: 'Add scores' }),
   S('shiurim', 'Shiurim (rebbeim, weekly shiurim, where and when)', 'shiurim shiur rebbe rabbi rav teacher gemara halacha chassidus where room beis medrash weekly schedule link', { match: 'On the screen' }),
   S('shiurim', "Cancel or move today's shiur", 'shiur cancel cancelled today move moved time room instant rebbe sick absent', { match: 'Today ·' }),
   S('shiurim', 'Guest speaker (announce a speaker ahead)', 'guest speaker visiting rabbi lecture farbrengen announce topic photo bio qr link banner takeover days before', { match: 'Guest speakers' }),

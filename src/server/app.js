@@ -38,6 +38,8 @@ import { forKiosk } from '../shared/dailyWords.js';
 import dailyStoriesRouter, { readDailyStories, startDailyStoryRecorder } from './routes/daily-stories.js';
 import { forKiosk as storiesForKiosk } from '../shared/dailyStories.js';
 import menuRouter from './routes/menu.js';
+import averagesRouter, { startAveragesSync } from './routes/averages.js';
+import { averagesForKiosk } from './averagesStore.js';
 import shiurimRouter from './routes/shiurim.js';
 import occasionsRouter from './routes/occasions.js';
 import { menuForKiosk } from './menuStore.js';
@@ -96,7 +98,7 @@ const googlePhotosGate = async (req, res, next) => {
 };
 
 /** The /api paths that take bodies bigger than 16 kB (they get a 256 kB parser instead of the global one). */
-const BIG_BODY_PATHS = /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/;
+const BIG_BODY_PATHS = /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|averages|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/;
 
 export function createApp() {
   const app = express();
@@ -221,6 +223,12 @@ export function createApp() {
       } catch (mivtzahErr) {
         console.error('[mivtzah] Startup error:', mivtzahErr.message);
       }
+      // Test Averages: keep a linked Google Sheet in sync (does nothing unless an admin linked one)
+      try {
+        startAveragesSync();
+      } catch (avgErr) {
+        console.error('[averages] Startup error:', avgErr.message);
+      }
       // Schedule storage cleanup (runs after 30s, then daily)
       scheduleCleanup();
     } catch (err) {
@@ -309,7 +317,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', stateGate, viewerStateLimiter, csrfProtection, async (req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories, menu, shiurim, occasions] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories, menu, shiurim, occasions, averages] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -327,6 +335,7 @@ export function createApp() {
         menuForKiosk().catch(() => null), // P0 (food): a window of days around today; the kiosk resolves what shows with src/shared/menu.js
         shiurimForKiosk().catch(() => null), // P1 (rebbeim, guest speakers; adults): the kiosk resolves what shows with src/shared/shiurim.js
         occasionsForKiosk().catch(() => null), // P0 (names of days, the school's own events): the kiosk resolves what shows with src/shared/occasions.js
+        averagesForKiosk().catch(() => null), // NAMES class (students + marks): the kiosk's own screen only, never in the live view
       ]);
       const body = {
         cache: cache ?? {},
@@ -348,6 +357,7 @@ export function createApp() {
         menu,
         shiurim,
         occasions,
+        averages,
         // A live moment the admin fired (in memory, auto-clears): confetti burst / shout-out / last ten seconds, or null.
         occasionMoment: activeMoment(),
         // The roster (bochurim + birthday settings); the kiosk works out who has a birthday today.
@@ -574,6 +584,7 @@ export function createApp() {
   app.use('/api', dailyWordsRouter);
   app.use('/api', dailyStoriesRouter);
   app.use('/api', menuRouter);
+  app.use('/api', averagesRouter);
   app.use('/api', shiurimRouter);
   app.use('/api', occasionsRouter);
   app.use('/api', rosterRouter);

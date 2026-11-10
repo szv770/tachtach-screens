@@ -11,6 +11,7 @@ import { useAnnouncements } from './hooks/useAnnouncements.js';
 import Layout from './components/Layout.jsx';
 import { pickDailyStory } from '../shared/dailyStories.js';
 import { menuVisible } from '../shared/menu.js';
+import { board as averagesBoard } from '../shared/averages.js';
 import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.js';
 import * as OccasionsLib from '../shared/occasions.js';
 import { occasionVisible, ctxFrom as occasionCtx } from '../shared/occasions.js';
@@ -189,6 +190,10 @@ function AppContent() {
   const hasSpeaker = React.useMemo(() => {
     try { return guestsActive(state?.shiurim, menuNow, menuTz).length > 0; } catch { return false; }
   }, [state?.shiurim, menuNow, menuTz]);
+  // Test Averages (src/shared/averages.js): in the rotation only when at least one student has enough scores to rank.
+  const hasAverages = React.useMemo(() => {
+    try { return !!state?.averages?.students && averagesBoard(state.averages).length > 0; } catch { return false; }
+  }, [state?.averages]);
   // Countdown (src/shared/occasions.js): in the rotation only while an occasion is inside its window (or pinned), re-checked
   // each minute on the same clock as the Menu (so ?previewAt= moves it).
   const hasOccasion = React.useMemo(() => {
@@ -226,8 +231,9 @@ function AppContent() {
       .filter((sl) => sl.type !== 'MENU' || hasMenu)
       .filter((sl) => sl.type !== 'SHIURIM' || hasShiurim)
       .filter((sl) => sl.type !== 'SPEAKER' || hasSpeaker)
-      .filter((sl) => sl.type !== 'OCCASION' || hasOccasion),
-    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, hasOccasion, shabbosNow.rowType],
+      .filter((sl) => sl.type !== 'OCCASION' || hasOccasion)
+      .filter((sl) => sl.type !== 'AVERAGES' || hasAverages),
+    [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, hasOccasion, hasAverages, shabbosNow.rowType],
   );
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
   const rotationSlides = React.useMemo(
@@ -444,6 +450,9 @@ function AppContent() {
         break;
       case 'menu-update':
         setState(prev => prev ? { ...prev, menu: data } : prev);
+        break;
+      case 'averages-update':
+        setState(prev => prev ? { ...prev, averages: data } : prev);
         break;
       case 'shiurim-update':
         setState(prev => prev ? { ...prev, shiurim: data } : prev);
@@ -820,6 +829,7 @@ function AppContent() {
         menu={state?.menu}
         menuNow={menuNow}
         menuTz={menuTz}
+        averages={state?.averages}
         shiurim={state?.shiurim}
         shiurimCtx={shiurimCtx}
         shiurTags={shiurTags}

@@ -42,6 +42,7 @@ import DailyStoryPanel from './components/DailyStoryPanel.jsx';
 import ShabbosPanel from './components/ShabbosPanel.jsx';
 import MenuPanel from './components/MenuPanel.jsx';
 import ShiurimPanel from './components/ShiurimPanel.jsx';
+import AveragesPanel from './components/AveragesPanel.jsx';
 import OccasionsPanel from './components/OccasionsPanel.jsx';
 import RosterPanel from './components/RosterPanel.jsx';
 import ChazanPanel from './components/chazan/ChazanPanel.jsx';
@@ -306,6 +307,8 @@ export default function App() {
         return <DailyWordPanel />;
       case 'daily-story':
         return <DailyStoryPanel />;
+      case 'averages':
+        return <AveragesPanel canEdit={can(myCaps, 'averages.edit')} slides={state?.slides || []} onUpdateSlides={updateSlides} canEditSlides={can(myCaps, 'slides.edit')} />;
       case 'shiurim':
         return <ShiurimPanel canEdit={can(myCaps, 'shiurim.edit')} slides={state?.slides || []} onUpdateSlides={updateSlides} canEditSlides={can(myCaps, 'slides.edit')} canTakeover={can(myCaps, 'announcements.takeover')} onNavigate={setActiveSection} />;
       case 'occasions':

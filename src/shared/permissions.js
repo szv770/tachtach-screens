@@ -39,6 +39,7 @@ export const CAPABILITIES = Object.freeze([
   { id: 'feeds.edit', group: 'Screen', label: 'Manage news feeds and Google Photos albums', hint: '' },
   { id: 'dailyWord.edit', group: 'Screen', label: 'Edit the Daily Word', hint: '' },
   { id: 'menu.edit', group: 'Screen', label: 'Edit the Menu', hint: 'Meals, dishes and tags for the Menu slide, one-day changes, and when the Menu shows.' },
+  { id: 'averages.edit', group: 'Screen', label: 'Edit the Test Averages', hint: 'Student scores for the Test Averages slide: paste or upload a list, link a Google Sheet, edit one student, and what the slide shows. Shows student names and marks.' },
   { id: 'shiurim.edit', group: 'Screen', label: 'Edit the shiurim and guest speakers', hint: 'Rebbeim, weekly shiurim, one-day cancellations, guest speakers and their photos, and when the Shiurim slide shows.' },
   { id: 'occasions.edit', group: 'Screen', label: 'Edit the occasions countdown', hint: 'The calendar of days the Countdown slide counts down to, their explanations and sources, and when it shows.' },
   { id: 'roster.edit', group: 'Screen', label: 'Edit the bochurim list and birthdays', hint: 'The shared list of names and Hebrew birthdays.' },
@@ -62,7 +63,7 @@ export const isGrantable = (id) => isCapability(id) && !CAP_BY_ID[id].adminOnly;
 
 const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
-  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'shiurim.edit', 'occasions.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
+  'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'averages.edit', 'shiurim.edit', 'occasions.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
 ];
 
@@ -144,6 +145,7 @@ const SECTION_CAPS = Object.freeze({
   'daily-word': ['dailyWord.edit'],
   'daily-story': ['dailyWord.edit'],
   menu: ['menu.edit'],
+  averages: ['averages.edit'],
   shiurim: ['shiurim.edit'],
   occasions: ['occasions.edit'],
   roster: ['roster.edit'],
@@ -209,6 +211,7 @@ const RULES = Object.freeze([
   rule('feeds.edit', ANY, /^\/api\/(rss|google-album)(\/|$)/),
   rule('dailyWord.edit', ANY, /^\/api\/daily-(words|stories)(\/|$)/),
   rule('menu.edit', ANY, /^\/api\/menu(\/|$)/),
+  rule('averages.edit', ANY, /^\/api\/averages(\/|$)/),
   rule('shiurim.edit', ANY, /^\/api\/shiurim(\/|$)/),
   rule('occasions.edit', ANY, /^\/api\/occasions(\/|$)/),
   rule('roster.edit', ANY, /^\/api\/roster(\/|$)/),
@@ -297,6 +300,7 @@ export const READ_ROUTES = Object.freeze([
   readRule('/api/kiddush-levana/months', ANNOUNCE_CAPS, 'medium'),
   readRule('/api/daily-words', ['dailyWord.edit']),
   readRule('/api/daily-stories', ['dailyWord.edit']),
+  readRule('/api/averages', ['averages.edit']),           // NAMES class (students + marks), whole document
   readRule('/api/menu', ['menu.edit']),                   // P0 (food), whole document incl. overrides
   readRule('/api/occasions', ['occasions.edit']),         // P0 (names of days, the school's own events), whole document incl. switched-off rows
   readRule('/api/shiurim', ['shiurim.edit']),             // P1 (rebbeim and guest speakers: adults, no students), whole document + the schedule blocks to link to
