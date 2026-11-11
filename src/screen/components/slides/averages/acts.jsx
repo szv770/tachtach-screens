@@ -1,5 +1,6 @@
-import React, { useLayoutEffect, useRef, useState } from 'react';
-import { F } from '../../../design/ui.jsx';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { F, bidiNodes } from '../../../design/ui.jsx';
+import { textDir } from '../../../../shared/bidi.js';
 import { Fit } from '../../../design/fit.jsx';
 import { fmtAvg } from '../../../../shared/averages.js';
 import { Avatar, Chip, CountUp, Crown, History, Laurel, Sparkles, Star, TierChip, TrendUp, Pct, card, ordinal } from './parts.jsx';
@@ -121,25 +122,22 @@ function useRowHeight(perCol, gap, guess, cap) {
 }
 
 /**
- * A name in a list row. ONE line whenever it fits at a readable size (it shrinks from `max` to `floor`); only a name that
- * is still too long at `floor` wraps at that size (two lines; a very long name in a narrow column goes smaller, down to 10 px, and may
- * take a third line as the last resort). Never cut.
+ * A name in a list row. Every name on a page is the SAME size: first each name is measured on its own (it shrinks from `max`
+ * to `floor`) and reports the size it needs; the page then uses the smallest of those (names that cannot fit one line even at
+ * `floor` do not count: they wrap, two lines, at the page size, and a very long word goes smaller, down to 10 px). Never cut.
  */
-function Name({ children, max, floor }) {
+function Name({ id, children, max, floor, pageSize, mine, report }) {
   const box = useRef(null);
-  const [wrap, setWrap] = useState(false);
   const onSize = (size) => {
     const el = box.current?.firstChild; const inner = el?.firstChild;
-    if (el && inner && size <= floor && inner.scrollWidth > el.clientWidth + 1) setWrap(true);
+    report(id, el && inner && size <= floor && inner.scrollWidth > el.clientWidth + 1 ? null : size); // null = needs two lines
   };
   const style = { flex: '1 1 0', minWidth: 0, height: '100%', lineHeight: 1.16, fontFamily: F.en, fontWeight: 600, color: 'var(--ink)', justifyContent: 'flex-start', textAlign: 'left' };
-  return (
-    <div ref={box} style={{ flex: '1 1 0', minHeight: 0, minWidth: 0, display: 'flex' }}>
-      {wrap
-        ? <Fit key="w" wrap vcenter data-av-name="" max={floor} min={10} style={{ ...style, lineHeight: 1.1, ...(LONG_WORD.test(children) ? { overflowWrap: 'anywhere' } : null) }}>{children}</Fit>
-        : <Fit key="l" vcenter data-av-name="" max={max} min={floor} onSize={onSize} style={style}>{children}</Fit>}
-    </div>
-  );
+  let inner;
+  if (pageSize == null) inner = <Fit key="m" vcenter data-av-name="" max={max} min={floor} onSize={onSize} style={style}>{children}</Fit>;
+  else if (mine === null) inner = <Fit key="w" wrap vcenter data-av-name="" max={pageSize} min={10} style={{ ...style, lineHeight: 1.1, ...(LONG_WORD.test(children) ? { overflowWrap: 'anywhere' } : null) }}>{children}</Fit>;
+  else inner = <div key="f" dir={textDir(children, 'ltr')} data-av-name="" style={{ ...style, display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', overflow: 'hidden', fontSize: pageSize }}>{bidiNodes(children)}</div>;
+  return <div ref={box} style={{ flex: '1 1 0', minHeight: 0, minWidth: 0, display: 'flex' }}>{inner}</div>;
 }
 
 /**
@@ -162,6 +160,13 @@ export function ListAct({ act, s, portrait, top, perCol: fill }) {
   const wide = cols === 2 && !portrait;
   const nameMax = Math.round(Math.min(wide ? 30 : portrait ? 28 : 26, rowH * 0.46));
   const nameFloor = Math.max(14, Math.round(nameMax * 0.7));
+  // one name size for the whole page (see Name): collect what each name needs, then settle on the smallest that keeps one line
+  const [reports, setReports] = useState({});
+  const report = useCallback((id, size) => setReports((p) => (p[id] === size ? p : { ...p, [id]: size })), []);
+  useEffect(() => { let alive = true; document.fonts?.ready?.then(() => alive && setReports({})).catch(() => {}); return () => { alive = false; }; }, [nameMax]);
+  const ready = rows.every((r) => r.id in reports);
+  const fitted = Object.values(reports).filter((v) => v != null);
+  const pageSize = ready ? (fitted.length ? Math.min(nameMax, ...fitted) : nameMax) : null;
   const avgSize = Math.round(Math.min(wide ? 34 : portrait ? 30 : 28, rowH * (tiers ? 0.4 : 0.5)));
   const small = Math.round(Math.max(13, Math.min(18, rowH * 0.2)));
   const rankW = Math.round(Math.min(wide ? 60 : portrait ? 52 : 44, Math.max(36, rowH * 0.74)));
@@ -195,7 +200,7 @@ export function ListAct({ act, s, portrait, top, perCol: fill }) {
                   ) : null}
                   {s.showAvatars ? <Avatar name={r.name} size={av} /> : null}
                   <div style={{ alignSelf: 'stretch', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: sub ? '2px 0 6px' : `${Math.round(rowH * 0.06)}px 0 ${Math.round(rowH * 0.12)}px` }}>
-                    <Name key={`${nameMax}`} max={nameMax} floor={nameFloor}>{r.name}</Name>
+                    <Name key={`${nameMax}`} id={r.id} max={nameMax} floor={nameFloor} pageSize={pageSize} mine={reports[r.id]} report={report}>{r.name}</Name>
                     {sub ? <span data-av-meta="" style={{ flex: 'none', height: small * 1.25, lineHeight: 1.25, fontFamily: F.en, fontSize: small, fontWeight: 500, color: 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</span> : null}
                     {s.showMarks ? (
                       <span aria-hidden style={{ flex: 'none', position: 'relative', height: 6, marginTop: 5, borderRadius: 1, overflow: 'hidden', background: 'color-mix(in srgb, var(--ink) 10%, transparent)' }}>

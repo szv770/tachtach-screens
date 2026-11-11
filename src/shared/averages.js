@@ -169,9 +169,7 @@ export const round1 = (n) => Math.round(n * 10) / 10;
 /** '94.5' or '95' depending on the decimals setting. */
 export function fmtAvg(avg, decimals = 1) {
   if (!Number.isFinite(avg)) return '–';
-  if (decimals === 0) return String(Math.round(avg));
-  const r = round1(avg);
-  return Number.isInteger(r) ? String(r) : r.toFixed(1);
+  return decimals === 0 ? String(Math.round(avg)) : (Math.round(avg * 10) / 10).toFixed(1); // always one decimal so a column of averages lines up (87.0, 87.6)
 }
 
 /**

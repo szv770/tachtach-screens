@@ -72,7 +72,7 @@ test('Bochurim list: names, typo check, add without scores, starter csv', () => 
   assert.deepEqual(back.rows.map((x) => x.name), ['Avi Berg', 'Levy, Dovid'], 'the starter sheet imports back cleanly');
 });
 
-test('fmtAvg', () => { assert.equal(A.fmtAvg(94.5), '94.5'); assert.equal(A.fmtAvg(95.04), '95'); assert.equal(A.fmtAvg(94.5, 0), '95'); });
+test('fmtAvg', () => { assert.equal(A.fmtAvg(94.5), '94.5'); assert.equal(A.fmtAvg(95.04), '95.0'); assert.equal(A.fmtAvg(94.5, 0), '95'); });
 
 test('applyImport: replace keeps ids of same names; add appends scores', () => {
   const f1 = A.applyImport({}, A.parseInput('Moshe Katz,90\nYossi,80'));
