@@ -83,7 +83,7 @@ const SECONDS_NOTE = {
   SHABBOS: 'The least time the page stays up. With more than 3 reminder lines it stays a little longer so every line is shown.',
   MOTZEI: 'The least time the page stays up. With more than 3 reminder lines it stays a little longer so every line is shown.',
   SHIURIM: 'The least time the shiurim stay up. With several pages (many shiurim) or both Today and the week it stays longer so every shiur is shown.',
-  AVERAGES: 'The least time the Test Averages stay up. With several pages (the most improved, tracks, a long list) it stays longer so every page is shown.',
+  AVERAGES: 'Type 0 (or tap Automatic) and the Test Averages stay exactly as long as they need to show every page. A number is the least time: it still stays longer if the pages need more.',
   SPEAKER: 'The least time a guest speaker stays up. Two guests show side by side; more take turns.',
   OCCASION: 'The least time the Countdown stays up. When a few take turns it stays longer so each one is shown.',
   MENU: 'The least time the menu stays up. With several pages (very long menus) or both Today and Week it stays longer so every dish is shown.',
@@ -104,7 +104,7 @@ export function popupSpec(typeId) {
     name: true,
     onOff: true,
     seconds: !own && typeId !== 'PDF_SLIDE',
-    secondsMin: typeId === 'VIDEO_SLIDE' ? 0 : SECONDS_MIN,
+    secondsMin: typeId === 'VIDEO_SLIDE' || typeId === 'AVERAGES' ? 0 : SECONDS_MIN, // 0 = automatic (a video plays to its end, the Test Averages take as long as they need)
     secondsMax: SECONDS_MAX,
     secondsNote: SECONDS_NOTE[typeId] || 'How long this slide stays on the screen before the next one.',
     fullscreen: !own && typeId !== 'GOOGLE_PHOTOS_SLIDE',

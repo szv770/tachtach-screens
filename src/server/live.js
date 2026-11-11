@@ -16,6 +16,7 @@ import { birthdaysFor, addDays as rosterAddDays } from '../shared/roster.js';
 import { assignments, addDays as chazanAddDays } from '../shared/chazan.js';
 import { forViewer as shiurimForViewer } from '../shared/shiurim.js';
 import { forViewer as occasionsForViewer } from '../shared/occasions.js';
+import { forViewer as averagesForViewer } from '../shared/averages.js';
 
 /**
  * Live view: a read-only copy of the screen for anyone holding the "live word"
@@ -197,6 +198,8 @@ export function viewerState(state, now = new Date()) {
   if (out.shiurim) out.shiurim = shiurimForViewer(out.shiurim, now, tz);
   // Occasions (P0, on purpose: names of days and the school's own events): switched-off ones stay out
   if (out.occasions) out.occasions = occasionsForViewer(out.occasions);
+  // Test Averages (NAMES class): NOT in the allow-list; only when the admin switched 'Show on the live link' on, and then only the students who are on the screen
+  { const av = averagesForViewer(src.averages); if (av) out.averages = av; }
   if (out.cache && typeof out.cache === 'object') {
     // the school's place (zip, coordinates, Chabad location id) is withheld from settings; keep it out of the cache copies too (red-team F3)
     out.cache = { ...out.cache };

@@ -247,6 +247,7 @@ export function BasicFields({ slide, form }) {
             <button type="button" aria-label="More seconds" onClick={() => bump(5)} style={stepBtn} data-testid="f-duration-plus">+</button>
           </div>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }} role="group" aria-label="Common lengths">
+            {spec.secondsMin === 0 && <button type="button" onClick={() => form.set('duration', '0')} style={presetBtn(secs === 0)} aria-pressed={secs === 0} data-testid="f-duration-auto">Automatic</button>}
             {SECONDS_PRESETS.map((n) => <button key={n} type="button" onClick={() => form.set('duration', String(n))} style={presetBtn(secs === n)} aria-pressed={secs === n}>{n}</button>)}
           </div>
         </Field>

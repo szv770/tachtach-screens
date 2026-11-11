@@ -29,7 +29,7 @@ test('parseInput: no header, tabs, first+last columns, percent and extra credit,
 test('board: averages, shared ranks, never drops a student for a low score, minimums', () => {
   const f = A.applyImport({}, A.parseInput(CSV));
   const b = A.board(f);
-  assert.deepEqual(b.map((r) => r.name), ['Levy, Dovid', 'Moshe Katz', 'Yossi Berg'], 'Empty Eli has no scores so is not on the board');
+  assert.deepEqual(b.map((r) => r.name), ['Dovid Levy', 'Moshe Katz', 'Yossi Berg'], 'Empty Eli has no scores so is not on the board');
   assert.equal(b[0].rank, 1);
   const tie = A.board({ students: [{ id: 'st-aaa', name: 'A', scores: [90] }, { id: 'st-bbb', name: 'B', scores: [90] }, { id: 'st-ccc', name: 'C', scores: [80] }] });
   assert.deepEqual(tie.map((r) => r.rank), [1, 1, 3]);
@@ -248,4 +248,46 @@ test('sheet looks: every minute by default, never two downloads at once, a broke
   assert.equal(downloads, 1, 'the timer and two taps of Sync now share one download');
   await syncSheet(store, slow);
   assert.equal(downloads, 2, 'a later look downloads again');
+});
+
+test('names: Last, First is shown First Last; the Bochurim check ignores order; hidden students say why', () => {
+  assert.equal(A.displayName('Abramov, Moshe', {}), 'Moshe Abramov');
+  assert.equal(A.displayName('Abramov, Moshe', { flipNames: false }), 'Abramov, Moshe');
+  assert.equal(A.displayName('Moshe Abramov', {}), 'Moshe Abramov');
+  assert.equal(A.displayName('A, B, C', {}), 'A, B, C', 'only a single comma is flipped');
+  assert.deepEqual(A.notOnList([{ name: 'Abramov, Moshe' }, { name: 'Moshe  Abramov' }, { name: 'Abramov, Mosh' }], ['Moshe Abramov']), ['Abramov, Mosh']);
+  const f = A.applyImport({}, A.parseInput('Name,T1,T2\nHigh One,90,95\nLow Two,40,50\nNone Three,,\nZero Four,0,0'));
+  const why = Object.fromEntries(f.students.map((s) => [s.name, A.whyHidden(s, f.settings)]));
+  assert.equal(why['High One'], '');
+  assert.match(why['Low Two'], /45\.0% is below the 60% minimum/);
+  assert.equal(why['None Three'], 'No marks yet');
+  assert.match(why['Zero Four'], /below the 60% minimum/, 'a real 0 counts, so the average is 0');
+  assert.match(A.whyHidden({ scores: [0, 0] }, { zeroIsAbsent: true }), /Only zeros/);
+  assert.equal(A.whyHidden({ scores: [90] }, { minTests: 2 }), 'Needs at least 2 tests');
+});
+
+test('a look that finds nothing new does not write the disk (SD-card friendly), a change does', async () => {
+  let doc = null; let writes = 0; const events = [];
+  const store = createAveragesStore({ read: async () => doc, update: async (fn) => { writes++; doc = await fn(doc); return doc; }, emit: (t) => events.push(t) });
+  await store.mutate(undefined, (f) => ({ ...f, sheet: { ...f.sheet, url: 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOp/edit' } }));
+  await syncSheet(store, async () => CSV);
+  const w = writes; const e = events.length;
+  for (let i = 0; i < 5; i++) await syncSheet(store, async () => CSV); // five more minutes of looking
+  assert.equal(writes, w, 'no writes while the sheet is unchanged');
+  assert.equal(events.length, e, 'and no nudges to the screen');
+  await syncSheet(store, async () => `${CSV}New Kid,80,90\n`);
+  assert.equal(writes, w + 1, 'a change is saved');
+  assert.equal(events.length, e + 1);
+  await assert.rejects(syncSheet(store, async () => { throw new Error('down'); }), /down/);
+  assert.equal(writes, w + 2, 'a failure is recorded once so the admin can see it');
+});
+
+test('live view: averages are only sent when switched on, and then only the students who are on the screen', async () => {
+  const { viewerState } = await import('../src/server/live.js');
+  const f = A.applyImport({ settings: { showGrade: true } }, A.parseInput('Name,Grade,T1,T2\nHigh One,10th,90,95\nLow Two,9th,30,40\nNone Three,9th,,'));
+  const state = (settings) => ({ settings: { location: { timezone: 'America/New_York' } }, slides: [], averages: A.forKiosk({ ...f, settings: { ...f.settings, ...settings } }) });
+  assert.equal(viewerState(state({})).averages, undefined, 'off by default: the live link never gets the averages');
+  const on = viewerState(state({ showOnLive: true })).averages;
+  assert.deepEqual(on.students.map((s) => s.name), ['High One'], 'a student below the minimum, or with no marks, is not even named');
+  assert.ok(!JSON.stringify(on).includes('Low Two') && !JSON.stringify(on).includes('None Three'));
 });

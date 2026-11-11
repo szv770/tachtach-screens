@@ -29,7 +29,9 @@ export const DEFAULTS = Object.freeze({
   minTests: 1,            // a student needs this many scores before they appear (a typed-in average needs none)
   columns: 2,             // the list is laid out in 2 or 3 columns (portrait screens always use 2)
   rowsPerColumn: 10,      // the most names in one column on a page (the screen uses fewer when the pages are short, so rows stay big)
-  seconds: 12,            // seconds each page of names stays up (before 'pace')
+  seconds: 15,            // seconds each page of names stays up (before 'pace')
+  showOnLive: false,      // OFF: the opt-in public live view never gets the averages. ON: viewers see the same list (only students who are on the screen)
+  flipNames: true,        // a name typed 'Last, First' (one comma) is shown as 'First Last'
   showRank: true,         // a small position number before each name (1, 2, 3 ...)
   showMarks: true,        // the average number next to each name
   showGrade: false,       // the student's grade / shiur next to the name
@@ -85,6 +87,8 @@ export function normalizeSettings(s) {
     columns: pick(Number(o.columns), [2, 3], D.columns),
     rowsPerColumn: Math.round(num(o.rowsPerColumn, D.rowsPerColumn, 4, 12)),
     seconds: Math.round(num(o.seconds, D.seconds, 6, 40)),
+    showOnLive: bool(o.showOnLive, D.showOnLive),
+    flipNames: bool(o.flipNames, D.flipNames),
     showRank: bool(o.showRank, D.showRank),
     showMarks: bool(o.showMarks, D.showMarks),
     showGrade: bool(o.showGrade, D.showGrade),
@@ -130,6 +134,17 @@ export function normalizeStudent(s) {
 }
 
 export const nameKey = (n) => String(n || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+/** A name compared ignoring case, punctuation and the ORDER of its words ('Katz, Moshe' = 'Moshe Katz'): for matching the Bochurim list. */
+export const nameKeyLoose = (n) => String(n || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean).sort().join(' ');
+
+/** How a name is shown: 'Last, First' (exactly one comma) becomes 'First Last' when `flipNames` is on. */
+export function displayName(name, settings) {
+  const n = String(name || '');
+  if (settings?.flipNames === false) return n;
+  const m = n.match(/^([^,]+),([^,]+)$/);
+  return m && m[1].trim() && m[2].trim() ? `${m[2].trim()} ${m[1].trim()}` : n;
+}
 
 /** The google sheet link block. `url` is what the admin pasted; the server derives the CSV address from it. */
 export function normalizeSheet(s) {
@@ -204,7 +219,7 @@ export function board(file, opts = {}) {
     const avg = manual ? st.avg : mean(sc);
     if (s.minAverage > 0 && avg + 1e-9 < s.minAverage) continue;
     rows.push({
-      id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: sc.length,
+      id: st.id, name: displayName(st.name, s), grade: st.grade || '', track: st.track || '', tests: sc.length,
       avg, tier: tierFor(avg, s.prizes)?.label || '', last: sc.length ? sc[sc.length - 1] : null, delta: improvement(sc),
       before: sc.length >= 3 ? mean(sc.slice(0, -2)) : null, recent: sc.length >= 3 ? mean(sc.slice(-2)) : null,
     });
@@ -213,6 +228,18 @@ export function board(file, opts = {}) {
   let rank = 0; let prev = null;
   rows.forEach((r, i) => { const k = round1(r.avg); if (k !== prev) { rank = i + 1; prev = k; } r.rank = rank; });
   return rows;
+}
+
+/** Why a student is not on the screen ('' = they are). Plain words for the admin. */
+export function whyHidden(st, settings) {
+  const s = normalizeSettings(settings);
+  const sc = scoresFor(st?.scores, s);
+  const manual = !sc.length && st?.avg != null;
+  if (!manual && !sc.length) return st?.scores?.length ? 'Only zeros so far (zeros are being left out)' : 'No marks yet';
+  if (!manual && sc.length < s.minTests) return `Needs at least ${s.minTests} ${s.minTests === 1 ? 'test' : 'tests'}`;
+  const avg = manual ? st.avg : mean(sc);
+  if (s.minAverage > 0 && avg + 1e-9 < s.minAverage) return `Average ${fmtAvg(avg, s.decimals)}% is below the ${s.minAverage}% minimum`;
+  return '';
 }
 
 /** Students who are climbing (best first). Only a real climb of 2+ points counts. */
@@ -295,6 +322,17 @@ export function hasBoard(file) { return board(file).length > 0; }
 export function forKiosk(file) {
   const f = normalizeFile(file);
   return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: f.settings.showGrade ? s.grade : '', track: s.track, scores: scoresFor(s.scores, f.settings), avg: s.avg })), updatedAt: f.updatedAt };
+}
+
+/**
+ * What a public LIVE-VIEW watcher may get (only when `settings.showOnLive` is on): the kiosk copy, cut down to the students who are
+ * on the screen. A student below the minimum average, or with no marks, is never sent (not even their name).
+ */
+export function forViewer(kioskData) {
+  const d = kioskData && typeof kioskData === 'object' ? kioskData : null;
+  if (!d || !d.settings || !Array.isArray(d.students) || !normalizeSettings(d.settings).showOnLive) return null;
+  const shown = new Set(board({ settings: d.settings, students: d.students }).map((r) => r.id));
+  return { ...d, students: d.students.filter((s) => shown.has(s.id)) };
 }
 
 // ── import: paste, CSV, TSV, a Google Sheet ─────────────────────────────────
@@ -504,20 +542,20 @@ export function rosterNames(people) {
 
 /** Names in `rows` ({name}) that are not in `names` (compared ignoring case and punctuation): a typo check against the Bochurim list. */
 export function notOnList(rows, names) {
-  const known = new Set((names || []).map(nameKey));
+  const known = new Set((names || []).map(nameKeyLoose));
   if (!known.size) return [];
-  return (rows || []).filter((r) => !known.has(nameKey(r.name))).map((r) => r.name);
+  return (rows || []).filter((r) => !known.has(nameKeyLoose(r.name))).map((r) => r.name);
 }
 
 /** Add every name in `names` that is not on the list yet, with no scores (they appear on the screen once they have one). */
 export function addNames(file, names) {
   const f = normalizeFile(file);
-  const have = new Set(f.students.map((s) => nameKey(s.name)));
+  const have = new Set(f.students.map((s) => nameKeyLoose(s.name)));
   let added = 0;
   for (const n of names || []) {
     const st = normalizeStudent({ name: n });
-    if (!st || have.has(nameKey(st.name))) continue;
-    have.add(nameKey(st.name)); f.students.push(st); added++;
+    if (!st || have.has(nameKeyLoose(st.name))) continue;
+    have.add(nameKeyLoose(st.name)); f.students.push(st); added++;
   }
   f.updatedAt = new Date().toISOString();
   return { file: normalizeFile(f), added };

@@ -36,7 +36,8 @@ export function useSlideRotation(slides, { paused: externalPause = false } = {})
   // duration 0 on video slides means "play full clip, don't auto-advance"
   const isVideoNoTimer = currentSlide?.type === 'VIDEO_SLIDE' && currentSlide?.duration === 0;
   // overrideDuration allows a slide (e.g. HayomYom) to request a longer duration based on content length
-  const duration = isVideoNoTimer ? 0 : ((overrideDuration ?? currentSlide?.duration ?? 13) * 1000);
+  // a slide whose seconds are 0 (other than a video) is on AUTOMATIC: it asks for the time it needs (onRequestDuration), 13 s until it does
+  const duration = isVideoNoTimer ? 0 : ((overrideDuration ?? (currentSlide?.duration > 0 ? currentSlide.duration : 13)) * 1000);
 
   // Reset override whenever the slide changes
   useEffect(() => {

@@ -6,7 +6,7 @@ import { NumberField } from './ui.jsx';
 import { useCopy } from './schedule/scheduleShared.jsx';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 import { btn, iconBtn, card, h3, small } from './menu/menuKit.jsx';
-import { board, summary, fmtAvg, plan, planSeconds, starterCsv, TEMPLATE_CSV, CLAUDE_PROMPT, LIMITS } from '../../shared/averages.js';
+import { board, summary, fmtAvg, plan, planSeconds, starterCsv, whyHidden, TEMPLATE_CSV, CLAUDE_PROMPT, LIMITS } from '../../shared/averages.js';
 
 /**
  * Admin > Screen > Test Averages. Phone first: one column, 44 px targets, sheets with a sticky Save.
@@ -262,7 +262,10 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
               const out = !!st.scores.length && st.scores.length < needs;
               return (
                 <button key={st.id} type="button" onClick={() => canEdit && setEdit(st)} disabled={!canEdit} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '6px 0', border: 'none', borderBottom: `1px solid ${colors.line}`, background: 'transparent', textAlign: 'left', cursor: canEdit ? 'pointer' : 'default', color: colors.text, fontFamily: adminFonts.englishBody, fontSize: '15px' }}>
-                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}{st.track ? <span style={{ ...small, marginLeft: '8px' }}>{st.track}</span> : null}</span>
+                  <span style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}{st.track ? <span style={{ ...small, marginLeft: '8px' }}>{st.track}</span> : null}</span>
+                    {whyHidden(st, file.settings) ? <span style={{ ...small, display: 'block', fontSize: '12px' }} data-testid="avg-why-hidden">Not on the screen: {whyHidden(st, file.settings)}</span> : null}
+                  </span>
                   <span style={{ ...small, whiteSpace: 'nowrap' }}>{st.scores.length ? `${st.scores.length} ${st.scores.length === 1 ? 'test' : 'tests'}` : 'average only'}</span>
                   <strong style={{ minWidth: '48px', textAlign: 'right', color: out ? colors.dim : colors.text }}>{a == null ? '–' : fmtAvg(a, 1)}</strong>
                 </button>
@@ -296,6 +299,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <Field label="Seconds per page" hint="Time to find your name."><NumberField value={s.seconds} min={6} max={40} onCommit={(n) => saveSettings({ seconds: n }, 'Saved')} ariaLabel="Seconds per page" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
         </div>
         <Field label="Pace" hint="Scales how long every page stays up."><Choices ariaLabel="Pace" value={s.pace} onChange={(v) => saveSettings({ pace: v }, 'Saved')} options={[{ value: 'calm', label: 'Calm' }, { value: 'normal', label: 'Normal' }, { value: 'quick', label: 'Quick' }]} /></Field>
+        <SwitchRow on={s.flipNames} onChange={() => saveSettings({ flipNames: !s.flipNames }, 'Saved')} label="Show &quot;Last, First&quot; names as &quot;First Last&quot;" note="Only for names with one comma, like the ones in your sheet." />
         <SwitchRow on={s.showRank} onChange={() => saveSettings({ showRank: !s.showRank }, 'Saved')} label="Show each student's position number" />
         <SwitchRow on={s.showMarks} onChange={() => saveSettings({ showMarks: !s.showMarks }, 'Saved')} label="Show each average" note="Off shows only the names, in order." />
         <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" note="Off by default: a screen for the whole yeshiva does not need a grade by each name." />
@@ -309,6 +313,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <Choices ariaLabel="Transition" value={s.transition} onChange={(v) => saveSettings({ transition: v }, 'Saved')} options={TRANSITION_LABELS.map(([value, label]) => ({ value, label }))} />
         </Field>
 
+        <SwitchRow on={s.showOnLive} onChange={() => saveSettings({ showOnLive: !s.showOnLive }, s.showOnLive ? 'Not shown on the live link' : 'Shown on the live link')} label="Also show on the live link" note={s.showOnLive ? 'On: anyone you gave the live word or link to can see the student names and averages that are on the screen. Students below the minimum are never sent.' : 'Off: the live link does not show the Test Averages. Turn on only if everyone with the live word may see student names and marks.'} testId="avg-live-switch" />
         <PrizeLevels levels={s.prizes} note={s.prizeNote} canEdit={canEdit} onSave={(prizes, prizeNote) => saveSettings({ prizes, prizeNote }, 'Prize levels saved')} />
 
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Extra pages (all off until you turn them on)</h4>

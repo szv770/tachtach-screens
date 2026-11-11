@@ -38,7 +38,7 @@ export default function AveragesSlide({ data, portrait: portraitProp, onRequestD
 
   const total = planSeconds(steps);
   const base = Number(slide?.duration) || 0;
-  useEffect(() => { if (n > 1 && onRequestDuration && total > base) onRequestDuration(total); }, [total, n]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (onRequestDuration && n > 0 && (base === 0 || total > base)) onRequestDuration(total); }, [total, n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const step = n ? turn % n : 0;
   const seconds = n ? steps[step].s + 1 : 0; // + 1 s for the transition, as planSeconds() counts it

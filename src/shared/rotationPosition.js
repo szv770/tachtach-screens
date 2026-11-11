@@ -12,7 +12,7 @@ export const MAX_LIST = 80;
 export function slideMs(slide, overrideSeconds) {
   if (!slide) return 0;
   if (slide.type === 'VIDEO_SLIDE' && slide.duration === 0) return 0;
-  const s = overrideSeconds ?? slide.duration ?? 13;
+  const s = overrideSeconds ?? (slide.duration > 0 ? slide.duration : 13); // 0 = automatic: the slide's own request, else 13 s
   return Math.max(0, Math.round(Number(s) * 1000)) || 0;
 }
 

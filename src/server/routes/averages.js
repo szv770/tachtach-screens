@@ -29,9 +29,11 @@ const body = (req) => (req.body && typeof req.body === 'object' && !Array.isArra
 /** Names on the Bochurim list (the roster). Names class: only ever sent to someone who can edit the averages. */
 const names = async () => { try { return A.rosterNames((await readRoster()).people); } catch { return []; } };
 const view = async (file) => {
-  const have = new Set(file.students.map((s) => A.nameKey(s.name)));
+  const have = new Set(file.students.map((s) => A.nameKeyLoose(s.name)));
   const roster = await names();
-  return { ...file, tracks: A.tracksOf(file), rows: A.board(file).length, rosterCount: roster.length, rosterNew: roster.filter((n) => !have.has(A.nameKey(n))).length };
+  const look = lastLook.get(averagesStore); // a look that changed nothing is not saved to disk, so show its time from memory
+  if (look && (!file.sheet.lastSync || look.at > file.sheet.lastSync)) file = { ...file, sheet: { ...file.sheet, lastSync: look.at, lastCount: look.count } };
+  return { ...file, tracks: A.tracksOf(file), rows: A.board(file).length, rosterCount: roster.length, rosterNew: roster.filter((n) => !have.has(A.nameKeyLoose(n))).length };
 };
 const send = async (res, saved) => res.json(await view(saved));
 
@@ -126,6 +128,7 @@ router.post('/averages/sync', syncLimit, async (_req, res) => {
  * Two callers at once (the timer and a 'Sync now' tap) share ONE download, so the Pi never fetches the sheet twice at the same time.
  */
 const inFlight = new WeakMap();
+const lastLook = new WeakMap(); // store -> { at, count } of the latest successful look (memory only)
 export function syncSheet(store = averagesStore, fetchCsv = fetchSheetCsv) {
   if (inFlight.has(store)) return inFlight.get(store);
   const run = doSync(store, fetchCsv).finally(() => inFlight.delete(store));
@@ -146,6 +149,13 @@ async function doSync(store, fetchCsv) {
     throw e instanceof A.AveragesError ? e : new A.AveragesError(String(e.message || 'Sync failed'));
   }
   const unknown = A.notOnList(parsed.rows, await names());
+  lastLook.set(store, { at: stamp, count: parsed.counts.students }); // in memory: 'looked at the sheet just now'
+  // A look that finds nothing new must not touch the disk (a look every minute would wear an SD card): only write when the
+  // students changed, the sheet notes changed, or the saved 'last synced' time is more than 30 minutes old.
+  const sameNotes = (sh) => sh.lastCount === parsed.counts.students && sh.unmatchedCount === unknown.length && sh.lastError === '';
+  const stale = (sh) => !sh.lastSync || Date.parse(stamp) - Date.parse(sh.lastSync) > 30 * 60e3;
+  const peek = A.applyImport(cur, parsed, { mode: 'replace' });
+  if (JSON.stringify(peek.students) === JSON.stringify(cur.students) && sameNotes(cur.sheet) && !stale(cur.sheet)) return cur;
   const flag = { quiet: false };
   return store.mutate(undefined, (f) => {
     const next = A.applyImport(f, parsed, { mode: 'replace' });
