@@ -126,18 +126,17 @@ test('plan: about 40 names read in well under a minute; extra acts and layout fo
   assert.ok(A.planSeconds(A.plan(f({ pace: 'calm' }))) > A.planSeconds(A.plan(f({ pace: 'quick' }))));
 });
 
- test('a sheet with a date above each test: blanks and zeros are not counted, fractions work', () => {
+ test('a sheet with a date above each test: an empty cell is not counted, a 0 is a real mark, fractions work', () => {
   const csv = ',11/3,11/10,Nov 17,12/1/2026\nMoshe Katz,90,,80,0\nYossi Berg,0,0,0,0\nDovid Levy,17/20,,,100\n';
   const p = A.parseInput(csv);
   assert.equal(p.errors.length, 0);
   assert.deepEqual(p.columns.map((c) => c.as), ['name', 'score', 'score', 'score', 'score'], 'the blank corner heading is the name column, each date is a test');
-  const f = A.applyImport({}, p);
-  const rows = A.board(f);
-  assert.deepEqual(rows.map((r) => [r.name, r.avg, r.tests]), [['Dovid Levy', 92.5, 2], ['Moshe Katz', 85, 2]], 'a zero and a blank are both "did not take it"; a student with only zeros does not show');
-  const kiosk = A.forKiosk(f);
-  assert.deepEqual(kiosk.students.find((s) => s.name === 'Moshe Katz').scores, [90, 80], 'the screen never sees the zeros either');
-  const counted = A.board({ ...f, settings: { zeroIsAbsent: false, minAverage: 0 } }).find((r) => r.name === 'Moshe Katz');
-  assert.equal(counted.avg, 56.666666666666664, 'switched off, a real 0 counts');
+  const f = A.applyImport({ settings: { minAverage: 0 } }, p);
+  const byName = (rows) => Object.fromEntries(rows.map((r) => [r.name, [r.avg, r.tests]]));
+  assert.deepEqual(byName(A.board(f)), { 'Dovid Levy': [92.5, 2], 'Moshe Katz': [(90 + 80 + 0) / 3, 3], 'Yossi Berg': [0, 4] }, 'the blank is skipped but a 0 counts: Moshe drops, Yossi is at 0');
+  assert.deepEqual(A.forKiosk(f).students.find((s) => s.name === 'Moshe Katz').scores, [90, 80, 0], 'the screen gets the zero too');
+  const left = byName(A.board({ ...f, settings: { minAverage: 0, zeroIsAbsent: true } }));
+  assert.deepEqual(left, { 'Dovid Levy': [92.5, 2], 'Moshe Katz': [85, 2] }, 'if the school switches it on, zeros are left out (and a student with only zeros does not show)');
   assert.equal(A.parseInput('Student\'s Name,Quiz 1\nA One,70').rows[0].name, 'A One', 'a heading like Student\'s Name is the name column');
 });
 
@@ -188,9 +187,15 @@ test('store + syncSheet: replaces the list from the sheet, broadcasts a names-sa
   assert.equal(saved.sheet.lastCount, 4);
   assert.equal(saved.sheet.lastError, '');
   assert.equal(events.at(-1)[0], 'averages-update');
+  const sent = events.length;
+  const again = await syncSheet(store, async () => CSV);
+  assert.equal(events.length, sent, 'a sheet with no changes records the sync but does not nudge the screen');
+  assert.ok(again.sheet.lastSync);
+  assert.equal(await syncSheet(store, async () => `${CSV}New Kid,80,90\n`).then((x) => x.students.length), 5);
+  assert.equal(events.length, sent + 1, 'a change does nudge the screen');
   await assert.rejects(syncSheet(store, async () => { throw new Error('Google took too long'); }), /too long/);
   assert.match((await store.read()).sheet.lastError, /too long/);
-  assert.equal((await store.read()).students.length, 4, 'a failed sync keeps the old data');
+  assert.equal((await store.read()).students.length, 5, 'a failed sync keeps the old data');
   await assert.rejects(syncSheet(store, async () => 'A B,500'), /not a score/);
 });
 

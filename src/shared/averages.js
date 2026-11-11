@@ -34,7 +34,7 @@ export const DEFAULTS = Object.freeze({
   showGrade: false,       // the student's grade / shiur next to the name
   showTests: false,       // 'N tests' next to the name
   decimals: 1,            // 0 or 1
-  zeroIsAbsent: true,     // a 0 in a test column means 'did not take that test' (not counted), so it never drags an average down; a blank is never counted either
+  zeroIsAbsent: false,    // false (default): a 0 is a real mark and lowers the average. true: a 0 is left out as 'did not take it'. An EMPTY cell is never counted either way.
   transition: 'mix',      // between pages: 'mix' | 'cube' | 'cards' | 'door' | 'carousel' | 'tilt' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
   pace: 'normal',         // how long each page stays: 'calm' | 'normal' | 'quick'
   showAvatars: false,     // a round monogram (initials) beside each name
@@ -188,8 +188,8 @@ export function improvement(scores) {
  * Equal averages share a rank (1, 1, 3). Ties break on more tests, then name, so the order never jumps between refreshes.
  * `track` '' = everyone.
  */
-/** The scores that count: with `zeroIsAbsent` a 0 is a test that was not taken (or not marked), so it is left out. */
-export const scoresFor = (scores, settings) => (Array.isArray(scores) ? (settings?.zeroIsAbsent === false ? scores : scores.filter((x) => x > 0)) : []);
+/** The scores that count. A 0 is a real mark (it lowers the average) unless the school switched on `zeroIsAbsent`; an empty cell never became a score at all. */
+export const scoresFor = (scores, settings) => (Array.isArray(scores) ? (settings?.zeroIsAbsent === true ? scores.filter((x) => x > 0) : scores) : []);
 
 export function board(file, opts = {}) {
   const s = normalizeSettings(opts.settings || file?.settings);

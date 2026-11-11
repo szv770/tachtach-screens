@@ -20,13 +20,13 @@ export function createAveragesStore({
     async read(_ctx = LOCAL) { return normalizeFile(await read()); },
     async forKiosk(ctx = LOCAL) { return forKiosk(await this.read(ctx)); },
     /** Read-modify-write under the lock. `fn(file)` returns the new document or throws AveragesError (-> 400). */
-    async mutate(_ctx, fn) {
+    async mutate(_ctx, fn, opts) {
       const saved = await update(async (cur) => {
         const next = normalizeFile(await fn(normalizeFile(cur)));
         if (fileBytes(next) > LIMITS.file) throw new AveragesError('That is too much data. Remove some students first.');
         return next;
       });
-      emit('averages-update', forKiosk(saved));
+      if (!opts?.quiet) emit('averages-update', forKiosk(saved)); // `fn` may set opts.quiet when nothing the screen shows changed
       return saved;
     },
   };

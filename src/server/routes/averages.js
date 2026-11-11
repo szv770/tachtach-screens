@@ -135,14 +135,17 @@ export async function syncSheet(store = averagesStore, fetchCsv = fetchSheetCsv)
     throw e instanceof A.AveragesError ? e : new A.AveragesError(String(e.message || 'Sync failed'));
   }
   const unknown = A.notOnList(parsed.rows, await names());
+  const flag = { quiet: false };
   return store.mutate(undefined, (f) => {
     const next = A.applyImport(f, parsed, { mode: 'replace' });
-    return { ...next, sheet: { ...next.sheet, lastSync: stamp, lastCount: parsed.counts.students, lastError: '', unmatched: unknown.slice(0, 10), unmatchedCount: unknown.length } };
-  });
+    flag.quiet = JSON.stringify(next.students) === JSON.stringify(f.students); // the sheet had no changes: record the sync, do not nudge the screen
+    const sheet = { ...f.sheet, lastSync: stamp, lastCount: parsed.counts.students, lastError: '', unmatched: unknown.slice(0, 10), unmatchedCount: unknown.length };
+    return { ...(flag.quiet ? f : next), sheet };
+  }, flag);
 }
 
-/** Every 15 minutes: pull the sheet if one is linked and 'keep it in sync' is on. Never throws. */
-export function startAveragesSync({ store = averagesStore, fetchCsv = fetchSheetCsv, everyMs = 15 * 60e3 } = {}) {
+/** Every 10 minutes: pull the sheet if one is linked and 'keep it in sync' is on (like reloading a web page). Never throws. */
+export function startAveragesSync({ store = averagesStore, fetchCsv = fetchSheetCsv, everyMs = 10 * 60e3 } = {}) {
   const tick = async () => {
     try {
       const f = await store.read();

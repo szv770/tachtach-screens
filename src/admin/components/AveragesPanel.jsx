@@ -170,7 +170,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
       {canEdit && (
         <div style={card} data-testid="avg-sheet">
           <h3 style={h3}>Link a Google Sheet</h3>
-          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Already have a sheet? Use it as it is: it needs a Name column (or First and Last) and either an Average column or one column per test. English or Hebrew headings both work, a date above each test column is fine, and title lines above the headings are fine. An empty cell or a 0 means the student did not take that test, so it is not counted. Press <strong>Check the sheet</strong> to see how it was understood before anything changes. Starting fresh? Use the template (File, Import, Upload).</p>
+          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Already have a sheet? Use it as it is: it needs a Name column (or First and Last) and either an Average column or one column per test. English or Hebrew headings both work, a date above each test column is fine, and title lines above the headings are fine. An empty cell means the student did not take that test and is not counted; a 0 is a real mark and lowers the average. Press <strong>Check the sheet</strong> to see how it was understood before anything changes. Starting fresh? Use the template (File, Import, Upload).</p>
           <ol style={{ ...small, margin: '8px 0 0', paddingLeft: '20px' }}>
             <li>In the sheet, press <strong>Share</strong>. Add the people who will type scores as <strong>Editors</strong>.</li>
             <li>Under General access choose <strong>Anyone with the link</strong> and set it to <strong>Viewer</strong>. This is how the screen reads it. Anyone with the link can see the names and marks, so only share the link with staff.</li>
@@ -189,9 +189,9 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           )}
           <p style={{ ...small, margin: '8px 0 0' }}>The screen reads the first tab (or the tab the link opens). The Average column, if there is one, is worked out for you and ignored.</p>
           <Field label="Sheet link" htmlFor="avg-sheet-url" style={{ marginTop: '10px' }}><input id="avg-sheet-url" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={fieldStyle} autoComplete="off" /></Field>
-          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (every 15 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
+          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (re-reads the sheet every 10 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-            <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={() => run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed')} data-testid="avg-sheet-save">Save link</button>
+            <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={async () => { const ok = await run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed'); if (ok && sheetUrl.trim()) run(() => api('POST', '/sync'), 'Synced from the sheet'); }} data-testid="avg-sheet-save">Save link</button>
             <button type="button" style={btn(false)} disabled={busy || !(sheetUrl.trim() || file.sheet.url)} onClick={async () => { setBusy(true); try { setCheck(await api('POST', '/sheet/check', { url: sheetUrl.trim() })); } catch (e) { setCheck(null); notify(e.message, 'error'); } finally { setBusy(false); } }} data-testid="avg-sheet-check">Check the sheet</button>
             <button type="button" style={btn(true)} disabled={busy || !file.sheet.url} onClick={() => run(() => api('POST', '/sync'), 'Synced from the sheet')} data-testid="avg-sheet-sync">Sync now</button>
           </div>
@@ -295,7 +295,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
         <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" />
         <SwitchRow on={s.showTests} onChange={() => saveSettings({ showTests: !s.showTests }, 'Saved')} label="Show how many tests each student took" />
         <SwitchRow on={s.showAvatars} onChange={() => saveSettings({ showAvatars: !s.showAvatars }, 'Saved')} label="Round initials beside each name" />
-        <SwitchRow on={s.zeroIsAbsent} onChange={() => saveSettings({ zeroIsAbsent: !s.zeroIsAbsent }, 'Saved')} label="A 0 means the student did not take that test" note="On: a 0 (or an empty cell) is left out of the average, so a test someone did not take never pulls them down. Off: a 0 counts as a real mark." testId="avg-zero-switch" />
+        <SwitchRow on={s.zeroIsAbsent} onChange={() => saveSettings({ zeroIsAbsent: !s.zeroIsAbsent }, 'Saved')} label="Leave out zeros (a 0 means the student did not take the test)" note="Off (recommended): a 0 is a real mark and lowers the average. On: zeros are left out like empty cells. An empty cell is never counted either way." testId="avg-zero-switch" />
         <Field label="Decimals"><Choices ariaLabel="Decimals" value={String(s.decimals)} onChange={(v) => saveSettings({ decimals: Number(v) }, 'Saved')} options={[{ value: '1', label: '94.5' }, { value: '0', label: '95' }]} /></Field>
 
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Look and motion</h4>
