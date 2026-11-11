@@ -17,6 +17,8 @@ export const LIMITS = Object.freeze({
   students: 600, scores: 80, prizes: 6, prizeLabel: 24, name: 60, grade: 24, track: 24, text: 200, file: 600 * 1024, importText: 256 * 1024, maxScore: 150, tracks: 8,
 });
 
+export const TRANSITIONS = Object.freeze(['mix', 'sweep', 'curtain', 'zoom', 'rise', 'flip', 'fade']);
+
 export const DEFAULTS = Object.freeze({
   title: 'Top Averages',
   titleHe: 'מצטיינים',
@@ -24,15 +26,23 @@ export const DEFAULTS = Object.freeze({
   prizeNote: '',          // optional line under the levels, e.g. 'Prizes are given out at the end of the year'
   minAverage: 0,          // only students at or above this appear (0 = everyone entered)
   minTests: 1,            // a student needs this many scores before they appear
-  topCount: 10,           // the leaderboard size
-  view: 'both',           // 'top' | 'all' | 'both' (leaderboard, then everyone in pages)
+  showTop3: true,         // the top three get their own acts (each one in the spotlight, then the podium)
+  spotlight: 'each',      // 'each' = every top-3 student in turn (3rd, 2nd, 1st) then the podium, 'podium' = the podium only
+  featured: 24,           // how many students AFTER the top three get proper leaderboard pages (0 = none)
+  perPage: 6,             // students per leaderboard page (fewer = bigger names)
+  scrollRest: true,       // everyone else scrolls past slowly, one smooth pass
+  scrollSpeed: 'normal',  // 'slow' | 'normal' | 'fast'
+  transition: 'mix',      // between acts: 'mix' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
+  pace: 'normal',         // how long each act stays: 'calm' | 'normal' | 'quick'
+  showAvatars: true,      // a round monogram (initials) beside each name
+  sparkles: true,         // a short burst of sparkles for the leader
   byTrack: false,         // one board per track too (Gemoro, Girsa, ...) when there are 2+ tracks
   showImproved: true,     // the 'most improved' spotlight
   showMarks: true,        // the average number next to each name
   showGrade: false,       // the student's grade / shiur next to the name
   showTests: false,       // 'N tests' next to the name
   decimals: 1,            // 0 or 1
-  seconds: 10,            // seconds per page of the full list
+  seconds: 9,             // seconds per leaderboard page (before 'pace')
   when: 'always',         // reserved: always
 });
 
@@ -69,8 +79,16 @@ export function normalizeSettings(s) {
     prizeNote: clean(o.prizeNote ?? D.prizeNote, LIMITS.text),
     minAverage: num(o.minAverage, D.minAverage, 0, LIMITS.maxScore),
     minTests: Math.round(num(o.minTests, D.minTests, 1, 20)),
-    topCount: Math.round(num(o.topCount, D.topCount, 3, 10)),
-    view: pick(o.view, ['top', 'all', 'both'], D.view),
+    showTop3: bool(o.showTop3 ?? (o.view === 'all' ? false : undefined), D.showTop3),
+    spotlight: pick(o.spotlight, ['each', 'podium'], D.spotlight),
+    featured: Math.round(num(o.featured, D.featured, 0, 60)),
+    perPage: Math.round(num(o.perPage, D.perPage, 3, 10)),
+    scrollRest: bool(o.scrollRest ?? (o.view === 'top' ? false : undefined), D.scrollRest),
+    scrollSpeed: pick(o.scrollSpeed, ['slow', 'normal', 'fast'], D.scrollSpeed),
+    transition: pick(o.transition, TRANSITIONS, D.transition),
+    pace: pick(o.pace, ['calm', 'normal', 'quick'], D.pace),
+    showAvatars: bool(o.showAvatars, D.showAvatars),
+    sparkles: bool(o.sparkles, D.sparkles),
     byTrack: bool(o.byTrack, D.byTrack),
     showImproved: bool(o.showImproved, D.showImproved),
     showMarks: bool(o.showMarks, D.showMarks),
@@ -215,39 +233,56 @@ export function paginate(rows, per) {
   return out;
 }
 
-/** Seconds each kind of page stays up (the list pages use settings.seconds). */
-export const STEP_SECONDS = Object.freeze({ top: 12, improved: 9, tracks: 11 });
-/** Rows on one 'everyone' page. */
-export const PER_PAGE = Object.freeze({ landscape: 24, portrait: 16 });
-/** Rows beside the podium on the leaderboard page (ranks 4..), so topCount 10 = podium + 7. */
-export const BESIDE = Object.freeze({ landscape: 7, portrait: 5 });
+/** Seconds each kind of act stays up at 'normal' pace; `pace` scales them (the scrolling pass has its own speed). */
+export const ACT_SECONDS = Object.freeze({ spot: 6, podium: 9, improved: 9, tracks: 11 });
+export const PACE = Object.freeze({ calm: 1.3, normal: 1, quick: 0.75 });
+/** Seconds per student while everyone else scrolls past, by speed. */
+export const SCROLL_PER_ROW = Object.freeze({ slow: 1.3, normal: 0.9, fast: 0.6 });
+/** Hold at the start and end of the scrolling pass. */
+export const SCROLL_HOLD = 3;
 
 /**
- * The pages the slide steps through, in order: the leaderboard (podium + the next few), the most-improved spotlight,
- * a board per track, then everyone else in equal pages. Pure, so the admin can say how long it takes.
- *   view 'top'  leaderboard only          'both'  leaderboard, then everyone below it          'all'  everyone in pages, no podium
+ * The acts the slide plays, in order:
+ *   spot x3   the top three, one at a time, slowly (3rd, 2nd, then the leader), each with how they are doing
+ *   podium    all three together
+ *   board     the next `featured` students on leaderboard pages of `perPage` (big names, few per page)
+ *   improved  the most-improved spotlight        tracks  a board per track (2+ tracks, switched on)
+ *   scroll    everyone else, one smooth scroll past
+ * Pure, so the admin can say how long it takes.
  */
 export function plan(file, { portrait = false } = {}) {
   const s = normalizeSettings(file?.settings);
   const rows = board(file);
   if (!rows.length) return [];
+  const f = PACE[s.pace] || 1;
+  const sec = (n) => Math.round(n * f * 10) / 10;
   const steps = [];
-  const topN = Math.min(s.topCount, 3 + (portrait ? BESIDE.portrait : BESIDE.landscape));
-  if (s.view !== 'all') steps.push({ t: 'top', rows: rows.slice(0, topN), s: STEP_SECONDS.top });
+  const top = s.showTop3 ? rows.slice(0, 3) : [];
+  if (top.length) {
+    if (s.spotlight === 'each') [...top].reverse().forEach((r) => steps.push({ t: 'spot', rows: [r], place: top.indexOf(r) + 1, s: sec(ACT_SECONDS.spot) }));
+    steps.push({ t: 'podium', rows: top, s: sec(ACT_SECONDS.podium) });
+  }
+  const after = top.length;
+  const per = portrait ? Math.min(s.perPage, 5) : s.perPage;
+  const featuredRows = rows.slice(after, after + s.featured);
+  paginate(featuredRows, per).forEach((page, i, all) => steps.push({ t: 'board', rows: page, page: i, pages: all.length, s: sec(s.seconds) }));
   const imp = s.showImproved ? mostImproved(rows, 3) : [];
-  if (imp.length) steps.push({ t: 'improved', rows: imp, s: STEP_SECONDS.improved });
+  if (imp.length) steps.push({ t: 'improved', rows: imp, s: sec(ACT_SECONDS.improved) });
   const tracks = s.byTrack ? tracksOf(file) : [];
   if (tracks.length >= 2) {
     const cols = tracks.slice(0, 4).map((tr) => ({ track: tr, rows: board(file, { track: tr }).slice(0, 5) })).filter((c) => c.rows.length);
-    if (cols.length >= 2) steps.push({ t: 'tracks', cols, s: STEP_SECONDS.tracks });
+    if (cols.length >= 2) steps.push({ t: 'tracks', cols, s: sec(ACT_SECONDS.tracks) });
   }
-  const rest = s.view === 'top' ? [] : (s.view === 'all' ? rows : rows.slice(topN));
-  paginate(rest, portrait ? PER_PAGE.portrait : PER_PAGE.landscape).forEach((page, i, all) => steps.push({ t: 'list', rows: page, page: i, pages: all.length, s: s.seconds }));
+  const rest = rows.slice(after + featuredRows.length);
+  if (s.scrollRest && rest.length) steps.push({ t: 'scroll', rows: rest, s: Math.round((rest.length * SCROLL_PER_ROW[s.scrollSpeed] + SCROLL_HOLD * 2) * 10) / 10 });
   return steps;
 }
 
-/** Total seconds the slide needs to show every page once (plus a little settle time). */
-export const planSeconds = (steps) => steps.reduce((a, x) => a + x.s, 0) + 2;
+/** The label of the section an act belongs to (for the little title pill and the progress bar). */
+export const SECTION = Object.freeze({ spot: 'Top 3', podium: 'Top 3', board: 'Leaderboard', improved: 'Most improved', tracks: 'By track', scroll: 'Everyone' });
+
+/** Total seconds the slide needs to show every act once (plus a little settle time for the transitions). */
+export const planSeconds = (steps) => Math.round(steps.reduce((a, x) => a + x.s + 1, 0) + 1);
 
 /** Is there anything for the rotation to show? */
 export function hasBoard(file) { return board(file).length > 0; }

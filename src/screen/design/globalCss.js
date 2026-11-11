@@ -70,6 +70,55 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttAvIn { from { opacity: 0; transform: translate3d(-24px, 0, 0); } }
 @keyframes ttAvBar { from { transform: scaleX(0); } }
 @keyframes ttAvPop { from { opacity: 0; transform: scale(.5); } }
+/* Test Averages stage: acts change with a designed transition (sweep / curtain / zoom / rise / flip), not a fade. The outgoing act (.tt-av-lo)
+   and the incoming act (.tt-av-li) are both mounted for ~1.1 s. Transform + opacity only, finite; Minimal motion = a plain fade. */
+.tt-av-stage { position: relative; flex: 1; min-height: 0; perspective: 2400px; }
+.tt-av-layer { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
+.m-smooth .tt-av-lo.tt-av-t-sweep, .m-lively .tt-av-lo.tt-av-t-sweep { animation: ttAvSwOut 780ms cubic-bezier(.55,0,.8,.4) both; }
+.m-smooth .tt-av-li.tt-av-t-sweep, .m-lively .tt-av-li.tt-av-t-sweep { animation: ttAvSwIn 1000ms cubic-bezier(.16,.84,.3,1) 260ms both; }
+.m-smooth .tt-av-lo.tt-av-t-zoom, .m-lively .tt-av-lo.tt-av-t-zoom { animation: ttAvZoOut 760ms cubic-bezier(.5,0,.9,.4) both; }
+.m-smooth .tt-av-li.tt-av-t-zoom, .m-lively .tt-av-li.tt-av-t-zoom { animation: ttAvZoIn 1000ms cubic-bezier(.2,.9,.25,1.08) 240ms both; }
+.m-smooth .tt-av-lo.tt-av-t-rise, .m-lively .tt-av-lo.tt-av-t-rise { animation: ttAvRiOut 700ms cubic-bezier(.5,0,.8,.4) both; }
+.m-smooth .tt-av-li.tt-av-t-rise, .m-lively .tt-av-li.tt-av-t-rise { animation: ttAvRiIn 980ms cubic-bezier(.16,.84,.3,1) 240ms both; }
+.m-smooth .tt-av-lo.tt-av-t-flip, .m-lively .tt-av-lo.tt-av-t-flip { animation: ttAvFlOut 700ms cubic-bezier(.5,0,.8,.4) both; }
+.m-smooth .tt-av-li.tt-av-t-flip, .m-lively .tt-av-li.tt-av-t-flip { animation: ttAvFlIn 1000ms cubic-bezier(.2,.9,.25,1.05) 300ms both; }
+.m-smooth .tt-av-lo.tt-av-t-curtain, .m-lively .tt-av-lo.tt-av-t-curtain { animation: ttAvGone 1100ms linear both; }
+.m-smooth .tt-av-li.tt-av-t-curtain, .m-lively .tt-av-li.tt-av-t-curtain { animation: ttAvHold 1100ms linear both; }
+.tt-av-t-fade.tt-av-li { animation: ttFadeIn 600ms linear both; }
+.tt-av-t-fade.tt-av-lo { animation: ttFadeOut 500ms linear both; }
+.m-minimal .tt-av-li { animation: ttFadeIn 500ms linear both; }
+.tt-av-wipe { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 5; }
+.tt-av-band { position: absolute; top: -10%; bottom: -10%; left: 0; width: 34%; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accentText) 42%, transparent) 45%, color-mix(in srgb, var(--ink) 60%, transparent) 50%, color-mix(in srgb, var(--accentText) 42%, transparent) 55%, transparent); animation: ttAvBand 1000ms cubic-bezier(.55,0,.35,1) 120ms both; }
+.tt-av-cur { position: absolute; top: 0; bottom: 0; width: 50.5%; background: linear-gradient(180deg, var(--fill), color-mix(in srgb, var(--fill) 70%, var(--panel))); }
+.tt-av-cur.l { left: 0; animation: ttAvCurL 1100ms cubic-bezier(.6,0,.3,1) both; }
+.tt-av-cur.r { right: 0; animation: ttAvCurR 1100ms cubic-bezier(.6,0,.3,1) both; }
+@keyframes ttAvSwOut { to { opacity: 0; transform: translate3d(-10%, 0, 0) scale(.96); } }
+@keyframes ttAvSwIn { from { opacity: 0; transform: translate3d(13%, 0, 0) scale(.985); } }
+@keyframes ttAvZoOut { to { opacity: 0; transform: scale(1.28); } }
+@keyframes ttAvZoIn { from { opacity: 0; transform: scale(.78); } }
+@keyframes ttAvRiOut { to { opacity: 0; transform: translate3d(0, -8%, 0); } }
+@keyframes ttAvRiIn { from { opacity: 0; transform: translate3d(0, 11%, 0); } }
+@keyframes ttAvFlOut { to { opacity: 0; transform: rotateY(-78deg) scale(.94); } }
+@keyframes ttAvFlIn { from { opacity: 0; transform: rotateY(78deg) scale(.94); } }
+@keyframes ttAvGone { 0%, 44% { opacity: 1; } 46%, 100% { opacity: 0; } }
+@keyframes ttAvHold { 0%, 44% { opacity: 0; } 46%, 100% { opacity: 1; } }
+@keyframes ttAvBand { from { transform: translate3d(-130%, 0, 0) skewX(-16deg); } to { transform: translate3d(330%, 0, 0) skewX(-16deg); } }
+@keyframes ttAvCurL { 0% { transform: translate3d(-101%, 0, 0); } 42%, 58% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(-101%, 0, 0); } }
+@keyframes ttAvCurR { 0% { transform: translate3d(101%, 0, 0); } 42%, 58% { transform: translate3d(0, 0, 0); } 100% { transform: translate3d(101%, 0, 0); } }
+/* inside an act: avatar ring draws, sparkles burst once, bars of the test history rise, the list scrolls past in one pass, the progress bar fills */
+.m-smooth .tt-av-ring, .m-lively .tt-av-ring { stroke-dasharray: 1; stroke-dashoffset: 0; animation: ttAvRing 1300ms cubic-bezier(.3,.7,.2,1) var(--d, 300ms) both; }
+.m-smooth .tt-av-spark, .m-lively .tt-av-spark { animation: ttAvSpark var(--dur, 1500ms) cubic-bezier(.15,.7,.3,1) var(--d, 0ms) both; }
+.m-smooth .tt-av-col, .m-lively .tt-av-col { transform-origin: 50% 100%; animation: ttAvCol 800ms cubic-bezier(.2,.85,.25,1.05) calc(var(--i, 0) * 70ms + var(--d, 600ms)) both; }
+.m-smooth .tt-av-badge, .m-lively .tt-av-badge { animation: ttAvBadge 800ms cubic-bezier(.2,.9,.3,1.3) var(--d, 400ms) both; }
+.m-smooth .tt-av-scroll, .m-lively .tt-av-scroll { animation: ttAvScroll var(--sd, 30s) linear var(--hold, 3s) both; }
+.m-smooth .tt-av-prog, .m-lively .tt-av-prog { transform-origin: 0 50%; animation: ttAvProg var(--pd, 10s) linear both; }
+.m-minimal .tt-av-prog { transform: scaleX(1); }
+@keyframes ttAvRing { from { stroke-dashoffset: 1; } }
+@keyframes ttAvSpark { 0% { opacity: 0; transform: translate3d(0, 0, 0) rotate(0) scale(.3); } 12% { opacity: 1; } 100% { opacity: 0; transform: translate3d(var(--dx), var(--dy), 0) rotate(var(--rot, 200deg)) scale(1); } }
+@keyframes ttAvCol { from { opacity: 0; transform: scaleY(.02); } 35% { opacity: 1; } }
+@keyframes ttAvBadge { from { opacity: 0; transform: scale(.2) rotate(-18deg); } }
+@keyframes ttAvScroll { from { transform: translate3d(0, 0, 0); } to { transform: translate3d(0, calc(var(--dist, 0) * -1px), 0); } }
+@keyframes ttAvProg { from { transform: scaleX(0); } }
 /* Countdown takeover (takeover/OccasionTakeover.jsx): a short fade in + a small rise of the content, a short fade out. Finite. */
 .m-smooth .tt-occ-tk, .m-lively .tt-occ-tk { animation: ttFadeIn 520ms ease-out both; }
 .m-minimal .tt-occ-tk { animation: ttFadeIn 400ms linear both; }
@@ -148,7 +197,7 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttLiIn   { from { opacity: 0; transform: translateY(26px) scale(.985); } }
 @keyframes ttLiOut  { to   { opacity: 0; transform: translateY(-10px); } }
 @media (prefers-reduced-motion: reduce) {
-  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-av-rise, .tt-av-crown, .tt-av-in, .tt-av-bar, .tt-av-pop, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-act-out, .tt-page-in, .tt-digit, .tt-rule-in, .tt-photo-in, .tt-scroll, .tt-scroll-win, .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-scroll .tt-act, .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
+  .tt-page.tt-enter, .tt-page.tt-exit, .tt-page.tt-enter [data-s], .tt-tick, .tt-fadein, .tt-bd-n, .tt-bd-bunt, .tt-bd-hero, .tt-bd-up, .tt-occ-tk, .tt-occ-rise, .tt-av-rise, .tt-av-crown, .tt-av-in, .tt-av-bar, .tt-av-pop, .tt-av-lo, .tt-av-li, .tt-av-band, .tt-av-cur, .tt-av-ring, .tt-av-spark, .tt-av-col, .tt-av-badge, .tt-av-scroll, .tt-av-prog, .tt-flip, .tt-form-in, .tt-adv-open, .tt-pop, .tt-occ-num, .tt-act [data-s], .tt-act-out, .tt-page-in, .tt-digit, .tt-rule-in, .tt-photo-in, .tt-scroll, .tt-scroll-win, .tt-scroll-paper, .tt-scroll-rod, .tt-scroll [data-s], .tt-scroll .tt-act, .tt-hype-pop, .tt-hype-settle, .tt-spark, .tt-rail-flash { animation: none !important; }
   .tt-bd-f { display: none; }
   .tt-root { transition: none !important; }
 }
