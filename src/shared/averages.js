@@ -17,32 +17,32 @@ export const LIMITS = Object.freeze({
   students: 600, scores: 80, prizes: 6, prizeLabel: 24, name: 60, grade: 24, track: 24, text: 200, file: 600 * 1024, importText: 256 * 1024, maxScore: 150, tracks: 8,
 });
 
-export const TRANSITIONS = Object.freeze(['mix', 'sweep', 'curtain', 'zoom', 'rise', 'flip', 'fade']);
+export const TRANSITIONS = Object.freeze(['mix', 'cube', 'cards', 'door', 'carousel', 'tilt', 'sweep', 'curtain', 'zoom', 'rise', 'flip', 'fade']);
 
 export const DEFAULTS = Object.freeze({
-  title: 'Top Averages',
-  titleHe: 'מצטיינים',
+  title: '',              // English title (empty = Hebrew only)
+  titleHe: 'מבצע תורה',   // the page heading, painted with the screen's Hebrew display font
   prizes: [],             // prize levels: [{ at: 90, label: 'Gold' }, ...] (the org's own words); a student earns the highest level they reach
   prizeNote: '',          // optional line under the levels, e.g. 'Prizes are given out at the end of the year'
-  minAverage: 0,          // only students at or above this appear (0 = everyone entered)
-  minTests: 1,            // a student needs this many scores before they appear
-  showTop3: true,         // the top three get their own acts (each one in the spotlight, then the podium)
-  spotlight: 'each',      // 'each' = every top-3 student in turn (3rd, 2nd, 1st) then the podium, 'podium' = the podium only
-  featured: 24,           // how many students AFTER the top three get proper leaderboard pages (0 = none)
-  perPage: 6,             // students per leaderboard page (fewer = bigger names)
-  scrollRest: true,       // everyone else scrolls past slowly, one smooth pass
-  scrollSpeed: 'normal',  // 'slow' | 'normal' | 'fast'
-  transition: 'mix',      // between acts: 'mix' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
-  pace: 'normal',         // how long each act stays: 'calm' | 'normal' | 'quick'
-  showAvatars: true,      // a round monogram (initials) beside each name
-  sparkles: true,         // a short burst of sparkles for the leader
-  byTrack: false,         // one board per track too (Gemoro, Girsa, ...) when there are 2+ tracks
-  showImproved: true,     // the 'most improved' spotlight
+  minAverage: 60,         // only students at or above this appear (0 = everyone entered)
+  minTests: 1,            // a student needs this many scores before they appear (a typed-in average needs none)
+  columns: 3,             // the list is laid out in 2 or 3 columns (portrait screens always use 2)
+  rowsPerColumn: 7,       // names per column on one page: fewer = bigger, easier to read
+  seconds: 12,            // seconds each page of names stays up (before 'pace')
+  showRank: true,         // a small position number before each name (1, 2, 3 ...)
   showMarks: true,        // the average number next to each name
   showGrade: false,       // the student's grade / shiur next to the name
   showTests: false,       // 'N tests' next to the name
   decimals: 1,            // 0 or 1
-  seconds: 9,             // seconds per leaderboard page (before 'pace')
+  transition: 'mix',      // between pages: 'mix' | 'cube' | 'cards' | 'door' | 'carousel' | 'tilt' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
+  pace: 'normal',         // how long each page stays: 'calm' | 'normal' | 'quick'
+  showAvatars: false,     // a round monogram (initials) beside each name
+  sparkles: true,         // a short burst of sparkles for the leader (only when the top-3 acts are on)
+  // Extra acts, all OFF until the school turns them on:
+  showTop3: false,        // the top three get their own acts (each one in the spotlight, then the podium)
+  spotlight: 'each',      // 'each' = every top-3 student in turn (3rd, 2nd, 1st) then the podium, 'podium' = the podium only
+  showImproved: false,    // the 'most improved' spotlight
+  byTrack: false,         // one board per track too (Gemoro, Girsa, ...) when there are 2+ tracks
   when: 'always',         // reserved: always
 });
 
@@ -73,29 +73,28 @@ export function normalizeSettings(s) {
   const o = s && typeof s === 'object' ? s : {};
   const D = DEFAULTS;
   return {
-    title: clean(o.title ?? D.title, LIMITS.text) || D.title,
+    title: clean(o.title ?? D.title, LIMITS.text),
     titleHe: clean(o.titleHe ?? D.titleHe, LIMITS.text),
     prizes: normalizePrizes(o.prizes, o.prizeAt, o.prizeLine),
     prizeNote: clean(o.prizeNote ?? D.prizeNote, LIMITS.text),
     minAverage: num(o.minAverage, D.minAverage, 0, LIMITS.maxScore),
     minTests: Math.round(num(o.minTests, D.minTests, 1, 20)),
-    showTop3: bool(o.showTop3 ?? (o.view === 'all' ? false : undefined), D.showTop3),
-    spotlight: pick(o.spotlight, ['each', 'podium'], D.spotlight),
-    featured: Math.round(num(o.featured, D.featured, 0, 60)),
-    perPage: Math.round(num(o.perPage, D.perPage, 3, 10)),
-    scrollRest: bool(o.scrollRest ?? (o.view === 'top' ? false : undefined), D.scrollRest),
-    scrollSpeed: pick(o.scrollSpeed, ['slow', 'normal', 'fast'], D.scrollSpeed),
-    transition: pick(o.transition, TRANSITIONS, D.transition),
-    pace: pick(o.pace, ['calm', 'normal', 'quick'], D.pace),
-    showAvatars: bool(o.showAvatars, D.showAvatars),
-    sparkles: bool(o.sparkles, D.sparkles),
-    byTrack: bool(o.byTrack, D.byTrack),
-    showImproved: bool(o.showImproved, D.showImproved),
+    columns: pick(Number(o.columns), [2, 3], D.columns),
+    rowsPerColumn: Math.round(num(o.rowsPerColumn, D.rowsPerColumn, 4, 12)),
+    seconds: Math.round(num(o.seconds, D.seconds, 6, 40)),
+    showRank: bool(o.showRank, D.showRank),
     showMarks: bool(o.showMarks, D.showMarks),
     showGrade: bool(o.showGrade, D.showGrade),
     showTests: bool(o.showTests, D.showTests),
     decimals: pick(Number(o.decimals), [0, 1], D.decimals),
-    seconds: Math.round(num(o.seconds, D.seconds, 5, 30)),
+    transition: pick(o.transition, TRANSITIONS, D.transition),
+    pace: pick(o.pace, ['calm', 'normal', 'quick'], D.pace),
+    showAvatars: bool(o.showAvatars, D.showAvatars),
+    sparkles: bool(o.sparkles, D.sparkles),
+    showTop3: bool(o.showTop3, D.showTop3),
+    spotlight: pick(o.spotlight, ['each', 'podium'], D.spotlight),
+    showImproved: bool(o.showImproved, D.showImproved),
+    byTrack: bool(o.byTrack, D.byTrack),
     when: 'always',
   };
 }
@@ -121,6 +120,8 @@ export function normalizeStudent(s) {
     grade: clean(s?.grade, LIMITS.grade),
     track: clean(s?.track, LIMITS.track),
     scores: normalizeScores(s?.scores),
+    // an average typed in without individual tests (used only while there are no scores)
+    avg: Number.isFinite(Number(s?.avg)) && s?.avg !== null && s?.avg !== '' && Number(s.avg) >= 0 && Number(s.avg) <= LIMITS.maxScore && !normalizeScores(s?.scores).length ? Math.round(Number(s.avg) * 100) / 100 : null,
   };
 }
 
@@ -191,13 +192,14 @@ export function board(file, opts = {}) {
   const rows = [];
   for (const st of file?.students || []) {
     if (track && (st.track || '') !== track) continue;
-    if (!st.scores || st.scores.length < s.minTests) continue;
-    const avg = mean(st.scores);
+    const manual = !st.scores?.length && st.avg != null; // an average typed in with no individual tests
+    if (!manual && (!st.scores || st.scores.length < s.minTests)) continue;
+    const avg = manual ? st.avg : mean(st.scores);
     if (s.minAverage > 0 && avg + 1e-9 < s.minAverage) continue;
     rows.push({
-      id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: st.scores.length,
-      avg, tier: tierFor(avg, s.prizes)?.label || '', last: st.scores[st.scores.length - 1], delta: improvement(st.scores),
-      before: st.scores.length >= 3 ? mean(st.scores.slice(0, -2)) : null, recent: st.scores.length >= 3 ? mean(st.scores.slice(-2)) : null,
+      id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: st.scores?.length || 0,
+      avg, tier: tierFor(avg, s.prizes)?.label || '', last: st.scores?.length ? st.scores[st.scores.length - 1] : null, delta: improvement(st.scores),
+      before: st.scores?.length >= 3 ? mean(st.scores.slice(0, -2)) : null, recent: st.scores?.length >= 3 ? mean(st.scores.slice(-2)) : null,
     });
   }
   rows.sort((a, b) => (round1(b.avg) - round1(a.avg)) || (b.tests - a.tests) || a.name.localeCompare(b.name));
@@ -233,21 +235,18 @@ export function paginate(rows, per) {
   return out;
 }
 
-/** Seconds each kind of act stays up at 'normal' pace; `pace` scales them (the scrolling pass has its own speed). */
+/** Seconds each kind of extra act stays up at 'normal' pace; `pace` scales them (the list pages use settings.seconds). */
 export const ACT_SECONDS = Object.freeze({ spot: 6, podium: 9, improved: 9, tracks: 11 });
 export const PACE = Object.freeze({ calm: 1.3, normal: 1, quick: 0.75 });
-/** Seconds per student while everyone else scrolls past, by speed. */
-export const SCROLL_PER_ROW = Object.freeze({ slow: 1.3, normal: 0.9, fast: 0.6 });
-/** Hold at the start and end of the scrolling pass. */
-export const SCROLL_HOLD = 3;
+/** Names per column on a portrait screen get this many more rows (the screen is taller). */
+export const PORTRAIT_EXTRA_ROWS = 3;
 
 /**
- * The acts the slide plays, in order:
- *   spot x3   the top three, one at a time, slowly (3rd, 2nd, then the leader), each with how they are doing
- *   podium    all three together
- *   board     the next `featured` students on leaderboard pages of `perPage` (big names, few per page)
- *   improved  the most-improved spotlight        tracks  a board per track (2+ tracks, switched on)
- *   scroll    everyone else, one smooth scroll past
+ * The pages the slide plays, in order. By default just the list: everyone over the minimum average, highest first, every
+ * name laid out the same, in `columns` columns of `rowsPerColumn` names per page (reading order is down the first column,
+ * then the next), pages of equal size. Extra acts are OFF unless switched on:
+ *   spot x3 + podium   the top three, one at a time (3rd, 2nd, then the leader), then together
+ *   improved           the most-improved spotlight        tracks   a board per track (2+ tracks)
  * Pure, so the admin can say how long it takes.
  */
 export function plan(file, { portrait = false } = {}) {
@@ -262,10 +261,6 @@ export function plan(file, { portrait = false } = {}) {
     if (s.spotlight === 'each') [...top].reverse().forEach((r) => steps.push({ t: 'spot', rows: [r], place: top.indexOf(r) + 1, s: sec(ACT_SECONDS.spot) }));
     steps.push({ t: 'podium', rows: top, s: sec(ACT_SECONDS.podium) });
   }
-  const after = top.length;
-  const per = portrait ? Math.min(s.perPage, 5) : s.perPage;
-  const featuredRows = rows.slice(after, after + s.featured);
-  paginate(featuredRows, per).forEach((page, i, all) => steps.push({ t: 'board', rows: page, page: i, pages: all.length, s: sec(s.seconds) }));
   const imp = s.showImproved ? mostImproved(rows, 3) : [];
   if (imp.length) steps.push({ t: 'improved', rows: imp, s: sec(ACT_SECONDS.improved) });
   const tracks = s.byTrack ? tracksOf(file) : [];
@@ -273,13 +268,14 @@ export function plan(file, { portrait = false } = {}) {
     const cols = tracks.slice(0, 4).map((tr) => ({ track: tr, rows: board(file, { track: tr }).slice(0, 5) })).filter((c) => c.rows.length);
     if (cols.length >= 2) steps.push({ t: 'tracks', cols, s: sec(ACT_SECONDS.tracks) });
   }
-  const rest = rows.slice(after + featuredRows.length);
-  if (s.scrollRest && rest.length) steps.push({ t: 'scroll', rows: rest, s: Math.round((rest.length * SCROLL_PER_ROW[s.scrollSpeed] + SCROLL_HOLD * 2) * 10) / 10 });
+  const cols = portrait ? 2 : s.columns;
+  const perCol = s.rowsPerColumn + (portrait ? PORTRAIT_EXTRA_ROWS : 0);
+  paginate(rows, cols * perCol).forEach((page, i, all) => steps.push({ t: 'list', rows: page, page: i, pages: all.length, cols, perCol, s: sec(s.seconds) }));
   return steps;
 }
 
 /** The label of the section an act belongs to (for the little title pill and the progress bar). */
-export const SECTION = Object.freeze({ spot: 'Top 3', podium: 'Top 3', board: 'Leaderboard', improved: 'Most improved', tracks: 'By track', scroll: 'Everyone' });
+export const SECTION = Object.freeze({ spot: 'Top 3', podium: 'Top 3', list: 'Standings', improved: 'Most improved', tracks: 'By track' });
 
 /** Total seconds the slide needs to show every act once (plus a little settle time for the transitions). */
 export const planSeconds = (steps) => Math.round(steps.reduce((a, x) => a + x.s + 1, 0) + 1);
@@ -290,7 +286,7 @@ export function hasBoard(file) { return board(file).length > 0; }
 /** What the kiosk gets: settings + students (names class, so only the program's own screen shows it; never in the live view). */
 export function forKiosk(file) {
   const f = normalizeFile(file);
-  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: s.grade, track: s.track, scores: s.scores })), updatedAt: f.updatedAt };
+  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: s.grade, track: s.track, scores: s.scores, avg: s.avg })), updatedAt: f.updatedAt };
 }
 
 // ── import: paste, CSV, TSV, a Google Sheet ─────────────────────────────────
@@ -333,56 +329,70 @@ function detectDelimiter(lines) {
 const isNum = (x) => x !== '' && /^-?\d+([.,]\d+)?\s*%?$/.test(String(x).trim());
 const toNum = (x) => Number(String(x).replace('%', '').replace(',', '.').trim());
 const HDR = {
-  name: /^(full\s*name|name|student|bochur|talmid)$/i,
-  first: /^(first(\s*name)?)$/i,
-  last: /^(last(\s*name)?|surname|family(\s*name)?)$/i,
-  grade: /^(grade|shiur|class|year|level)$/i,
-  track: /^(track|masechta|masechet|seder|program|group|type)$/i,
+  name: /^(full\s*name|student(\s*name)?|name|bochur|talmid|שם(\s*מלא)?|תלמיד|בחור)$/i,
+  first: /^(first(\s*name)?|שם\s*פרטי|פרטי)$/i,
+  last: /^(last(\s*name)?|surname|family(\s*name)?|שם\s*משפחה|משפחה)$/i,
+  grade: /^(grade|shiur|class|year|level|כיתה|שיעור)$/i,
+  track: /^(track|masechta|masechet|seder|program|group|type|מסלול|מסכת|סדר)$/i,
   scores: /^(scores?|marks?|grades|tests)$/i,
-  skip: /^(avg|average|total|mean|sum|rank|#|id|notes?)$/i,
+  average: /^(avg|average|mean|overall|ממוצע)$/i,
+  skip: /^(total|sum|rank|#|id|notes?|comments?|phone|email|הערות|סה"כ)$/i,
 };
+const isHeaderRow = (cells) => !cells.some(isNum) && cells.filter((c) => c !== '').length >= 2 && cells.some((c) => Object.values(HDR).some((re) => re.test(c)));
 
 /**
- * Parse pasted / uploaded text. Accepted shapes (header row optional):
+ * Parse pasted / uploaded text (or a Google Sheet's CSV). Accepted shapes:
  *   Name, Grade, Track, 95, 88, 100         one student per row, every number after the name is a score
  *   First, Last, 95, 88                     first and last name in two columns
  *   Name, Scores    ->  Moshe Katz, 95 88 100   (scores in one cell)
  *   Name, Test 1, Test 2 ...                a header row with test names (only the numbers are used)
- * Non-numeric cells after the name are read as grade, then track. Columns called Average / Total / Rank are ignored.
- * Returns { rows: [{name, grade, track, scores}], errors: [{line, message}], warnings: [...], counts }.
+ *   Name, Average                           only an average, no individual tests (a student with test scores uses those instead)
+ * The header row can be anywhere in the first 8 rows (title lines above it are ignored) and can be Hebrew (שם, ממוצע, כיתה...).
+ * Non-numeric cells after the name are read as grade, then track (no header). In a header row an unknown column is treated as a test
+ * column, but a column whose numbers are not scores (a phone number, a year) is ignored and reported.
+ * Returns { rows: [{name, grade, track, scores, avg}], errors, warnings, counts, columns: [{header, as}] }.
  */
 export function parseInput(text) {
   const errors = []; const warnings = [];
+  const empty = { rows: [], warnings, columns: [], counts: { students: 0, scores: 0 } };
   const src = String(text ?? '').replace(/^﻿/, '');
-  if (src.length > LIMITS.importText) return { rows: [], errors: [{ line: 0, message: 'That is too much text to import at once.' }], warnings, counts: { students: 0, scores: 0 } };
+  if (src.length > LIMITS.importText) return { ...empty, errors: [{ line: 0, message: 'That is too much text to import at once.' }] };
   const lines = logicalLines(src);
-  if (!lines.length) return { rows: [], errors: [{ line: 0, message: 'Nothing to import yet. Paste your list first.' }], warnings, counts: { students: 0, scores: 0 } };
+  if (!lines.length) return { ...empty, errors: [{ line: 0, message: 'Nothing to import yet. Paste your list first.' }] };
   const delim = detectDelimiter(lines);
   const grid = lines.map((l) => splitLine(l, delim));
 
-  // header: first row with no number in it and a recognisable word
   let map = null; let start = 0;
-  const first = grid[0];
-  if (!first.some(isNum) && first.some((c) => Object.values(HDR).some((re) => re.test(c)))) {
-    map = first.map((c) => { for (const [k, re] of Object.entries(HDR)) if (re.test(c)) return k; return 'test'; });
-    start = 1;
+  for (let i = 0; i < Math.min(8, grid.length); i++) {
+    if (isHeaderRow(grid[i])) {
+      map = grid[i].map((c) => { for (const [k, re] of Object.entries(HDR)) if (re.test(c)) return k; return c === '' ? 'skip' : 'test'; });
+      start = i + 1;
+      break;
+    }
   }
+  const header = map ? grid[start - 1] : [];
+  const ignoredCols = new Map(); // column index -> count of cells that were not scores
 
   const byKey = new Map();
   const order = [];
   grid.slice(start).forEach((cells, idx) => {
     const line = idx + start + 1;
-    let name = ''; let first_ = ''; let last_ = ''; let grade = ''; let track = ''; const scores = [];
+    let name = ''; let first_ = ''; let last_ = ''; let grade = ''; let track = ''; let given = null; const scores = [];
     let bad = '';
-    const take = (v) => { if (v === '') return; if (isNum(v)) { const n = toNum(v); if (n < 0 || n > LIMITS.maxScore) bad = `${v} is not a score between 0 and ${LIMITS.maxScore}`; else scores.push(n); } };
+    const take = (v, col) => {
+      if (v === '' || !isNum(v)) return;
+      const n = toNum(v);
+      if (n < 0 || n > LIMITS.maxScore) { if (map && col != null && map[col] === 'test') ignoredCols.set(col, (ignoredCols.get(col) || 0) + 1); else bad = `${v} is not a score between 0 and ${LIMITS.maxScore}`; } else scores.push(n);
+    };
     if (map) {
       cells.forEach((v, i) => {
-        const k = map[i] || 'test';
+        const k = map[i] || 'skip';
         if (k === 'name') name = v; else if (k === 'first') first_ = v; else if (k === 'last') last_ = v;
         else if (k === 'grade') grade = v; else if (k === 'track') track = v;
+        else if (k === 'average') { if (isNum(v)) { const n = toNum(v); if (n >= 0 && n <= LIMITS.maxScore) given = n; } }
         else if (k === 'skip') return;
-        else if (k === 'scores') v.split(/[\s;,|]+/).forEach(take);
-        else take(v);
+        else if (k === 'scores') v.split(/[\s;,|]+/).forEach((x) => take(x, i));
+        else take(v, i);
       });
       if (!name) name = `${first_} ${last_}`.trim();
     } else {
@@ -392,25 +402,27 @@ export function parseInput(text) {
       for (const v of rest) {
         if (v === '') continue;
         if (isNum(v)) take(v);
-        else if (/^[\d.,%\s;|]+$/.test(v) && /\d/.test(v)) v.split(/[\s;,|]+/).forEach(take); // 'a cell with 95 88 100'
+        else if (/^[\d.,%\s;|]+$/.test(v) && /\d/.test(v)) v.split(/[\s;,|]+/).forEach((x) => take(x)); // 'a cell with 95 88 100'
         else words.push(v);
       }
       [grade = '', track = ''] = words;
     }
     name = clean(name, LIMITS.name);
-    if (!name) { if (cells.some((c) => c !== '')) errors.push({ line, message: 'There is no name on this row.' }); return; }
+    if (!name) { if (cells.some((c) => c !== '') && !(map && cells.filter((c) => c !== '').length <= 1)) errors.push({ line, message: 'There is no name on this row.' }); return; }
     if (isNum(name)) { errors.push({ line, message: `"${name}" is a number, not a name. Put the name first.` }); return; }
     if (bad) { errors.push({ line, message: `${name}: ${bad}.` }); return; }
     const k = nameKey(name);
     const ex = byKey.get(k);
-    if (ex) { ex.scores.push(...scores); if (grade && !ex.grade) ex.grade = clean(grade, LIMITS.grade); if (track && !ex.track) ex.track = clean(track, LIMITS.track); warnings.push({ line, message: `${name} appears twice. Their scores were joined.` }); return; }
-    const row = { name, grade: clean(grade, LIMITS.grade), track: clean(track, LIMITS.track), scores };
+    if (ex) { ex.scores.push(...scores); if (given != null && ex.avg == null) ex.avg = given; if (grade && !ex.grade) ex.grade = clean(grade, LIMITS.grade); if (track && !ex.track) ex.track = clean(track, LIMITS.track); warnings.push({ line, message: `${name} appears twice. Their scores were joined.` }); return; }
+    const row = { name, grade: clean(grade, LIMITS.grade), track: clean(track, LIMITS.track), scores, avg: given };
     byKey.set(k, row); order.push(row);
   });
-  for (const r of order) if (!r.scores.length) warnings.push({ line: 0, message: `${r.name} has no scores yet, so they will not show on the screen.` });
-  if (order.length > LIMITS.students) errors.push({ line: 0, message: `That is more than ${LIMITS.students} students.` });
   for (const r of order) r.scores = normalizeScores(r.scores);
-  return { rows: order, errors, warnings, counts: { students: order.length, scores: order.reduce((a, r) => a + r.scores.length, 0) } };
+  for (const r of order) if (!r.scores.length && r.avg == null) warnings.push({ line: 0, message: `${r.name} has no scores or average yet, so they will not show on the screen.` });
+  for (const [col, n] of ignoredCols) warnings.push({ line: 0, message: `Column "${header[col] || col + 1}" was ignored (${n} values were not scores).` });
+  if (order.length > LIMITS.students) errors.push({ line: 0, message: `That is more than ${LIMITS.students} students.` });
+  const columns = map ? header.map((h, i) => ({ header: h || `(column ${i + 1})`, as: ignoredCols.has(i) ? 'ignored' : map[i] === 'test' ? 'score' : map[i] === 'scores' ? 'score' : map[i] === 'skip' ? 'ignored' : map[i] })) : [];
+  return { rows: order, errors, warnings, columns, counts: { students: order.length, scores: order.reduce((a, r) => a + r.scores.length, 0), averageOnly: order.filter((r) => !r.scores.length && r.avg != null).length } };
 }
 
 /**
