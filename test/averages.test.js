@@ -89,6 +89,8 @@ test('defaults: Hebrew heading, 60 minimum, a plain list, every extra act off', 
   const d = A.normalizeSettings({});
   assert.equal(d.titleHe, 'מבצע תורה');
   assert.equal(d.title, '', 'no English title unless the school adds one');
+  assert.match(d.subtitle, /אחוזים/, 'a line under the heading says the numbers are percentages');
+  assert.equal(d.columns, 2);
   assert.equal(d.minAverage, 60);
   assert.deepEqual([d.showTop3, d.showImproved, d.byTrack, d.showAvatars], [false, false, false, false]);
   assert.equal(A.normalizeSettings({ minAverage: 0 }).minAverage, 0, 'the admin can turn the minimum off');
@@ -106,7 +108,7 @@ test('plan: by default only the list, highest first, pages of equal size, no scr
   const p = A.plan(f);
   assert.ok(p.every((x) => x.t === 'list'), 'extra acts are off by default');
   assert.equal(p.reduce((a, x) => a + x.rows.length, 0), shown.length, 'everyone shown exactly once');
-  assert.ok(p.every((x) => x.cols === 3 && x.perCol === 7));
+  assert.ok(p.every((x) => x.cols === 2 && x.perCol === 10));
   assert.ok(Math.max(...p.map((x) => x.rows.length)) - Math.min(...p.map((x) => x.rows.length)) <= 1, 'equal pages');
   const order = p.flatMap((x) => x.rows).map((r) => r.avg);
   assert.deepEqual(order, [...order].sort((a, b) => b - a), 'highest average first, page after page');
@@ -118,7 +120,7 @@ test('plan: about 40 names read in well under a minute; extra acts and layout fo
   assert.ok(A.planSeconds(A.plan(f({}))) <= 40, `40 names take ${A.planSeconds(A.plan(f({})))} s`);
   assert.deepEqual(A.plan(f({ columns: 2, rowsPerColumn: 10 })).map((x) => x.cols * x.perCol), [20, 20]);
   assert.equal(A.plan(f({}), { portrait: true })[0].cols, 2, 'portrait always 2 columns');
-  assert.ok(A.plan(f({}), { portrait: true })[0].perCol > 7, 'portrait is taller so more rows per column');
+  assert.ok(A.plan(f({}), { portrait: true })[0].perCol > 10, 'portrait is taller so more rows per column');
   const on = A.plan(f({ showTop3: true, showImproved: true }));
   assert.deepEqual(on.slice(0, 4).map((x) => `${x.t}${x.place || ''}`), ['spot3', 'spot2', 'spot1', 'podium']);
   assert.ok(on.at(-1).t === 'list');

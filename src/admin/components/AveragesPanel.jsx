@@ -273,6 +273,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
         <h3 style={h3}>What the screen shows</h3>
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Page heading</h4>
         <Field label="Heading (Hebrew)" htmlFor="avg-title-he" hint="Shown large at the top, in the screen's Hebrew font."><input id="avg-title-he" key={`h-${s.titleHe}`} dir="rtl" defaultValue={s.titleHe} disabled={!canEdit} maxLength={80} onBlur={(e) => e.target.value.trim() !== s.titleHe && saveSettings({ titleHe: e.target.value.trim() }, 'Heading saved')} style={fieldStyle} /></Field>
+        <Field label="Line under the heading" htmlFor="avg-subtitle" hint="Says what the numbers are. Every average also shows a % sign."><input id="avg-subtitle" key={`s-${s.subtitle}`} dir="auto" defaultValue={s.subtitle} disabled={!canEdit} maxLength={80} placeholder="Leave empty for none" onBlur={(e) => e.target.value.trim() !== s.subtitle && saveSettings({ subtitle: e.target.value.trim() }, 'Saved')} style={fieldStyle} /></Field>
         <Field label="Heading (English, optional)" htmlFor="avg-title"><input id="avg-title" key={`t-${s.title}`} defaultValue={s.title} disabled={!canEdit} maxLength={80} placeholder="Leave empty for Hebrew only" onBlur={(e) => e.target.value.trim() !== s.title && saveSettings({ title: e.target.value.trim() }, 'Heading saved')} style={fieldStyle} /></Field>
 
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Who shows</h4>

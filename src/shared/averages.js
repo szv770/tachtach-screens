@@ -22,12 +22,13 @@ export const TRANSITIONS = Object.freeze(['mix', 'cube', 'cards', 'door', 'carou
 export const DEFAULTS = Object.freeze({
   title: '',              // English title (empty = Hebrew only)
   titleHe: 'מבצע תורה',   // the page heading, painted with the screen's Hebrew display font
+  subtitle: 'ממוצע המבחנים באחוזים', // a small line under the heading that says what the numbers are (empty = none)
   prizes: [],             // prize levels: [{ at: 90, label: 'Gold' }, ...] (the org's own words); a student earns the highest level they reach
   prizeNote: '',          // optional line under the levels, e.g. 'Prizes are given out at the end of the year'
   minAverage: 60,         // only students at or above this appear (0 = everyone entered)
   minTests: 1,            // a student needs this many scores before they appear (a typed-in average needs none)
-  columns: 3,             // the list is laid out in 2 or 3 columns (portrait screens always use 2)
-  rowsPerColumn: 7,       // names per column on one page: fewer = bigger, easier to read
+  columns: 2,             // the list is laid out in 2 or 3 columns (portrait screens always use 2)
+  rowsPerColumn: 10,      // the most names in one column on a page (the screen uses fewer when the pages are short, so rows stay big)
   seconds: 12,            // seconds each page of names stays up (before 'pace')
   showRank: true,         // a small position number before each name (1, 2, 3 ...)
   showMarks: true,        // the average number next to each name
@@ -76,6 +77,7 @@ export function normalizeSettings(s) {
   return {
     title: clean(o.title ?? D.title, LIMITS.text),
     titleHe: clean(o.titleHe ?? D.titleHe, LIMITS.text),
+    subtitle: clean(o.subtitle ?? D.subtitle, LIMITS.text),
     prizes: normalizePrizes(o.prizes, o.prizeAt, o.prizeLine),
     prizeNote: clean(o.prizeNote ?? D.prizeNote, LIMITS.text),
     minAverage: num(o.minAverage, D.minAverage, 0, LIMITS.maxScore),
