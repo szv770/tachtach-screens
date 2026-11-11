@@ -344,7 +344,7 @@ const HDR = {
   grade: /^(grade|shiur|class|year|level|כיתה|שיעור)$/i,
   track: /^(track|masechta|masechet|seder|program|group|type|מסלול|מסכת|סדר)$/i,
   scores: /^(scores?|marks?|grades|tests)$/i,
-  average: /^(avg|average|mean|overall|ממוצע)$/i,
+  average: /^(avg|average|mean|overall|ממוצע)(\s*[(\[]?\s*(%|score|mark|grade|total|overall|באחוזים|אחוז)\s*[)\]]?)*$/i, // 'Average', 'Avg %', 'Average (%)', 'Average Score'
   skip: /^(total|sum|rank|#|id|notes?|comments?|phone|email|הערות|סה"כ)$/i,
 };
 // a heading that is a date ('11/3', '3/11/2026', 'Nov 5', '5 Nov 2026', '2026-11-03') = one test

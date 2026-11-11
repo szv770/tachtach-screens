@@ -220,3 +220,11 @@ test('live view never gets the names-class averages', async () => {
   assert.ok(!/averages/.test(src.split('VIEWER_KEYS')[1].split(']')[0]), 'averages is not in the viewer allow-list');
   assert.ok(live);
 });
+
+test('an average column headed "Average %" / "Average Score" is the average, not a test', () => {
+  for (const head of ['Average %', 'Avg (%)', 'Average Score', 'ממוצע %']) {
+    const p = A.parseInput(`Name,Test 1,Test 2,${head}\nA,90,80,10`);
+    assert.equal(p.rows[0].scores.length, 2, head);
+    assert.equal(p.columns[3].as, 'average', head);
+  }
+});
