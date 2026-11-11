@@ -282,12 +282,12 @@ test('a look that finds nothing new does not write the disk (SD-card friendly), 
   assert.equal(writes, w + 2, 'a failure is recorded once so the admin can see it');
 });
 
-test('live view: averages are only sent when switched on, and then only the students who are on the screen', async () => {
+test('live view: the averages are shown there too, but only the students who are on the screen', async () => {
   const { viewerState } = await import('../src/server/live.js');
   const f = A.applyImport({ settings: { showGrade: true } }, A.parseInput('Name,Grade,T1,T2\nHigh One,10th,90,95\nLow Two,9th,30,40\nNone Three,9th,,'));
-  const state = (settings) => ({ settings: { location: { timezone: 'America/New_York' } }, slides: [], averages: A.forKiosk({ ...f, settings: { ...f.settings, ...settings } }) });
-  assert.equal(viewerState(state({})).averages, undefined, 'off by default: the live link never gets the averages');
-  const on = viewerState(state({ showOnLive: true })).averages;
+  const state = { settings: { location: { timezone: 'America/New_York' } }, slides: [], averages: A.forKiosk(f) };
+  const on = viewerState(state).averages;
   assert.deepEqual(on.students.map((s) => s.name), ['High One'], 'a student below the minimum, or with no marks, is not even named');
   assert.ok(!JSON.stringify(on).includes('Low Two') && !JSON.stringify(on).includes('None Three'));
+  assert.equal(viewerState({ ...state, averages: null }).averages, undefined, 'nothing to show = nothing sent');
 });

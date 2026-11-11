@@ -313,7 +313,6 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <Choices ariaLabel="Transition" value={s.transition} onChange={(v) => saveSettings({ transition: v }, 'Saved')} options={TRANSITION_LABELS.map(([value, label]) => ({ value, label }))} />
         </Field>
 
-        <SwitchRow on={s.showOnLive} onChange={() => saveSettings({ showOnLive: !s.showOnLive }, s.showOnLive ? 'Not shown on the live link' : 'Shown on the live link')} label="Also show on the live link" note={s.showOnLive ? 'On: anyone you gave the live word or link to can see the student names and averages that are on the screen. Students below the minimum are never sent.' : 'Off: the live link does not show the Test Averages. Turn on only if everyone with the live word may see student names and marks.'} testId="avg-live-switch" />
         <PrizeLevels levels={s.prizes} note={s.prizeNote} canEdit={canEdit} onSave={(prizes, prizeNote) => saveSettings({ prizes, prizeNote }, 'Prize levels saved')} />
 
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Extra pages (all off until you turn them on)</h4>

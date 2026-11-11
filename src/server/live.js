@@ -198,7 +198,7 @@ export function viewerState(state, now = new Date()) {
   if (out.shiurim) out.shiurim = shiurimForViewer(out.shiurim, now, tz);
   // Occasions (P0, on purpose: names of days and the school's own events): switched-off ones stay out
   if (out.occasions) out.occasions = occasionsForViewer(out.occasions);
-  // Test Averages (NAMES class): NOT in the allow-list; only when the admin switched 'Show on the live link' on, and then only the students who are on the screen
+  // Test Averages (NAMES class; owner-approved to show on the live link): only the students who are on the screen, never a hidden student's name
   { const av = averagesForViewer(src.averages); if (av) out.averages = av; }
   if (out.cache && typeof out.cache === 'object') {
     // the school's place (zip, coordinates, Chabad location id) is withheld from settings; keep it out of the cache copies too (red-team F3)

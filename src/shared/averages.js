@@ -30,7 +30,6 @@ export const DEFAULTS = Object.freeze({
   columns: 2,             // the list is laid out in 2 or 3 columns (portrait screens always use 2)
   rowsPerColumn: 10,      // the most names in one column on a page (the screen uses fewer when the pages are short, so rows stay big)
   seconds: 15,            // seconds each page of names stays up (before 'pace')
-  showOnLive: false,      // OFF: the opt-in public live view never gets the averages. ON: viewers see the same list (only students who are on the screen)
   flipNames: true,        // a name typed 'Last, First' (one comma) is shown as 'First Last'
   showRank: true,         // a small position number before each name (1, 2, 3 ...)
   showMarks: true,        // the average number next to each name
@@ -87,7 +86,6 @@ export function normalizeSettings(s) {
     columns: pick(Number(o.columns), [2, 3], D.columns),
     rowsPerColumn: Math.round(num(o.rowsPerColumn, D.rowsPerColumn, 4, 12)),
     seconds: Math.round(num(o.seconds, D.seconds, 6, 40)),
-    showOnLive: bool(o.showOnLive, D.showOnLive),
     flipNames: bool(o.flipNames, D.flipNames),
     showRank: bool(o.showRank, D.showRank),
     showMarks: bool(o.showMarks, D.showMarks),
@@ -325,12 +323,12 @@ export function forKiosk(file) {
 }
 
 /**
- * What a public LIVE-VIEW watcher may get (only when `settings.showOnLive` is on): the kiosk copy, cut down to the students who are
- * on the screen. A student below the minimum average, or with no marks, is never sent (not even their name).
+ * What a public LIVE-VIEW watcher gets (owner decision 2026-11-12: always, the live link shows what the screens show): the kiosk copy,
+ * cut down to the students who are on the screen. A student below the minimum average, or with no marks, is never sent (not even their name).
  */
 export function forViewer(kioskData) {
   const d = kioskData && typeof kioskData === 'object' ? kioskData : null;
-  if (!d || !d.settings || !Array.isArray(d.students) || !normalizeSettings(d.settings).showOnLive) return null;
+  if (!d || !d.settings || !Array.isArray(d.students)) return null;
   const shown = new Set(board({ settings: d.settings, students: d.students }).map((r) => r.id));
   return { ...d, students: d.students.filter((s) => shown.has(s.id)) };
 }
