@@ -58,6 +58,20 @@ test('minimum average is optional; prize levels pick the highest reached', () =>
   assert.deepEqual(A.normalizeSettings({ prizeAt: 90, prizeLine: 'a pizza party' }).prizes, [{ at: 90, label: 'a pizza party' }], 'the older single prize becomes one level');
 });
 
+test('Bochurim list: names, typo check, add without scores, starter csv', () => {
+  const names = A.rosterNames([{ first: 'Moshe', last: 'Katz' }, { first: 'Avi', last: 'Berg' }, { first: '', last: '' }]);
+  assert.deepEqual(names, ['Avi Berg', 'Moshe Katz']);
+  assert.deepEqual(A.notOnList([{ name: 'moshe  katz' }, { name: 'Mosheh Katz' }], names), ['Mosheh Katz']);
+  assert.deepEqual(A.notOnList([{ name: 'Anyone' }], []), [], 'an empty list flags nothing');
+  const r = A.addNames(A.applyImport({}, A.parseInput('Moshe Katz,90,95')), names);
+  assert.equal(r.added, 1);
+  assert.equal(A.board(r.file).length, 1, 'a student with no scores is not on the screen');
+  const csv = A.starterCsv(['Avi Berg', 'Levy, Dovid']);
+  assert.match(csv, /^Name,Grade,Track,Test 1/);
+  const back = A.parseInput(csv);
+  assert.deepEqual(back.rows.map((x) => x.name), ['Avi Berg', 'Levy, Dovid'], 'the starter sheet imports back cleanly');
+});
+
 test('fmtAvg', () => { assert.equal(A.fmtAvg(94.5), '94.5'); assert.equal(A.fmtAvg(95.04), '95'); assert.equal(A.fmtAvg(94.5, 0), '95'); });
 
 test('applyImport: replace keeps ids of same names; add appends scores', () => {

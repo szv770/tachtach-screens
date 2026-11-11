@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Panel, F, he } from '../../design/ui.jsx';
-import { Fit, useGroupFit } from '../../design/fit.jsx';
+import { Fit } from '../../design/fit.jsx';
 import { Ornament } from '../../design/graphics.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { board, plan, planSeconds, summary, fmtAvg, normalizeSettings } from '../../../shared/averages.js';
@@ -105,19 +105,13 @@ function Bar({ avg, top, i }) {
   );
 }
 
-/** One name size for every row on a page (the largest at which the longest name fits one line, never below `floor`); a name that still does not fit wraps. */
-function useNames(rows, max, floor, extra = '') {
-  const key = `${rows.map((r) => r.id).join()}|${extra}`;
-  return useGroupFit({ max, floor, deps: [key] });
-}
-
-function Row({ r, s, i, top, size = 32, lead, g }) {
+function Row({ r, s, i, top, size = 32, lead }) {
   const note = sub(r, s);
   return (
     <div className="tt-av-in" style={{ '--i': i, display: 'grid', gridTemplateColumns: `${size * 1.25}px minmax(0, 1fr) auto`, alignItems: 'center', columnGap: 12, minHeight: 0, borderTop: '2px solid var(--line)', padding: '6px 0 4px' }}>
       <span className="tt-num" style={{ fontSize: size * 1.05, fontWeight: 700, color: lead ? 'var(--accentText)' : 'var(--inkDim)', textAlign: 'center' }}>{r.rank}</span>
       <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5, justifyContent: 'center' }}>
-        <div ref={g.register(r.id)} style={{ fontFamily: F.en, fontWeight: 650, width: '100%', fontSize: g.size, lineHeight: 1.12, overflow: 'hidden', whiteSpace: g.wraps.has(r.id) ? 'normal' : 'nowrap' }}>{r.name}</div>
+        <Fit wrap vcenter max={size} min={13} style={{ fontFamily: F.en, fontWeight: 650, width: '100%', height: `${size * 2.3}px`, alignItems: 'flex-end', textAlign: 'left' }}>{r.name}</Fit>
         {s.showMarks ? <Bar avg={r.avg} top={top} i={i} /> : null}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', lineHeight: 1.05 }}>
@@ -125,7 +119,7 @@ function Row({ r, s, i, top, size = 32, lead, g }) {
           {r.tier ? <Star size={size * 0.62} /> : null}
           {s.showMarks ? <span className="tt-num" style={{ fontSize: size * 1.2, fontWeight: 700 }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
         </span>
-        {note ? <span style={{ fontFamily: F.en, fontSize: Math.max(18, size * 0.6), color: 'var(--inkDim)', whiteSpace: 'nowrap', marginTop: 2 }}>{note}</span> : null}
+        {note ? <span style={{ fontFamily: F.en, fontSize: Math.max(17, size * 0.56), color: 'var(--inkDim)', whiteSpace: 'nowrap', marginTop: 2 }}>{note}</span> : null}
       </div>
     </div>
   );
@@ -145,7 +139,7 @@ function Pillar({ r, s, place, portrait, h, delay }) {
         color: lead ? 'var(--fillInk)' : 'var(--ink)', border: lead ? 'none' : '2px solid var(--line)',
       }}>
         <span className="tt-num" style={{ flex: 'none', fontSize: portrait ? 30 : 40, fontWeight: 800, lineHeight: 1, width: portrait ? 50 : 66, height: portrait ? 50 : 66, borderRadius: '50%', display: 'grid', placeItems: 'center', background: lead ? 'var(--fillInk)' : 'var(--fill)', color: lead ? 'var(--fill)' : 'var(--fillInk)' }}>{r.rank}</span>
-        <Fit wrap vcenter max={portrait ? 40 : 52} min={20} style={{ fontFamily: F.en, fontWeight: 700, textAlign: 'center', height: portrait ? 96 : 132, width: '100%', flex: 'none' }}>{r.name}</Fit>
+        <Fit wrap vcenter max={portrait ? 40 : 52} min={14} style={{ fontFamily: F.en, fontWeight: 700, textAlign: 'center', height: portrait ? 110 : 150, width: '100%', flex: 'none' }}>{r.name}</Fit>
         {s.showMarks ? (
           <>
           <Fit key={`${r.id}-${fmtAvg(r.avg, s.decimals)}`} max={numSize} min={32} vcenter style={{ width: '100%', flex: 'none', height: numSize * 1.12, fontWeight: 800, letterSpacing: '-.02em', textAlign: 'center' }}>
@@ -153,7 +147,7 @@ function Pillar({ r, s, place, portrait, h, delay }) {
           </Fit>
           </>
         ) : null}
-        {note ? <Fit max={portrait ? 22 : 28} min={15} style={{ fontFamily: F.en, opacity: 0.85, width: '100%', flex: 'none', textAlign: 'center', height: portrait ? 28 : 36 }}>{note}</Fit> : null}
+        {note ? <Fit wrap vcenter max={portrait ? 22 : 28} min={12} style={{ fontFamily: F.en, opacity: 0.85, width: '100%', flex: 'none', textAlign: 'center', height: portrait ? 56 : 66 }}>{note}</Fit> : null}
         {r.tier ? <span style={{ position: 'absolute', top: portrait ? 10 : 14, right: portrait ? 10 : 16 }}><Star size={portrait ? 22 : 30} color={lead ? 'var(--fillInk)' : 'var(--accentText)'} /></span> : null}
       </div>
     </div>
@@ -168,15 +162,14 @@ function TopStep({ rows, s, portrait }) {
   const heights = { 1: 100, 2: 80, 3: 66 };
   const delays = { 3: 0, 2: 350, 1: 800 };
   const top = rows[0]?.avg || 100;
-  const g = useNames(rest, portrait ? 28 : 31, portrait ? 22 : 26, portrait ? 'p' : 'l');
   return (
-    <div ref={g.boxRef} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: portrait ? 'column' : 'row', gap: portrait ? 18 : 44 }}>
-      <div style={{ flex: portrait ? '1.15 1 0' : '1.2 1 0', minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: portrait ? 12 : 18 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: portrait ? 'column' : 'row', gap: portrait ? 18 : 44 }}>
+      <div style={{ flex: portrait ? '1.15 1 0' : '1.5 1 0', minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'flex-end', gap: portrait ? 12 : 18 }}>
         {order.map((r) => { const pl = Math.min(3, Math.max(1, podium.indexOf(r) + 1)); return <Pillar key={r.id} r={r} s={s} place={pl} portrait={portrait} h={heights[pl]} delay={delays[pl]} />; })}
       </div>
       {rest.length > 0 && (
         <div style={{ flex: portrait ? '1 1 0' : '1 1 0', minWidth: 0, minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${rest.length}, minmax(0, 1fr))`, alignContent: 'start' }}>
-          {rest.map((r, k) => <Row key={r.id} r={r} s={s} i={k + 4} top={top} size={portrait ? 28 : 31} g={g} />)}
+          {rest.map((r, k) => <Row key={r.id} r={r} s={s} i={k + 4} top={top} size={portrait ? 28 : 31} />)}
         </div>
       )}
     </div>
@@ -206,14 +199,13 @@ function ImprovedStep({ rows, s, portrait }) {
 
 function TracksStep({ cols, s, portrait }) {
   const all = cols.flatMap((c) => c.rows);
-  const g = useNames(all, portrait ? 24 : 28, portrait ? 20 : 24, portrait ? 'p' : 'l');
   return (
-    <div ref={g.boxRef} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: portrait ? '1fr' : `repeat(${cols.length}, minmax(0, 1fr))`, gridTemplateRows: portrait ? `repeat(${cols.length}, minmax(0, 1fr))` : '1fr', gap: portrait ? 10 : 36 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: portrait ? '1fr' : `repeat(${cols.length}, minmax(0, 1fr))`, gridTemplateRows: portrait ? `repeat(${cols.length}, minmax(0, 1fr))` : '1fr', gap: portrait ? 10 : 36 }}>
       {cols.map((c, ci) => (
         <div key={c.track} style={{ minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
           <div className="tt-av-in" style={{ '--i': ci, flex: 'none', fontFamily: F.enD, fontSize: portrait ? 30 : 38, fontWeight: 700, color: 'var(--accentText)', marginBottom: 6 }}>{c.track}</div>
           <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${Math.max(c.rows.length, portrait ? 3 : 5)}, minmax(0, 1fr))`, alignContent: 'start' }}>
-            {c.rows.map((r, k) => <Row key={r.id} r={r} s={{ ...s, showGrade: false, showTests: false }} i={ci + k + 1} top={c.rows[0].avg} size={portrait ? 24 : 28} lead={k === 0} g={g} />)}
+            {c.rows.map((r, k) => <Row key={r.id} r={r} s={{ ...s, showGrade: false, showTests: false }} i={ci + k + 1} top={c.rows[0].avg} size={portrait ? 24 : 28} lead={k === 0} />)}
           </div>
         </div>
       ))}
@@ -226,12 +218,11 @@ function ListStep({ rows, s, portrait, top }) {
   const per = Math.ceil(rows.length / cols);
   const groups = Array.from({ length: cols }, (_, c) => rows.slice(c * per, c * per + per)).filter((g) => g.length);
   const perCol = 8;
-  const g = useNames(rows, portrait ? 26 : 28, portrait ? 22 : 24, portrait ? 'p' : 'l');
   return (
-    <div ref={g.boxRef} style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))`, columnGap: portrait ? 26 : 44 }}>
+    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: `repeat(${groups.length}, minmax(0, 1fr))`, columnGap: portrait ? 26 : 44 }}>
       {groups.map((g, c) => (
         <div key={c} style={{ minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${Math.max(perCol, g.length)}, minmax(0, 1fr))`, alignContent: 'start' }}>
-          {g.map((r, k) => <Row key={r.id} r={r} s={s} i={c * per + k} top={top} size={portrait ? 26 : 28} g={g} />)}
+          {g.map((r, k) => <Row key={r.id} r={r} s={s} i={c * per + k} top={top} size={portrait ? 26 : 28} />)}
         </div>
       ))}
     </div>

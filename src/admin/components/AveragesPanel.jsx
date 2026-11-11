@@ -6,7 +6,7 @@ import { NumberField } from './ui.jsx';
 import { useCopy } from './schedule/scheduleShared.jsx';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 import { btn, iconBtn, card, h3, small } from './menu/menuKit.jsx';
-import { board, summary, fmtAvg, plan, planSeconds, TEMPLATE_CSV, CLAUDE_PROMPT, LIMITS } from '../../shared/averages.js';
+import { board, summary, fmtAvg, plan, planSeconds, starterCsv, TEMPLATE_CSV, CLAUDE_PROMPT, LIMITS } from '../../shared/averages.js';
 
 /**
  * Admin > Screen > Test Averages. Phone first: one column, 44 px targets, sheets with a sticky Save.
@@ -172,6 +172,17 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
             <li>Under General access choose <strong>Anyone with the link</strong> and set it to <strong>Viewer</strong>. This is how the screen reads it. Anyone with the link can see the names and marks, so only share the link with staff.</li>
             <li>Copy the link, paste it below, press <strong>Save link</strong>, then <strong>Sync now</strong>.</li>
           </ol>
+          {file.rosterCount > 0 && (
+            <div style={{ border: `1px solid ${colors.line}`, borderRadius: 'var(--r-sm)', padding: '10px 12px', marginTop: '10px' }} data-testid="avg-roster-start">
+              <strong style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', color: colors.text }}>Start from your Bochurim list</strong>
+              <p style={{ ...small, margin: '4px 0 8px' }}>Your Bochurim list already has {file.rosterCount} names. Start the sheet with them so staff only type scores, and names are spelled the same everywhere.</p>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button type="button" style={btn(false)} data-testid="avg-roster-download" onClick={async () => { try { const r = await api('GET', '/roster-names'); download('test-averages-starter.csv', starterCsv(r.names)); } catch (e) { notify(e.message, 'error'); } }}>Download starter sheet</button>
+                <button type="button" style={btn(false)} data-testid="avg-roster-copy" onClick={async () => { try { const r = await api('GET', '/roster-names'); copy(r.names.join('\n'), 'Names copied'); } catch (e) { notify(e.message, 'error'); } }}>Copy the names</button>
+              </div>
+              <p style={{ ...small, margin: '8px 0 0' }}>In Google Sheets: File, Import, Upload the starter sheet, then "Replace spreadsheet". A name in the sheet that is not on the Bochurim list is flagged after each sync, so typos are easy to catch.</p>
+            </div>
+          )}
           <p style={{ ...small, margin: '8px 0 0' }}>The screen reads the first tab (or the tab the link opens). The Average column, if there is one, is worked out for you and ignored.</p>
           <Field label="Sheet link" htmlFor="avg-sheet-url" style={{ marginTop: '10px' }}><input id="avg-sheet-url" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={fieldStyle} autoComplete="off" /></Field>
           <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (every 15 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
@@ -182,6 +193,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <p style={{ ...small, margin: '8px 0 0', color: file.sheet.lastError ? colors.danger : colors.dim }}>
             {file.sheet.lastError ? `Last sync failed: ${file.sheet.lastError}` : file.sheet.lastSync ? `Last synced ${when(file.sheet.lastSync)} (${file.sheet.lastCount} students).` : file.sheet.url ? 'Not synced yet.' : 'No sheet linked.'}
           </p>
+          {file.sheet.unmatchedCount > 0 && <p style={{ ...small, margin: '6px 0 0' }} data-testid="avg-unmatched">Not on the Bochurim list (check the spelling): {file.sheet.unmatched.join(', ')}{file.sheet.unmatchedCount > file.sheet.unmatched.length ? ` and ${file.sheet.unmatchedCount - file.sheet.unmatched.length} more` : ''}.</p>}
         </div>
       )}
 
@@ -220,6 +232,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>Students ({file.students.length})</h3>
           {canEdit && <button type="button" style={btn(false)} onClick={() => setEdit({})} data-testid="avg-add-student">Add one</button>}
         </div>
+        {canEdit && file.rosterNew > 0 && <button type="button" style={btn(false, { marginTop: '10px' })} disabled={busy} onClick={() => run(() => api('POST', '/from-roster'), 'Names added from the Bochurim list')} data-testid="avg-from-roster">Add the {file.rosterNew} names from the Bochurim list</button>}
         {file.students.length > 8 && <input aria-label="Search students" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" style={{ ...fieldStyle, marginTop: '10px' }} />}
         {file.students.length === 0 ? <p style={{ ...small, marginTop: '8px' }}>No students yet.</p> : (
           <div style={{ marginTop: '8px' }}>

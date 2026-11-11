@@ -300,6 +300,7 @@ export const READ_ROUTES = Object.freeze([
   readRule('/api/kiddush-levana/months', ANNOUNCE_CAPS, 'medium'),
   readRule('/api/daily-words', ['dailyWord.edit']),
   readRule('/api/daily-stories', ['dailyWord.edit']),
+  readRule('/api/averages/roster-names', ['averages.edit']), // NAMES class: the Bochurim list, for a starter sheet
   readRule('/api/averages', ['averages.edit']),           // NAMES class (students + marks), whole document
   readRule('/api/menu', ['menu.edit']),                   // P0 (food), whole document incl. overrides
   readRule('/api/occasions', ['occasions.edit']),         // P0 (names of days, the school's own events), whole document incl. switched-off rows

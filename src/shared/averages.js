@@ -106,7 +106,7 @@ export function normalizeStudent(s) {
   };
 }
 
-const nameKey = (n) => String(n || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+export const nameKey = (n) => String(n || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
 /** The google sheet link block. `url` is what the admin pasted; the server derives the CSV address from it. */
 export function normalizeSheet(s) {
@@ -117,6 +117,8 @@ export function normalizeSheet(s) {
     lastSync: typeof o.lastSync === 'string' ? o.lastSync.slice(0, 40) : '',
     lastCount: Math.round(num(o.lastCount, 0, 0, 100000)),
     lastError: clean(o.lastError, LIMITS.text),
+    unmatched: (Array.isArray(o.unmatched) ? o.unmatched : []).map((x) => clean(x, LIMITS.name)).filter(Boolean).slice(0, 10), // names in the sheet that are not on the Bochurim list (typo check)
+    unmatchedCount: Math.round(num(o.unmatchedCount, 0, 0, 100000)),
   };
 }
 
@@ -426,6 +428,45 @@ export function removeStudent(file, id) {
 }
 
 export const clearAll = (file) => normalizeFile({ ...normalizeFile(file), students: [], updatedAt: new Date().toISOString() });
+
+// ── names from the Bochurim list (the roster) ───────────────────────────────
+
+/** 'First Last' for every person on the roster, sorted by last then first name. */
+export function rosterNames(people) {
+  return (Array.isArray(people) ? people : [])
+    .map((p) => ({ name: clean(`${p?.first || ''} ${p?.last || ''}`, LIMITS.name), last: String(p?.last || '').toLowerCase(), first: String(p?.first || '').toLowerCase() }))
+    .filter((p) => p.name)
+    .sort((a, b) => a.last.localeCompare(b.last) || a.first.localeCompare(b.first))
+    .map((p) => p.name);
+}
+
+/** Names in `rows` ({name}) that are not in `names` (compared ignoring case and punctuation): a typo check against the Bochurim list. */
+export function notOnList(rows, names) {
+  const known = new Set((names || []).map(nameKey));
+  if (!known.size) return [];
+  return (rows || []).filter((r) => !known.has(nameKey(r.name))).map((r) => r.name);
+}
+
+/** Add every name in `names` that is not on the list yet, with no scores (they appear on the screen once they have one). */
+export function addNames(file, names) {
+  const f = normalizeFile(file);
+  const have = new Set(f.students.map((s) => nameKey(s.name)));
+  let added = 0;
+  for (const n of names || []) {
+    const st = normalizeStudent({ name: n });
+    if (!st || have.has(nameKey(st.name))) continue;
+    have.add(nameKey(st.name)); f.students.push(st); added++;
+  }
+  f.updatedAt = new Date().toISOString();
+  return { file: normalizeFile(f), added };
+}
+
+/** A starter CSV for Google Sheets: the roster's names filled in, every other column empty, same headings as the template. */
+export function starterCsv(names, tests = 8) {
+  const head = ['Name', 'Grade', 'Track', ...Array.from({ length: tests }, (_, i) => `Test ${i + 1}`)];
+  const q = (v) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  return [head.join(','), ...(names || []).map((n) => [q(n), '', '', ...Array(tests).fill('')].join(','))].join('\n') + '\n';
+}
 
 // ── the template the shliach fills in ───────────────────────────────────────
 
