@@ -85,19 +85,37 @@ test('applyImport: replace keeps ids of same names; add appends scores', () => {
   assert.equal(f3.students[0].id, id);
 });
 
-test('plan: leaderboard, improved, tracks, then everyone else in equal pages', () => {
+test('plan: top-3 spotlights then podium, leaderboard pages, improved, tracks, then a scroll through the rest', () => {
   const rows = [];
-  for (let i = 0; i < 60; i++) rows.push(`Student ${i},${i % 2 ? 'Gemoro' : 'Girsa'},${60 + (i % 40)},${61 + (i % 40)},${70 + (i % 30)}`);
+  for (let i = 0; i < 100; i++) rows.push(`Student ${i},${i % 2 ? 'Gemoro' : 'Girsa'},${60 + (i % 40)},${61 + (i % 40)},${70 + (i % 30)}`);
   const f = A.applyImport({ settings: { byTrack: true } }, A.parseInput(`Name,Track,T1,T2,T3\n${rows.join('\n')}`));
   const p = A.plan(f);
-  assert.equal(p[0].t, 'top');
-  assert.equal(p[0].rows.length, 10);
-  assert.ok(p.some((x) => x.t === 'tracks'));
-  const lists = p.filter((x) => x.t === 'list');
-  assert.equal(lists.reduce((a, x) => a + x.rows.length, 0), 50, 'everyone below the leaderboard, once');
-  assert.ok(Math.max(...lists.map((x) => x.rows.length)) - Math.min(...lists.map((x) => x.rows.length)) <= 1, 'equal pages');
+  assert.deepEqual(p.slice(0, 4).map((x) => `${x.t}${x.place || ''}`), ['spot3', 'spot2', 'spot1', 'podium'], 'third first, the leader last, then all three');
+  const boards = p.filter((x) => x.t === 'board');
+  assert.equal(boards.reduce((a, x) => a + x.rows.length, 0), 24, 'the next 24 get leaderboard pages');
+  assert.ok(boards.every((x) => x.rows.length === 6), 'six per page (big names)');
+  assert.ok(p.some((x) => x.t === 'improved') && p.some((x) => x.t === 'tracks'));
+  const scroll = p.at(-1);
+  assert.equal(scroll.t, 'scroll');
+  assert.equal(scroll.rows.length, 100 - 3 - 24, 'everyone else scrolls past');
+  assert.equal(scroll.rows[0].id, A.board(f)[27].id, 'it picks up right after the last leaderboard page');
+  const seen = p.flatMap((x) => (x.t === 'board' || x.t === 'scroll' || x.t === 'podium' ? x.rows : [])).map((r) => r.id);
+  assert.equal(new Set(seen).size, 100, 'every student is shown exactly once outside the spotlights');
   assert.equal(A.plan({ students: [] }).length, 0);
-  assert.equal(A.plan(A.applyImport({ settings: { view: 'top' } }, A.parseInput('A B,90,90'))).filter((x) => x.t === 'list').length, 0);
+});
+
+test('plan: settings switch acts off, pace scales time, portrait shows fewer per page', () => {
+  const f = (settings) => A.applyImport({ settings }, A.parseInput(Array.from({ length: 40 }, (_, i) => `S ${i},${90 - i},${91 - i},${92 - i}`).join('\n')));
+  assert.deepEqual(A.plan(f({ spotlight: 'podium' })).slice(0, 2).map((x) => x.t), ['podium', 'board']);
+  assert.ok(!A.plan(f({ showTop3: false })).some((x) => x.t === 'podium' || x.t === 'spot'));
+  assert.equal(A.plan(f({ showTop3: false }))[0].rows[0].rank, 1, 'without the top-3 acts the leaderboard starts at rank 1');
+  assert.ok(!A.plan(f({ scrollRest: false })).some((x) => x.t === 'scroll'));
+  assert.ok(!A.plan(f({ featured: 0 })).some((x) => x.t === 'board'));
+  assert.ok(A.planSeconds(A.plan(f({ pace: 'calm' }))) > A.planSeconds(A.plan(f({ pace: 'quick' }))));
+  assert.equal(A.plan(f({ perPage: 8 }), { portrait: true }).find((x) => x.t === 'board').rows.length <= 5, true, 'portrait never packs more than 5 per page');
+  assert.equal(A.normalizeSettings({ view: 'all' }).showTop3, false, 'the older "everyone" view maps to no top-3 acts');
+  assert.equal(A.normalizeSettings({ view: 'top' }).scrollRest, false);
+  assert.equal(A.normalizeSettings({ transition: 'nonsense' }).transition, 'mix');
 });
 
 test('sheetCsvUrl only ever builds a docs.google.com sheet address', () => {
