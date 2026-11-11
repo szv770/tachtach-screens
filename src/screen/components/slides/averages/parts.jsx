@@ -191,9 +191,10 @@ export function Sparkles({ n = 18, spread = 300, delay = 900 }) {
 /** "What he is doing": the student's latest tests as rising bars (the newest one lit). */
 export function History({ scores, height = 150, delay = 900, showMarks = true, label = true }) {
   const list = (scores || []).slice(-12);
+  const marks = showMarks && list.length <= 8; // more bars than that are too thin for a number each
   if (list.length < 2) return null;
   const hi = Math.max(100, ...list); const lo = Math.max(0, Math.min(...list) - 25);
-  const fs = list.length > 8 ? 18 : 22;
+  const fs = list.length > 6 ? 18 : 22;
   return (
     <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
       {label ? <span style={{ fontFamily: F.en, fontSize: 20, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--inkDim)' }}>Last {list.length} tests</span> : null}
@@ -202,7 +203,7 @@ export function History({ scores, height = 150, delay = 900, showMarks = true, l
           const last = i === list.length - 1;
           return (
             <div key={i} style={{ flex: '1 1 0', minWidth: 0, maxWidth: 74, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
-              {showMarks ? <span className="tt-num" style={{ flex: 'none', fontSize: fs, lineHeight: 1, fontWeight: 700, color: last ? 'var(--ink)' : 'var(--inkDim)' }}>{Math.round(v)}</span> : null}
+              {marks ? <span className="tt-num" style={{ flex: 'none', fontSize: fs, lineHeight: 1, fontWeight: 700, color: last ? 'var(--ink)' : 'var(--inkDim)' }}>{Math.round(v)}</span> : null}
               <div className="tt-av-col" style={{ '--i': i, '--d': `${delay}ms`, width: '100%', flex: 'none', height: `${Math.max(6, ((v - lo) / (hi - lo)) * 78)}%`, borderRadius: '8px 8px 0 0', background: last ? 'linear-gradient(180deg, var(--accentText), color-mix(in srgb, var(--accentText) 55%, transparent))' : 'linear-gradient(180deg, color-mix(in srgb, var(--accentText) 50%, transparent), color-mix(in srgb, var(--accentText) 16%, transparent))' }} />
             </div>
           );
