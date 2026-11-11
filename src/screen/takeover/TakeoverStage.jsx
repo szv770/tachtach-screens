@@ -129,7 +129,9 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const pos = (p) => ({ tl: { top: ch.top, left: ch.side }, tr: { top: ch.top, right: ch.side }, bl: { bottom: ch.bottom, left: ch.side }, br: { bottom: ch.bottom, right: ch.side } }[p]);
   const showBh = (S.bh || 'tr') !== 'none';
   // the letter sheet is a page of its own: nearly the whole stage whatever the style's text box is (clock / ב״ה stay above it)
-  const sheetBox = w < h ? { L: 28, T: 72, B: 28 } : { L: 56, T: 70, B: 30 };
+  // in a rotation slide (no stage clock) the sheet IS the page: it fills the whole panel, so paper never sits on a same-coloured card; a full-screen takeover keeps a margin + shadow
+  const flush = lhSheet && !showClock;
+  const sheetBox = flush ? { L: 0, T: 0, B: 0 } : w < h ? { L: 28, T: 72, B: 28 } : { L: 56, T: 70, B: 30 };
 
   return (
     <div
@@ -141,12 +143,12 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
         {/* the sheet is a page of its own: the style's decorative art is drawn around ITS text box and peeked out behind the bigger sheet, so a letterhead keeps only the style's colours */}
         {!lhSheet && <div className="art stage-in" dangerouslySetInnerHTML={{ __html: r.art }} />}
         {showClock && <div className="chrome num" style={pos(S.clock || 'tl')}>{clockText(clock)}</div>}
-        {showBh && <div className="chrome bh" style={pos(S.bh || 'tr')}>{'ב״ה'}</div>}
+        {showBh && !flush && <div className="chrome bh" style={pos(S.bh || 'tr')}>{'ב״ה'}</div>}
         {lhSheet ? (
           <div className="box" style={{ left: sheetBox.L, right: sheetBox.L, top: sheetBox.T, bottom: sheetBox.B }}>
             <LetterSheet
               item={item} w={w - 2 * sheetBox.L} h={h - sheetBox.T - sheetBox.B} anim={entrance ? anim : 'off'} loop={readerLoop} speed={longText?.speed || 'normal'}
-              still={prefersReducedMotion() || motion === 'minimal' && anim !== 'full'} forcedPage={forcedPage} onDuration={onLetter} onPages={onPages}
+              flush={flush} still={prefersReducedMotion() || motion === 'minimal' && anim !== 'full'} forcedPage={forcedPage} onDuration={onLetter} onPages={onPages}
             />
           </div>
         ) : (

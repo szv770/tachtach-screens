@@ -92,7 +92,7 @@ function Postmark({ top, bottom }) {
   );
 }
 
-export default function LetterSheet({ item, w, h, anim = 'full', loop = false, speed = 'normal', still = false, forcedPage = null, onDuration, onPages }) {
+export default function LetterSheet({ item, w, h, anim = 'full', loop = false, speed = 'normal', flush = false, still = false, forcedPage = null, onDuration, onPages }) {
   ensureLetterheadCss();
   // compare by CONTENT, not identity: a parent that re-renders (the clock ticks) must never restart the typing
   const mKey = JSON.stringify([item.content?.letter, item.look?.letter]);
@@ -283,7 +283,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
 
   const sig = m.sigImg ? SIGNATURES[m.sigImg] : null;
   const showEnd = !!(m.close || sig || m.stamp || m.mailed.length);
-  const cls = ['lhs', port ? 'port' : '', m.rtl ? 'rtl' : '', m.serif ? 'serif' : ''].filter(Boolean).join(' ');
+  const cls = ['lhs', flush ? 'flush' : '', port ? 'port' : '', m.rtl ? 'rtl' : '', m.serif ? 'serif' : ''].filter(Boolean).join(' ');
   const nameOf = (lines) => lines[0];
   const rest = (lines) => lines.slice(1);
 

@@ -17,11 +17,15 @@ export const LETTERHEAD_CSS = `
 .lhs .sheet { position: absolute; inset: 0; display: flex; flex-direction: column; color: var(--ink); overflow: hidden; border-radius: 5px;
   padding: calc(34px * var(--k)) calc(64px * var(--k)) calc(26px * var(--k));
   background:
-    linear-gradient(90deg, rgba(60,40,10,.14) 0, rgba(60,40,10,0) 3.2%),
+    linear-gradient(90deg, rgba(60,40,10,.06) 0, rgba(60,40,10,0) 2.4%),
     radial-gradient(120% 90% at 30% 12%, var(--paper) 0, var(--paper) 55%, var(--paper2) 100%);
   box-shadow: 0 34px 70px -22px rgba(0,0,0,.62), 0 3px 10px rgba(0,0,0,.28);
   will-change: transform, opacity; }
 .lhs .sheet::before { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 1px rgba(90,70,30,.12), inset 0 0 60px rgba(110,80,30,.10); }
+
+/* a slide: the sheet fills the panel edge to edge (the panel's own rounded corners clip it) */
+.lhs.flush .sheet { border-radius: 0; box-shadow: none; }
+.lhs.flush .sheet::before { box-shadow: inset 0 0 70px rgba(110,80,30,.08); }
 
 /* letterhead */
 .lhs .head { display: flex; justify-content: space-between; align-items: flex-start; gap: calc(40px * var(--hk)); font-family: var(--f-lh); }
