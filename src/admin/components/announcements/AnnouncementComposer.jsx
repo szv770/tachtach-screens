@@ -4,6 +4,8 @@ import useIsMobile from '../../hooks/useIsMobile.js';
 import AnnouncementPreview from './AnnouncementPreview.jsx';
 import StylePicker from './StylePicker.jsx';
 import LetterTools from '../letters/LetterTools.jsx';
+import LetterheadControls from '../letters/LetterheadControls.jsx';
+import { NEW_LETTER_LOOK, isLetterhead } from '../../../shared/letterhead.js';
 import { effectiveCaps } from '../../../shared/permissions.js';
 import { SOFT_LIMITS } from '../../../shared/takeoverStyles.js';
 import {
@@ -279,6 +281,16 @@ export default function AnnouncementComposer({
     setError('');
   }, []);
 
+  // a NEW letter starts on the typed letterhead sheet; letters saved before keep the plain page
+  const pickLayout = useCallback((v) => {
+    setItem((prev) => {
+      const look = { ...prev.look, layout: v };
+      if (v === 'letter' && !prev.id && !look.letter) look.letter = { ...NEW_LETTER_LOOK };
+      return { ...prev, look };
+    });
+    setError('');
+  }, []);
+
   // Replace a whole letter / sicha (from "paste the whole letter" or an AI chat's JSON).
   const fillKind = useCallback((fields) => {
     setItem((prev) => ({ ...prev, content: { ...prev.content, ...Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { ...(prev.content[k] || {}), ...v }])) } }));
@@ -395,7 +407,7 @@ export default function AnnouncementComposer({
             type="button"
             role="radio"
             aria-checked={layout === o.value}
-            onClick={() => set('look.layout', o.value)}
+            onClick={() => pickLayout(o.value)}
             title={o.explain}
             style={{
               minWidth: 0, padding: '6px', borderRadius: '8px', cursor: 'pointer',
@@ -560,7 +572,8 @@ export default function AnnouncementComposer({
           <Field title="Source (English)"><TextInput value={c.letter.source} onChange={(v) => set('content.letter.source', v)} placeholder="Igros Kodesh vol. 12, letter 4,123" ariaLabel="Letter source" /></Field>
           <Field title="Source (Hebrew)"><TextInput rtl value={c.letter.sourceHe} onChange={(v) => set('content.letter.sourceHe', v)} placeholder="אגרות קודש" ariaLabel="Letter source in Hebrew" /></Field>
         </div>
-        <p style={{ ...label, color: colors.muted }}>Long letters split into pages the same way as a sicha.</p>
+        <LetterheadControls look={item.look.letter} c={c.letter} set={set} ui={{ Field, Chip, Segmented, TextInput, TextArea }} isMobile={isMobile} />
+        {!isLetterhead(item) && <p style={{ ...label, color: colors.muted }}>Long letters split into pages the same way as a sicha.</p>}
       </>
     );
   } else {

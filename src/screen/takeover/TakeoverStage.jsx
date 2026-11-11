@@ -12,6 +12,8 @@ import { ensureTakeoverCss } from './css.js';
 import { announceFontVars } from '../../shared/fontRoles.js';
 import { readerMode } from '../../shared/longText.js';
 import { ensureReaderCss, prefersReducedMotion } from '../design/reader.js';
+import { isLetterhead } from '../../shared/letterhead.js';
+import LetterSheet from './letterhead/LetterSheet.jsx';
 
 /**
  * One takeover "stage" at a virtual W x H canvas (round-3b design,
@@ -34,7 +36,7 @@ function clockText(clock) {
   return `${h % 12 === 0 ? 12 : h % 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 }
 
-export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, onReader, animation, fonts, page: forcedPage, readerLoop = false }) {
+export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = true, onPages, onReader, onLetter, animation, fonts, page: forcedPage, readerLoop = false }) {
   ensureTakeoverCss();
   ensureReaderCss();
   const { light, motion, announceFonts, longText } = useDesign();
@@ -45,6 +47,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const style = renderStyleId(item.look?.style);
   const S = styleOf(style);
   const layout = stageLayout(layoutOf(item));
+  const lhSheet = isLetterhead(item); // the typed-sheet look of the Letter layout draws itself (letterhead/LetterSheet.jsx)
   const { anim, lively } = effectiveAnimation(animation ?? item.look?.animation, motion);
   // Long sicha / letter text: one slow AutoScroll (default) or pages (Minimal motion, Animation entrance/off,
   // settings.longText = pages, reduced motion, the admin's page-by-page preview). Rules: src/shared/longText.js.
@@ -57,9 +60,9 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const built = useMemo(() => {
     const r = renderArt(style, S, w, h, light);
     const m = modelFor(item, layout);
-    return { r, html: LAYOUT_HTML[layout](m) };
+    return { r, html: lhSheet ? '' : LAYOUT_HTML[layout](m) };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, style, w, h, light, fontPreset]);
+  }, [key, style, w, h, light, fontPreset, lhSheet, item.look?.letter]);
 
   // The entrance plays once on mount (not on every keystroke in the admin preview).
   const [enterNow, setEnterNow] = useState(entrance && anim !== 'off');
@@ -80,7 +83,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     if (!root) return undefined;
     let alive = true;
     const run = () => {
-      if (!alive) return;
+      if (!alive || lhSheet) return;
       const res = fitAll(root, { page: pageRef.current, ...readerRef.current });
       setPages(res.pages);
       onPagesRef.current?.(res.pages);
@@ -94,7 +97,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     document.fonts?.addEventListener?.('loadingdone', refit);
     return () => { alive = false; cancelAnimationFrame(raf); document.fonts?.removeEventListener?.('loadingdone', refit); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [built, scrolling, longText?.speed, readerLoop]);
+  }, [built, scrolling, longText?.speed, readerLoop, lhSheet]);
 
   // Quick-time "starts in ..." line: filled in place once a second (text only; the box height is fixed, digits are tabular).
   useEffect(() => {
@@ -125,6 +128,8 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
   const ch = { top: 34, side: 56, bottom: 34, ...(S.chrome || {}) };
   const pos = (p) => ({ tl: { top: ch.top, left: ch.side }, tr: { top: ch.top, right: ch.side }, bl: { bottom: ch.bottom, left: ch.side }, br: { bottom: ch.bottom, right: ch.side } }[p]);
   const showBh = (S.bh || 'tr') !== 'none';
+  // the letter sheet is a page of its own: nearly the whole stage whatever the style's text box is (clock / ב״ה stay above it)
+  const sheetBox = w < h ? { L: 28, T: 72, B: 28 } : { L: 56, T: 70, B: 30 };
 
   return (
     <div
@@ -136,7 +141,16 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
         <div className="art stage-in" dangerouslySetInnerHTML={{ __html: r.art }} />
         {showClock && <div className="chrome num" style={pos(S.clock || 'tl')}>{clockText(clock)}</div>}
         {showBh && <div className="chrome bh" style={pos(S.bh || 'tr')}>{'ב״ה'}</div>}
-        <div className="box" style={{ left: r.L, right: r.R, top: r.Tp, bottom: r.B }} dangerouslySetInnerHTML={{ __html: built.html }} />
+        {lhSheet ? (
+          <div className="box" style={{ left: sheetBox.L, right: sheetBox.L, top: sheetBox.T, bottom: sheetBox.B }}>
+            <LetterSheet
+              item={item} w={w - 2 * sheetBox.L} h={h - sheetBox.T - sheetBox.B} anim={entrance ? anim : 'off'} loop={readerLoop} speed={longText?.speed || 'normal'}
+              still={prefersReducedMotion() || motion === 'minimal' && anim !== 'full'} forcedPage={forcedPage} onDuration={onLetter} onPages={onPages}
+            />
+          </div>
+        ) : (
+          <div className="box" style={{ left: r.L, right: r.R, top: r.Tp, bottom: r.B }} dangerouslySetInnerHTML={{ __html: built.html }} />
+        )}
       </div>
     </div>
   );

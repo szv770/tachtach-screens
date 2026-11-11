@@ -10,6 +10,7 @@ export const LETTER_EXAMPLE = {
   kind: 'letter',
   dateHe: 'ט״ו מרחשון, ה׳תשט״ז',
   date: 'Brooklyn, N.Y.',
+  to: ['To the Students of', 'The Landau Yeshiva', 'Miami Beach, Fla.'],
   salutation: 'שלום וברכה!',
   paragraphs: ['First paragraph, exactly as written.', 'Second paragraph.'],
   closing: 'בברכה',
@@ -30,6 +31,7 @@ export const JSON_FIELDS = {
   letter: {
     dateHe: { type: 'text', max: 300, label: 'Hebrew date' },
     date: { type: 'text', max: 300, label: 'English date or place' },
+    to: { type: 'lines', max: 300, label: 'Who it was sent to (omit if the letter does not say)' },
     salutation: { type: 'text', max: 300, label: 'Greeting' },
     paragraphs: { type: 'paragraphs', max: 12000, label: 'Paragraphs' },
     closing: { type: 'text', max: 300, label: 'Closing and signature' },
@@ -140,6 +142,12 @@ export function parseLetterJson(raw, expectKind = null) {
       const total = paras.join('\n\n');
       if (total.length > f.max) { errors.push({ line, message: `The text is too long (${total.length} characters; the most is ${f.max}).` }); continue; }
       out.body = total;
+    } else if (f.type === 'lines') {
+      const list = Array.isArray(value) ? value : String(value ?? '').split('\n');
+      if (list.some((x) => typeof x !== 'string')) { errors.push({ line, message: `"${key0}"${line ? ` (line ${line})` : ''} must be text lines.` }); continue; }
+      const v = list.map((x) => x.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+      if (v.length > f.max) { errors.push({ line, message: `"${key0}" is too long (${v.length} characters; the most is ${f.max}).` }); continue; }
+      out[key] = v;
     } else {
       if (value != null && typeof value !== 'string') { errors.push({ line, message: `"${key0}"${line ? ` (line ${line})` : ''} must be text, not ${Array.isArray(value) ? 'a list' : typeof value}.` }); continue; }
       const v = String(value ?? '').replace(/\s+/g, ' ').trim();
@@ -160,7 +168,7 @@ export function parseLetterJson(raw, expectKind = null) {
 
 /** Every field of the announcement's letter / sicha present (empty string when missing). */
 function fillDefaults(kind, out) {
-  const keys = kind === 'letter' ? ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe'] : ['title', 'titleHe', 'body', 'source'];
+  const keys = kind === 'letter' ? ['date', 'dateHe', 'to', 'salutation', 'body', 'signature', 'source', 'sourceHe'] : ['title', 'titleHe', 'body', 'source'];
   return Object.fromEntries(keys.map((k) => [k, out[k] || '']));
 }
 

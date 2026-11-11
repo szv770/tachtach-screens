@@ -11,6 +11,7 @@
 
 import { canonicalDay, durationMinutes, isActive, hasText, DEFAULT_TZ, LAYOUTS, listItemText } from '../shared/announcements.js';
 import { STYLE_IDS, normalizeStyleId, normalizeAnimation, DEFAULT_ANIMATION } from '../shared/takeoverStyles.js';
+import { sanitizeLetterLook } from '../shared/letterhead.js';
 
 export { LAYOUTS };
 
@@ -33,7 +34,7 @@ const QUICKTIME_TIMES = ['time', 'time2', 'was'];
 const QUOTE_KEYS = ['text', 'textHe', 'source', 'sourceHe'];
 const SICHA_KEYS = ['title', 'titleHe', 'body', 'source'];
 const NOTICE_KEYS = ['pre', 'focus', 'post', 'preHe', 'focusHe', 'postHe'];
-const LETTER_KEYS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe'];
+const LETTER_KEYS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe', 'to', 'mailed', 'postmark', 'headEn', 'headHe', 'grace'];
 const LONG_KEYS = new Set(['body']);
 const MAX_LONG = 12000;
 
@@ -52,7 +53,7 @@ export function defaultItem() {
       quicktime: { time: '', name: '', nameHe: '', place: '' },
       quote: { text: '', textHe: '', source: '', sourceHe: '' },
       sicha: { title: '', titleHe: '', body: '', source: '' },
-      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
+      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '', to: '', mailed: '', postmark: '', headEn: '', headHe: '', grace: '' },
       notice: { pre: '', focus: '', post: '', preHe: '', focusHe: '', postHe: '' },
     },
     look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },
@@ -175,6 +176,7 @@ export function sanitizeInput(body) {
     if ('fit' in l) out.look.fit = l.fit === 'fixed' ? 'fixed' : 'auto';
     if ('maxFontPx' in l) out.look.maxFontPx = l.maxFontPx == null || l.maxFontPx === '' ? null : intIn(l.maxFontPx, 12, 400, null);
     if ('fullscreen' in l) out.look.fullscreen = l.fullscreen === true;
+    if ('letter' in l) out.look.letter = sanitizeLetterLook(l.letter);
   }
   if (body.slide && typeof body.slide === 'object') {
     out.slide = {};

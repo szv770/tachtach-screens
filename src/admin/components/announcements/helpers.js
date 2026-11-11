@@ -118,7 +118,7 @@ export function emptyItem(display = 'slide') {
       quicktime: { time: '', name: '', nameHe: '', place: '', placeHe: '', time2: '', label: '', labelHe: '', label2: '', label2He: '', was: '', big: '', bigLabel: '', pre: '' },
       quote: { text: '', textHe: '', source: '', sourceHe: '' },
       sicha: { title: '', titleHe: '', body: '', source: '' },
-      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' },
+      letter: { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '', to: '', mailed: '', postmark: '', headEn: '', headHe: '', grace: '' },
       notice: { pre: '', focus: '', post: '', preHe: '', focusHe: '', postHe: '' },
     },
     look: { layout: 'bigwords', style: null, animation: DEFAULT_ANIMATION, template: 'announcement', fit: 'auto', maxFontPx: null, fullscreen: false },

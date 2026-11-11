@@ -28,6 +28,12 @@ import '@fontsource/barlow-condensed/700.css';
 import '@fontsource/barlow-condensed/500.css';
 import '@fontsource/barlow-condensed/600.css';
 import '@fontsource/barlow-condensed/700.css';
+// Letterhead look of the Letter layout: thin Hebrew letterhead + typewriter text (bundled, offline-safe).
+import '@fontsource/miriam-libre/hebrew-400.css';
+import '@fontsource/miriam-libre/hebrew-700.css';
+import '@fontsource/miriam-libre/latin-400.css';
+import '@fontsource/courier-prime/latin-400.css';
+import '@fontsource/courier-prime/latin-700.css';
 import { googleFamiliesFor } from '../../shared/fontRoles.js';
 
 function styleEl(attr) {

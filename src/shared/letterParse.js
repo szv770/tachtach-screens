@@ -22,9 +22,10 @@ const HE_MONTH = /(תשרי|חשון|חשוון|מרחשון|מרחשוון|כס
 const EN_MONTH = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)';
 const EN_DATE = new RegExp(`(\\b${EN_MONTH}\\.?\\s+\\d{1,2}\\b)|(\\b\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?${EN_MONTH}\\b)|(\\b${EN_MONTH}\\.?,?\\s+\\d{4}\\b)|(\\b\\d{1,2}[/.]\\d{1,2}[/.]\\d{2,4}\\b)`, 'i');
 
-const KICKER = /^(?:ב["'״׳]?ה|בס["'״׳]?ד|בעזהשי["'״׳]?ת|b["']?h|b["']?s["']?d)\.?$/i;
+const KICKER = /^(?:by\s+the\s+grace\s+of\s+g-?d|ב["'״׳]?ה|בס["'״׳]?ד|בעזהשי["'״׳]?ת|b["']?h|b["']?s["']?d)\.?$/i;
 const SALUTATION = /^(?:שלום|ברכה|ברכת|ברכות|לכבוד|כבוד|הרה["'״׳]ג|הרב|הת['׳]|ידידי|יקירי|נכבד|אל\s|greeting|dear\b|blessing|to\s+the\b|to\s+my\b|my\s+dear|shalom)/i;
 const CLOSING = /^(?:ב?ברכה|ובברכה|בברכת|בברכות|בכבוד|בידידות|בהוקרה|בתודה|כל\s?טוב|בכל\s?הטוב|בדרישת\s?שלום|יהי\s?רצון|with\s+(?:blessings|best|much|warm|kind|every|prayers|esteem|appreciation)|sincerely|cordially|yours\b|respectfully|best\s+(?:wishes|regards)|in\s+the\s+hope|blessings)/i;
+const TO_START = /^(?:to\s+(?:the|my|our|all|dear)?\b|לכבוד|אל\s+(?:ה|כל))/i;
 const SOURCE = /^(?:source\s*:|sources\s*:|מקור\s*:|מקורות\s*:|from\s*:|מתוך(?![\u0590-\u05FF])|אגרות[\s-]?קודש|אג["'״׳]ק|igros\b|iggeres\b|likkutei\b|sichos\b|sichas\b|שיחות(?![\u0590-\u05FF])|לקוטי(?![\u0590-\u05FF])|תורת\s+מנחם|toras\s+menachem|\([^)]{3,}\)$|\[[^\]]{3,}\]$)/i;
 const SOURCE_PREFIX = /^(?:source|sources|מקור|מקורות|from)\s*:\s*/i;
 const TERMINAL = /[.!?׃:"”’״׳)\]]$/;
@@ -68,7 +69,8 @@ export function toParagraphs(lines) {
 }
 
 const isHebDate = (l) => HE_MONTH.test(l) && /['׳"״]/.test(l) && l.length <= 70 && !/[.!?]$/.test(l);
-const isEnDate = (l) => EN_DATE.test(l) && l.length <= 70;
+const JEW_MONTH = /\b(?:tishrei|tishri|cheshvan|marcheshvan|kislev|teves|tevet|shevat|shvat|adar(?:\s+[12i]+)?|nissan|nisan|iyar|sivan|tammuz|menachem[\s-]av|av|elul)\b/i;
+const isEnDate = (l) => (EN_DATE.test(l) || (JEW_MONTH.test(l) && /\b[5-6]\d{3}\b|\b\d{1,2}(?:st|nd|rd|th)?\b/.test(l))) && l.length <= 70;
 const isPlaceLine = (l) => isShort(l, 40) && /,/.test(l) && !/[!?:]$/.test(l) && l.split(/\s+/).length <= 5;
 
 function stripSourcePrefix(l) { return l.replace(SOURCE_PREFIX, '').replace(/^\((.*)\)$/, '$1').replace(/^\[(.*)\]$/, '$1').trim(); }
@@ -97,24 +99,31 @@ function joinSources(sources) {
 export function parseLetter(text) {
   let lines = trimBlank(clean(text));
   const found = { date: false, salutation: false, signature: false, source: false };
-  const out = { date: '', dateHe: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' };
+  const out = { date: '', dateHe: '', to: '', salutation: '', body: '', signature: '', source: '', sourceHe: '' };
   if (!lines.length) return { ...out, found };
 
   // 1. header: kicker lines are dropped (the layout draws its own ב״ה), dates and the greeting are lifted out.
   let i = 0;
   const header = [];
-  while (i < lines.length && i < 6) {
+  let sawTo = false; // an addressee block ('To the Students of ...') makes the header longer
+  while (i < lines.length && i < (sawTo ? 12 : 6)) {
     const l = lines[i];
+    if (TO_START.test(l) && isShort(l, 60)) sawTo = true;
     if (!l) { if (header.length || i === 0) { i++; continue; } break; }
     if (KICKER.test(l)) { i++; continue; }
-    if (looksLikeParagraph(l) && !SALUTATION.test(l)) break;
+    if (looksLikeParagraph(l) && !SALUTATION.test(l) && !isEnDate(l) && !isHebDate(l)) break;
     header.push(l); i++;
   }
-  const dates = [], places = [], sal = [];
+  const dates = [], places = [], sal = [], toLines = [];
+  let inTo = false;
   for (let k = 0; k < header.length; k++) {
     const l = header[k];
     const last = k === header.length - 1;
     const salLike = SALUTATION.test(l) || (last && isShort(l, 70) && /[!:]$/.test(l));
+    const laterSal = header.slice(k + 1).some((x) => SALUTATION.test(x) || /[!:]$/.test(x));
+    if (!sal.length && !toLines.length && TO_START.test(l) && isShort(l, 60) && laterSal) { inTo = true; toLines.push(l); continue; }
+    if (inTo && !salLike && isShort(l, 60) && !isHebDate(l) && !isEnDate(l) && toLines.length < 4) { toLines.push(l); continue; }
+    inTo = false;
     if (sal.length < 2 && salLike && isShort(l, 90) && !isHebDate(l) && !isEnDate(l)) sal.push(l);
     else if (isHebDate(l)) dates.push({ l, he: true });
     else if (isEnDate(l)) dates.push({ l, he: false });
@@ -122,7 +131,7 @@ export function parseLetter(text) {
   }
   const salutation = sal.join(' ');
   // header lines we could not classify stay in the body (nothing is ever dropped except ב״ה)
-  const used = new Set([...dates.map((d) => d.l), ...places, ...sal]);
+  const used = new Set([...dates.map((d) => d.l), ...places, ...sal, ...toLines]);
   const restLines = [];
   for (let k = 0; k < lines.length; k++) {
     const l = lines[k];
@@ -134,6 +143,7 @@ export function parseLetter(text) {
   out.dateHe = [...places.filter(hasHeb), ...hebDates].join(' · ');
   out.date = [...places.filter((p) => !hasHeb(p)), ...enDates].join(' · ');
   out.salutation = salutation;
+  out.to = toLines.join('\n');
   found.date = !!(out.date || out.dateHe);
   found.salutation = !!salutation;
 

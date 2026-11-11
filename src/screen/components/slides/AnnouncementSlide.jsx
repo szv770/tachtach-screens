@@ -1,6 +1,7 @@
 import React from 'react';
 import { StageBox, PAGE_SECONDS } from '../../takeover/TakeoverStage.jsx';
 import { readerSlideSeconds, pagedSlideSeconds } from '../../../shared/longText.js';
+import { letterheadSlideSeconds } from '../../../shared/letterhead.js';
 
 /**
  * Announcement renderers. Everything is drawn by the round-3b takeover stage
@@ -30,6 +31,7 @@ export default function AnnouncementSlide({ item, onRequestDuration }) {
         showClock={false}
         onPages={(n) => { if (n > 1) onRequestDuration?.(pagedSlideSeconds(n, PAGE_SECONDS, base)); }}
         onReader={(r) => { if (r) onRequestDuration?.(readerSlideSeconds(r.seconds, base)); }}
+        onLetter={(sec) => onRequestDuration?.(letterheadSlideSeconds(sec, base))}
       />
     </div>
   );

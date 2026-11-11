@@ -6,8 +6,9 @@
  * content.letter / content.sicha, so "Post again" is a straight copy.
  */
 import { normalizeStyleId } from './takeoverStyles.js';
+import { sanitizeLetterLook } from './letterhead.js';
 
-export const LETTER_FIELDS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe'];
+export const LETTER_FIELDS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe', 'to', 'mailed', 'postmark', 'headEn', 'headHe', 'grace'];
 export const SICHA_FIELDS = ['title', 'titleHe', 'body', 'source'];
 export const KINDS = ['letter', 'sicha'];
 const MAX_BODY = 12000;
@@ -35,7 +36,9 @@ export function sanitizeSavedLetter(body) {
   for (const k of fields) f[k] = clip(src[k], k === 'body' ? MAX_BODY : 300).trim();
   if (!f.body) throw new LetterError('There is no text to save.');
   const title = clip(body.title, 120).replace(/\s+/g, ' ').trim() || defaultTitle(kind, f);
-  return { kind, title, [kind]: f, style: body.style ? normalizeStyleId(body.style) : null };
+  const rec = { kind, title, [kind]: f, style: body.style ? normalizeStyleId(body.style) : null };
+  if (kind === 'letter' && body.paper && typeof body.paper === 'object') rec.paper = sanitizeLetterLook(body.paper);
+  return rec;
 }
 
 /** Case-insensitive search over title + text. */
@@ -51,7 +54,7 @@ export function toAnnouncement(rec, { expiresAt = null, display = 'slide' } = {}
   return {
     status: 'published', display, hold: false,
     content: { [rec.kind]: { ...(rec[rec.kind] || {}) } },
-    look: { layout: rec.kind, style: rec.style || null, fit: 'auto' },
+    look: { layout: rec.kind, style: rec.style || null, fit: 'auto', ...(rec.kind === 'letter' && rec.paper ? { letter: sanitizeLetterLook(rec.paper) } : {}) },
     slide: { duration: 15, label: '' },
     when: { startsAt: null, expiresAt, recurrence: null },
   };

@@ -25,6 +25,8 @@ export const FONT_ROLES = [
   { key: 'numerals', label: 'Numerals', hint: 'Clock and all times (tabular figures)', script: 'num', cssVar: '--f-num' },
   { key: 'torahHebrew', label: 'Torah text (Hebrew)', hint: 'Hayom Yom, quotes, letters', script: 'he', cssVar: '--f-th' },
   { key: 'torahEnglish', label: 'Torah text (English)', hint: 'Translations and English Torah text', script: 'en', cssVar: '--f-te' },
+  { key: 'letterheadHebrew', label: 'Letterhead (Hebrew)', hint: 'Thin Hebrew name and address on a letter', script: 'he', cssVar: '--f-lh' },
+  { key: 'typewriter', label: 'Typewriter', hint: 'The typed text of a letter', script: 'en', cssVar: '--f-typed' },
 ];
 
 /** The condensed face the Countdown page uses for its big numerals unless the admin picks another (look.numeralsFont). */
@@ -38,6 +40,8 @@ export const DEFAULT_FONT_ROLES = {
   numerals: 'Manrope',
   torahHebrew: 'Frank Ruhl Libre',
   torahEnglish: 'EB Garamond',
+  letterheadHebrew: 'Miriam Libre',
+  typewriter: 'Courier Prime',
 };
 
 /**
@@ -55,6 +59,8 @@ export const BUILTIN_FONTS = [
   { name: 'Playfair Display', family: 'Playfair Display Variable', bundled: true, scripts: ['en', 'num'] },
   { name: 'Fraunces', family: 'Fraunces Variable', bundled: true, scripts: ['en', 'num'] },
   { name: 'Barlow Condensed', family: 'Barlow Condensed', bundled: true, scripts: ['en', 'num'] },
+  { name: 'Miriam Libre', family: 'Miriam Libre', bundled: true, scripts: ['he', 'en'] },
+  { name: 'Courier Prime', family: 'Courier Prime', bundled: true, scripts: ['en', 'num'] },
   { name: 'Noto Serif Hebrew', family: 'Noto Serif Hebrew', google: 'Noto+Serif+Hebrew:wght@400;500;600;700', scripts: ['he'] },
   { name: 'David Libre', family: 'David Libre', google: 'David+Libre:wght@400;500;700', scripts: ['he', 'en'] },
   { name: 'Heebo', family: 'Heebo', google: 'Heebo:wght@300..800', scripts: ['he', 'en', 'num'] },
@@ -74,6 +80,8 @@ const FALLBACK = {
 };
 
 function fallbackFor(roleKey) {
+  if (roleKey === 'typewriter') return "'Courier New', Courier, monospace";
+  if (roleKey === 'letterheadHebrew') return FALLBACK.torahHe;
   if (roleKey === 'torahHebrew') return FALLBACK.torahHe;
   if (roleKey === 'torahEnglish') return FALLBACK.torahEn;
   const role = FONT_ROLES.find((r) => r.key === roleKey);
@@ -187,6 +195,6 @@ export function announceFontVars(id) {
   const p = ANNOUNCE_FONT_PRESETS[announceFontsId(id)];
   if (!p.roles) return {};
   const vars = {};
-  for (const role of FONT_ROLES) vars[role.cssVar] = fontStack(p.roles[role.key], role.key);
+  for (const role of FONT_ROLES) vars[role.cssVar] = fontStack(p.roles[role.key] || DEFAULT_FONT_ROLES[role.key], role.key);
   return vars;
 }
