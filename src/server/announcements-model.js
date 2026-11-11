@@ -180,7 +180,7 @@ export function sanitizeInput(body) {
   }
   if (body.slide && typeof body.slide === 'object') {
     out.slide = {};
-    if ('duration' in body.slide) out.slide.duration = intIn(body.slide.duration, 3, 600, 12);
+    if ('duration' in body.slide) out.slide.duration = Number(body.slide.duration) === 0 ? 0 : intIn(body.slide.duration, 3, 600, 12); // 0 = automatic (a letter takes as long as it needs)
     if ('label' in body.slide) out.slide.label = str(body.slide.label, 60);
   }
   if (body.note && typeof body.note === 'object') {

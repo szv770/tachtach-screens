@@ -104,7 +104,7 @@ export function popupSpec(typeId) {
     name: true,
     onOff: true,
     seconds: !own && typeId !== 'PDF_SLIDE',
-    secondsMin: typeId === 'VIDEO_SLIDE' || typeId === 'AVERAGES' ? 0 : SECONDS_MIN, // 0 = automatic (a video plays to its end, the Test Averages take as long as they need)
+    secondsMin: typeId === 'VIDEO_SLIDE' || typeId === 'AVERAGES' || typeId === 'DAILY_STORY' ? 0 : SECONDS_MIN, // 0 = automatic (a video plays to its end, the Test Averages take as long as they need)
     secondsMax: SECONDS_MAX,
     secondsNote: SECONDS_NOTE[typeId] || 'How long this slide stays on the screen before the next one.',
     fullscreen: !own && typeId !== 'GOOGLE_PHOTOS_SLIDE',

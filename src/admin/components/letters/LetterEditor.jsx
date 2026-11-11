@@ -57,7 +57,7 @@ export default function LetterEditor({ value, onChange, settings = {}, showTitle
         <Field title="Source (Hebrew, optional)"><TextInput rtl value={letter.sourceHe || ''} onChange={(x) => set('letter.sourceHe', x)} ariaLabel="Letter source in Hebrew" /></Field>
       </div>
       <div style={{ margin: '4px 0 12px' }}>
-        <span style={{ display: 'block', fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Background style</span>
+        <span style={{ display: 'block', fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Background colours (the style's artwork is not drawn behind a letterhead sheet)</span>
         <StylePicker value={v.style || ''} onChange={(s) => set('style', s || null)} item={previewItem} layout="letter" settings={settings} />
       </div>
       <PagePreview item={previewItem} settings={settings} />

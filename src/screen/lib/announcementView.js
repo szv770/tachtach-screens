@@ -24,7 +24,7 @@ export function toRotationSlide(item, rowId) {
     id: rowId || `ann-${item.id}`,
     type: 'ANNOUNCEMENT',
     enabled: true,
-    duration: item.slide?.duration || 12,
+    duration: Number.isFinite(item.slide?.duration) ? item.slide.duration : 12, // 0 = automatic: the slide asks for the time it needs (a letter: its typing + reading)
     fullscreen: !!item.look?.fullscreen,
     label: chipLabel(item),
     _ann: item,

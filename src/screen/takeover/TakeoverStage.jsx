@@ -138,7 +138,8 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
       data-box={JSON.stringify(r.box)} data-art={JSON.stringify(r.artRects)}
     >
       <div className={cls} style={{ width: w, height: h }}>
-        <div className="art stage-in" dangerouslySetInnerHTML={{ __html: r.art }} />
+        {/* the sheet is a page of its own: the style's decorative art is drawn around ITS text box and peeked out behind the bigger sheet, so a letterhead keeps only the style's colours */}
+        {!lhSheet && <div className="art stage-in" dangerouslySetInnerHTML={{ __html: r.art }} />}
         {showClock && <div className="chrome num" style={pos(S.clock || 'tl')}>{clockText(clock)}</div>}
         {showBh && <div className="chrome bh" style={pos(S.bh || 'tr')}>{'ב״ה'}</div>}
         {lhSheet ? (

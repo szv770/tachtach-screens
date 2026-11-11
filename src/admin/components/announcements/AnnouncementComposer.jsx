@@ -285,8 +285,10 @@ export default function AnnouncementComposer({
   const pickLayout = useCallback((v) => {
     setItem((prev) => {
       const look = { ...prev.look, layout: v };
-      if (v === 'letter' && !prev.id && !look.letter) look.letter = { ...NEW_LETTER_LOOK };
-      return { ...prev, look };
+      const fresh = v === 'letter' && !prev.id && !look.letter;
+      if (fresh) look.letter = { ...NEW_LETTER_LOOK };
+      // a new letter lasts as long as it needs (typing + reading); the old default of 12 s would be far too short
+      return { ...prev, look, slide: fresh ? { ...prev.slide, duration: 0 } : prev.slide };
     });
     setError('');
   }, []);
@@ -651,16 +653,23 @@ export default function AnnouncementComposer({
             {item.look.fullscreen ? '✓ ' : ''}Full screen (hide the side column)
           </Chip>
           {!item.hold && (
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim }}>
-              Seconds on screen
+            <>
+            {layout === 'letter' && (
+              <Chip active={Number(item.slide.duration) === 0} onClick={() => set('slide.duration', Number(item.slide.duration) === 0 ? 30 : 0)} title="The slide stays up exactly as long as the letter takes to type and read">
+                {Number(item.slide.duration) === 0 ? '✓ ' : ''}Automatic length (as long as the letter needs)
+              </Chip>
+            )}
+            {!(layout === 'letter' && Number(item.slide.duration) === 0) && <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontFamily: adminFonts.englishBody, fontSize: '14px', color: colors.dim }}>
+              {layout === 'letter' ? 'At least (seconds)' : 'Seconds on screen'}
               <input
                 type="text" inputMode="numeric" value={item.slide.duration ?? 12}
                 onChange={(e) => { const n = e.target.value.replace(/\D/g, ''); set('slide.duration', n === '' ? '' : Number(n)); }}
-                onBlur={() => set('slide.duration', Math.min(600, Math.max(3, Number(item.slide.duration) || 12)))}
+                onBlur={() => set('slide.duration', Number(item.slide.duration) === 0 && item.look.layout === 'letter' ? 0 : Math.min(600, Math.max(3, Number(item.slide.duration) || 12)))}
                 aria-label="Seconds on screen"
                 style={{ ...inputStyle, width: '70px', minHeight: '40px', textAlign: 'center' }}
               />
-            </label>
+            </label>}
+            </>
           )}
         </div>
       )}

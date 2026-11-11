@@ -126,12 +126,12 @@ export function effectiveSpeed(letterSpeed, screenSpeed = 'normal') {
 }
 
 /** A Daily Story entry of kind 'letter' -> the announcement-shaped item the stage draws (kiosk + admin preview). */
-export function letterEntryItem(e, seconds = 25) {
+export function letterEntryItem(e, seconds = 0) { // seconds 0 = automatic
   return {
     id: e?.id || 'letter', status: 'published', display: 'slide', enabled: true, hold: false,
     content: { letter: { ...(e?.letter || {}) } },
     look: { layout: 'letter', style: e?.style || null, animation: 'full', fit: 'auto', letter: sanitizeLetterLook({ ...NEW_LETTER_LOOK, ...(e?.paper || {}) }) },
-    slide: { duration: seconds, label: '' },
+    slide: { duration: Number.isFinite(seconds) ? seconds : 0, label: '' },
   };
 }
 

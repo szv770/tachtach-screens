@@ -142,3 +142,14 @@ test('daily letter: a Daily Story entry of kind letter keeps the whole letter, i
   const fast = planTimeline({ pages: [{ lines: [80, 80], words: 4 }], typeMul: SPEED_MUL.fast });
   assert.ok(slow.pages[0].typedEnd - slow.pages[0].start > fast.pages[0].typedEnd - fast.pages[0].start);
 });
+
+test('automatic slide length: 0 seconds is kept for a letter and asks for exactly the plan time', async () => {
+  const { sanitizeInput } = await import('../src/server/announcements-model.js');
+  assert.equal(sanitizeInput({ slide: { duration: 0 } }).slide.duration, 0);
+  assert.equal(sanitizeInput({ slide: { duration: 1 } }).slide.duration, 12, 'other out-of-range values still fall back to 12');
+  assert.equal(sanitizeInput({ slide: { duration: 20 } }).slide.duration, 20);
+  assert.equal(letterheadSlideSeconds(41.2, 0), 43, 'automatic: the whole letter plus a second');
+  assert.equal(letterheadSlideSeconds(41.2, 60), 60, 'a set length is a minimum');
+  const { letterEntryItem } = await import('../src/shared/letterhead.js');
+  assert.equal(letterEntryItem({ letter: { body: 'x' } }).slide.duration, 0);
+});

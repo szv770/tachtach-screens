@@ -20,7 +20,7 @@ import { letterheadSlideSeconds } from '../../../shared/letterhead.js';
  */
 export default function AnnouncementSlide({ item, onRequestDuration }) {
   if (!item) return null;
-  const base = item.slide?.duration || 12;
+  const base = Number.isFinite(item.slide?.duration) ? item.slide.duration : 12; // 0 = automatic
   return (
     <div style={{ position: 'relative', flex: 1, minHeight: 0, minWidth: 0, width: '100%', height: '100%' }}>
       <StageBox

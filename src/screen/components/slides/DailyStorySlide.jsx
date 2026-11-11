@@ -64,10 +64,11 @@ export default function DailyStorySlide({ dailyStories, dateISO, portrait: portr
   const design = useDesign();
   const portrait = portraitProp ?? design.portrait;
   const s = pickDailyStory(dailyStories, dateISO);
-  const letterItem = useMemo(() => (s?.kind === 'letter' ? letterEntryItem(s, Number(slide?.duration) || 25) : null), [s, slide?.duration]);
+  const letterItem = useMemo(() => (s?.kind === 'letter' ? letterEntryItem(s, Number(slide?.duration) || 0) : null), [s, slide?.duration]);
   const want = s ? readingSeconds(s, design.longText?.speed) : 0;
   const base = Number(slide?.duration) || 0;
-  useEffect(() => { if (want && onRequestDuration && want > (base || 25)) onRequestDuration(want); }, [s?.id, want]); // eslint-disable-line react-hooks/exhaustive-deps
+  // seconds 0 = automatic: ask for exactly the reading time
+  useEffect(() => { if (want && onRequestDuration && (!base || want > base)) onRequestDuration(want); }, [s?.id, want]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!s) return null;
   // a LETTER of the day: the letterhead stage types it out and asks the rotation for the time it needs
   if (s.kind === 'letter') return <AnnouncementSlide item={letterItem} onRequestDuration={onRequestDuration} />;
