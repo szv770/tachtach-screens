@@ -8,10 +8,10 @@ import { SpotAct, PodiumAct, ListAct, ImprovedAct, TracksAct } from './averages/
  * Test Averages (a Gemoro / Girsa test program). plan() (shared/averages.js) gives the acts in order:
  *
  *   list      THE show: one ordered list (everyone over the minimum, highest average first) in 2 or 3 columns, a few
- *             pages, every name the same card
+ *             pages, every name the same flat card, every average with its % sign
  *   spot / podium / improved / tracks   extra acts, OFF until the school turns them on (they play before the list)
  *
- * averages/Stage.jsx keeps the backdrop, the Hebrew heading, the progress bar and the footer and changes the page with a
+ * averages/Stage.jsx keeps the frame (a printed honor roll: flat panel, inset double rule), the Hebrew heading, the progress bar and the footer and changes the page with a
  * designed transition (cube / cards / door / carousel / tilt / sweep / flip / zoom / curtain / rise); averages/acts.jsx
  * draws the acts; averages/parts.jsx holds the small parts. Every motion plays once and settles; Minimal and reduced motion
  * show the settled page. Roles and font roles only. The slide steps through its acts itself and asks the rotation for the
@@ -50,12 +50,11 @@ export default function AveragesSlide({ data, portrait: portraitProp, onRequestD
 
   if (!n) return null;
   const top = rows[0]?.avg || 100;
-  const low = rows.length ? rows[rows.length - 1].avg : 0;
   // rows per column the fullest list page needs (never more than plan()'s perCol): the same on every page
   const perCol = Math.max(1, ...steps.filter((x) => x.t === 'list').map((x) => Math.ceil(x.rows.length / x.cols)));
   const renderAct = (act, { delay }) => {
     const Act = ACTS[act.t];
-    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} low={low} perCol={perCol} /> : null;
+    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} perCol={perCol} /> : null;
   };
   return <Stage s={s} portrait={portrait} steps={steps} step={step} turn={turn} sum={sum} renderAct={renderAct} />;
 }

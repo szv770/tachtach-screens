@@ -3,6 +3,7 @@ import { F } from '../../../design/ui.jsx';
 import { Ornament } from '../../../design/graphics.jsx';
 import { useDesign } from '../../../design/DesignRoot.jsx';
 import { hasHebrew } from '../../../../shared/bidi.js';
+import { fmtAvg } from '../../../../shared/averages.js';
 
 /**
  * Small building blocks of the Test Averages stage (see ../AveragesSlide.jsx). Roles and font roles only; every motion is a
@@ -17,7 +18,7 @@ export function useStill() {
 }
 
 /** A number that counts up once (finite). The final text holds the width, so nothing jumps while it counts. */
-export function CountUp({ to, decimals = 1, ms = 1500, delay = 0, prefix = '' }) {
+export function CountUp({ to, decimals = 1, ms = 1500, delay = 0, prefix = '', pct = false }) {
   const still = useStill() || !Number.isFinite(to);
   const [v, setV] = useState(still ? to : 0);
   const [done, setDone] = useState(still);
@@ -38,13 +39,25 @@ export function CountUp({ to, decimals = 1, ms = 1500, delay = 0, prefix = '' })
   }, [to, still, ms, delay]);
   const d = decimals === 0 ? 0 : 1;
   const final = `${prefix}${Number.isFinite(to) ? to.toFixed(d) : '–'}`;
-  if (done) return <span className="tt-num">{final}</span>;
+  const sign = pct ? <PctSign /> : null;
+  if (done) return <span className="tt-num" style={{ whiteSpace: 'nowrap' }}>{final}{sign}</span>;
   return (
-    <span className="tt-num" style={{ position: 'relative', display: 'inline-block' }}>
-      <span style={{ visibility: 'hidden' }}>{final}</span>
-      <span style={{ position: 'absolute', inset: 0, textAlign: 'center' }}>{prefix}{v.toFixed(d)}</span>
+    <span className="tt-num" style={{ whiteSpace: 'nowrap' }}>
+      <span style={{ position: 'relative', display: 'inline-block' }}>
+        <span style={{ visibility: 'hidden' }}>{final}</span>
+        <span style={{ position: 'absolute', inset: 0, textAlign: 'center' }}>{prefix}{v.toFixed(d)}</span>
+      </span>
+      {sign}
     </span>
   );
+}
+
+/** The '%' after an average: smaller than the digits, dimmer, on the same baseline. */
+export const PctSign = () => <span data-av-pct="" style={{ fontSize: '.56em', fontWeight: 600, letterSpacing: 0, marginLeft: '.06em', opacity: 0.62 }}>%</span>;
+
+/** An average as text: tabular digits + the small '%'. */
+export function Pct({ v, decimals = 1, style, ...rest }) {
+  return <span className="tt-num" style={{ whiteSpace: 'nowrap', ...style }} {...rest}>{fmtAvg(v, decimals)}<PctSign /></span>;
 }
 
 export const ordinal = (n) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'}`;
@@ -58,38 +71,16 @@ export function initials(name) {
   return (first + last).toUpperCase();
 }
 
-const hash = (str) => { let h = 0; for (const c of String(str)) h = (h * 31 + c.codePointAt(0)) % 9973; return h; };
-const AVATAR_BG = [
-  'linear-gradient(145deg, color-mix(in srgb, var(--accentText) 46%, var(--panel)), color-mix(in srgb, var(--accentText) 14%, var(--panel)))',
-  'linear-gradient(145deg, color-mix(in srgb, var(--ink) 24%, var(--panel)), color-mix(in srgb, var(--accentText) 22%, var(--panel)))',
-  'linear-gradient(145deg, color-mix(in srgb, var(--accentText) 26%, var(--panel)), color-mix(in srgb, var(--ink) 12%, var(--panel)))',
-];
-
-/** The id of the shared ring gradient (defined once by <RingDefs/> in the Stage). */
-const RING = 'ttAvRingGrad';
-export function RingDefs() {
-  return (
-    <svg width="0" height="0" aria-hidden style={{ position: 'absolute' }}>
-      <defs>
-        <linearGradient id={RING} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" style={{ stopColor: 'var(--accentText)' }} />
-          <stop offset="1" style={{ stopColor: 'color-mix(in srgb, var(--accentText) 30%, var(--ink))' }} />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-
-/** No photos: a round monogram of the student's initials inside a gradient ring. `draw` = the ring draws itself in once. */
-export function Avatar({ name, id, size = 64, draw = false, delay = 300 }) {
+/** No photos: a round monogram of the student's initials inside a thin accent ring. `draw` = the ring draws itself in once. */
+export function Avatar({ name, size = 64, draw = false, delay = 300 }) {
   const rtl = hasHebrew(name);
   const w = size >= 200 ? 3 : size >= 90 ? 4 : 5.5; // ring width in viewBox units (thinner on the big hero avatar)
   return (
     <span data-av="" style={{ position: 'relative', width: size, height: size, flex: 'none', display: 'block' }}>
-      <span dir={rtl ? 'rtl' : 'ltr'} style={{ position: 'absolute', inset: size * 0.085, borderRadius: '50%', background: AVATAR_BG[hash(id || name) % AVATAR_BG.length], display: 'grid', placeItems: 'center', color: 'var(--ink)', fontFamily: rtl ? F.heD : F.enD, fontWeight: 700, fontSize: size * 0.34, lineHeight: 1, whiteSpace: 'nowrap' }}>{initials(name)}</span>
+      <span dir={rtl ? 'rtl' : 'ltr'} style={{ position: 'absolute', inset: size * 0.085, borderRadius: '50%', background: 'color-mix(in srgb, var(--ink) 7%, transparent)', display: 'grid', placeItems: 'center', color: 'var(--ink)', fontFamily: rtl ? F.heD : F.enD, fontWeight: 700, fontSize: size * 0.34, lineHeight: 1, whiteSpace: 'nowrap' }}>{initials(name)}</span>
       <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden style={{ position: 'absolute', inset: 0, transform: 'rotate(-90deg)' }}>
         {draw ? <circle cx="50" cy="50" r={50 - w / 2} fill="none" stroke="color-mix(in srgb, var(--ink) 14%, transparent)" strokeWidth={w} /> : null}
-        <circle className={draw ? 'tt-av-ring' : undefined} pathLength="1" cx="50" cy="50" r={50 - w / 2} fill="none" stroke={`url(#${RING})`} strokeWidth={w} strokeLinecap="round" style={{ '--d': `${delay}ms` }} />
+        <circle className={draw ? 'tt-av-ring' : undefined} pathLength="1" cx="50" cy="50" r={50 - w / 2} fill="none" stroke="var(--accentText)" strokeWidth={w} strokeLinecap="round" style={{ '--d': `${delay}ms` }} />
       </svg>
     </span>
   );
@@ -150,14 +141,14 @@ export function Star({ size = 18, style }) {
   return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ flex: 'none', ...style }}><path d="M12 1.6l3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 17.7l-6.4 3.5L7 14.1l-5.3-5 7.2-.9z" fill="currentColor" /></svg>;
 }
 
-/** A small pill. tone: 'glass' (default) | 'accent' (accent text) | 'fill' (solid). */
-export function Chip({ children, tone = 'glass', size = 24, style }) {
+/** A small pill. tone: 'plain' (default) | 'accent' (accent text) | 'fill' (solid). */
+export function Chip({ children, tone = 'plain', size = 24, style }) {
   const tones = {
-    glass: { background: 'color-mix(in srgb, var(--ink) 8%, transparent)', color: 'var(--ink)', border: '1.5px solid var(--line)' },
-    accent: { background: 'color-mix(in srgb, var(--accentText) 14%, transparent)', color: 'var(--accentText)', border: '1.5px solid color-mix(in srgb, var(--accentText) 45%, transparent)' },
+    plain: { background: 'transparent', color: 'var(--ink)', border: '1.5px solid var(--line)' },
+    accent: { background: 'transparent', color: 'var(--accentText)', border: '1.5px solid var(--accentText)' },
     fill: { background: 'var(--fill)', color: 'var(--fillInk)', border: '1.5px solid transparent' },
   };
-  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: size * 0.3, flex: 'none', padding: `${size * 0.24}px ${size * 0.62}px`, borderRadius: 999, fontFamily: F.en, fontWeight: 650, fontSize: size, lineHeight: 1.15, whiteSpace: 'nowrap', ...tones[tone], ...style }}>{children}</span>;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', gap: size * 0.3, flex: 'none', padding: `${size * 0.24}px ${size * 0.62}px`, borderRadius: 8, fontFamily: F.en, fontWeight: 650, fontSize: size, lineHeight: 1.15, whiteSpace: 'nowrap', ...tones[tone], ...style }}>{children}</span>;
 }
 
 /** The prize level a student reached (the school's own word, e.g. Gold). */
@@ -166,12 +157,8 @@ export function TierChip({ tier, size = 22, tone = 'accent' }) {
   return <Chip tone={tone} size={size}><Ornament size={size * 0.85} />{tier}</Chip>;
 }
 
-/** The look of a glass row / card: a soft two-stop sheen, a hairline and a lit top edge. No blur. */
-export const glass = (strong = false) => ({
-  background: `linear-gradient(100deg, color-mix(in srgb, var(--ink) ${strong ? 13 : 9}%, transparent), color-mix(in srgb, var(--ink) ${strong ? 6 : 3.5}%, transparent))`,
-  border: '1.5px solid var(--line)',
-  boxShadow: 'inset 0 1.5px 0 color-mix(in srgb, var(--ink) 13%, transparent)',
-});
+/** The look of a card: flat, one rule. */
+export const card = () => ({ background: 'transparent', border: '1.5px solid var(--line)' });
 
 /** A burst of sparkles that flies out once and is gone (nothing is left behind; hidden when nothing may move). */
 export function Sparkles({ n = 18, spread = 300, delay = 900 }) {
@@ -203,13 +190,13 @@ export function History({ scores, height = 150, delay = 900, showMarks = true, l
   return (
     <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
       {label ? <span style={{ fontFamily: F.en, fontSize: 20, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--inkDim)' }}>Last {list.length} tests</span> : null}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: list.length > 8 ? 8 : 12, height, borderBottom: '2px solid var(--line)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: list.length > 8 ? 8 : 12, height, borderBottom: '1.5px solid var(--line)' }}>
         {list.map((v, i) => {
           const last = i === list.length - 1;
           return (
             <div key={i} style={{ flex: '1 1 0', minWidth: 0, maxWidth: 74, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
               {marks ? <span className="tt-num" style={{ flex: 'none', fontSize: fs, lineHeight: 1, fontWeight: 700, color: last ? 'var(--ink)' : 'var(--inkDim)' }}>{Math.round(v)}</span> : null}
-              <div className="tt-av-col" style={{ '--i': i, '--d': `${delay}ms`, width: '100%', flex: 'none', height: `${Math.max(6, ((v - lo) / (hi - lo)) * 78)}%`, borderRadius: '8px 8px 0 0', background: last ? 'linear-gradient(180deg, var(--accentText), color-mix(in srgb, var(--accentText) 55%, transparent))' : 'linear-gradient(180deg, color-mix(in srgb, var(--accentText) 50%, transparent), color-mix(in srgb, var(--accentText) 16%, transparent))' }} />
+              <div className="tt-av-col" style={{ '--i': i, '--d': `${delay}ms`, width: '100%', flex: 'none', height: `${Math.max(6, ((v - lo) / (hi - lo)) * 78)}%`, borderRadius: '2px 2px 0 0', background: last ? 'var(--fill)' : 'color-mix(in srgb, var(--ink) 22%, transparent)' }} />
             </div>
           );
         })}
