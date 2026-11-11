@@ -48,6 +48,16 @@ test('improvement and mostImproved', () => {
   assert.equal(imp[0].name, 'Yossi Berg');
 });
 
+test('minimum average is optional; prize levels pick the highest reached', () => {
+  const f = A.applyImport({}, A.parseInput('A One,95,95\nB Two,85,85\nC Three,60,60'));
+  assert.equal(A.board(f).length, 3, 'no minimum: everyone entered shows');
+  assert.equal(A.board({ ...f, settings: { minAverage: 80 } }).length, 2);
+  const g = { ...f, settings: { prizes: [{ at: 80, label: 'Silver' }, { at: 90, label: 'Gold' }, { at: 90, label: 'dupe' }, { at: 0, label: 'zero' }] } };
+  assert.deepEqual(A.normalizeSettings(g.settings).prizes, [{ at: 90, label: 'Gold' }, { at: 80, label: 'Silver' }], 'sorted, deduped, zero dropped');
+  assert.deepEqual(A.board(g).map((r) => r.tier), ['Gold', 'Silver', '']);
+  assert.deepEqual(A.normalizeSettings({ prizeAt: 90, prizeLine: 'a pizza party' }).prizes, [{ at: 90, label: 'a pizza party' }], 'the older single prize becomes one level');
+});
+
 test('fmtAvg', () => { assert.equal(A.fmtAvg(94.5), '94.5'); assert.equal(A.fmtAvg(95.04), '95'); assert.equal(A.fmtAvg(94.5, 0), '95'); });
 
 test('applyImport: replace keeps ids of same names; add appends scores', () => {

@@ -14,14 +14,14 @@
 export class AveragesError extends Error {}
 
 export const LIMITS = Object.freeze({
-  students: 600, scores: 80, name: 60, grade: 24, track: 24, text: 200, file: 600 * 1024, importText: 256 * 1024, maxScore: 150, tracks: 8,
+  students: 600, scores: 80, prizes: 6, prizeLabel: 24, name: 60, grade: 24, track: 24, text: 200, file: 600 * 1024, importText: 256 * 1024, maxScore: 150, tracks: 8,
 });
 
 export const DEFAULTS = Object.freeze({
   title: 'Top Averages',
   titleHe: 'מצטיינים',
-  prizeLine: '',          // 'Averaging {prizeAt}+ earns a prize' text is built in the slide; this is the org's own wording, optional
-  prizeAt: 0,             // 0 = no prize line / star
+  prizes: [],             // prize levels: [{ at: 90, label: 'Gold' }, ...] (the org's own words); a student earns the highest level they reach
+  prizeNote: '',          // optional line under the levels, e.g. 'Prizes are given out at the end of the year'
   minAverage: 0,          // only students at or above this appear (0 = everyone entered)
   minTests: 1,            // a student needs this many scores before they appear
   topCount: 10,           // the leaderboard size
@@ -41,14 +41,32 @@ const num = (v, d, lo, hi) => { const n = Number(v); return Number.isFinite(n) ?
 const bool = (v, d) => (typeof v === 'boolean' ? v : d);
 const pick = (v, list, d) => (list.includes(v) ? v : d);
 
+/** Prize levels, highest first, equal averages merged. A pre-levels setting (one prizeAt + prizeLine) becomes a single level. */
+export function normalizePrizes(list, legacyAt, legacyLine) {
+  let src = Array.isArray(list) ? list : [];
+  if (!src.length && Number(legacyAt) > 0) src = [{ at: legacyAt, label: legacyLine || 'Prize' }];
+  const out = []; const seen = new Set();
+  for (const p of src) {
+    const at = Math.round(num(p?.at, NaN, 0, LIMITS.maxScore) * 10) / 10;
+    if (!(at > 0) || seen.has(at)) continue;
+    seen.add(at);
+    out.push({ at, label: clean(p?.label, LIMITS.prizeLabel) || 'Prize' });
+    if (out.length >= LIMITS.prizes) break;
+  }
+  return out.sort((a, b) => b.at - a.at);
+}
+
+/** The highest prize level an average reaches, or null. */
+export const tierFor = (avg, prizes) => (prizes || []).find((p) => avg + 1e-9 >= p.at) || null;
+
 export function normalizeSettings(s) {
   const o = s && typeof s === 'object' ? s : {};
   const D = DEFAULTS;
   return {
     title: clean(o.title ?? D.title, LIMITS.text) || D.title,
     titleHe: clean(o.titleHe ?? D.titleHe, LIMITS.text),
-    prizeLine: clean(o.prizeLine ?? D.prizeLine, LIMITS.text),
-    prizeAt: num(o.prizeAt, D.prizeAt, 0, LIMITS.maxScore),
+    prizes: normalizePrizes(o.prizes, o.prizeAt, o.prizeLine),
+    prizeNote: clean(o.prizeNote ?? D.prizeNote, LIMITS.text),
     minAverage: num(o.minAverage, D.minAverage, 0, LIMITS.maxScore),
     minTests: Math.round(num(o.minTests, D.minTests, 1, 20)),
     topCount: Math.round(num(o.topCount, D.topCount, 3, 10)),
@@ -155,12 +173,11 @@ export function board(file, opts = {}) {
     if (track && (st.track || '') !== track) continue;
     if (!st.scores || st.scores.length < s.minTests) continue;
     const avg = mean(st.scores);
-    if (avg + 1e-9 < s.minAverage) continue;
+    if (s.minAverage > 0 && avg + 1e-9 < s.minAverage) continue;
     rows.push({
       id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: st.scores.length,
-      avg, last: st.scores[st.scores.length - 1], delta: improvement(st.scores),
+      avg, tier: tierFor(avg, s.prizes)?.label || '', last: st.scores[st.scores.length - 1], delta: improvement(st.scores),
       before: st.scores.length >= 3 ? mean(st.scores.slice(0, -2)) : null, recent: st.scores.length >= 3 ? mean(st.scores.slice(-2)) : null,
-      earned: s.prizeAt > 0 && avg + 1e-9 >= s.prizeAt,
     });
   }
   rows.sort((a, b) => (round1(b.avg) - round1(a.avg)) || (b.tests - a.tests) || a.name.localeCompare(b.name));
@@ -182,7 +199,7 @@ export function tracksOf(file) {
 
 /** The whole-program numbers for the top strip. */
 export function summary(rows) {
-  return { count: rows.length, avg: rows.length ? mean(rows.map((r) => r.avg)) : 0, tests: rows.reduce((a, r) => a + r.tests, 0), earned: rows.filter((r) => r.earned).length };
+  return { count: rows.length, avg: rows.length ? mean(rows.map((r) => r.avg)) : 0, tests: rows.reduce((a, r) => a + r.tests, 0), earned: rows.filter((r) => r.tier).length };
 }
 
 /** Split `rows` into pages of `per` (the last page is topped up from the page before so it is never a lonely row). */

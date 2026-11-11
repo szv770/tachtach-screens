@@ -64,9 +64,9 @@ function Crown({ size }) {
   );
 }
 
-function Star({ size = 26 }) { return <Ornament size={size} style={{ color: 'var(--accentText)' }} />; }
+function Star({ size = 26, color = 'var(--accentText)' }) { return <Ornament size={size} style={{ color }} />; }
 
-const sub = (r, s) => [s.showGrade && r.grade, s.showTests && `${r.tests} ${r.tests === 1 ? 'test' : 'tests'}`].filter(Boolean).join(' · ');
+const sub = (r, s) => [r.tier, s.showGrade && r.grade, s.showTests && `${r.tests} ${r.tests === 1 ? 'test' : 'tests'}`].filter(Boolean).join(' · ');
 
 function Header({ s, portrait }) {
   return (
@@ -81,13 +81,16 @@ function Header({ s, portrait }) {
 }
 
 function Footer({ s, left, right, sum, portrait }) {
-  const prize = s.prizeAt > 0 ? `${s.prizeAt}+ average${s.prizeLine ? ` · ${s.prizeLine}` : ' earns the prize'}` : '';
+  const levels = (s.prizes || []).map((p) => `${fmtAvg(p.at, 1)}+ ${p.label}`).join('  ·  ');
   const stats = sum && s.showMarks && !portrait ? `${sum.count} students · class average ${fmtAvg(sum.avg, s.decimals)}` : (sum ? `${sum.count} students` : '');
-  if (!prize && !left && !right && !stats) return null;
+  if (!levels && !s.prizeNote && !left && !right && !stats) return null;
   return (
-    <footer style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, marginTop: 14, fontFamily: F.en, fontSize: 24, color: 'var(--inkDim)', minHeight: 30 }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 0, whiteSpace: 'nowrap' }}>{prize ? <><Star size={22} /><span style={{ color: 'var(--ink)', fontWeight: 600 }}>{prize}</span></> : left}</span>
-      <span style={{ whiteSpace: 'nowrap' }}>{[stats, right].filter(Boolean).join('  ·  ')}</span>
+    <footer style={{ flex: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, marginTop: 14, fontFamily: F.en, fontSize: 24, color: 'var(--inkDim)', minHeight: 30, lineHeight: 1.2 }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        {levels || s.prizeNote ? <Star size={22} /> : left}
+        <span style={{ color: 'var(--ink)', fontWeight: 600, minWidth: 0 }}>{levels}{levels && s.prizeNote ? <span style={{ fontWeight: 400, color: 'var(--inkDim)' }}>{'  ·  '}{s.prizeNote}</span> : s.prizeNote}</span>
+      </span>
+      <span style={{ whiteSpace: 'nowrap', flex: 'none' }}>{[stats, right].filter(Boolean).join('  ·  ')}</span>
     </footer>
   );
 }
@@ -119,7 +122,7 @@ function Row({ r, s, i, top, size = 32, lead, g }) {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', lineHeight: 1.05 }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-          {r.earned ? <Star size={size * 0.62} /> : null}
+          {r.tier ? <Star size={size * 0.62} /> : null}
           {s.showMarks ? <span className="tt-num" style={{ fontSize: size * 1.2, fontWeight: 700 }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
         </span>
         {note ? <span style={{ fontFamily: F.en, fontSize: Math.max(18, size * 0.6), color: 'var(--inkDim)', whiteSpace: 'nowrap', marginTop: 2 }}>{note}</span> : null}
@@ -151,7 +154,7 @@ function Pillar({ r, s, place, portrait, h, delay }) {
           </>
         ) : null}
         {note ? <Fit max={portrait ? 22 : 28} min={15} style={{ fontFamily: F.en, opacity: 0.85, width: '100%', flex: 'none', textAlign: 'center', height: portrait ? 28 : 36 }}>{note}</Fit> : null}
-        {r.earned ? <span style={{ position: 'absolute', top: portrait ? 10 : 14, right: portrait ? 10 : 16 }}><Star size={portrait ? 22 : 30} /></span> : null}
+        {r.tier ? <span style={{ position: 'absolute', top: portrait ? 10 : 14, right: portrait ? 10 : 16 }}><Star size={portrait ? 22 : 30} color={lead ? 'var(--fillInk)' : 'var(--accentText)'} /></span> : null}
       </div>
     </div>
   );

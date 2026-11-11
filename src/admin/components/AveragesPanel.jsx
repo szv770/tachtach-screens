@@ -59,6 +59,32 @@ function StudentSheet({ open, student, onClose, onSave, onDelete, busy }) {
   );
 }
 
+/** Prize levels: an average and a name for each (Gold 90, Silver 80...). A star and the level's name show by anyone who reaches it. */
+function PrizeLevels({ levels, note, canEdit, onSave }) {
+  const [rows, setRows] = useState(levels);
+  const [text, setText] = useState(note || '');
+  useEffect(() => { setRows(levels); setText(note || ''); }, [levels, note]);
+  const dirty = JSON.stringify(rows) !== JSON.stringify(levels) || text !== (note || '');
+  const set = (i, patch) => setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  return (
+    <div style={{ marginTop: '10px' }} data-testid="avg-prizes">
+      <div style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', fontWeight: 700, color: colors.text }}>Prize levels</div>
+      <p style={{ ...small, margin: '2px 0 8px' }}>Each level is an average and a name. Students who reach one get a star and its name, and the levels are listed at the bottom of the screen. The highest level a student reaches is the one that counts. None added = no prizes shown.</p>
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+          <input aria-label={`Prize level ${i + 1} average`} inputMode="decimal" value={r.at} disabled={!canEdit} onChange={(e) => set(i, { at: e.target.value })} style={{ ...fieldStyle, maxWidth: '84px' }} />
+          <span style={small}>and above</span>
+          <input aria-label={`Prize level ${i + 1} name`} value={r.label} disabled={!canEdit} maxLength={LIMITS.prizeLabel} placeholder="e.g. Gold" onChange={(e) => set(i, { label: e.target.value })} style={{ ...fieldStyle, flex: 1, minWidth: 0 }} />
+          {canEdit && <button type="button" aria-label={`Remove prize level ${i + 1}`} style={iconBtn} onClick={() => setRows(rows.filter((_, k) => k !== i))}>×</button>}
+        </div>
+      ))}
+      {canEdit && rows.length < LIMITS.prizes && <button type="button" style={btn(false)} onClick={() => setRows([...rows, { at: rows.length ? Math.max(1, Number(rows[rows.length - 1].at) - 5) : 90, label: '' }])} data-testid="avg-add-prize">Add a prize level</button>}
+      <Field label="Note under the levels (optional)" htmlFor="avg-prize-note" style={{ marginTop: '10px' }}><input id="avg-prize-note" value={text} disabled={!canEdit} maxLength={120} placeholder="e.g. Prizes are given out at the end of the year" onChange={(e) => setText(e.target.value)} style={fieldStyle} /></Field>
+      {canEdit && <button type="button" style={btn(true, { marginTop: '4px' })} disabled={!dirty} onClick={() => onSave(rows.map((r) => ({ at: Number(r.at), label: String(r.label || '').trim() })).filter((r) => r.at > 0), text.trim())} data-testid="avg-save-prizes">Save prize levels</button>}
+    </div>
+  );
+}
+
 export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSlides, canEditSlides = false }) {
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
@@ -138,8 +164,30 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
       </div>
 
       {canEdit && (
+        <div style={card} data-testid="avg-sheet">
+          <h3 style={h3}>Link a Google Sheet</h3>
+          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Start from the template (ask whoever set this up for the file, then in Google Sheets: File, Import, Upload), keep the heading row, and add one row per student.</p>
+          <ol style={{ ...small, margin: '8px 0 0', paddingLeft: '20px' }}>
+            <li>In the sheet, press <strong>Share</strong>. Add the people who will type scores as <strong>Editors</strong>.</li>
+            <li>Under General access choose <strong>Anyone with the link</strong> and set it to <strong>Viewer</strong>. This is how the screen reads it. Anyone with the link can see the names and marks, so only share the link with staff.</li>
+            <li>Copy the link, paste it below, press <strong>Save link</strong>, then <strong>Sync now</strong>.</li>
+          </ol>
+          <p style={{ ...small, margin: '8px 0 0' }}>The screen reads the first tab (or the tab the link opens). The Average column, if there is one, is worked out for you and ignored.</p>
+          <Field label="Sheet link" htmlFor="avg-sheet-url" style={{ marginTop: '10px' }}><input id="avg-sheet-url" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={fieldStyle} autoComplete="off" /></Field>
+          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (every 15 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+            <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={() => run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed')} data-testid="avg-sheet-save">Save link</button>
+            <button type="button" style={btn(true)} disabled={busy || !file.sheet.url} onClick={() => run(() => api('POST', '/sync'), 'Synced from the sheet')} data-testid="avg-sheet-sync">Sync now</button>
+          </div>
+          <p style={{ ...small, margin: '8px 0 0', color: file.sheet.lastError ? colors.danger : colors.dim }}>
+            {file.sheet.lastError ? `Last sync failed: ${file.sheet.lastError}` : file.sheet.lastSync ? `Last synced ${when(file.sheet.lastSync)} (${file.sheet.lastCount} students).` : file.sheet.url ? 'Not synced yet.' : 'No sheet linked.'}
+          </p>
+        </div>
+      )}
+
+      {canEdit && (
         <div style={card} data-testid="avg-add">
-          <h3 style={h3}>Add scores</h3>
+          <h3 style={h3}>Or paste or upload scores</h3>
           <p style={small}>One student per row: name, then each test score. Grade and track are optional. Paste from a sheet, or upload a CSV.</p>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '10px 0' }}>
             <button type="button" style={btn(false)} onClick={() => copy(TEMPLATE_CSV, 'Template copied. Paste it into a sheet.')} data-testid="avg-copy-template">Copy template</button>
@@ -164,22 +212,6 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
               {!preview.errors?.length && preview.preview?.map((r, i) => <p key={i} style={{ ...small, margin: '2px 0' }}>{r.name}: {r.scores.join(', ') || 'no scores yet'}</p>)}
             </div>
           )}
-        </div>
-      )}
-
-      {canEdit && (
-        <div style={card} data-testid="avg-sheet">
-          <h3 style={h3}>Link a Google Sheet</h3>
-          <p style={small}>Keep the list in a Google Sheet and the screen follows it. Use the same columns as the template (first row = headings). In the sheet: Share, then General access: <strong>Anyone with the link can view</strong>.</p>
-          <Field label="Sheet link" htmlFor="avg-sheet-url" style={{ marginTop: '10px' }}><input id="avg-sheet-url" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={fieldStyle} autoComplete="off" /></Field>
-          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (every 15 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-            <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={() => run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed')} data-testid="avg-sheet-save">Save link</button>
-            <button type="button" style={btn(true)} disabled={busy || !file.sheet.url} onClick={() => run(() => api('POST', '/sync'), 'Synced from the sheet')} data-testid="avg-sheet-sync">Sync now</button>
-          </div>
-          <p style={{ ...small, margin: '8px 0 0', color: file.sheet.lastError ? colors.danger : colors.dim }}>
-            {file.sheet.lastError ? `Last sync failed: ${file.sheet.lastError}` : file.sheet.lastSync ? `Last synced ${when(file.sheet.lastSync)} (${file.sheet.lastCount} students).` : file.sheet.url ? 'Not synced yet.' : 'No sheet linked.'}
-          </p>
         </div>
       )}
 
@@ -219,14 +251,12 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <Field label="Leaderboard size" hint="Top 3 on the pillars, the rest beside them."><NumberField value={s.topCount} min={3} max={10} onCommit={(n) => saveSettings({ topCount: n }, 'Saved')} ariaLabel="Leaderboard size" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
           <Field label="Seconds per list page"><NumberField value={s.seconds} min={5} max={30} onCommit={(n) => saveSettings({ seconds: n }, 'Saved')} ariaLabel="Seconds per list page" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
         </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Field label="Lowest average shown" hint="0 shows everyone entered."><NumberField value={s.minAverage} min={0} max={150} onCommit={(n) => saveSettings({ minAverage: n }, 'Saved')} ariaLabel="Lowest average shown" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-          <Field label="Tests needed to appear"><NumberField value={s.minTests} min={1} max={20} onCommit={(n) => saveSettings({ minTests: n }, 'Saved')} ariaLabel="Tests needed to appear" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-        </div>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Field label="Prize average" hint="A star shows by anyone at or above it. 0 = no prize line."><NumberField value={s.prizeAt} min={0} max={150} onCommit={(n) => saveSettings({ prizeAt: n }, 'Saved')} ariaLabel="Prize average" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-          <Field label="Prize wording (optional)" htmlFor="avg-prize" style={{ flex: 1, minWidth: '180px' }}><input id="avg-prize" key={`p-${s.prizeLine}`} defaultValue={s.prizeLine} disabled={!canEdit} maxLength={120} placeholder="e.g. earns a pizza party" onBlur={(e) => e.target.value.trim() !== s.prizeLine && saveSettings({ prizeLine: e.target.value.trim() }, 'Saved')} style={fieldStyle} /></Field>
-        </div>
+        <SwitchRow on={s.minAverage > 0} onChange={() => saveSettings({ minAverage: s.minAverage > 0 ? 0 : 70 }, s.minAverage > 0 ? 'Everyone entered will show' : 'Minimum average on')} label="Only show students above a minimum average" note={s.minAverage > 0 ? 'Students below it stay saved but are not on the screen. They appear as soon as their average reaches it.' : 'Off: everyone you enter is on the screen, whatever their average.'} testId="avg-min-switch" />
+        {s.minAverage > 0 && (
+          <Field label="Minimum average"><NumberField value={s.minAverage} min={1} max={150} onCommit={(n) => saveSettings({ minAverage: n }, 'Saved')} ariaLabel="Minimum average" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+        )}
+        <Field label="Tests needed to appear" hint="A student needs at least this many scores."><NumberField value={s.minTests} min={1} max={20} onCommit={(n) => saveSettings({ minTests: n }, 'Saved')} ariaLabel="Tests needed to appear" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+        <PrizeLevels levels={s.prizes} note={s.prizeNote} canEdit={canEdit} onSave={(prizes, prizeNote) => saveSettings({ prizes, prizeNote }, 'Prize levels saved')} />
         <SwitchRow on={s.showMarks} onChange={() => saveSettings({ showMarks: !s.showMarks }, 'Saved')} label="Show each average" note="Off shows only the ranking and names." />
         <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" />
         <SwitchRow on={s.showTests} onChange={() => saveSettings({ showTests: !s.showTests }, 'Saved')} label="Show how many tests each student took" />
