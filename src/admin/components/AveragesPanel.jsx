@@ -189,7 +189,12 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           )}
           <p style={{ ...small, margin: '8px 0 0' }}>The screen reads the first tab (or the tab the link opens). The Average column, if there is one, is worked out for you and ignored.</p>
           <Field label="Sheet link" htmlFor="avg-sheet-url" style={{ marginTop: '10px' }}><input id="avg-sheet-url" value={sheetUrl} onChange={(e) => setSheetUrl(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." style={fieldStyle} autoComplete="off" /></Field>
-          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (re-reads the sheet every 10 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
+          <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync automatically" note="The sheet is the whole truth: students not in it are removed when it syncs." />
+          {file.sheet.auto && (
+            <Field label="Look at the sheet every" hint="A look is one tiny download and does nothing if the sheet has not changed, so every minute is safe for the Pi. A change shows on the screen within about this long.">
+              <Choices ariaLabel="How often to look at the sheet" value={String(file.sheet.everyMin)} onChange={(v) => run(() => api('PUT', '/sheet', { url: file.sheet.url, everyMin: Number(v) }), 'Saved')} options={[{ value: '1', label: '1 minute' }, { value: '2', label: '2 minutes' }, { value: '5', label: '5 minutes' }, { value: '10', label: '10 minutes' }]} />
+            </Field>
+          )}
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
             <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={async () => { const ok = await run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed'); if (ok && sheetUrl.trim()) run(() => api('POST', '/sync'), 'Synced from the sheet'); }} data-testid="avg-sheet-save">Save link</button>
             <button type="button" style={btn(false)} disabled={busy || !(sheetUrl.trim() || file.sheet.url)} onClick={async () => { setBusy(true); try { setCheck(await api('POST', '/sheet/check', { url: sheetUrl.trim() })); } catch (e) { setCheck(null); notify(e.message, 'error'); } finally { setBusy(false); } }} data-testid="avg-sheet-check">Check the sheet</button>

@@ -96,7 +96,7 @@ router.put('/averages/sheet', async (req, res) => {
     const b = body(req);
     const url = String(b.url ?? '').trim();
     if (url && !A.sheetCsvUrl(url)) throw new A.AveragesError('That is not a Google Sheets link. Copy the link from the sheet\'s Share button.');
-    await send(res, await averagesStore.mutate(undefined, (f) => ({ ...f, sheet: { ...f.sheet, url, auto: typeof b.auto === 'boolean' ? b.auto : f.sheet.auto, lastError: '' } })));
+    await send(res, await averagesStore.mutate(undefined, (f) => ({ ...f, sheet: { ...f.sheet, url, auto: typeof b.auto === 'boolean' ? b.auto : f.sheet.auto, everyMin: [1, 2, 5, 10].includes(Number(b.everyMin)) ? Number(b.everyMin) : f.sheet.everyMin, lastError: '' } })));
   } catch (e) { fail(res, e); }
 });
 // Look at the linked sheet WITHOUT importing: which columns were recognised, a few rows, how many would show. { url? } (default: the saved link)
@@ -121,8 +121,19 @@ router.post('/averages/sync', syncLimit, async (_req, res) => {
   try { await send(res, await syncSheet()); } catch (e) { fail(res, e); }
 });
 
-/** Pull the linked sheet and replace the list with it. Records the result on the sheet block either way. Shared with the timer. */
-export async function syncSheet(store = averagesStore, fetchCsv = fetchSheetCsv) {
+/**
+ * Pull the linked sheet and replace the list with it. Records the result on the sheet block either way. Shared with the timer.
+ * Two callers at once (the timer and a 'Sync now' tap) share ONE download, so the Pi never fetches the sheet twice at the same time.
+ */
+const inFlight = new WeakMap();
+export function syncSheet(store = averagesStore, fetchCsv = fetchSheetCsv) {
+  if (inFlight.has(store)) return inFlight.get(store);
+  const run = doSync(store, fetchCsv).finally(() => inFlight.delete(store));
+  inFlight.set(store, run);
+  return run;
+}
+
+async function doSync(store, fetchCsv) {
   const cur = await store.read();
   if (!cur.sheet.url) throw new A.AveragesError('Paste a Google Sheets link first.');
   const stamp = new Date().toISOString();
@@ -144,18 +155,32 @@ export async function syncSheet(store = averagesStore, fetchCsv = fetchSheetCsv)
   }, flag);
 }
 
-/** Every 10 minutes: pull the sheet if one is linked and 'keep it in sync' is on (like reloading a web page). Never throws. */
-export function startAveragesSync({ store = averagesStore, fetchCsv = fetchSheetCsv, everyMs = 10 * 60e3 } = {}) {
+/** Is a look at the sheet due? Every `everyMin` minutes; after a failed look wait at least 5 minutes so a broken link is not hammered. Pure (tested). */
+export function syncDue({ now, lastRun, everyMin, failedAt = 0 }) {
+  const gap = everyMin * 60e3 - 2000; // a little slack so a 60 s timer tick never skips a beat
+  if (failedAt && now - failedAt < Math.max(everyMin, 5) * 60e3) return false;
+  return !lastRun || now - lastRun >= gap;
+}
+
+/**
+ * Looks at the linked sheet in the background (like reloading a web page): a 30-second heartbeat that only does work when a
+ * look is due (`sheet.everyMin`, default every minute) and 'keep it in sync' is on. One small CSV download per look; a look that
+ * finds nothing new does not touch the screen. Never throws.
+ */
+export function startAveragesSync({ store = averagesStore, fetchCsv = fetchSheetCsv, beat = 30e3, clock = Date.now } = {}) {
+  let lastRun = 0; let failedAt = 0;
   const tick = async () => {
     try {
       const f = await store.read();
       if (!f.sheet.url || !f.sheet.auto) return;
-      await syncSheet(store, fetchCsv);
+      if (!syncDue({ now: clock(), lastRun, everyMin: f.sheet.everyMin, failedAt })) return;
+      lastRun = clock();
+      try { await syncSheet(store, fetchCsv); failedAt = 0; } catch (e) { failedAt = clock(); console.warn('[averages] sheet sync:', e.message); }
     } catch (e) { console.warn('[averages] sheet sync:', e.message); }
   };
-  const t = setInterval(tick, everyMs);
+  const t = setInterval(tick, beat);
   t.unref?.();
-  setTimeout(tick, 20000).unref?.();
+  setTimeout(tick, 15000).unref?.();
   return () => clearInterval(t);
 }
 

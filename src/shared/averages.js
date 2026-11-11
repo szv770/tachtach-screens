@@ -137,6 +137,7 @@ export function normalizeSheet(s) {
   return {
     url: clean(o.url, 500),
     auto: bool(o.auto, true),
+    everyMin: pick(Number(o.everyMin), [1, 2, 5, 10], 1), // how often the linked sheet is looked at (minutes)
     lastSync: typeof o.lastSync === 'string' ? o.lastSync.slice(0, 40) : '',
     lastCount: Math.round(num(o.lastCount, 0, 0, 100000)),
     lastError: clean(o.lastError, LIMITS.text),

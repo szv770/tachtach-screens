@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as A from '../src/shared/averages.js';
 import { createAveragesStore } from '../src/server/averagesStore.js';
-import { syncSheet } from '../src/server/routes/averages.js';
+import { syncSheet, syncDue } from '../src/server/routes/averages.js';
 import { fetchSheetCsv } from '../src/fetchers/scoreSheet.js';
 
 const CSV = 'Name,Grade,Track,T1,T2,T3\nMoshe Katz,9th,Gemoro,92,88,95\nYossi Berg,10th,Girsa,70,80,95\n"Levy, Dovid",9th,Gemoro,100,100,\nEmpty Eli,9th,Gemoro,,,\n';
@@ -227,4 +227,25 @@ test('an average column headed "Average %" / "Average Score" is the average, not
     assert.equal(p.rows[0].scores.length, 2, head);
     assert.equal(p.columns[3].as, 'average', head);
   }
+});
+
+test('sheet looks: every minute by default, never two downloads at once, a broken link is not hammered', async () => {
+  assert.equal(A.normalizeSheet({}).everyMin, 1);
+  assert.equal(A.normalizeSheet({ everyMin: 7 }).everyMin, 1, 'only 1, 2, 5 or 10');
+  assert.equal(A.normalizeSheet({ everyMin: 5 }).everyMin, 5);
+  const T = 1e6;
+  assert.equal(syncDue({ now: T, lastRun: 0, everyMin: 1 }), true, 'the first look is due at once');
+  assert.equal(syncDue({ now: T + 30e3, lastRun: T, everyMin: 1 }), false);
+  assert.equal(syncDue({ now: T + 59e3, lastRun: T, everyMin: 1 }), true, 'a 60 s heartbeat never skips a look');
+  assert.equal(syncDue({ now: T + 4 * 60e3, lastRun: T, everyMin: 5 }), false);
+  assert.equal(syncDue({ now: T + 2 * 60e3, lastRun: T, everyMin: 1, failedAt: T }), false, 'after a failure wait at least 5 minutes');
+  assert.equal(syncDue({ now: T + 5 * 60e3 + 1, lastRun: T, everyMin: 1, failedAt: T }), true);
+  const { store } = memStore();
+  await store.mutate(undefined, (f) => ({ ...f, sheet: { ...f.sheet, url: 'https://docs.google.com/spreadsheets/d/1AbCdEfGhIjKlMnOp/edit' } }));
+  let downloads = 0;
+  const slow = async () => { downloads++; await new Promise((r) => setTimeout(r, 40)); return CSV; };
+  await Promise.all([syncSheet(store, slow), syncSheet(store, slow), syncSheet(store, slow)]);
+  assert.equal(downloads, 1, 'the timer and two taps of Sync now share one download');
+  await syncSheet(store, slow);
+  assert.equal(downloads, 2, 'a later look downloads again');
 });
