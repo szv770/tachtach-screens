@@ -70,8 +70,8 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttAvIn { from { opacity: 0; transform: translate3d(-24px, 0, 0); } }
 @keyframes ttAvBar { from { transform: scaleX(0); } }
 @keyframes ttAvPop { from { opacity: 0; transform: scale(.5); } }
-/* Test Averages stage: pages change with a designed transition, not a fade: cube / cube-up / cards / door / carousel / tilt / sweep /
-   curtain / zoom / rise / flip. The outgoing page (.tt-av-lo) and the incoming page (.tt-av-li) are both mounted for ~1.3 s, each with its
+/* Test Averages stage: pages change with a designed transition, not a fade: cube / cube-up / cards / door / sweep /
+   curtain / zoom / rise. The outgoing page (.tt-av-lo) and the incoming page (.tt-av-li) are both mounted for ~1.3 s, each with its
    own transform under the stage's perspective (the cube faces are pushed out by half the stage, --avw / --avh, so they meet at the edge).
    Transform + opacity only, finite; Minimal motion = a plain fade. */
 .tt-av-stage { position: relative; flex: 1; min-height: 0; perspective: 2400px; }
@@ -87,13 +87,9 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 :is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-cube-up { animation: ttAvCubeUpOut 1200ms linear both; }
 :is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-cube-up { animation: ttAvCubeUpIn 1200ms linear both; }
 :is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-cards { z-index: 2; animation: ttAvCardOut 900ms cubic-bezier(.5,0,.8,.45) 120ms both; }
-:is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-cards { animation: ttAvCardIn 1150ms cubic-bezier(.2,.85,.25,1.04) both; }
+:is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-cards { animation: ttAvCardIn 1150ms cubic-bezier(.2,.85,.25,1) both; }
 :is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-door { z-index: 2; transform-origin: 0 50%; animation: ttAvDoorOut 1150ms cubic-bezier(.55,0,.6,1) 60ms both; }
 :is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-door { animation: ttAvDoorIn 1200ms cubic-bezier(.2,.8,.25,1) both; }
-:is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-carousel { animation: ttAvRingOut 1150ms cubic-bezier(.5,0,.3,1) both; }
-:is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-carousel { animation: ttAvRingIn 1150ms cubic-bezier(.5,0,.3,1) both; }
-:is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-tilt { transform-origin: 50% 100%; animation: ttAvTiltOut 850ms cubic-bezier(.5,0,.85,.5) both; }
-:is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-tilt { transform-origin: 50% 100%; animation: ttAvTiltIn 1000ms cubic-bezier(.18,.85,.25,1.03) 280ms both; }
 @keyframes ttAvCubeOut {
   0% { opacity: 1; transform: translateZ(calc(var(--avw, 1200px) * -.5)) rotateY(0deg) translateZ(calc(var(--avw, 1200px) * .5)); animation-timing-function: cubic-bezier(.5,0,.8,.6); }
   50% { transform: translateZ(calc(var(--avw, 1200px) * -.73)) rotateY(-45deg) translateZ(calc(var(--avw, 1200px) * .5)); animation-timing-function: cubic-bezier(.2,.4,.45,1); }
@@ -115,13 +111,9 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
   50% { transform: translateZ(calc(var(--avh, 620px) * -.73)) rotateX(-45deg) translateZ(calc(var(--avh, 620px) * .5)); animation-timing-function: cubic-bezier(.2,.4,.45,1); }
   100% { opacity: 1; transform: translateZ(calc(var(--avh, 620px) * -.5)) rotateX(0deg) translateZ(calc(var(--avh, 620px) * .5)); } }
 @keyframes ttAvCardOut { 0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0deg) scale(1); } 72% { opacity: 1; } 100% { opacity: 0; transform: translate3d(-78%, 7%, 0) rotate(-15deg) scale(.9); } }
-@keyframes ttAvCardIn { 0% { opacity: 0; transform: translate3d(0, 7%, 0) scale(.88); } 30% { opacity: 1; transform: translate3d(0, 5%, 0) scale(.92); } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+@keyframes ttAvCardIn { 0% { opacity: 0; transform: translate3d(0, 4%, 0) scale(.94); } 30% { opacity: 1; } 100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
 @keyframes ttAvDoorOut { 0% { opacity: 1; transform: rotateY(0deg); } 80% { opacity: 1; } 100% { opacity: 0; transform: rotateY(104deg); } }
 @keyframes ttAvDoorIn { 0% { opacity: 0; transform: translateZ(-420px); } 30% { opacity: 1; } 100% { opacity: 1; transform: translateZ(0); } }
-@keyframes ttAvRingOut { 0% { opacity: 1; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(0deg) translateZ(calc(var(--avw, 1200px) * .9)); } 55% { opacity: .7; } 100% { opacity: 0; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(-68deg) translateZ(calc(var(--avw, 1200px) * .9)); } }
-@keyframes ttAvRingIn { 0% { opacity: 0; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(68deg) translateZ(calc(var(--avw, 1200px) * .9)); } 45% { opacity: .7; } 100% { opacity: 1; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(0deg) translateZ(calc(var(--avw, 1200px) * .9)); } }
-@keyframes ttAvTiltOut { 0% { opacity: 1; transform: rotateX(0deg) scale(1); } 60% { opacity: 1; } 100% { opacity: 0; transform: rotateX(62deg) scale(.6); } }
-@keyframes ttAvTiltIn { 0% { opacity: 0; transform: rotateX(-38deg) scale(1.08); } 35% { opacity: 1; } 100% { opacity: 1; transform: rotateX(0deg) scale(1); } }
 /* the list rows (a printed honor roll): each fades up 14px with a short stagger (one finite animation each). A page that arrives as a
    solid plate (cube, cards, door ...) brings its rows with it (.tt-av-solid): only the bars play once it has landed. */
 :is(.m-smooth, .m-lively) .tt-av-row { animation: ttAvRowIn 420ms cubic-bezier(.2,.7,.2,1) calc(var(--i, 0) * 35ms + 100ms + var(--d0, 0ms)) both; }
@@ -131,11 +123,9 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .m-smooth .tt-av-lo.tt-av-t-sweep, .m-lively .tt-av-lo.tt-av-t-sweep { animation: ttAvSwOut 780ms cubic-bezier(.55,0,.8,.4) both; }
 .m-smooth .tt-av-li.tt-av-t-sweep, .m-lively .tt-av-li.tt-av-t-sweep { animation: ttAvSwIn 1000ms cubic-bezier(.16,.84,.3,1) 260ms both; }
 .m-smooth .tt-av-lo.tt-av-t-zoom, .m-lively .tt-av-lo.tt-av-t-zoom { animation: ttAvZoOut 760ms cubic-bezier(.5,0,.9,.4) both; }
-.m-smooth .tt-av-li.tt-av-t-zoom, .m-lively .tt-av-li.tt-av-t-zoom { animation: ttAvZoIn 1000ms cubic-bezier(.2,.9,.25,1.08) 240ms both; }
+.m-smooth .tt-av-li.tt-av-t-zoom, .m-lively .tt-av-li.tt-av-t-zoom { animation: ttAvZoIn 1000ms cubic-bezier(.2,.9,.25,1) 240ms both; }
 .m-smooth .tt-av-lo.tt-av-t-rise, .m-lively .tt-av-lo.tt-av-t-rise { animation: ttAvRiOut 700ms cubic-bezier(.5,0,.8,.4) both; }
 .m-smooth .tt-av-li.tt-av-t-rise, .m-lively .tt-av-li.tt-av-t-rise { animation: ttAvRiIn 980ms cubic-bezier(.16,.84,.3,1) 240ms both; }
-.m-smooth .tt-av-lo.tt-av-t-flip, .m-lively .tt-av-lo.tt-av-t-flip { animation: ttAvFlOut 700ms cubic-bezier(.5,0,.8,.4) both; }
-.m-smooth .tt-av-li.tt-av-t-flip, .m-lively .tt-av-li.tt-av-t-flip { animation: ttAvFlIn 1000ms cubic-bezier(.2,.9,.25,1.05) 300ms both; }
 .m-smooth .tt-av-lo.tt-av-t-curtain, .m-lively .tt-av-lo.tt-av-t-curtain { animation: ttAvGone 1100ms linear both; }
 .m-smooth .tt-av-li.tt-av-t-curtain, .m-lively .tt-av-li.tt-av-t-curtain { animation: ttAvHold 1100ms linear both; }
 .tt-av-t-fade.tt-av-li { animation: ttFadeIn 600ms linear both; }
@@ -152,8 +142,6 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttAvZoIn { from { opacity: 0; transform: scale(.78); } }
 @keyframes ttAvRiOut { to { opacity: 0; transform: translate3d(0, -8%, 0); } }
 @keyframes ttAvRiIn { from { opacity: 0; transform: translate3d(0, 11%, 0); } }
-@keyframes ttAvFlOut { to { opacity: 0; transform: rotateY(-78deg) scale(.94); } }
-@keyframes ttAvFlIn { from { opacity: 0; transform: rotateY(78deg) scale(.94); } }
 @keyframes ttAvGone { 0%, 44% { opacity: 1; } 46%, 100% { opacity: 0; } }
 @keyframes ttAvHold { 0%, 44% { opacity: 0; } 46%, 100% { opacity: 1; } }
 @keyframes ttAvBand { from { transform: translate3d(-130%, 0, 0) skewX(-16deg); } to { transform: translate3d(330%, 0, 0) skewX(-16deg); } }

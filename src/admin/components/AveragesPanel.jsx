@@ -16,7 +16,7 @@ import { board, summary, fmtAvg, plan, planSeconds, starterCsv, whyHidden, TEMPL
  */
 
 const api = (method, path, body) => apiFetch(`/api/averages${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });
-const TRANSITION_LABELS = [['mix', 'Mix of all'], ['cube', 'Cube'], ['cards', 'Cards'], ['door', 'Door'], ['carousel', 'Carousel'], ['tilt', 'Tilt'], ['sweep', 'Light sweep'], ['curtain', 'Curtain'], ['zoom', 'Zoom'], ['rise', 'Rise'], ['flip', 'Flip'], ['fade', 'Simple fade']];
+const TRANSITION_LABELS = [['mix', 'Mix of all'], ['cube', 'Cube'], ['cards', 'Cards'], ['door', 'Door'], ['sweep', 'Light sweep'], ['curtain', 'Curtain'], ['zoom', 'Zoom'], ['rise', 'Rise'], ['fade', 'Simple fade']];
 const timeText = (sec) => (sec >= 90 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec} seconds`);
 const scoresText = (s) => (s || []).join(', ');
 const when = (iso) => { try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };

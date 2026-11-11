@@ -229,3 +229,8 @@ Bug (owner, 2026-10-30): 'admin can't change today's word or story'. Cause: the 
 - **Why isn't he showing**: `whyHidden()` words ('Average 48.3% is below the 60% minimum', 'No marks yet', 'Needs at least N tests') under each student in the admin list. Names written 'Last, First' (one comma) are shown 'First Last' (`flipNames`); the Bochurim typo check ignores word order (`nameKeyLoose`).
 - **Disk-friendly looks**: a sheet look that finds nothing new neither writes `averages.json` nor nudges the screen (the 'last looked' time is shown from memory; saved at most every 30 min); the sheet CSV is only ever held in memory (nothing is downloaded to a file on the Pi).
 - Checked against the school's real sheet (99 students, 8 test columns, '-' cells, marks of 110/102): 57 shown at 60+, the top average 103.7, pages 19/19/19.
+
+### Test Averages: transitions cleaned up (2026-11-12, owner: 'some not smooth, the card swipe cut the top of the next names')
+- Kept: mix, cube (+ cube-up inside mix), cards, door, sweep, curtain, zoom, rise, fade. REMOVED carousel, tilt and flip (perspective made the near edge taller than the stage, so they clipped); a saved `carousel`/`tilt`/`flip` falls back to 'mix' (`normalizeSettings`).
+- The stage now has 12 px of room above and below as well as at the sides (`bleedY` in `Stage.jsx`: stage margin -12px, layer padding 12px, plate inset) so a page that overshoots a few px is never clipped; the in-animations of cards and zoom no longer overshoot (no >1 easing, scale never above 1).
+- Checked with a frozen-frame script (every transition paused at 7 moments): incoming rows never leave the stage at the top/bottom, never two blank frames in a row. Real-device smoothness at 4K is still unverified.

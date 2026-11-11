@@ -11,19 +11,17 @@ import { useStill } from './parts.jsx';
  *   cube / cube-up  a real cube turn (each face is pushed out by half the stage, so the faces meet at the edge)
  *   cards           the old page is swiped away, the next rises from the stack behind it
  *   door            the old page swings open on its left hinge, the next is behind it
- *   carousel        a 3D ring: the old page goes round to the back left, the next comes round from the right
- *   tilt            the old page tips back and shrinks away, the next comes forward
- *   sweep / curtain / zoom / rise / flip / fade   as before
+ *   sweep / curtain / zoom / rise / fade   as before
  * During a 3D change each layer gets a flat "plate" (panel colour, one rule) so it reads as a page. Then the old layer is unmounted: one layer is
  * left. Minimal / reduced motion: the new act just fades in.
  */
 
-export const MIX = ['cube', 'cards', 'door', 'carousel', 'tilt', 'sweep', 'flip', 'zoom', 'curtain', 'rise'];
+export const MIX = ['cube', 'cards', 'door', 'sweep', 'zoom', 'curtain', 'rise'];
 export const TRANSITION_MS = 1300;
 /** The acts wait this long before their own motion starts, so it plays after the transition has brought them in. */
 export const ACT_DELAY_MS = 650;
 /** Styles where the page turns as a solid plate. */
-const PLATED = new Set(['cube', 'cube-up', 'cards', 'door', 'carousel', 'tilt', 'flip']);
+const PLATED = new Set(['cube', 'cube-up', 'cards', 'door']);
 /** 'mix' walks through MIX and keeps its place between showings of the slide (display state only), so a short show does not
  *  always open with the same two; every second cube turns upward instead of sideways. */
 let mixAt = 0;
@@ -125,7 +123,7 @@ export function Stage({ s, portrait, steps, step, turn, sum, renderAct }) {
     return () => clearTimeout(t);
   }, [turn, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // the cube and the carousel need the size of the stage in px (translateZ takes no %)
+  // the cube needs the size of the stage in px (translateZ takes no %)
   const stage = useRef(null);
   const [box, setBox] = useState({ w: 1200, h: 620 });
   useLayoutEffect(() => {
@@ -142,19 +140,20 @@ export function Stage({ s, portrait, steps, step, turn, sum, renderAct }) {
   const solidOf = (t) => (t === solid.current.turn || t === solid.current.was ? ' tt-av-solid' : '');
   const padX = portrait ? 44 : 56;              // the content starts this far in
   const bleed = padX - (FRAME + FRAME_GAP + 2);  // the pages turn inside the inner rule of the frame
+  const bleedY = 12;                             // and have this much room above and below (matches the gaps around the stage), so nothing is cut while it moves
   const { cur, prev, tx } = layers;
   const at = steps[cur.step] || steps[0];
   const old = prev ? steps[prev.step] : null;
   const first = cur.turn === 0;
   const corner = !at ? '' : at.t === 'list' ? (at.pages > 1 ? `${at.page + 1} / ${at.pages}` : '') : SECTION[at.t] || '';
   const delayOf = (t) => (t === 0 ? 0 : ACT_DELAY_MS); // the very first act has no transition to wait for
-  const layer = (t) => ({ padding: `0 ${bleed}px`, '--d0': `${delayOf(t)}ms` });
-  const plate = old && PLATED.has(tx) ? <div aria-hidden className="tt-av-plate" style={{ left: bleed - 14, right: bleed - 14 }} /> : null;
+  const layer = (t) => ({ padding: `${bleedY}px ${bleed}px`, '--d0': `${delayOf(t)}ms` });
+  const plate = old && PLATED.has(tx) ? <div aria-hidden className="tt-av-plate" style={{ left: bleed - 14, right: bleed - 14, top: bleedY - 6, bottom: bleedY - 6 }} /> : null;
   return (
     <Panel pad={portrait ? `46px ${padX}px 40px` : `38px ${padX}px 36px`}>
       <Frame />
       <Header s={s} portrait={portrait} corner={corner} />
-      <div ref={stage} className="tt-av-stage" data-tx={old ? tx : ''} style={{ margin: `0 ${-bleed}px`, overflow: 'hidden', '--avw': `${box.w}px`, '--avh': `${box.h}px` }}>
+      <div ref={stage} className="tt-av-stage" data-tx={old ? tx : ''} style={{ margin: `${-bleedY}px ${-bleed}px`, overflow: 'hidden', '--avw': `${box.w}px`, '--avh': `${box.h}px` }}>
         {old ? <div key={prev.turn} className={`tt-av-layer tt-av-lo tt-av-t-${tx}${solidOf(prev.turn)}`} style={layer(prev.turn)}>{plate}{renderAct(old, { delay: delayOf(prev.turn) })}</div> : null}
         {at ? <div key={cur.turn} data-act={at.t} className={`tt-av-layer tt-av-li tt-av-t-${first ? 'fade' : tx}${solidOf(cur.turn)}`} style={layer(cur.turn)}>{plate}{renderAct(at, { delay: delayOf(cur.turn) })}</div> : null}
         {old && tx === 'sweep' ? <div className="tt-av-wipe"><div className="tt-av-band" /></div> : null}

@@ -17,7 +17,7 @@ export const LIMITS = Object.freeze({
   students: 600, scores: 80, prizes: 6, prizeLabel: 24, name: 60, grade: 24, track: 24, text: 200, file: 600 * 1024, importText: 256 * 1024, maxScore: 150, tracks: 8,
 });
 
-export const TRANSITIONS = Object.freeze(['mix', 'cube', 'cards', 'door', 'carousel', 'tilt', 'sweep', 'curtain', 'zoom', 'rise', 'flip', 'fade']);
+export const TRANSITIONS = Object.freeze(['mix', 'cube', 'cards', 'door', 'sweep', 'curtain', 'zoom', 'rise', 'fade']);
 
 export const DEFAULTS = Object.freeze({
   title: 'Mivtzah Torah', // English title under the Hebrew heading (empty = Hebrew only)
@@ -37,7 +37,7 @@ export const DEFAULTS = Object.freeze({
   showTests: false,       // 'N tests' next to the name
   decimals: 1,            // 0 or 1
   zeroIsAbsent: false,    // false (default): a 0 is a real mark and lowers the average. true: a 0 is left out as 'did not take it'. An EMPTY cell is never counted either way.
-  transition: 'mix',      // between pages: 'mix' | 'cube' | 'cards' | 'door' | 'carousel' | 'tilt' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
+  transition: 'mix',      // between pages: 'mix' | 'cube' | 'cards' | 'door' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'fade' (carousel, tilt and flip were removed: they clipped)
   pace: 'normal',         // how long each page stays: 'calm' | 'normal' | 'quick'
   showAvatars: false,     // a round monogram (initials) beside each name
   sparkles: true,         // a short burst of sparkles for the leader (only when the top-3 acts are on)
