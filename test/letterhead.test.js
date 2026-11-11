@@ -16,7 +16,7 @@ test('look.letter: unknown values fall back, always complete, old letters stay p
   assert.equal(DEFAULT_LETTER_LOOK.paper, 'plain');
   assert.equal(NEW_LETTER_LOOK.paper, 'letterhead');
   const s = sanitizeLetterLook({ paper: 'x', head: 'nope', body: 'comic', grace: 0, signature: false, mailed: 1, stamp: true });
-  assert.deepEqual(s, { paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: false, mailed: false, stamp: true });
+  assert.deepEqual(s, { paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: false, mailed: false, stamp: true, speed: 'screen' });
   assert.equal(isLetterhead({ look: { layout: 'letter' } }), false);
   assert.equal(isLetterhead(item()), true);
   assert.equal(isLetterhead({ look: { layout: 'sicha', letter: { paper: 'letterhead' } } }), false);
@@ -56,7 +56,7 @@ test('server whitelist keeps the new letter fields and look.letter, and rejects 
   const out = sanitizeInput({ content: { letter: { body: 'x', to: 'A\nB', mailed: 'M', postmark: 'P', headEn: 'E', headHe: 'H', grace: 'G', evil: 'no' } }, look: { layout: 'letter', letter: { paper: 'letterhead', head: 'rayatz', stamp: true, junk: 1 } } });
   assert.equal(out.content.letter.to, 'A\nB');
   assert.equal(out.content.letter.evil, undefined);
-  assert.deepEqual(out.look.letter, { paper: 'letterhead', head: 'rayatz', body: 'typed', grace: true, signature: true, mailed: false, stamp: true });
+  assert.deepEqual(out.look.letter, { paper: 'letterhead', head: 'rayatz', body: 'typed', grace: true, signature: true, mailed: false, stamp: true, speed: 'screen' });
   const made = createItem(out, { id: 'a1' });
   assert.equal(made.look.letter.paper, 'letterhead');
   assert.equal(made.content.letter.mailed, 'M');
@@ -111,4 +111,34 @@ test('paste: the addressee, the Grace line and a Jewish-month date are recognise
   assert.equal(r.salutation, 'Greeting and Blessing:');
   assert.equal(r.signature, 'With esteem');
   assert.match(r.body, /^I appreciate/);
+});
+
+test('daily letter: a Daily Story entry of kind letter keeps the whole letter, its paper and style', async () => {
+  const { normalizeStory, normalizeDailyStoriesFile, pickDailyStory, snapshotOf, readingSeconds } = await import('../src/shared/dailyStories.js');
+  const { letterEntryItem, isLetterhead, effectiveSpeed, SPEED_MUL } = await import('../src/shared/letterhead.js');
+  assert.ok(normalizeStory({ kind: 'letter', letter: { body: '' } }).error, 'a letter needs text');
+  const r = normalizeStory({ kind: 'letter', title: '', letter: { body: 'Dear boys, keep learning.', salutation: 'Dear boys:', to: 'The boys', evil: 'x' }, paper: { stamp: true, speed: 'fast' }, style: 'torah' });
+  const st = r.story;
+  assert.equal(st.kind, 'letter'); assert.equal(st.letter.evil, undefined); assert.equal(st.title, 'Dear boys:');
+  assert.equal(st.enabled, true, 'no source rule for a letter');
+  assert.equal(st.paper.speed, 'fast'); assert.equal(st.paper.paper, 'letterhead'); assert.equal(st.style, 'torah');
+  assert.equal(snapshotOf(st).letter.to, 'The boys');
+  assert.equal(readingSeconds(st), 0);
+  const file = normalizeDailyStoriesFile({ stories: [st] });
+  const today = pickDailyStory(file, '2026-11-12');
+  assert.equal(today.kind, 'letter');
+  const item = letterEntryItem(today, 30);
+  assert.equal(isLetterhead(item), true);
+  assert.equal(item.slide.duration, 30);
+  assert.equal(item.content.letter.body, 'Dear boys, keep learning.');
+  // a story still needs its source; a letter in the same list does not change that
+  assert.equal(normalizeStory({ kind: 'story', text: 'Once', source: '' }).story.enabled, false);
+  // speed: the letter's own beats the screen's; unknown falls back to normal
+  assert.equal(effectiveSpeed('slow', 'fast'), 'slow');
+  assert.equal(effectiveSpeed('screen', 'fast'), 'fast');
+  assert.equal(effectiveSpeed(undefined, 'weird'), 'normal');
+  assert.ok(SPEED_MUL.slow < SPEED_MUL.normal && SPEED_MUL.normal < SPEED_MUL.fast);
+  const slow = planTimeline({ pages: [{ lines: [80, 80], words: 4 }], typeMul: SPEED_MUL.slow });
+  const fast = planTimeline({ pages: [{ lines: [80, 80], words: 4 }], typeMul: SPEED_MUL.fast });
+  assert.ok(slow.pages[0].typedEnd - slow.pages[0].start > fast.pages[0].typedEnd - fast.pages[0].start);
 });

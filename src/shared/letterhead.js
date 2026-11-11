@@ -39,8 +39,13 @@ export const HEAD_PRESETS = Object.freeze({
 });
 export const HEAD_IDS = Object.freeze(Object.keys(HEAD_PRESETS));
 
+/** How fast it types AND how long a page stays up: follow the screen's reading speed (Look > Motion > Long text) or set it for this letter. */
+export const LETTER_SPEEDS = Object.freeze(['screen', 'slow', 'normal', 'fast']);
+/** Typing-speed multiplier of each per-letter speed ('screen' maps through the screen's own slow | normal | fast). */
+export const SPEED_MUL = Object.freeze({ slow: 0.7, normal: 1, fast: 1.5 });
+
 export const DEFAULT_LETTER_LOOK = Object.freeze({
-  paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: true, mailed: false, stamp: false,
+  paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: true, mailed: false, stamp: false, speed: 'screen',
 });
 
 /** What a NEW letter starts with in the composer (old letters have no look.letter and stay 'plain'). */
@@ -60,6 +65,7 @@ export function sanitizeLetterLook(v) {
     signature: s.signature !== false,
     mailed: s.mailed === true,
     stamp: s.stamp === true,
+    speed: oneOf(s.speed, LETTER_SPEEDS, d.speed),
   };
 }
 
@@ -109,6 +115,23 @@ export function modelLetterhead(item) {
     sigImg: lk.signature ? preset.signature : null, mailed, stamp, rtl,
     serif: rtl || lk.body === 'serif',
     source: [S(l.source), S(l.sourceHe)].filter(Boolean),
+    speed: lk.speed,
+  };
+}
+
+/** The speed that really applies: the letter's own, else the screen's reading speed. */
+export function effectiveSpeed(letterSpeed, screenSpeed = 'normal') {
+  const v = letterSpeed && letterSpeed !== 'screen' ? letterSpeed : screenSpeed;
+  return SPEED_MUL[v] ? v : 'normal';
+}
+
+/** A Daily Story entry of kind 'letter' -> the announcement-shaped item the stage draws (kiosk + admin preview). */
+export function letterEntryItem(e, seconds = 25) {
+  return {
+    id: e?.id || 'letter', status: 'published', display: 'slide', enabled: true, hold: false,
+    content: { letter: { ...(e?.letter || {}) } },
+    look: { layout: 'letter', style: e?.style || null, animation: 'full', fit: 'auto', letter: sanitizeLetterLook({ ...NEW_LETTER_LOOK, ...(e?.paper || {}) }) },
+    slide: { duration: seconds, label: '' },
   };
 }
 
@@ -129,6 +152,7 @@ export const TYPING = Object.freeze({
 });
 
 const lineSec = (chars, cps) => Math.max(TYPING.minLine, chars / cps);
+const mulOf = (m) => (m > 0 ? m : 1);
 
 /**
  * Plan the whole show. Pure.
@@ -139,14 +163,15 @@ const lineSec = (chars, cps) => Math.max(TYPING.minLine, chars / cps);
  *   headT [{s,e}], pages [{ start, lineT:[{s,e}], typedEnd, end, fadeAt }], closeT {s,e}|null, sigT {s,e}|null,
  *   stampT, mailedT, total
  */
-export function planTimeline({ headLines = [], pages = [], wpm = 150, hasClose = false, closeChars = 0, hasSig = false, hasStamp = false, hasMailed = false, loop = false } = {}) {
+export function planTimeline({ headLines = [], pages = [], wpm = 150, typeMul = 1, hasClose = false, closeChars = 0, hasSig = false, hasStamp = false, hasMailed = false, loop = false } = {}) {
   let t = TYPING.intro;
-  const headT = headLines.map((c) => { const s = t; const e = s + lineSec(c, TYPING.headCps); t = e + TYPING.lineGap; return { s, e }; });
+  const mul = mulOf(typeMul);
+  const headT = headLines.map((c) => { const s = t; const e = s + lineSec(c, TYPING.headCps * mul); t = e + TYPING.lineGap; return { s, e }; });
   const out = [];
   let start = t;
   pages.forEach((pg, pi) => {
     let c = start;
-    const lineT = pg.lines.map((n) => { const s = c; const e = s + lineSec(n, TYPING.bodyCps); c = e + TYPING.lineGap; return { s, e }; });
+    const lineT = pg.lines.map((n) => { const s = c; const e = s + lineSec(n, TYPING.bodyCps * mul); c = e + TYPING.lineGap; return { s, e }; });
     const typedEnd = lineT.length ? lineT[lineT.length - 1].e : start;
     const read = (Math.max(1, pg.words || 0) * 60) / Math.max(40, wpm);
     const last = pi === pages.length - 1;

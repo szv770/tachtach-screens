@@ -62,7 +62,7 @@ export function TakeoverStage({ item, w, h, clock, showClock = true, entrance = 
     const m = modelFor(item, layout);
     return { r, html: lhSheet ? '' : LAYOUT_HTML[layout](m) };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, style, w, h, light, fontPreset, lhSheet, item.look?.letter]);
+  }, [key, style, w, h, light, fontPreset, lhSheet, JSON.stringify(item.look?.letter)]);
 
   // The entrance plays once on mount (not on every keystroke in the admin preview).
   const [enterNow, setEnterNow] = useState(entrance && anim !== 'off');

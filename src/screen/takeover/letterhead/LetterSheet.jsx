@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { modelLetterhead, planTimeline, packPages, TYPING } from '../../../shared/letterhead.js';
+import { modelLetterhead, planTimeline, packPages, effectiveSpeed, SPEED_MUL, TYPING } from '../../../shared/letterhead.js';
 import { wpmFor } from '../../../shared/longText.js';
 import { ensureLetterheadCss } from './css.js';
 import sigRebbe from './rebbe-signature.png';
@@ -94,7 +94,9 @@ function Postmark({ top, bottom }) {
 
 export default function LetterSheet({ item, w, h, anim = 'full', loop = false, speed = 'normal', still = false, forcedPage = null, onDuration, onPages }) {
   ensureLetterheadCss();
-  const m = useMemo(() => modelLetterhead(item), [item.content, item.look?.letter]); // eslint-disable-line react-hooks/exhaustive-deps
+  // compare by CONTENT, not identity: a parent that re-renders (the clock ticks) must never restart the typing
+  const mKey = JSON.stringify([item.content?.letter, item.look?.letter]);
+  const m = useMemo(() => modelLetterhead(item), [mKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const port = w < h;
   const k = Math.max(0.5, Math.min(1.7, port ? Math.min(w / 800, h / 1300) : Math.min(w / 1480, h / 760)));
   const faceScale = m.rtl ? 1.2 : m.serif ? 1.1 : 1;
@@ -163,7 +165,8 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
   useEffect(() => { if (forcedPage != null) onPages?.(pageCount); }, [forcedPage, pageCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // still mode: finished page, next lines on a timer
-  const wpm = wpmFor(speed, m.rtl ? 'he' : 'en');
+  const spd = effectiveSpeed(m.speed, speed); // this letter's own speed, else the screen's reading speed
+  const wpm = wpmFor(spd, m.rtl ? 'he' : 'en');
   useEffect(() => {
     if (!stillMode || !lay) return undefined;
     if (forcedPage != null) { setCur(Math.min(forcedPage, pageCount - 1)); return undefined; }
@@ -192,7 +195,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
     const plan = planTimeline({
       headLines: heads.map(len),
       pages: lay.pages.map((p, i) => ({ lines: [...pgEls[i].querySelectorAll('.ty')].map(len), words: p.words })),
-      wpm, hasClose: !!closeEl, closeChars: closeEl ? len(closeEl) : 0, hasSig: !!sigEl, hasStamp: !!stampEl, hasMailed: !!mailEl, loop,
+      wpm, typeMul: SPEED_MUL[spd], hasClose: !!closeEl, closeChars: closeEl ? len(closeEl) : 0, hasSig: !!sigEl, hasStamp: !!stampEl, hasMailed: !!mailEl, loop,
     });
     const T = plan.total;
     const mono = !m.serif;

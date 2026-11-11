@@ -60,7 +60,7 @@ export default function LetterTools({ kind, content, look, settings, caps, onFil
 
   const save = async () => {
     setSaveMsg('');
-    const rec = await library.create({ kind, [kind]: content[kind], style: look?.style || null }, { shared });
+    const rec = await library.create({ kind, [kind]: content[kind], style: look?.style || null, ...(kind === 'letter' && look?.letter ? { paper: look.letter } : {}) }, { shared });
     if (rec) { setSaveMsg(''); notify(`Saved to the ${shared ? 'shared ' : ''}library`); } else setSaveMsg(library.error || 'Could not save.');
   };
 

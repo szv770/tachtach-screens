@@ -244,6 +244,7 @@ export default function AnnouncementsPanel({
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '8px', justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
                 <ActionButton onClick={() => openPost(item.id)}>Open</ActionButton>
                 {canEdit && st === 'draft' && <ActionButton onClick={() => onOpenComposer(item)}>Edit / Post</ActionButton>}
+                {canEdit && st !== 'draft' && <ActionButton onClick={() => onOpenComposer(item)} title="Change the text or look; the screen updates when you save">Edit</ActionButton>}
                 {canEdit && st === 'ended' && <ActionButton onClick={() => setAgain(item)} title="Show it again from now">Show again…</ActionButton>}
                 {st === 'live' && item.display === 'note' && liveNotes.length > 1 && canEdit && (
                   <>

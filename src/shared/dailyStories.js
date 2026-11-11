@@ -13,9 +13,12 @@
 
 import { wpmFor } from './longText.js';
 import { changeToday, syncTodaySnapshot } from './dailyToday.js';
+import { sanitizeLetterLook, NEW_LETTER_LOOK } from './letterhead.js';
+import { LETTER_FIELDS, defaultTitle } from './savedLetters.js';
+import { normalizeStyleId } from './takeoverStyles.js';
 
-export const KINDS = ['story', 'thought'];
-export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500 };
+export const KINDS = ['story', 'thought', 'letter'];
+export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500, letterBody: 12000 };
 export const HISTORY_LIMIT = 800;
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -25,9 +28,39 @@ const line = (v, max) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, ma
 let counter = 0;
 const newId = () => `s_${Date.now().toString(36)}_${(counter++).toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
+/**
+ * A LETTER entry: the whole letter (same fields as an announcement's content.letter), how it is drawn (`paper` =
+ * look.letter) and the takeover style behind it. `text` keeps a short preview of the body for lists and search;
+ * the kiosk draws the letter fields. No source rule: a letter is its own source.
+ */
+function normalizeLetterEntry(input) {
+  const src = input.letter && typeof input.letter === 'object' ? input.letter : {};
+  const letter = {};
+  for (const k of LETTER_FIELDS) letter[k] = String(src[k] ?? '').replace(/\r\n?/g, '\n').slice(0, k === 'body' ? LIMITS.letterBody : 300).trim();
+  if (!letter.body) return { error: `"${line(input.title, LIMITS.title) || 'Untitled letter'}" needs the letter text` };
+  const tagsIn = Array.isArray(input.tags) ? input.tags : typeof input.tags === 'string' ? input.tags.split(',') : [];
+  const out = {
+    id: line(input.id, 60) || newId(),
+    enabled: input.enabled !== false,
+    kind: 'letter',
+    title: line(input.title, LIMITS.title) || defaultTitle('letter', letter),
+    titleHe: line(input.titleHe, LIMITS.titleHe),
+    text: letter.body.replace(/\s+/g, ' ').slice(0, LIMITS.text),
+    textHe: '',
+    source: line(input.source || letter.source || letter.sourceHe, LIMITS.source),
+    tags: tagsIn.map((t) => line(t, LIMITS.tag)).filter(Boolean).slice(0, LIMITS.tags),
+    letter,
+    paper: sanitizeLetterLook({ ...NEW_LETTER_LOOK, ...(input.paper && typeof input.paper === 'object' ? input.paper : {}) }),
+    style: input.style ? normalizeStyleId(input.style) : null,
+  };
+  if (ISO.test(String(input.showOn || ''))) out.showOn = String(input.showOn);
+  return { story: out };
+}
+
 /** Clean one entry. Returns { story } or { error } (needs some text, English or Hebrew). */
 export function normalizeStory(input) {
   if (!input || typeof input !== 'object') return { error: 'not an object' };
+  if (input.kind === 'letter') return normalizeLetterEntry(input);
   const text = str(input.text ?? input.story ?? input.english, LIMITS.text);
   const textHe = str(input.textHe ?? input.hebrew, LIMITS.textHe);
   const title = line(input.title, LIMITS.title);
@@ -84,6 +117,7 @@ export function parseStoriesText(text) {
 
 /** Copy kept in the archive (survives the entry being edited or deleted). */
 export function snapshotOf(s) {
+  if (s.kind === 'letter') return { id: s.id, kind: 'letter', title: s.title || '', titleHe: s.titleHe || '', text: s.text || '', textHe: '', source: s.source || '', letter: { ...(s.letter || {}) }, paper: s.paper, style: s.style || null };
   return { id: s.id, kind: s.kind || 'story', title: s.title || '', titleHe: s.titleHe || '', text: s.text || '', textHe: s.textHe || '', source: s.source || '' };
 }
 
@@ -255,6 +289,7 @@ Do not repeat these titles already on the list: {EXISTING}.`;
  * Normal is exactly the old 140 / 110 wpm, so nothing changes until someone picks another speed.
  */
 export function readingSeconds(story, speed = 'normal') {
+  if (story?.kind === 'letter') return 0; // a letter asks for its own time (its typing + reading plan)
   const k = wpmFor(speed, 'en') / wpmFor('normal', 'en');
   const words = (t, wpm) => (String(t || '').trim() ? String(t).trim().split(/\s+/).length * (60 / (wpm * k)) : 0);
   return Math.round(Math.min(90, 4 + words(story?.text, 140) + words(story?.textHe, 110) * 0.5));

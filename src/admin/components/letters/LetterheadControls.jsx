@@ -55,6 +55,10 @@ export default function LetterheadControls({ look, c, set, ui, isMobile }) {
             <Segmented ariaLabel="Letter text face" options={[{ value: 'typed', label: 'Typewriter' }, { value: 'serif', label: 'Clean serif' }]} value={lk.body} onChange={(v) => setLk('body', v)} />
             <p style={note}>Hebrew letters always use the Torah-text serif.</p>
           </Field>
+          <Field title="Speed">
+            <Segmented ariaLabel="Letter speed" options={[{ value: 'screen', label: 'Like the screen' }, { value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }]} value={lk.speed} onChange={(v) => setLk('speed', v)} />
+            <p style={note}>How fast it types and how long each page stays up. &ldquo;Like the screen&rdquo; follows Look &gt; Motion &gt; Long text.</p>
+          </Field>
           <Field title="Sent to (one line each, optional)">
             <TextArea value={letter.to || ''} onChange={(v) => set('content.letter.to', v)} rows={3} rtl={/[֐-׿]/.test(letter.to || '')} ariaLabel="Sent to" placeholder={'To the Students of\nThe Landau Yeshiva\nMiami Beach, Fla.'} />
           </Field>

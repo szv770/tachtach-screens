@@ -35,7 +35,7 @@ function Section({ title, children, hint }) {
 
 const isHeb = (v) => /[\u0590-\u05FF]/.test(String(v || ''));
 
-function Chip({ active, onClick, children, disabled, title, ariaPressed = true, style }) {
+export function Chip({ active, onClick, children, disabled, title, ariaPressed = true, style }) {
   return (
     <button
       type="button"
@@ -56,7 +56,7 @@ function Chip({ active, onClick, children, disabled, title, ariaPressed = true, 
   );
 }
 
-function Field({ title, children, style }) {
+export function Field({ title, children, style }) {
   return (
     <label style={{ display: 'block', marginBottom: '12px', ...style }}>
       <span style={label}>{title}</span>
@@ -81,7 +81,7 @@ function LimitHint({ value, limit }) {
   );
 }
 
-function TextArea({ value, onChange, rtl, rows = 2, placeholder, ariaLabel, limit }) {
+export function TextArea({ value, onChange, rtl, rows = 2, placeholder, ariaLabel, limit }) {
   return (
     <>
       <textarea
@@ -98,7 +98,7 @@ function TextArea({ value, onChange, rtl, rows = 2, placeholder, ariaLabel, limi
   );
 }
 
-function TextInput({ value, onChange, rtl, placeholder, ariaLabel, onBlur, inputMode, limit }) {
+export function TextInput({ value, onChange, rtl, placeholder, ariaLabel, onBlur, inputMode, limit }) {
   return (
     <>
       <input
@@ -143,7 +143,7 @@ function TimeInput({ value, onChange, ariaLabel, placeholder = 'e.g. 9:30 PM' })
   );
 }
 
-function Segmented({ options, value, onChange, ariaLabel }) {
+export function Segmented({ options, value, onChange, ariaLabel }) {
   return (
     <div role="radiogroup" aria-label={ariaLabel} style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
       {options.map((o) => (
