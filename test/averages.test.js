@@ -88,7 +88,11 @@ test('applyImport: replace keeps ids of same names; add appends scores', () => {
 test('defaults: Hebrew heading, 60 minimum, a plain list, every extra act off', () => {
   const d = A.normalizeSettings({});
   assert.equal(d.titleHe, 'מבצע תורה');
-  assert.equal(d.title, '', 'no English title unless the school adds one');
+  assert.equal(d.title, 'Mivtzah Torah', 'an English title sits under the Hebrew heading (the admin can change or clear it)');
+  assert.equal(A.normalizeSettings({ title: '' }).title, '', 'cleared = Hebrew only');
+  const g = A.applyImport({ settings: { minAverage: 0 } }, A.parseInput('Name,Grade,T1\nA One,10th,90'));
+  assert.equal(A.forKiosk(g).students[0].grade, '', 'grade never reaches the screen unless it is switched on');
+  assert.equal(A.forKiosk({ ...g, settings: { showGrade: true } }).students[0].grade, '10th');
   assert.match(d.subtitle, /אחוזים/, 'a line under the heading says the numbers are percentages');
   assert.equal(d.columns, 2);
   assert.equal(d.minAverage, 60);

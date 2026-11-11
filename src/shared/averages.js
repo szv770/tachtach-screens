@@ -20,7 +20,7 @@ export const LIMITS = Object.freeze({
 export const TRANSITIONS = Object.freeze(['mix', 'cube', 'cards', 'door', 'carousel', 'tilt', 'sweep', 'curtain', 'zoom', 'rise', 'flip', 'fade']);
 
 export const DEFAULTS = Object.freeze({
-  title: '',              // English title (empty = Hebrew only)
+  title: 'Mivtzah Torah', // English title under the Hebrew heading (empty = Hebrew only)
   titleHe: 'מבצע תורה',   // the page heading, painted with the screen's Hebrew display font
   subtitle: 'ממוצע המבחנים באחוזים', // a small line under the heading that says what the numbers are (empty = none)
   prizes: [],             // prize levels: [{ at: 90, label: 'Gold' }, ...] (the org's own words); a student earns the highest level they reach
@@ -293,7 +293,7 @@ export function hasBoard(file) { return board(file).length > 0; }
 /** What the kiosk gets: settings + students (names class, so only the program's own screen shows it; never in the live view). */
 export function forKiosk(file) {
   const f = normalizeFile(file);
-  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: s.grade, track: s.track, scores: scoresFor(s.scores, f.settings), avg: s.avg })), updatedAt: f.updatedAt };
+  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: f.settings.showGrade ? s.grade : '', track: s.track, scores: scoresFor(s.scores, f.settings), avg: s.avg })), updatedAt: f.updatedAt };
 }
 
 // ── import: paste, CSV, TSV, a Google Sheet ─────────────────────────────────

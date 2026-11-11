@@ -293,7 +293,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
         <Field label="Pace" hint="Scales how long every page stays up."><Choices ariaLabel="Pace" value={s.pace} onChange={(v) => saveSettings({ pace: v }, 'Saved')} options={[{ value: 'calm', label: 'Calm' }, { value: 'normal', label: 'Normal' }, { value: 'quick', label: 'Quick' }]} /></Field>
         <SwitchRow on={s.showRank} onChange={() => saveSettings({ showRank: !s.showRank }, 'Saved')} label="Show each student's position number" />
         <SwitchRow on={s.showMarks} onChange={() => saveSettings({ showMarks: !s.showMarks }, 'Saved')} label="Show each average" note="Off shows only the names, in order." />
-        <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" />
+        <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" note="Off by default: a screen for the whole yeshiva does not need a grade by each name." />
         <SwitchRow on={s.showTests} onChange={() => saveSettings({ showTests: !s.showTests }, 'Saved')} label="Show how many tests each student took" />
         <SwitchRow on={s.showAvatars} onChange={() => saveSettings({ showAvatars: !s.showAvatars }, 'Saved')} label="Round initials beside each name" />
         <SwitchRow on={s.zeroIsAbsent} onChange={() => saveSettings({ zeroIsAbsent: !s.zeroIsAbsent }, 'Saved')} label="Leave out zeros (a 0 means the student did not take the test)" note="Off (recommended): a 0 is a real mark and lowers the average. On: zeros are left out like empty cells. An empty cell is never counted either way." testId="avg-zero-switch" />
