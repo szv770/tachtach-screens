@@ -17,7 +17,7 @@ test('parseInput: header CSV, quoted names, blanks, no-score students warned', (
 });
 
 test('parseInput: no header, tabs, first+last columns, percent and extra credit, junk rejected', () => {
-  assert.deepEqual(A.parseInput('Moshe Katz\t9th\t95%\t88\t104').rows[0], { name: 'Moshe Katz', grade: '9th', track: '', scores: [95, 88, 104] });
+  assert.deepEqual(A.parseInput('Moshe Katz\t9th\t95%\t88\t104').rows[0], { name: 'Moshe Katz', grade: '9th', track: '', scores: [95, 88, 104], avg: null });
   assert.equal(A.parseInput('First,Last,Q1,Q2\nDovid,Katz,90,80').rows[0].name, 'Dovid Katz');
   assert.equal(A.parseInput('Name,Average,T1\nA B,99,70').rows[0].scores.join(), '70', 'an Average column is ignored');
   assert.equal(A.parseInput('Name,Scores\nA B,95 88 100').rows[0].scores.length, 3);
@@ -85,37 +85,64 @@ test('applyImport: replace keeps ids of same names; add appends scores', () => {
   assert.equal(f3.students[0].id, id);
 });
 
-test('plan: top-3 spotlights then podium, leaderboard pages, improved, tracks, then a scroll through the rest', () => {
+test('defaults: Hebrew heading, 60 minimum, a plain list, every extra act off', () => {
+  const d = A.normalizeSettings({});
+  assert.equal(d.titleHe, 'מבצע תורה');
+  assert.equal(d.title, '', 'no English title unless the school adds one');
+  assert.equal(d.minAverage, 60);
+  assert.deepEqual([d.showTop3, d.showImproved, d.byTrack, d.showAvatars], [false, false, false, false]);
+  assert.equal(A.normalizeSettings({ minAverage: 0 }).minAverage, 0, 'the admin can turn the minimum off');
+  assert.equal(A.normalizeSettings({ title: 'Torah Mivtza' }).title, 'Torah Mivtza');
+  assert.equal(A.normalizeSettings({ transition: 'cube' }).transition, 'cube');
+  assert.equal(A.normalizeSettings({ transition: 'nonsense' }).transition, 'mix');
+});
+
+test('plan: by default only the list, highest first, pages of equal size, no scroll or podium', () => {
   const rows = [];
-  for (let i = 0; i < 100; i++) rows.push(`Student ${i},${i % 2 ? 'Gemoro' : 'Girsa'},${60 + (i % 40)},${61 + (i % 40)},${70 + (i % 30)}`);
-  const f = A.applyImport({ settings: { byTrack: true } }, A.parseInput(`Name,Track,T1,T2,T3\n${rows.join('\n')}`));
+  for (let i = 0; i < 48; i++) rows.push(`Student ${i},${55 + i},${55 + (i % 45)}`);
+  const f = A.applyImport({}, A.parseInput(rows.join('\n')));
+  const shown = A.board(f);
+  assert.ok(shown.every((r) => r.avg >= 60) && shown.length < 48, 'under 60 stays off the screen');
   const p = A.plan(f);
-  assert.deepEqual(p.slice(0, 4).map((x) => `${x.t}${x.place || ''}`), ['spot3', 'spot2', 'spot1', 'podium'], 'third first, the leader last, then all three');
-  const boards = p.filter((x) => x.t === 'board');
-  assert.equal(boards.reduce((a, x) => a + x.rows.length, 0), 24, 'the next 24 get leaderboard pages');
-  assert.ok(boards.every((x) => x.rows.length === 6), 'six per page (big names)');
-  assert.ok(p.some((x) => x.t === 'improved') && p.some((x) => x.t === 'tracks'));
-  const scroll = p.at(-1);
-  assert.equal(scroll.t, 'scroll');
-  assert.equal(scroll.rows.length, 100 - 3 - 24, 'everyone else scrolls past');
-  assert.equal(scroll.rows[0].id, A.board(f)[27].id, 'it picks up right after the last leaderboard page');
-  const seen = p.flatMap((x) => (x.t === 'board' || x.t === 'scroll' || x.t === 'podium' ? x.rows : [])).map((r) => r.id);
-  assert.equal(new Set(seen).size, 100, 'every student is shown exactly once outside the spotlights');
+  assert.ok(p.every((x) => x.t === 'list'), 'extra acts are off by default');
+  assert.equal(p.reduce((a, x) => a + x.rows.length, 0), shown.length, 'everyone shown exactly once');
+  assert.ok(p.every((x) => x.cols === 3 && x.perCol === 7));
+  assert.ok(Math.max(...p.map((x) => x.rows.length)) - Math.min(...p.map((x) => x.rows.length)) <= 1, 'equal pages');
+  const order = p.flatMap((x) => x.rows).map((r) => r.avg);
+  assert.deepEqual(order, [...order].sort((a, b) => b - a), 'highest average first, page after page');
   assert.equal(A.plan({ students: [] }).length, 0);
 });
 
-test('plan: settings switch acts off, pace scales time, portrait shows fewer per page', () => {
-  const f = (settings) => A.applyImport({ settings }, A.parseInput(Array.from({ length: 40 }, (_, i) => `S ${i},${90 - i},${91 - i},${92 - i}`).join('\n')));
-  assert.deepEqual(A.plan(f({ spotlight: 'podium' })).slice(0, 2).map((x) => x.t), ['podium', 'board']);
-  assert.ok(!A.plan(f({ showTop3: false })).some((x) => x.t === 'podium' || x.t === 'spot'));
-  assert.equal(A.plan(f({ showTop3: false }))[0].rows[0].rank, 1, 'without the top-3 acts the leaderboard starts at rank 1');
-  assert.ok(!A.plan(f({ scrollRest: false })).some((x) => x.t === 'scroll'));
-  assert.ok(!A.plan(f({ featured: 0 })).some((x) => x.t === 'board'));
+test('plan: about 40 names read in well under a minute; extra acts and layout follow the settings', () => {
+  const f = (settings, n = 40) => A.applyImport({ settings }, A.parseInput(Array.from({ length: n }, (_, i) => `S ${i},${95 - i * 0.5},${96 - i * 0.5}`).join('\n')));
+  assert.ok(A.planSeconds(A.plan(f({}))) <= 40, `40 names take ${A.planSeconds(A.plan(f({})))} s`);
+  assert.deepEqual(A.plan(f({ columns: 2, rowsPerColumn: 10 })).map((x) => x.cols * x.perCol), [20, 20]);
+  assert.equal(A.plan(f({}), { portrait: true })[0].cols, 2, 'portrait always 2 columns');
+  assert.ok(A.plan(f({}), { portrait: true })[0].perCol > 7, 'portrait is taller so more rows per column');
+  const on = A.plan(f({ showTop3: true, showImproved: true }));
+  assert.deepEqual(on.slice(0, 4).map((x) => `${x.t}${x.place || ''}`), ['spot3', 'spot2', 'spot1', 'podium']);
+  assert.ok(on.at(-1).t === 'list');
+  assert.deepEqual(A.plan(f({ showTop3: true, spotlight: 'podium' })).slice(0, 2).map((x) => x.t), ['podium', 'list']);
   assert.ok(A.planSeconds(A.plan(f({ pace: 'calm' }))) > A.planSeconds(A.plan(f({ pace: 'quick' }))));
-  assert.equal(A.plan(f({ perPage: 8 }), { portrait: true }).find((x) => x.t === 'board').rows.length <= 5, true, 'portrait never packs more than 5 per page');
-  assert.equal(A.normalizeSettings({ view: 'all' }).showTop3, false, 'the older "everyone" view maps to no top-3 acts');
-  assert.equal(A.normalizeSettings({ view: 'top' }).scrollRest, false);
-  assert.equal(A.normalizeSettings({ transition: 'nonsense' }).transition, 'mix');
+});
+
+test('importer copes with an existing sheet: title lines, Hebrew headings, an average without tests, a phone column', () => {
+  const csv = 'Torah program 5786\n\nשם,ממוצע,כיתה,טלפון\nמשה כהן,88.5,ט,0541234567\nDovid Levy,92%,ט,0509999999\n,,,\n';
+  const p = A.parseInput(csv);
+  assert.equal(p.errors.length, 0);
+  assert.deepEqual(p.rows.map((r) => [r.name, r.avg, r.grade]), [['משה כהן', 88.5, 'ט'], ['Dovid Levy', 92, 'ט']]);
+  assert.deepEqual(p.columns.map((c) => c.as), ['name', 'average', 'grade', 'ignored']);
+  const f = A.applyImport({}, p);
+  assert.deepEqual(A.board(f).map((r) => [r.name, r.avg, r.tests]), [['Dovid Levy', 92, 0], ['משה כהן', 88.5, 0]], 'an average-only student shows, with no tests');
+  assert.equal(A.board({ ...f, settings: { minAverage: 90 } }).length, 1);
+  // tests + a computed Average column: the tests win and the column is not double counted
+  const q = A.parseInput('Name,Average,Test 1,Test 2,Quiz year\nA One,50,90,100,2026');
+  assert.deepEqual(q.rows[0].scores, [90, 100]);
+  assert.equal(q.rows[0].avg, 50, 'kept on the row, but the student model drops it when scores exist');
+  assert.equal(A.normalizeStudent(q.rows[0]).avg, null);
+  assert.ok(q.warnings.some((w) => /Quiz year/.test(w.message)), 'a column of non-scores is reported, not an error');
+  // the Bochurim-style names with a first and last column and a header further down
+  assert.equal(A.parseInput('Class list\nFirst Name,Last Name,Avg\nMoshe,Katz,77').rows[0].name, 'Moshe Katz');
 });
 
 test('sheetCsvUrl only ever builds a docs.google.com sheet address', () => {
@@ -149,7 +176,7 @@ test('store + syncSheet: replaces the list from the sheet, broadcasts a names-sa
   await assert.rejects(syncSheet(store, async () => { throw new Error('Google took too long'); }), /too long/);
   assert.match((await store.read()).sheet.lastError, /too long/);
   assert.equal((await store.read()).students.length, 4, 'a failed sync keeps the old data');
-  await assert.rejects(syncSheet(store, async () => 'Name,T1\nA,500'), /not a score/);
+  await assert.rejects(syncSheet(store, async () => 'A B,500'), /not a score/);
 });
 
 test('permissions: Full editor can edit averages, Messages-only cannot', async () => {

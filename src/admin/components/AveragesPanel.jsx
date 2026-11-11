@@ -16,7 +16,7 @@ import { board, summary, fmtAvg, plan, planSeconds, starterCsv, TEMPLATE_CSV, CL
  */
 
 const api = (method, path, body) => apiFetch(`/api/averages${path}`, { method, body: body === undefined ? undefined : JSON.stringify(body) });
-const TRANSITION_LABELS = [['mix', 'Mix'], ['sweep', 'Light sweep'], ['curtain', 'Curtain'], ['zoom', 'Zoom'], ['rise', 'Rise'], ['flip', 'Flip'], ['fade', 'Simple fade']];
+const TRANSITION_LABELS = [['mix', 'Mix of all'], ['cube', 'Cube'], ['cards', 'Cards'], ['door', 'Door'], ['carousel', 'Carousel'], ['tilt', 'Tilt'], ['sweep', 'Light sweep'], ['curtain', 'Curtain'], ['zoom', 'Zoom'], ['rise', 'Rise'], ['flip', 'Flip'], ['fade', 'Simple fade']];
 const timeText = (sec) => (sec >= 90 ? `${Math.floor(sec / 60)} min ${sec % 60} s` : `${sec} seconds`);
 const scoresText = (s) => (s || []).join(', ');
 const when = (iso) => { try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
@@ -37,7 +37,8 @@ function StudentSheet({ open, student, onClose, onSave, onDelete, busy }) {
   const [grade, setGrade] = useState('');
   const [track, setTrack] = useState('');
   const [scores, setScores] = useState('');
-  useEffect(() => { if (open) { setName(student?.name || ''); setGrade(student?.grade || ''); setTrack(student?.track || ''); setScores(scoresText(student?.scores)); } }, [open, student]);
+  const [avgOnly, setAvgOnly] = useState('');
+  useEffect(() => { if (open) { setName(student?.name || ''); setGrade(student?.grade || ''); setTrack(student?.track || ''); setScores(scoresText(student?.scores)); setAvgOnly(student?.avg != null ? String(student.avg) : ''); } }, [open, student]);
   const list = scores.split(/[\s,;]+/).filter(Boolean).map((x) => Number(x.replace('%', '')));
   const bad = list.some((n) => !Number.isFinite(n) || n < 0 || n > LIMITS.maxScore);
   const avg = !bad && list.length ? list.reduce((a, b) => a + b, 0) / list.length : null;
@@ -51,8 +52,9 @@ function StudentSheet({ open, student, onClose, onSave, onDelete, busy }) {
       <Field label="Test scores, oldest first" htmlFor="avg-scores" hint={bad ? 'Scores must be numbers from 0 to 150.' : avg != null ? `Average: ${fmtAvg(avg, 1)} over ${list.length} ${list.length === 1 ? 'test' : 'tests'}.` : 'Separate scores with commas, e.g. 92, 88, 95.'}>
         <input id="avg-scores" inputMode="decimal" value={scores} onChange={(e) => setScores(e.target.value)} style={{ ...fieldStyle, borderColor: bad ? colors.danger : undefined }} />
       </Field>
+      <Field label="Or just an average (no individual tests)" htmlFor="avg-avgonly" hint="Used only while there are no test scores above."><input id="avg-avgonly" inputMode="decimal" value={avgOnly} onChange={(e) => setAvgOnly(e.target.value)} style={{ ...fieldStyle, maxWidth: '120px' }} /></Field>
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '14px', position: 'sticky', bottom: 0 }}>
-        <button type="button" style={btn(true)} disabled={busy || bad || !name.trim()} onClick={() => onSave({ name, grade, track, scores: list })} data-testid="avg-save-student">Save</button>
+        <button type="button" style={btn(true)} disabled={busy || bad || !name.trim()} onClick={() => onSave({ name, grade, track, scores: list, avg: avgOnly.trim() === '' ? null : Number(avgOnly) })} data-testid="avg-save-student">Save</button>
         <button type="button" style={btn(false)} onClick={onClose}>Cancel</button>
         {student?.id && <button type="button" style={btn(false, { color: colors.danger, marginLeft: 'auto' })} onClick={() => onDelete(student)} data-testid="avg-delete-student">Remove</button>}
       </div>
@@ -94,6 +96,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
   const [mode, setMode] = useState('replace');
   const [preview, setPreview] = useState(null);
   const [sheetUrl, setSheetUrl] = useState('');
+  const [check, setCheck] = useState(null);
   const [q, setQ] = useState('');
   const [edit, setEdit] = useState(null); // student | {} (new) | null
   const [showAll, setShowAll] = useState(false);
@@ -148,7 +151,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
 
   const filtered = (file.students || []).filter((st) => !q.trim() || st.name.toLowerCase().includes(q.trim().toLowerCase()));
   const shown = showAll || q ? filtered : filtered.slice(0, 12);
-  const avgOf = (st) => (st.scores.length ? st.scores.reduce((a, b) => a + b, 0) / st.scores.length : null);
+  const avgOf = (st) => (st.scores.length ? st.scores.reduce((a, b) => a + b, 0) / st.scores.length : (st.avg ?? null));
   const needs = s.minTests;
 
   return (
@@ -167,7 +170,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
       {canEdit && (
         <div style={card} data-testid="avg-sheet">
           <h3 style={h3}>Link a Google Sheet</h3>
-          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Start from the template (ask whoever set this up for the file, then in Google Sheets: File, Import, Upload), keep the heading row, and add one row per student.</p>
+          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Already have a sheet? Use it as it is: it needs a Name column (or First and Last) and either an Average column or one column per test. English or Hebrew headings both work, and title lines above the headings are fine. Press <strong>Check the sheet</strong> to see how it was understood before anything changes. Starting fresh? Use the template (File, Import, Upload).</p>
           <ol style={{ ...small, margin: '8px 0 0', paddingLeft: '20px' }}>
             <li>In the sheet, press <strong>Share</strong>. Add the people who will type scores as <strong>Editors</strong>.</li>
             <li>Under General access choose <strong>Anyone with the link</strong> and set it to <strong>Viewer</strong>. This is how the screen reads it. Anyone with the link can see the names and marks, so only share the link with staff.</li>
@@ -189,8 +192,20 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <SwitchRow on={!!file.sheet.auto} onChange={() => run(() => api('PUT', '/sheet', { url: file.sheet.url, auto: !file.sheet.auto }))} label="Keep it in sync (every 15 minutes)" note="The sheet is the whole truth: students not in it are removed when it syncs." />
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
             <button type="button" style={btn(false)} disabled={busy || sheetUrl.trim() === file.sheet.url} onClick={() => run(() => api('PUT', '/sheet', { url: sheetUrl.trim() }), sheetUrl.trim() ? 'Link saved' : 'Link removed')} data-testid="avg-sheet-save">Save link</button>
+            <button type="button" style={btn(false)} disabled={busy || !(sheetUrl.trim() || file.sheet.url)} onClick={async () => { setBusy(true); try { setCheck(await api('POST', '/sheet/check', { url: sheetUrl.trim() })); } catch (e) { setCheck(null); notify(e.message, 'error'); } finally { setBusy(false); } }} data-testid="avg-sheet-check">Check the sheet</button>
             <button type="button" style={btn(true)} disabled={busy || !file.sheet.url} onClick={() => run(() => api('POST', '/sync'), 'Synced from the sheet')} data-testid="avg-sheet-sync">Sync now</button>
           </div>
+          {check && (
+            <div style={{ border: `1px solid ${colors.line}`, borderRadius: 'var(--r-sm)', padding: '10px 12px', marginTop: '10px' }} data-testid="avg-check-result">
+              <strong style={{ fontFamily: adminFonts.englishBody, fontSize: '15px', color: colors.text }}>What the sheet looks like</strong>
+              <p style={{ ...small, margin: '4px 0' }}>{check.counts.students} students found{check.counts.averageOnly ? ` (${check.counts.averageOnly} with only an average)` : ''}. {check.wouldShow} would show on the screen{check.minAverage > 0 ? ` (minimum average ${check.minAverage})` : ''}.</p>
+              {check.columns?.length > 0 && <p style={{ ...small, margin: '4px 0' }}>Columns: {check.columns.map((c) => `${c.header} = ${({ name: 'name', first: 'first name', last: 'last name', grade: 'grade', track: 'track', average: 'average', score: 'test score', ignored: 'ignored' })[c.as] || c.as}`).join(' · ')}</p>}
+              {check.preview.map((r, i) => <p key={i} style={{ ...small, margin: '2px 0' }}>{r.name}: {r.avg != null ? fmtAvg(r.avg, 1) : 'no average'}{r.scores ? ` (${r.scores} tests)` : ''}</p>)}
+              {check.errors.map((e, i) => <p key={`e${i}`} style={{ ...small, color: colors.danger, margin: '2px 0' }}>{e.line ? `Row ${e.line}: ` : ''}{e.message}</p>)}
+              {check.warnings.map((w, i) => <p key={`w${i}`} style={{ ...small, margin: '2px 0' }}>{w.message}</p>)}
+              {check.notOnListCount > 0 && <p style={{ ...small, margin: '4px 0 0' }}>Not on the Bochurim list (check the spelling): {check.notOnList.join(', ')}{check.notOnListCount > check.notOnList.length ? ` and ${check.notOnListCount - check.notOnList.length} more` : ''}.</p>}
+            </div>
+          )}
           <p style={{ ...small, margin: '8px 0 0', color: file.sheet.lastError ? colors.danger : colors.dim }}>
             {file.sheet.lastError ? `Last sync failed: ${file.sheet.lastError}` : file.sheet.lastSync ? `Last synced ${when(file.sheet.lastSync)} (${file.sheet.lastCount} students).` : file.sheet.url ? 'Not synced yet.' : 'No sheet linked.'}
           </p>
@@ -239,11 +254,11 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
           <div style={{ marginTop: '8px' }}>
             {shown.map((st) => {
               const a = avgOf(st);
-              const out = st.scores.length < needs;
+              const out = !!st.scores.length && st.scores.length < needs;
               return (
                 <button key={st.id} type="button" onClick={() => canEdit && setEdit(st)} disabled={!canEdit} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: '10px', minHeight: '44px', padding: '6px 0', border: 'none', borderBottom: `1px solid ${colors.line}`, background: 'transparent', textAlign: 'left', cursor: canEdit ? 'pointer' : 'default', color: colors.text, fontFamily: adminFonts.englishBody, fontSize: '15px' }}>
                   <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st.name}{st.track ? <span style={{ ...small, marginLeft: '8px' }}>{st.track}</span> : null}</span>
-                  <span style={{ ...small, whiteSpace: 'nowrap' }}>{st.scores.length} {st.scores.length === 1 ? 'test' : 'tests'}</span>
+                  <span style={{ ...small, whiteSpace: 'nowrap' }}>{st.scores.length ? `${st.scores.length} ${st.scores.length === 1 ? 'test' : 'tests'}` : 'average only'}</span>
                   <strong style={{ minWidth: '48px', textAlign: 'right', color: out ? colors.dim : colors.text }}>{a == null ? '–' : fmtAvg(a, 1)}</strong>
                 </button>
               );
@@ -256,42 +271,49 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
 
       <div style={card} data-testid="avg-settings">
         <h3 style={h3}>What the screen shows</h3>
-        <Field label="Title (English)" htmlFor="avg-title"><input id="avg-title" key={`t-${s.title}`} defaultValue={s.title} disabled={!canEdit} maxLength={80} onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== s.title && saveSettings({ title: e.target.value.trim() }, 'Title saved')} style={fieldStyle} /></Field>
-        <Field label="Title (Hebrew)" htmlFor="avg-title-he"><input id="avg-title-he" key={`h-${s.titleHe}`} dir="rtl" defaultValue={s.titleHe} disabled={!canEdit} maxLength={80} onBlur={(e) => e.target.value.trim() !== s.titleHe && saveSettings({ titleHe: e.target.value.trim() }, 'Title saved')} style={fieldStyle} /></Field>
-        <h4 style={{ ...h3, fontSize: '15px', margin: '14px 0 2px' }}>What plays, in order</h4>
-        <SwitchRow on={s.showTop3} onChange={() => saveSettings({ showTop3: !s.showTop3 }, 'Saved')} label="Top 3 get their own acts" note="3rd, 2nd, then the leader, each on their own for a few seconds, then all three together." />
-        {s.showTop3 && (
-          <Field label="Top 3 style"><Choices ariaLabel="Top 3 style" value={s.spotlight} onChange={(v) => saveSettings({ spotlight: v }, 'Saved')} options={[{ value: 'each', label: 'Each one in turn, then the podium' }, { value: 'podium', label: 'The podium only' }]} /></Field>
-        )}
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-          <Field label="Leaderboard pages after the top 3" hint="How many students get big, proper pages. 0 = none."><NumberField value={s.featured} min={0} max={60} onCommit={(n) => saveSettings({ featured: n }, 'Saved')} ariaLabel="Students on leaderboard pages" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-          <Field label="Students per page" hint="Fewer = bigger names."><NumberField value={s.perPage} min={3} max={10} onCommit={(n) => saveSettings({ perPage: n }, 'Saved')} ariaLabel="Students per page" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-          <Field label="Seconds per page"><NumberField value={s.seconds} min={5} max={30} onCommit={(n) => saveSettings({ seconds: n }, 'Saved')} ariaLabel="Seconds per leaderboard page" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-        </div>
-        <SwitchRow on={s.scrollRest} onChange={() => saveSettings({ scrollRest: !s.scrollRest }, 'Saved')} label="Scroll through everyone else" note="Everyone below the leaderboard pages scrolls past, smoothly, once." />
-        {s.scrollRest && (
-          <Field label="Scroll speed"><Choices ariaLabel="Scroll speed" value={s.scrollSpeed} onChange={(v) => saveSettings({ scrollSpeed: v }, 'Saved')} options={[{ value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }]} /></Field>
-        )}
-        <Field label="Pace" hint="How long each act stays up."><Choices ariaLabel="Pace" value={s.pace} onChange={(v) => saveSettings({ pace: v }, 'Saved')} options={[{ value: 'calm', label: 'Calm' }, { value: 'normal', label: 'Normal' }, { value: 'quick', label: 'Quick' }]} /></Field>
-        <h4 style={{ ...h3, fontSize: '15px', margin: '14px 0 2px' }}>Look and motion</h4>
-        <Field label="Change between acts" hint="Mix plays a different one each time.">
-          <Choices ariaLabel="Transition" value={s.transition} onChange={(v) => saveSettings({ transition: v }, 'Saved')} options={TRANSITION_LABELS.map(([value, label]) => ({ value, label }))} />
-        </Field>
-        <SwitchRow on={s.showAvatars} onChange={() => saveSettings({ showAvatars: !s.showAvatars }, 'Saved')} label="Round initials beside each name" />
-        <SwitchRow on={s.sparkles} onChange={() => saveSettings({ sparkles: !s.sparkles }, 'Saved')} label="Sparkles for the leader" />
-        <h4 style={{ ...h3, fontSize: '15px', margin: '14px 0 2px' }}>Who shows</h4>
-        <SwitchRow on={s.minAverage > 0} onChange={() => saveSettings({ minAverage: s.minAverage > 0 ? 0 : 70 }, s.minAverage > 0 ? 'Everyone entered will show' : 'Minimum average on')} label="Only show students above a minimum average" note={s.minAverage > 0 ? 'Students below it stay saved but are not on the screen. They appear as soon as their average reaches it.' : 'Off: everyone you enter is on the screen, whatever their average.'} testId="avg-min-switch" />
+        <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Page heading</h4>
+        <Field label="Heading (Hebrew)" htmlFor="avg-title-he" hint="Shown large at the top, in the screen's Hebrew font."><input id="avg-title-he" key={`h-${s.titleHe}`} dir="rtl" defaultValue={s.titleHe} disabled={!canEdit} maxLength={80} onBlur={(e) => e.target.value.trim() !== s.titleHe && saveSettings({ titleHe: e.target.value.trim() }, 'Heading saved')} style={fieldStyle} /></Field>
+        <Field label="Heading (English, optional)" htmlFor="avg-title"><input id="avg-title" key={`t-${s.title}`} defaultValue={s.title} disabled={!canEdit} maxLength={80} placeholder="Leave empty for Hebrew only" onBlur={(e) => e.target.value.trim() !== s.title && saveSettings({ title: e.target.value.trim() }, 'Heading saved')} style={fieldStyle} /></Field>
+
+        <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Who shows</h4>
+        <SwitchRow on={s.minAverage > 0} onChange={() => saveSettings({ minAverage: s.minAverage > 0 ? 0 : 60 }, s.minAverage > 0 ? 'Everyone entered will show' : 'Minimum average on')} label="Only show students at or above a minimum average" note={s.minAverage > 0 ? 'Students below it stay saved but are not on the screen. They appear as soon as their average reaches it.' : 'Off: everyone you enter is on the screen, whatever their average.'} testId="avg-min-switch" />
         {s.minAverage > 0 && (
           <Field label="Minimum average"><NumberField value={s.minAverage} min={1} max={150} onCommit={(n) => saveSettings({ minAverage: n }, 'Saved')} ariaLabel="Minimum average" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
         )}
-        <Field label="Tests needed to appear" hint="A student needs at least this many scores."><NumberField value={s.minTests} min={1} max={20} onCommit={(n) => saveSettings({ minTests: n }, 'Saved')} ariaLabel="Tests needed to appear" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-        <PrizeLevels levels={s.prizes} note={s.prizeNote} canEdit={canEdit} onSave={(prizes, prizeNote) => saveSettings({ prizes, prizeNote }, 'Prize levels saved')} />
-        <SwitchRow on={s.showMarks} onChange={() => saveSettings({ showMarks: !s.showMarks }, 'Saved')} label="Show each average" note="Off shows only the ranking and names." />
+        <Field label="Tests needed to appear" hint="A student with test scores needs at least this many. An average typed in without tests always counts."><NumberField value={s.minTests} min={1} max={20} onCommit={(n) => saveSettings({ minTests: n }, 'Saved')} ariaLabel="Tests needed to appear" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+
+        <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>The list</h4>
+        <p style={{ ...small, margin: '2px 0 8px' }}>Everyone shown, highest average first, every name the same size. Names read down the first column, then the next.</p>
+        <Field label="Columns (a portrait screen always uses 2)"><Choices ariaLabel="Columns" value={String(s.columns)} onChange={(v) => saveSettings({ columns: Number(v) }, 'Saved')} options={[{ value: '2', label: '2 columns' }, { value: '3', label: '3 columns' }]} /></Field>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <Field label="Names per column" hint="Fewer = bigger names."><NumberField value={s.rowsPerColumn} min={4} max={12} onCommit={(n) => saveSettings({ rowsPerColumn: n }, 'Saved')} ariaLabel="Names per column" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+          <Field label="Seconds per page" hint="Time to find your name."><NumberField value={s.seconds} min={6} max={40} onCommit={(n) => saveSettings({ seconds: n }, 'Saved')} ariaLabel="Seconds per page" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+        </div>
+        <Field label="Pace" hint="Scales how long every page stays up."><Choices ariaLabel="Pace" value={s.pace} onChange={(v) => saveSettings({ pace: v }, 'Saved')} options={[{ value: 'calm', label: 'Calm' }, { value: 'normal', label: 'Normal' }, { value: 'quick', label: 'Quick' }]} /></Field>
+        <SwitchRow on={s.showRank} onChange={() => saveSettings({ showRank: !s.showRank }, 'Saved')} label="Show each student's position number" />
+        <SwitchRow on={s.showMarks} onChange={() => saveSettings({ showMarks: !s.showMarks }, 'Saved')} label="Show each average" note="Off shows only the names, in order." />
         <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" />
         <SwitchRow on={s.showTests} onChange={() => saveSettings({ showTests: !s.showTests }, 'Saved')} label="Show how many tests each student took" />
+        <SwitchRow on={s.showAvatars} onChange={() => saveSettings({ showAvatars: !s.showAvatars }, 'Saved')} label="Round initials beside each name" />
+        <Field label="Decimals"><Choices ariaLabel="Decimals" value={String(s.decimals)} onChange={(v) => saveSettings({ decimals: Number(v) }, 'Saved')} options={[{ value: '1', label: '94.5' }, { value: '0', label: '95' }]} /></Field>
+
+        <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Look and motion</h4>
+        <Field label="Change between pages" hint="Mix plays a different one each time.">
+          <Choices ariaLabel="Transition" value={s.transition} onChange={(v) => saveSettings({ transition: v }, 'Saved')} options={TRANSITION_LABELS.map(([value, label]) => ({ value, label }))} />
+        </Field>
+
+        <PrizeLevels levels={s.prizes} note={s.prizeNote} canEdit={canEdit} onSave={(prizes, prizeNote) => saveSettings({ prizes, prizeNote }, 'Prize levels saved')} />
+
+        <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Extra pages (all off until you turn them on)</h4>
+        <SwitchRow on={s.showTop3} onChange={() => saveSettings({ showTop3: !s.showTop3 }, 'Saved')} label="Top 3 get their own pages" note="3rd, 2nd, then the leader, each on their own, then all three on a podium. Plays before the list." />
+        {s.showTop3 && (
+          <>
+            <Field label="Top 3 style"><Choices ariaLabel="Top 3 style" value={s.spotlight} onChange={(v) => saveSettings({ spotlight: v }, 'Saved')} options={[{ value: 'each', label: 'Each one in turn, then the podium' }, { value: 'podium', label: 'The podium only' }]} /></Field>
+            <SwitchRow on={s.sparkles} onChange={() => saveSettings({ sparkles: !s.sparkles }, 'Saved')} label="Sparkles for the leader" />
+          </>
+        )}
         <SwitchRow on={s.showImproved} onChange={() => saveSettings({ showImproved: !s.showImproved }, 'Saved')} label="Most improved page" note="Needs 3 or more tests. Only shows students who climbed 2 points or more." />
         <SwitchRow on={s.byTrack} onChange={() => saveSettings({ byTrack: !s.byTrack }, 'Saved')} label="A page for each track" note={file.tracks?.length >= 2 ? `Tracks found: ${file.tracks.join(', ')}.` : 'Needs two or more tracks (the Track column).'} />
-        <Field label="Decimals"><Choices ariaLabel="Decimals" value={String(s.decimals)} onChange={(v) => saveSettings({ decimals: Number(v) }, 'Saved')} options={[{ value: '1', label: '94.5' }, { value: '0', label: '95' }]} /></Field>
       </div>
 
       <StudentSheet

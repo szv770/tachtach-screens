@@ -81,7 +81,7 @@ router.post('/averages/import', importReal, async (req, res) => {
     const parsed = A.parseInput(typeof b.text === 'string' ? b.text : '');
     const unknown = A.notOnList(parsed.rows, await names());
     if (unknown.length) parsed.warnings.push({ line: 0, message: `Not on the Bochurim list (check the spelling): ${unknown.slice(0, 6).join(', ')}${unknown.length > 6 ? ` and ${unknown.length - 6} more` : ''}.` });
-    const summary = { errors: parsed.errors, warnings: parsed.warnings.slice(0, 50), counts: parsed.counts, preview: parsed.rows.slice(0, 8).map((r) => ({ name: r.name, grade: r.grade, track: r.track, scores: r.scores })) };
+    const summary = { columns: parsed.columns, errors: parsed.errors, warnings: parsed.warnings.slice(0, 50), counts: parsed.counts, preview: parsed.rows.slice(0, 8).map((r) => ({ name: r.name, grade: r.grade, track: r.track, scores: r.scores })) };
     if (b.dryRun === true) return res.json({ ...summary, dryRun: true });
     if (parsed.errors.length) return res.status(400).json({ ...summary, error: `${parsed.errors[0].line ? `Row ${parsed.errors[0].line}: ` : ''}${parsed.errors[0].message}` });
     const mode = b.mode === 'add' ? 'add' : 'replace';
@@ -98,6 +98,24 @@ router.put('/averages/sheet', async (req, res) => {
     if (url && !A.sheetCsvUrl(url)) throw new A.AveragesError('That is not a Google Sheets link. Copy the link from the sheet\'s Share button.');
     await send(res, await averagesStore.mutate(undefined, (f) => ({ ...f, sheet: { ...f.sheet, url, auto: typeof b.auto === 'boolean' ? b.auto : f.sheet.auto, lastError: '' } })));
   } catch (e) { fail(res, e); }
+});
+// Look at the linked sheet WITHOUT importing: which columns were recognised, a few rows, how many would show. { url? } (default: the saved link)
+router.post('/averages/sheet/check', syncLimit, async (req, res) => {
+  try {
+    const cur = await averagesStore.read();
+    const url = String(body(req).url ?? cur.sheet.url ?? '').trim();
+    if (!url) throw new A.AveragesError('Paste a Google Sheets link first.');
+    if (!A.sheetCsvUrl(url)) throw new A.AveragesError('That is not a Google Sheets link. Copy the link from the sheet\'s Share button.');
+    const parsed = A.parseInput(await fetchSheetCsv(url));
+    const unknown = A.notOnList(parsed.rows, await names());
+    const asFile = A.applyImport({ settings: cur.settings }, { ...parsed, errors: [] }, { mode: 'replace' });
+    const mean = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    res.json({
+      columns: parsed.columns, counts: parsed.counts, errors: parsed.errors.slice(0, 5), warnings: parsed.warnings.slice(0, 12),
+      preview: parsed.rows.slice(0, 6).map((r) => ({ name: r.name, scores: r.scores.length, avg: r.scores.length ? mean(r.scores) : r.avg })),
+      wouldShow: A.board(asFile).length, minAverage: asFile.settings.minAverage, notOnList: unknown.slice(0, 8), notOnListCount: unknown.length,
+    });
+  } catch (e) { res.status(400).json({ error: e.message || 'Could not read the sheet.' }); }
 });
 router.post('/averages/sync', syncLimit, async (_req, res) => {
   try { await send(res, await syncSheet()); } catch (e) { fail(res, e); }

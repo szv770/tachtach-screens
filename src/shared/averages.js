@@ -229,9 +229,10 @@ export function paginate(rows, per) {
   if (!rows.length) return [];
   if (per < 1) per = 1;
   const n = Math.ceil(rows.length / per);
-  const even = Math.ceil(rows.length / n); // equal-ish pages instead of 12, 12, 1
-  const out = [];
-  for (let i = 0; i < rows.length; i += even) out.push(rows.slice(i, i + even));
+  const base = Math.floor(rows.length / n);
+  const extra = rows.length % n; // the first `extra` pages get one more, so no page is more than one name smaller than another
+  const out = []; let at = 0;
+  for (let i = 0; i < n; i++) { const take = base + (i < extra ? 1 : 0); out.push(rows.slice(at, at + take)); at += take; }
   return out;
 }
 
