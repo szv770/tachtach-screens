@@ -114,7 +114,7 @@ function AvgStrip({ avg, top, i }) {
 
 export function BoardAct({ act, s, portrait, top }) {
   const rows = act.rows;
-  const badge = portrait ? 70 : 76; const av = portrait ? 62 : 66;
+  const badge = portrait ? 86 : 76; const av = portrait ? 78 : 66;
   const tests = s.showTests && !portrait; // its own column on a wide screen; in the line under the average on a tall one
   const cols = [`${badge}px`, s.showAvatars ? `${av}px` : null, 'minmax(0, 1fr)', tests ? '84px' : null, s.showMarks ? 'minmax(120px, auto)' : 'auto'].filter(Boolean).join(' ');
   const grid = { display: 'grid', gridTemplateColumns: cols, columnGap: portrait ? 14 : 18, alignItems: 'center', padding: portrait ? '0 20px 0 10px' : '0 26px 0 12px' };
@@ -134,10 +134,10 @@ export function BoardAct({ act, s, portrait, top }) {
             <div key={r.id} className="tt-av-in" style={{ '--i': k * 1.6, ...grid, ...glass(), gridTemplateRows: 'minmax(0, 1fr)', position: 'relative', overflow: 'hidden', minHeight: 0, borderRadius: 22 }}>
               <Laurel size={badge}>{r.rank}</Laurel>
               {s.showAvatars ? <Avatar name={r.name} id={r.id} size={av} /> : null}
-              <Fit wrap vcenter max={portrait ? 40 : 44} min={14} style={{ lineHeight: 1.2, fontFamily: F.en, fontWeight: 700, alignSelf: 'stretch', margin: '7px 0 9px', justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
+              <Fit wrap vcenter max={portrait ? 42 : 44} min={14} style={{ lineHeight: 1.2, fontFamily: F.en, fontWeight: 700, alignSelf: 'stretch', margin: '7px 0 9px', justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
               {tests ? <span className="tt-num" style={{ textAlign: 'center', fontSize: 32, fontWeight: 700, color: 'var(--inkDim)' }}>{r.tests}</span> : null}
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.05 }}>
-                {s.showMarks ? <span className="tt-num" style={{ fontSize: portrait ? 50 : 52, fontWeight: 800, letterSpacing: '-.02em' }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
+              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.05, paddingBottom: 5 }}>
+                {s.showMarks ? <span className="tt-num" style={{ fontSize: portrait ? 56 : 48, fontWeight: 800, letterSpacing: '-.02em' }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
                 {meta ? <span style={{ fontFamily: F.en, fontSize: 19, fontWeight: 600, color: r.tier ? 'var(--accentText)' : 'var(--inkDim)', whiteSpace: 'nowrap', marginTop: 3 }}>{meta}</span> : null}
               </span>
               {s.showMarks ? <AvgStrip avg={r.avg} top={top} i={k * 1.6} /> : null}
