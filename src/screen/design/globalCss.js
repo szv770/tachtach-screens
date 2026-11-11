@@ -60,9 +60,9 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 /* Test Averages slide (slides/AveragesSlide.jsx): pillars rise (3rd, 2nd, then the leader), the crown drops, rows slide in one by one,
    the average bars grow. All finite, transform + opacity only, one animation per element; Minimal motion and reduced motion settle at once. */
 .m-smooth .tt-av-rise, .m-lively .tt-av-rise { transform-origin: 50% 100%; animation: ttAvRise 900ms cubic-bezier(.2,.85,.25,1.04) var(--d, 0ms) both; }
-.m-smooth .tt-av-crown, .m-lively .tt-av-crown { animation: ttAvCrown 700ms cubic-bezier(.2,.9,.3,1.25) 1500ms both; }
-.m-smooth .tt-av-in, .m-lively .tt-av-in { animation: ttAvIn 560ms cubic-bezier(.22,.7,.2,1) calc(var(--i, 0) * 70ms + 150ms) both; }
-.m-smooth .tt-av-bar, .m-lively .tt-av-bar { transform-origin: 0 50%; animation: ttAvBar 1100ms cubic-bezier(.2,.8,.2,1) calc(var(--i, 0) * 70ms + 350ms) both; }
+.m-smooth .tt-av-crown, .m-lively .tt-av-crown { animation: ttAvCrown 700ms cubic-bezier(.2,.9,.3,1.25) var(--cd, 1500ms) both; }
+.m-smooth .tt-av-in, .m-lively .tt-av-in { animation: ttAvIn 560ms cubic-bezier(.22,.7,.2,1) calc(var(--i, 0) * 70ms + 150ms + var(--d0, 0ms)) both; }
+.m-smooth .tt-av-bar, .m-lively .tt-av-bar { transform-origin: 0 50%; animation: ttAvBar 1100ms cubic-bezier(.2,.8,.2,1) calc(var(--i, 0) * 70ms + 350ms + var(--d0, 0ms)) both; }
 .m-smooth .tt-av-pop, .m-lively .tt-av-pop { animation: ttAvPop 650ms cubic-bezier(.2,.9,.25,1.25) var(--d, 0ms) both; }
 .m-minimal .tt-av-in, .m-minimal .tt-av-rise, .m-minimal .tt-av-pop { animation: ttFadeIn 400ms linear both; }
 @keyframes ttAvRise { from { opacity: 0; transform: scaleY(.04); } 30% { opacity: 1; } }
