@@ -2,24 +2,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { board, plan, planSeconds, summary, normalizeSettings } from '../../../shared/averages.js';
 import { Stage } from './averages/Stage.jsx';
-import { SpotAct, PodiumAct, BoardAct, ImprovedAct, TracksAct, ScrollAct } from './averages/acts.jsx';
+import { SpotAct, PodiumAct, ListAct, ImprovedAct, TracksAct } from './averages/acts.jsx';
 
 /**
- * Test Averages (a Gemoro / Girsa test program) as a staged show. plan() (shared/averages.js) gives the acts in order:
+ * Test Averages (a Gemoro / Girsa test program). plan() (shared/averages.js) gives the acts in order:
  *
- *   spot x3   the top three, one at a time (3rd, 2nd, then the leader with a crown and a burst of sparkles)
- *   podium    the three together
- *   board     leaderboard pages: few rows, big names
- *   improved  the climbers            tracks  the top of each track
- *   scroll    everyone else, one smooth pass
+ *   list      THE show: one ordered list (everyone over the minimum, highest average first) in 2 or 3 columns, a few
+ *             pages, every name the same card
+ *   spot / podium / improved / tracks   extra acts, OFF until the school turns them on (they play before the list)
  *
- * averages/Stage.jsx keeps the backdrop, header, progress bar and footer and changes the act with a designed transition
- * (sweep / zoom / rise / flip / curtain); averages/acts.jsx draws the acts; averages/parts.jsx holds the avatar, laurel,
- * crown, chips and count-up. Alive without looping: every motion plays once and settles; Minimal and reduced motion show the
- * settled act. Roles and font roles only. The slide steps through its acts itself and asks the rotation for the time it needs.
+ * averages/Stage.jsx keeps the backdrop, the Hebrew heading, the progress bar and the footer and changes the page with a
+ * designed transition (cube / cards / door / carousel / tilt / sweep / flip / zoom / curtain / rise); averages/acts.jsx
+ * draws the acts; averages/parts.jsx holds the small parts. Every motion plays once and settles; Minimal and reduced motion
+ * show the settled page. Roles and font roles only. The slide steps through its acts itself and asks the rotation for the
+ * time it needs.
  */
 
-const ACTS = { spot: SpotAct, podium: PodiumAct, board: BoardAct, improved: ImprovedAct, tracks: TracksAct, scroll: ScrollAct };
+const ACTS = { spot: SpotAct, podium: PodiumAct, list: ListAct, improved: ImprovedAct, tracks: TracksAct };
 
 export default function AveragesSlide({ data, portrait: portraitProp, onRequestDuration, slide }) {
   const design = useDesign();
@@ -51,9 +50,10 @@ export default function AveragesSlide({ data, portrait: portraitProp, onRequestD
 
   if (!n) return null;
   const top = rows[0]?.avg || 100;
+  const low = rows.length ? rows[rows.length - 1].avg : 0;
   const renderAct = (act, { delay }) => {
     const Act = ACTS[act.t];
-    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} /> : null;
+    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} low={low} /> : null;
   };
   return <Stage s={s} portrait={portrait} steps={steps} step={step} turn={turn} sum={sum} renderAct={renderAct} />;
 }

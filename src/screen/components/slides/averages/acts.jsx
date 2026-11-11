@@ -1,17 +1,17 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { F } from '../../../design/ui.jsx';
 import { Fit } from '../../../design/fit.jsx';
-import { fmtAvg, SCROLL_HOLD } from '../../../../shared/averages.js';
-import { Avatar, Chip, CountUp, Crown, History, Laurel, Sparkles, TierChip, TrendUp, glass, ordinal, useStill } from './parts.jsx';
+import { fmtAvg } from '../../../../shared/averages.js';
+import { Avatar, Chip, CountUp, Crown, History, Laurel, Sparkles, Star, TierChip, TrendUp, glass, ordinal } from './parts.jsx';
 
 /**
  * The acts of the Test Averages show (the order comes from plan() in shared/averages.js):
  *   SpotAct      one of the top three alone: avatar, laurel, name, average counting up, chips, the latest tests as bars
  *   PodiumAct    the three together on pillars (2 - 1 - 3), the leader last with the crown
- *   BoardAct     a leaderboard page: few glass rows, BIG names
+ *   ListAct      THE main act: one ordered list in 2 or 3 columns, every row the same card
  *   ImprovedAct  the climbers, with how far they climbed
  *   TracksAct    the top of each track side by side
- *   ScrollAct    everyone else: one smooth pass
+ * The top-3 / improved / tracks acts are off until the school turns them on.
  * Every act takes { act, s (settings), portrait, delay (ms before its own motion starts) }. Names are always in a <Fit wrap>
  * box, so they shrink and wrap but are never cut.
  */
@@ -44,7 +44,7 @@ export function SpotAct({ act, s, portrait, delay, scores }) {
         <div className="tt-av-in" style={{ '--i': 3, display: 'flex', flexWrap: 'wrap', justifyContent: portrait ? 'center' : 'flex-start', gap: 12 }}>
           <TierChip tier={r.tier} size={24} tone="fill" />
           {s.showGrade && r.grade ? <Chip>{r.grade}</Chip> : null}
-          {s.showTests ? <Chip>{testsWord(r.tests)}</Chip> : null}
+          {s.showTests && r.tests > 0 ? <Chip>{testsWord(r.tests)}</Chip> : null}
           {s.showMarks && best != null ? <Chip>Best <span className="tt-num" style={{ fontWeight: 800 }}>{fmtAvg(best, 0)}</span></Chip> : null}
           {s.showMarks && r.delta > 0 ? <Chip tone="accent"><TrendUp size={24} /><span className="tt-num">+{fmtAvg(r.delta, 1)}</span></Chip> : null}
         </div>
@@ -101,50 +101,83 @@ export function PodiumAct({ act, s, portrait, delay }) {
   );
 }
 
-/* ───────────────────────────── leaderboard page ───────────────────────────── */
+/* ───────────────────────────── the list (the main act) ───────────────────────────── */
 
-/** 'Gold · Shiur 2' under the average: the prize level and (when switched on) the grade. */
-const metaLine = (r, s, withTests) => [r.tier, s.showGrade && r.grade, withTests && s.showTests && testsWord(r.tests)].filter(Boolean).join(' · ');
-
-/** The thin strip along the bottom of a glass row: the average out of 100 (or out of the top mark with extra credit). */
-function AvgStrip({ avg, top, i }) {
-  const f = Math.max(0.02, Math.min(1, avg / Math.max(100, top)));
-  return <span aria-hidden className="tt-av-bar" style={{ '--i': i, position: 'absolute', left: 0, right: 0, bottom: 0, height: 5, background: 'linear-gradient(90deg, color-mix(in srgb, var(--accentText) 30%, transparent), var(--accentText))', transform: `scaleX(${f})` }} />;
+/** The row height the columns really got (measured), so the type scales with it and every row stays the same. */
+function useRowHeight(perCol, gap, guess) {
+  const ref = useRef(null);
+  const [h, setH] = useState(guess);
+  useLayoutEffect(() => {
+    const measure = () => { const H = ref.current?.clientHeight; if (H) setH(Math.max(24, (H - gap * (perCol - 1)) / perCol)); };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    if (ro && ref.current) ro.observe(ref.current);
+    return () => ro?.disconnect();
+  }, [perCol, gap]);
+  return [ref, h];
 }
 
-export function BoardAct({ act, s, portrait, top }) {
-  const rows = act.rows;
-  const badge = portrait ? 86 : 76; const av = portrait ? 78 : 66;
-  const tests = s.showTests && !portrait; // its own column on a wide screen; in the line under the average on a tall one
-  const cols = [`${badge}px`, s.showAvatars ? `${av}px` : null, 'minmax(0, 1fr)', tests ? '84px' : null, s.showMarks ? 'minmax(120px, auto)' : 'auto'].filter(Boolean).join(' ');
-  const grid = { display: 'grid', gridTemplateColumns: cols, columnGap: portrait ? 14 : 18, alignItems: 'center', padding: portrait ? '0 20px 0 10px' : '0 26px 0 12px' };
+/**
+ * ONE ordered list, highest average first: `cols` columns x `perCol` rows, read down the first column, then the second,
+ * then the third. Every row is the same card (same grid, same type sizes); only the strength of its accent edge, tint and
+ * bar follows the average. Rows flip in as a cascade (one finite animation each) and a light sweeps across each once.
+ */
+export function ListAct({ act, s, portrait, top, low }) {
+  const { rows, cols, perCol } = act;
+  const gap = perCol > 9 ? 7 : 10;
+  const [ref, rowH] = useRowHeight(perCol, gap, portrait ? 120 : 80);
+  const hi = Math.max(100, top || 0);
+  const lo = Math.min(low ?? 0, hi - 1);
+  const sub = s.showGrade || s.showTests;       // a small line under the name (reserved on every row, so rows match)
+  const tiers = (s.prizes || []).length > 0;    // a small line under the average (same)
+  const wide = cols === 2 && !portrait;
+  const nameMax = Math.round(Math.min(wide ? 40 : 34, rowH * 0.5));
+  const avgSize = Math.round(Math.min(wide ? 50 : 42, rowH * (tiers ? 0.44 : 0.54)));
+  const small = Math.round(Math.max(13, Math.min(19, rowH * 0.22)));
+  const rankW = Math.round(Math.min(58, Math.max(36, rowH * 0.62)));
+  const av = Math.round(Math.min(64, rowH - 16));
+  const grid = [s.showRank ? `${rankW}px` : null, s.showAvatars ? `${av}px` : null, 'minmax(0, 1fr)', s.showMarks || tiers ? 'auto' : null].filter(Boolean).join(' ');
+  const columns = Array.from({ length: cols }, (_, c) => rows.slice(c * perCol, (c + 1) * perCol));
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ ...grid, ...CAPS, flex: 'none', fontSize: 19, marginBottom: 8 }}>
-        <span style={{ textAlign: 'center' }}>Rank</span>
-        {s.showAvatars ? <span /> : null}
-        <span>Name</span>
-        {tests ? <span style={{ textAlign: 'center' }}>Tests</span> : null}
-        <span style={{ textAlign: 'right' }}>{s.showMarks ? 'Average' : ''}</span>
-      </div>
-      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${Math.max(rows.length, 4)}, minmax(0, 1fr))`, rowGap: portrait ? 12 : 10 }}>
-        {rows.map((r, k) => {
-          const meta = metaLine(r, s, !tests);
-          return (
-            <div key={r.id} className="tt-av-in" style={{ '--i': k * 1.6, ...grid, ...glass(), gridTemplateRows: 'minmax(0, 1fr)', position: 'relative', overflow: 'hidden', minHeight: 0, borderRadius: 22 }}>
-              <Laurel size={badge}>{r.rank}</Laurel>
-              {s.showAvatars ? <Avatar name={r.name} id={r.id} size={av} /> : null}
-              <Fit wrap vcenter max={portrait ? 42 : 44} min={14} style={{ lineHeight: 1.2, fontFamily: F.en, fontWeight: 700, alignSelf: 'stretch', margin: '7px 0 9px', justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
-              {tests ? <span className="tt-num" style={{ textAlign: 'center', fontSize: 32, fontWeight: 700, color: 'var(--inkDim)' }}>{r.tests}</span> : null}
-              <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', lineHeight: 1.05, paddingBottom: 5 }}>
-                {s.showMarks ? <span className="tt-num" style={{ fontSize: portrait ? 56 : 48, fontWeight: 800, letterSpacing: '-.02em' }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
-                {meta ? <span style={{ fontFamily: F.en, fontSize: 19, fontWeight: 600, color: r.tier ? 'var(--accentText)' : 'var(--inkDim)', whiteSpace: 'nowrap', marginTop: 3 }}>{meta}</span> : null}
-              </span>
-              {s.showMarks ? <AvgStrip avg={r.avg} top={top} i={k * 1.6} /> : null}
-            </div>
-          );
-        })}
-      </div>
+    <div ref={ref} data-av-list="" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: portrait ? 14 : 18 }}>
+      {columns.map((col, c) => (
+        <div key={c} data-av-col={c} style={{ minWidth: 0, minHeight: 0, display: 'grid', gridTemplateRows: `repeat(${perCol}, minmax(0, 1fr))`, rowGap: gap }}>
+          {col.map((r, k) => {
+            const t = Math.max(0, Math.min(1, (r.avg - lo) / (hi - lo)));   // 0 = the lowest average shown, 1 = a full mark
+            const f = Math.max(0.03, Math.min(1, r.avg / hi));
+            const i = k + c * 2.5;
+            const meta = [s.showGrade && r.grade, s.showTests && r.tests > 0 && testsWord(r.tests)].filter(Boolean).join(' · ');
+            return (
+              <div key={r.id} data-av-row={r.rank} data-avg={r.avg} className="tt-av-row" style={{
+                '--i': i, position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0, boxSizing: 'border-box', borderRadius: Math.min(20, rowH * 0.24),
+                display: 'grid', gridTemplateColumns: grid, gridTemplateRows: 'minmax(0, 1fr)', alignItems: 'center', columnGap: 12, padding: `0 ${portrait ? 14 : 16}px 0 ${s.showRank ? 12 : 22}px`,
+                background: `linear-gradient(100deg, color-mix(in srgb, var(--accentText) ${Math.round(7 + 24 * t)}%, transparent), color-mix(in srgb, var(--ink) 5%, transparent) 62%, color-mix(in srgb, var(--accentText) ${Math.round(3 + 11 * t)}%, transparent))`,
+                border: `1.5px solid color-mix(in srgb, var(--accentText) ${Math.round(16 + 50 * t)}%, var(--line))`,
+                boxShadow: `inset 7px 0 0 color-mix(in srgb, var(--accentText) ${Math.round(34 + 66 * t)}%, transparent), inset 0 1.5px 0 color-mix(in srgb, var(--ink) 14%, transparent)`,
+              }}>
+                {s.showRank ? <span className="tt-num" style={{ textAlign: 'center', fontFamily: F.en, fontSize: Math.round(rankW * (r.rank > 99 ? 0.4 : 0.5)), fontWeight: 800, lineHeight: 1, color: 'var(--accentText)', paddingLeft: 6 }}>{r.rank}</span> : null}
+                {s.showAvatars ? <Avatar name={r.name} id={r.id} size={av} /> : null}
+                <div style={{ alignSelf: 'stretch', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${Math.round(rowH * 0.07)}px 0 ${Math.round(rowH * 0.1)}px` }}>
+                  <Fit wrap vcenter data-av-name="" max={nameMax} min={11} style={{ flex: '1 1 0', minHeight: 0, lineHeight: 1.14, fontFamily: F.en, fontWeight: 700, justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
+                  {sub ? <span data-av-meta="" style={{ flex: 'none', height: small * 1.25, lineHeight: 1.25, fontFamily: F.en, fontSize: small, fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</span> : null}
+                  {s.showMarks ? (
+                    <span aria-hidden style={{ flex: 'none', position: 'relative', height: 5, marginTop: 4, borderRadius: 3, overflow: 'hidden', background: 'color-mix(in srgb, var(--ink) 12%, transparent)' }}>
+                      <span className="tt-av-bar" data-av-bar="" style={{ '--i': i, position: 'absolute', inset: 0, borderRadius: 3, background: `linear-gradient(90deg, color-mix(in srgb, var(--accentText) ${Math.round(30 + 30 * t)}%, transparent), color-mix(in srgb, var(--accentText) ${Math.round(55 + 45 * t)}%, var(--ink)))`, transform: `scaleX(${f})` }} />
+                    </span>
+                  ) : null}
+                </div>
+                {s.showMarks || tiers ? (
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', minWidth: s.showMarks ? avgSize * (s.decimals ? 2.25 : 1.6) : 0 }}>
+                    {s.showMarks ? <span className="tt-num" data-av-avg="" style={{ fontFamily: F.en, fontSize: avgSize, fontWeight: 800, lineHeight: 1, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
+                    {tiers ? <span data-av-tier="" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: small * 1.3, marginTop: 2, fontFamily: F.en, fontSize: small, fontWeight: 700, lineHeight: 1, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>{r.tier ? <><Star size={small} />{r.tier}</> : null}</span> : null}
+                  </span>
+                ) : null}
+                <span aria-hidden className="tt-av-shine" style={{ '--i': i }} />
+              </div>
+            );
+          })}
+        </div>
+      ))}
     </div>
   );
 }
@@ -212,56 +245,6 @@ export function TracksAct({ act, s, portrait }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-/* ───────────────────────────── everyone else: one scroll pass ───────────────────────────── */
-
-const SCROLL_ROW = 72;
-
-/**
- * One column of compact rows that glides past once: hold, one linear pass (tt-av-scroll: --dist px in --sd seconds), hold.
- * The distance is measured (content height - window height); when everything fits nothing moves. The soft top and bottom
- * edges are two still gradients on top (no mask). Minimal / reduced motion: the list steps down a screenful at a time.
- */
-export function ScrollAct({ act, s, portrait }) {
-  const still = useStill();
-  const view = useRef(null); const inner = useRef(null);
-  const [dist, setDist] = useState(0);
-  const [jump, setJump] = useState(0);
-  useLayoutEffect(() => {
-    const measure = () => { if (view.current && inner.current) setDist(Math.max(0, inner.current.scrollHeight - view.current.clientHeight)); };
-    measure();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
-    if (ro && view.current) ro.observe(view.current);
-    return () => ro?.disconnect();
-  }, [act.rows.length, portrait]);
-  const moving = Math.max(1, act.s - SCROLL_HOLD * 2);
-  useEffect(() => {
-    if (!still || !dist || !view.current) return undefined;
-    const page = view.current.clientHeight * 0.9;
-    const t = setInterval(() => setJump((j) => Math.min(dist, j + page)), Math.max(2000, (act.s * 1000) / (Math.ceil(dist / page) + 1)));
-    return () => clearInterval(t);
-  }, [still, dist, act.s]);
-  const edge = (side) => ({ position: 'absolute', left: 0, right: 0, [side]: 0, height: 48, pointerEvents: 'none', background: `linear-gradient(${side === 'top' ? 180 : 0}deg, var(--panel), transparent)` });
-  return (
-    <div ref={view} data-scroll-view="" style={{ flex: 1, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 18 }}>
-      <div ref={inner} data-scroll-inner="" className={dist && !still ? 'tt-av-scroll' : undefined} style={{ '--dist': dist, '--sd': `${moving}s`, '--hold': `${SCROLL_HOLD}s`, display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 0 18px', transform: still && jump ? `translate3d(0, ${-jump}px, 0)` : undefined }}>
-        {act.rows.map((r) => {
-          const meta = metaLine(r, s, true);
-          return (
-            <div key={r.id} style={{ ...glass(), flex: 'none', display: 'grid', gridTemplateColumns: `62px ${s.showAvatars ? '52px ' : ''}minmax(0, 1fr) auto auto`, alignItems: 'center', columnGap: 16, height: SCROLL_ROW, boxSizing: 'border-box', borderRadius: 18, padding: '0 24px 0 8px' }}>
-              <span className="tt-num" style={{ fontSize: 30, fontWeight: 800, textAlign: 'center', color: 'var(--inkDim)' }}>{r.rank}</span>
-              {s.showAvatars ? <Avatar name={r.name} id={r.id} size={52} /> : null}
-              <Fit wrap vcenter max={30} min={12} style={{ lineHeight: 1.2, fontFamily: F.en, fontWeight: 650, height: SCROLL_ROW - 8, justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
-              <span style={{ fontFamily: F.en, fontSize: 20, fontWeight: 600, color: r.tier ? 'var(--accentText)' : 'var(--inkDim)', whiteSpace: 'nowrap' }}>{portrait ? r.tier : meta}</span>
-              {s.showMarks ? <span className="tt-num" style={{ fontSize: 36, fontWeight: 800, minWidth: 92, textAlign: 'right' }}>{fmtAvg(r.avg, s.decimals)}</span> : <span />}
-            </div>
-          );
-        })}
-      </div>
-      {dist ? <><div aria-hidden style={edge('top')} /><div aria-hidden style={edge('bottom')} /></> : null}
     </div>
   );
 }

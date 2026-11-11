@@ -145,6 +145,11 @@ export function TrendUp({ size = 24, style }) {
   return <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden style={{ flex: 'none', ...style }}><path d="M8 46 L26 28 L36 38 L56 16 M42 16 H56 V30" fill="none" stroke="currentColor" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
+/** A five-point star (the prize-level mark in a list row). */
+export function Star({ size = 18, style }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ flex: 'none', ...style }}><path d="M12 1.6l3.1 6.6 7.2.9-5.3 5 1.4 7.1L12 17.7l-6.4 3.5L7 14.1l-5.3-5 7.2-.9z" fill="currentColor" /></svg>;
+}
+
 /** A small pill. tone: 'glass' (default) | 'accent' (accent text) | 'fill' (solid). */
 export function Chip({ children, tone = 'glass', size = 24, style }) {
   const tones = {
