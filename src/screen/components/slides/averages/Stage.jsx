@@ -141,6 +141,10 @@ export function Stage({ s, portrait, steps, step, turn, sum, renderAct }) {
     return () => ro?.disconnect();
   }, []);
 
+  // a turn that arrived as a solid plate keeps its rows un-animated for as long as it is mounted (also on its way out)
+  const solid = useRef({ turn: -1, was: -1 });
+  if (layers.prev && PLATED.has(layers.tx) && solid.current.turn !== layers.cur.turn) solid.current = { turn: layers.cur.turn, was: solid.current.turn };
+  const solidOf = (t) => (t === solid.current.turn || t === solid.current.was ? ' tt-av-solid' : '');
   const padX = portrait ? 34 : 48;
   const { cur, prev, tx } = layers;
   const at = steps[cur.step] || steps[0];
@@ -156,8 +160,8 @@ export function Stage({ s, portrait, steps, step, turn, sum, renderAct }) {
       <RingDefs />
       <Header s={s} portrait={portrait} pill={pill} />
       <div ref={stage} className="tt-av-stage" data-tx={old ? tx : ''} style={{ margin: `0 ${-padX}px`, overflow: 'hidden', '--avw': `${box.w}px`, '--avh': `${box.h}px` }}>
-        {old ? <div key={prev.turn} className={`tt-av-layer tt-av-lo tt-av-t-${tx}`} style={layer(prev.turn)}>{plate}{renderAct(old, { delay: delayOf(prev.turn) })}</div> : null}
-        {at ? <div key={cur.turn} data-act={at.t} className={`tt-av-layer tt-av-li tt-av-t-${first ? 'fade' : tx}`} style={layer(cur.turn)}>{plate}{renderAct(at, { delay: delayOf(cur.turn) })}</div> : null}
+        {old ? <div key={prev.turn} className={`tt-av-layer tt-av-lo tt-av-t-${tx}${solidOf(prev.turn)}`} style={layer(prev.turn)}>{plate}{renderAct(old, { delay: delayOf(prev.turn) })}</div> : null}
+        {at ? <div key={cur.turn} data-act={at.t} className={`tt-av-layer tt-av-li tt-av-t-${first ? 'fade' : tx}${solidOf(cur.turn)}`} style={layer(cur.turn)}>{plate}{renderAct(at, { delay: delayOf(cur.turn) })}</div> : null}
         {old && tx === 'sweep' ? <div className="tt-av-wipe"><div className="tt-av-band" /></div> : null}
         {old && tx === 'curtain' ? <div className="tt-av-wipe"><div className="tt-av-cur l" /><div className="tt-av-cur r" /></div> : null}
       </div>

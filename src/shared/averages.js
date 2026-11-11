@@ -34,6 +34,7 @@ export const DEFAULTS = Object.freeze({
   showGrade: false,       // the student's grade / shiur next to the name
   showTests: false,       // 'N tests' next to the name
   decimals: 1,            // 0 or 1
+  zeroIsAbsent: true,     // a 0 in a test column means 'did not take that test' (not counted), so it never drags an average down; a blank is never counted either
   transition: 'mix',      // between pages: 'mix' | 'cube' | 'cards' | 'door' | 'carousel' | 'tilt' | 'sweep' | 'curtain' | 'zoom' | 'rise' | 'flip' | 'fade'
   pace: 'normal',         // how long each page stays: 'calm' | 'normal' | 'quick'
   showAvatars: false,     // a round monogram (initials) beside each name
@@ -87,6 +88,7 @@ export function normalizeSettings(s) {
     showGrade: bool(o.showGrade, D.showGrade),
     showTests: bool(o.showTests, D.showTests),
     decimals: pick(Number(o.decimals), [0, 1], D.decimals),
+    zeroIsAbsent: bool(o.zeroIsAbsent, D.zeroIsAbsent),
     transition: pick(o.transition, TRANSITIONS, D.transition),
     pace: pick(o.pace, ['calm', 'normal', 'quick'], D.pace),
     showAvatars: bool(o.showAvatars, D.showAvatars),
@@ -186,20 +188,24 @@ export function improvement(scores) {
  * Equal averages share a rank (1, 1, 3). Ties break on more tests, then name, so the order never jumps between refreshes.
  * `track` '' = everyone.
  */
+/** The scores that count: with `zeroIsAbsent` a 0 is a test that was not taken (or not marked), so it is left out. */
+export const scoresFor = (scores, settings) => (Array.isArray(scores) ? (settings?.zeroIsAbsent === false ? scores : scores.filter((x) => x > 0)) : []);
+
 export function board(file, opts = {}) {
   const s = normalizeSettings(opts.settings || file?.settings);
   const track = opts.track || '';
   const rows = [];
   for (const st of file?.students || []) {
     if (track && (st.track || '') !== track) continue;
-    const manual = !st.scores?.length && st.avg != null; // an average typed in with no individual tests
-    if (!manual && (!st.scores || st.scores.length < s.minTests)) continue;
-    const avg = manual ? st.avg : mean(st.scores);
+    const sc = scoresFor(st.scores, s);
+    const manual = !sc.length && st.avg != null; // an average typed in with no individual tests
+    if (!manual && sc.length < s.minTests) continue;
+    const avg = manual ? st.avg : mean(sc);
     if (s.minAverage > 0 && avg + 1e-9 < s.minAverage) continue;
     rows.push({
-      id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: st.scores?.length || 0,
-      avg, tier: tierFor(avg, s.prizes)?.label || '', last: st.scores?.length ? st.scores[st.scores.length - 1] : null, delta: improvement(st.scores),
-      before: st.scores?.length >= 3 ? mean(st.scores.slice(0, -2)) : null, recent: st.scores?.length >= 3 ? mean(st.scores.slice(-2)) : null,
+      id: st.id, name: st.name, grade: st.grade || '', track: st.track || '', tests: sc.length,
+      avg, tier: tierFor(avg, s.prizes)?.label || '', last: sc.length ? sc[sc.length - 1] : null, delta: improvement(sc),
+      before: sc.length >= 3 ? mean(sc.slice(0, -2)) : null, recent: sc.length >= 3 ? mean(sc.slice(-2)) : null,
     });
   }
   rows.sort((a, b) => (round1(b.avg) - round1(a.avg)) || (b.tests - a.tests) || a.name.localeCompare(b.name));
@@ -287,7 +293,7 @@ export function hasBoard(file) { return board(file).length > 0; }
 /** What the kiosk gets: settings + students (names class, so only the program's own screen shows it; never in the live view). */
 export function forKiosk(file) {
   const f = normalizeFile(file);
-  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: s.grade, track: s.track, scores: s.scores, avg: s.avg })), updatedAt: f.updatedAt };
+  return { settings: f.settings, students: f.students.map((s) => ({ id: s.id, name: s.name, grade: s.grade, track: s.track, scores: scoresFor(s.scores, f.settings), avg: s.avg })), updatedAt: f.updatedAt };
 }
 
 // ── import: paste, CSV, TSV, a Google Sheet ─────────────────────────────────
@@ -327,19 +333,24 @@ function detectDelimiter(lines) {
   return ',';
 }
 
+const isFrac = (x) => /^\d+([.,]\d+)?\s*\/\s*\d+([.,]\d+)?$/.test(String(x).trim()); // '17/20' = 85
+const fracNum = (x) => { const [a, b] = String(x).split('/').map((t) => Number(t.replace(',', '.'))); return b > 0 ? Math.round((a / b) * 10000) / 100 : NaN; };
 const isNum = (x) => x !== '' && /^-?\d+([.,]\d+)?\s*%?$/.test(String(x).trim());
 const toNum = (x) => Number(String(x).replace('%', '').replace(',', '.').trim());
 const HDR = {
-  name: /^(full\s*name|student(\s*name)?|name|bochur|talmid|שם(\s*מלא)?|תלמיד|בחור)$/i,
   first: /^(first(\s*name)?|שם\s*פרטי|פרטי)$/i,
   last: /^(last(\s*name)?|surname|family(\s*name)?|שם\s*משפחה|משפחה)$/i,
+  name: /(^|[^a-z])(name|student|talmid|bochur)|שם|תלמיד|בחור/i,
   grade: /^(grade|shiur|class|year|level|כיתה|שיעור)$/i,
   track: /^(track|masechta|masechet|seder|program|group|type|מסלול|מסכת|סדר)$/i,
   scores: /^(scores?|marks?|grades|tests)$/i,
   average: /^(avg|average|mean|overall|ממוצע)$/i,
   skip: /^(total|sum|rank|#|id|notes?|comments?|phone|email|הערות|סה"כ)$/i,
 };
-const isHeaderRow = (cells) => !cells.some(isNum) && cells.filter((c) => c !== '').length >= 2 && cells.some((c) => Object.values(HDR).some((re) => re.test(c)));
+// a heading that is a date ('11/3', '3/11/2026', 'Nov 5', '5 Nov 2026', '2026-11-03') = one test
+const isDateHead = (c) => /^\d{1,4}[\/.\-]\d{1,2}([\/.\-]\d{1,4})?$/.test(String(c).trim()) || /^(\d{1,2}\s+)?(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(\s+\d{1,2})?(,?\s+\d{2,4})?$/i.test(String(c).trim());
+const isHeaderRow = (cells) => !cells.some(isNum) && cells.filter((c) => c !== '').length >= 2
+  && (cells.some((c) => Object.values(HDR).some((re) => re.test(c))) || (cells.filter(isDateHead).length >= 2 && !isDateHead(cells[0])));
 
 /**
  * Parse pasted / uploaded text (or a Google Sheet's CSV). Accepted shapes:
@@ -367,6 +378,7 @@ export function parseInput(text) {
   for (let i = 0; i < Math.min(8, grid.length); i++) {
     if (isHeaderRow(grid[i])) {
       map = grid[i].map((c) => { for (const [k, re] of Object.entries(HDR)) if (re.test(c)) return k; return c === '' ? 'skip' : 'test'; });
+      if (!map.includes('name') && !map.includes('first')) map[0] = 'name'; // a blank or unusual first heading above the names
       start = i + 1;
       break;
     }
@@ -381,6 +393,7 @@ export function parseInput(text) {
     let name = ''; let first_ = ''; let last_ = ''; let grade = ''; let track = ''; let given = null; const scores = [];
     let bad = '';
     const take = (v, col) => {
+      if (v !== '' && isFrac(v)) { const f = fracNum(v); if (Number.isFinite(f) && f >= 0 && f <= LIMITS.maxScore) scores.push(f); return; }
       if (v === '' || !isNum(v)) return;
       const n = toNum(v);
       if (n < 0 || n > LIMITS.maxScore) { if (map && col != null && map[col] === 'test') ignoredCols.set(col, (ignoredCols.get(col) || 0) + 1); else bad = `${v} is not a score between 0 and ${LIMITS.maxScore}`; } else scores.push(n);

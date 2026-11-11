@@ -77,9 +77,10 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 .tt-av-stage { position: relative; flex: 1; min-height: 0; perspective: 2400px; }
 .tt-av-layer { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
 .tt-av-plate { position: absolute; top: 0; bottom: 0; border-radius: 26px; opacity: 0; background: linear-gradient(160deg, color-mix(in srgb, var(--accentText) 16%, var(--panel)), color-mix(in srgb, var(--accentText) 6%, var(--panel))); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accentText) 45%, var(--line)); }
-:is(.m-smooth, .m-lively) .tt-av-lo > .tt-av-plate { animation: ttFadeIn 160ms linear both; }
+:is(.m-smooth, .m-lively) .tt-av-lo > .tt-av-plate { animation: ttAvPlateOn 160ms linear both; }
 :is(.m-smooth, .m-lively) .tt-av-li > .tt-av-plate { animation: ttAvPlate 1300ms linear both; }
 .tt-av-layer > :not(.tt-av-plate) { position: relative; }
+@keyframes ttAvPlateOn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ttAvPlate { 0% { opacity: 0; } 10%, 68% { opacity: 1; } 100% { opacity: 0; } }
 :is(.m-smooth, .m-lively) .tt-av-lo.tt-av-t-cube { animation: ttAvCubeOut 1200ms linear both; }
 :is(.m-smooth, .m-lively) .tt-av-li.tt-av-t-cube { animation: ttAvCubeIn 1200ms linear both; }
@@ -121,9 +122,11 @@ ${BASE.map((n) => `@property --${n} { syntax: '<color>'; inherits: true; initial
 @keyframes ttAvRingIn { 0% { opacity: 0; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(68deg) translateZ(calc(var(--avw, 1200px) * .9)); } 45% { opacity: .7; } 100% { opacity: 1; transform: translateZ(calc(var(--avw, 1200px) * -.9)) rotateY(0deg) translateZ(calc(var(--avw, 1200px) * .9)); } }
 @keyframes ttAvTiltOut { 0% { opacity: 1; transform: rotateX(0deg) scale(1); } 60% { opacity: 1; } 100% { opacity: 0; transform: rotateX(62deg) scale(.6); } }
 @keyframes ttAvTiltIn { 0% { opacity: 0; transform: rotateX(-38deg) scale(1.08); } 35% { opacity: 1; } 100% { opacity: 1; transform: rotateX(0deg) scale(1); } }
-/* the list rows: a staggered 3D flip-in (one finite animation each), then one light sweeps across each card */
+/* the list rows: a staggered 3D flip-in (one finite animation each), then one light sweeps across each card. A page that arrives as a
+   solid plate (cube, cards, door ...) brings its rows with it (.tt-av-solid): only the light and the bars play once it has landed. */
 :is(.m-smooth, .m-lively) .tt-av-row { transform-origin: 50% 0; animation: ttAvRowIn 640ms cubic-bezier(.2,.8,.25,1.06) calc(var(--i, 0) * 55ms + 120ms + var(--d0, 0ms)) both; }
 .m-minimal .tt-av-row { animation: ttFadeIn 400ms linear both; }
+.tt-av-solid .tt-av-row { animation: none; }
 .tt-av-shine { position: absolute; top: 0; bottom: 0; left: 0; width: 34%; opacity: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ink) 26%, transparent) 50%, transparent); }
 :is(.m-smooth, .m-lively) .tt-av-shine { animation: ttAvShine 900ms cubic-bezier(.4,0,.3,1) calc(var(--i, 0) * 55ms + 620ms + var(--d0, 0ms)) both; }
 @keyframes ttAvRowIn { from { opacity: 0; transform: perspective(900px) rotateX(-82deg); } 55% { opacity: 1; } to { opacity: 1; transform: perspective(900px) rotateX(0deg); } }

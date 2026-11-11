@@ -126,6 +126,21 @@ test('plan: about 40 names read in well under a minute; extra acts and layout fo
   assert.ok(A.planSeconds(A.plan(f({ pace: 'calm' }))) > A.planSeconds(A.plan(f({ pace: 'quick' }))));
 });
 
+ test('a sheet with a date above each test: blanks and zeros are not counted, fractions work', () => {
+  const csv = ',11/3,11/10,Nov 17,12/1/2026\nMoshe Katz,90,,80,0\nYossi Berg,0,0,0,0\nDovid Levy,17/20,,,100\n';
+  const p = A.parseInput(csv);
+  assert.equal(p.errors.length, 0);
+  assert.deepEqual(p.columns.map((c) => c.as), ['name', 'score', 'score', 'score', 'score'], 'the blank corner heading is the name column, each date is a test');
+  const f = A.applyImport({}, p);
+  const rows = A.board(f);
+  assert.deepEqual(rows.map((r) => [r.name, r.avg, r.tests]), [['Dovid Levy', 92.5, 2], ['Moshe Katz', 85, 2]], 'a zero and a blank are both "did not take it"; a student with only zeros does not show');
+  const kiosk = A.forKiosk(f);
+  assert.deepEqual(kiosk.students.find((s) => s.name === 'Moshe Katz').scores, [90, 80], 'the screen never sees the zeros either');
+  const counted = A.board({ ...f, settings: { zeroIsAbsent: false, minAverage: 0 } }).find((r) => r.name === 'Moshe Katz');
+  assert.equal(counted.avg, 56.666666666666664, 'switched off, a real 0 counts');
+  assert.equal(A.parseInput('Student\'s Name,Quiz 1\nA One,70').rows[0].name, 'A One', 'a heading like Student\'s Name is the name column');
+});
+
 test('importer copes with an existing sheet: title lines, Hebrew headings, an average without tests, a phone column', () => {
   const csv = 'Torah program 5786\n\nשם,ממוצע,כיתה,טלפון\nמשה כהן,88.5,ט,0541234567\nDovid Levy,92%,ט,0509999999\n,,,\n';
   const p = A.parseInput(csv);

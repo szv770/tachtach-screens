@@ -51,9 +51,11 @@ export default function AveragesSlide({ data, portrait: portraitProp, onRequestD
   if (!n) return null;
   const top = rows[0]?.avg || 100;
   const low = rows.length ? rows[rows.length - 1].avg : 0;
+  // rows per column the fullest list page needs (never more than plan()'s perCol): the same on every page
+  const perCol = Math.max(1, ...steps.filter((x) => x.t === 'list').map((x) => Math.ceil(x.rows.length / x.cols)));
   const renderAct = (act, { delay }) => {
     const Act = ACTS[act.t];
-    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} low={low} /> : null;
+    return Act ? <Act act={act} s={s} portrait={portrait} delay={delay} scores={scores} top={top} low={low} perCol={perCol} /> : null;
   };
   return <Stage s={s} portrait={portrait} steps={steps} step={step} turn={turn} sum={sum} renderAct={renderAct} />;
 }

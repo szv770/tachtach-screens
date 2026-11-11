@@ -103,6 +103,9 @@ export function PodiumAct({ act, s, portrait, delay }) {
 
 /* ───────────────────────────── the list (the main act) ───────────────────────────── */
 
+/** A single word too long to ever fit a column on one line: it shrinks like any name and, as the last resort, breaks (never cut). */
+const LONG_WORD = /\S{19,}/;
+
 /** The row height the columns really got (measured), so the type scales with it and every row stays the same. */
 function useRowHeight(perCol, gap, guess) {
   const ref = useRef(null);
@@ -122,8 +125,12 @@ function useRowHeight(perCol, gap, guess) {
  * then the third. Every row is the same card (same grid, same type sizes); only the strength of its accent edge, tint and
  * bar follows the average. Rows flip in as a cascade (one finite animation each) and a light sweeps across each once.
  */
-export function ListAct({ act, s, portrait, top, low }) {
-  const { rows, cols, perCol } = act;
+export function ListAct({ act, s, portrait, top, low, perCol: fill }) {
+  const { rows, cols } = act;
+  // plan() spreads the names evenly over the pages, so a page is rarely full: `fill` is the rows per column the fullest page
+  // needs (the same on every page, so the row size never changes) and a page's names are spread evenly over its columns.
+  const perCol = Math.max(1, Math.min(act.perCol, fill || act.perCol));
+  const per = Math.min(perCol, Math.ceil(rows.length / cols));
   const gap = perCol > 9 ? 7 : 10;
   const [ref, rowH] = useRowHeight(perCol, gap, portrait ? 120 : 80);
   const hi = Math.max(100, top || 0);
@@ -134,10 +141,10 @@ export function ListAct({ act, s, portrait, top, low }) {
   const nameMax = Math.round(Math.min(wide ? 40 : 34, rowH * 0.5));
   const avgSize = Math.round(Math.min(wide ? 50 : 42, rowH * (tiers ? 0.44 : 0.54)));
   const small = Math.round(Math.max(13, Math.min(19, rowH * 0.22)));
-  const rankW = Math.round(Math.min(58, Math.max(36, rowH * 0.62)));
+  const rankW = Math.round(Math.min(wide || portrait ? 56 : 46, Math.max(32, rowH * 0.6)));
   const av = Math.round(Math.min(64, rowH - 16));
   const grid = [s.showRank ? `${rankW}px` : null, s.showAvatars ? `${av}px` : null, 'minmax(0, 1fr)', s.showMarks || tiers ? 'auto' : null].filter(Boolean).join(' ');
-  const columns = Array.from({ length: cols }, (_, c) => rows.slice(c * perCol, (c + 1) * perCol));
+  const columns = Array.from({ length: cols }, (_, c) => rows.slice(c * per, (c + 1) * per));
   return (
     <div ref={ref} data-av-list="" style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: portrait ? 14 : 18 }}>
       {columns.map((col, c) => (
@@ -150,7 +157,7 @@ export function ListAct({ act, s, portrait, top, low }) {
             return (
               <div key={r.id} data-av-row={r.rank} data-avg={r.avg} className="tt-av-row" style={{
                 '--i': i, position: 'relative', overflow: 'hidden', minWidth: 0, minHeight: 0, boxSizing: 'border-box', borderRadius: Math.min(20, rowH * 0.24),
-                display: 'grid', gridTemplateColumns: grid, gridTemplateRows: 'minmax(0, 1fr)', alignItems: 'center', columnGap: 12, padding: `0 ${portrait ? 14 : 16}px 0 ${s.showRank ? 12 : 22}px`,
+                display: 'grid', gridTemplateColumns: grid, gridTemplateRows: 'minmax(0, 1fr)', alignItems: 'center', columnGap: 10, padding: `0 14px 0 ${s.showRank ? 10 : 22}px`,
                 background: `linear-gradient(100deg, color-mix(in srgb, var(--accentText) ${Math.round(7 + 24 * t)}%, transparent), color-mix(in srgb, var(--ink) 5%, transparent) 62%, color-mix(in srgb, var(--accentText) ${Math.round(3 + 11 * t)}%, transparent))`,
                 border: `1.5px solid color-mix(in srgb, var(--accentText) ${Math.round(16 + 50 * t)}%, var(--line))`,
                 boxShadow: `inset 7px 0 0 color-mix(in srgb, var(--accentText) ${Math.round(34 + 66 * t)}%, transparent), inset 0 1.5px 0 color-mix(in srgb, var(--ink) 14%, transparent)`,
@@ -158,7 +165,7 @@ export function ListAct({ act, s, portrait, top, low }) {
                 {s.showRank ? <span className="tt-num" style={{ textAlign: 'center', fontFamily: F.en, fontSize: Math.round(rankW * (r.rank > 99 ? 0.4 : 0.5)), fontWeight: 800, lineHeight: 1, color: 'var(--accentText)', paddingLeft: 6 }}>{r.rank}</span> : null}
                 {s.showAvatars ? <Avatar name={r.name} id={r.id} size={av} /> : null}
                 <div style={{ alignSelf: 'stretch', minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: `${Math.round(rowH * 0.07)}px 0 ${Math.round(rowH * 0.1)}px` }}>
-                  <Fit wrap vcenter data-av-name="" max={nameMax} min={11} style={{ flex: '1 1 0', minHeight: 0, lineHeight: 1.14, fontFamily: F.en, fontWeight: 700, justifyContent: 'flex-start', textAlign: 'left' }}>{r.name}</Fit>
+                  <Fit wrap vcenter data-av-name="" max={nameMax} min={10} style={{ flex: '1 1 0', minHeight: 0, lineHeight: 1.14, fontFamily: F.en, fontWeight: 700, justifyContent: 'flex-start', textAlign: 'left', ...(LONG_WORD.test(r.name) ? { overflowWrap: 'anywhere' } : null) }}>{r.name}</Fit>
                   {sub ? <span data-av-meta="" style={{ flex: 'none', height: small * 1.25, lineHeight: 1.25, fontFamily: F.en, fontSize: small, fontWeight: 600, color: 'var(--inkDim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{meta}</span> : null}
                   {s.showMarks ? (
                     <span aria-hidden style={{ flex: 'none', position: 'relative', height: 5, marginTop: 4, borderRadius: 3, overflow: 'hidden', background: 'color-mix(in srgb, var(--ink) 12%, transparent)' }}>
@@ -167,7 +174,7 @@ export function ListAct({ act, s, portrait, top, low }) {
                   ) : null}
                 </div>
                 {s.showMarks || tiers ? (
-                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', minWidth: s.showMarks ? avgSize * (s.decimals ? 2.25 : 1.6) : 0 }}>
+                  <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', minWidth: s.showMarks ? avgSize * (s.decimals ? 2.1 : 1.5) : 0 }}>
                     {s.showMarks ? <span className="tt-num" data-av-avg="" style={{ fontFamily: F.en, fontSize: avgSize, fontWeight: 800, lineHeight: 1, letterSpacing: '-.02em', whiteSpace: 'nowrap' }}>{fmtAvg(r.avg, s.decimals)}</span> : null}
                     {tiers ? <span data-av-tier="" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, height: small * 1.3, marginTop: 2, fontFamily: F.en, fontSize: small, fontWeight: 700, lineHeight: 1, color: 'var(--accentText)', whiteSpace: 'nowrap' }}>{r.tier ? <><Star size={small} />{r.tier}</> : null}</span> : null}
                   </span>

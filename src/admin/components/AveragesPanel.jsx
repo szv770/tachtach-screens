@@ -170,7 +170,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
       {canEdit && (
         <div style={card} data-testid="avg-sheet">
           <h3 style={h3}>Link a Google Sheet</h3>
-          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Already have a sheet? Use it as it is: it needs a Name column (or First and Last) and either an Average column or one column per test. English or Hebrew headings both work, and title lines above the headings are fine. Press <strong>Check the sheet</strong> to see how it was understood before anything changes. Starting fresh? Use the template (File, Import, Upload).</p>
+          <p style={small}>Keep the scores in a Google Sheet and the screen follows it. Already have a sheet? Use it as it is: it needs a Name column (or First and Last) and either an Average column or one column per test. English or Hebrew headings both work, a date above each test column is fine, and title lines above the headings are fine. An empty cell or a 0 means the student did not take that test, so it is not counted. Press <strong>Check the sheet</strong> to see how it was understood before anything changes. Starting fresh? Use the template (File, Import, Upload).</p>
           <ol style={{ ...small, margin: '8px 0 0', paddingLeft: '20px' }}>
             <li>In the sheet, press <strong>Share</strong>. Add the people who will type scores as <strong>Editors</strong>.</li>
             <li>Under General access choose <strong>Anyone with the link</strong> and set it to <strong>Viewer</strong>. This is how the screen reads it. Anyone with the link can see the names and marks, so only share the link with staff.</li>
@@ -295,6 +295,7 @@ export default function AveragesPanel({ canEdit = true, slides = [], onUpdateSli
         <SwitchRow on={s.showGrade} onChange={() => saveSettings({ showGrade: !s.showGrade }, 'Saved')} label="Show the grade next to the name" />
         <SwitchRow on={s.showTests} onChange={() => saveSettings({ showTests: !s.showTests }, 'Saved')} label="Show how many tests each student took" />
         <SwitchRow on={s.showAvatars} onChange={() => saveSettings({ showAvatars: !s.showAvatars }, 'Saved')} label="Round initials beside each name" />
+        <SwitchRow on={s.zeroIsAbsent} onChange={() => saveSettings({ zeroIsAbsent: !s.zeroIsAbsent }, 'Saved')} label="A 0 means the student did not take that test" note="On: a 0 (or an empty cell) is left out of the average, so a test someone did not take never pulls them down. Off: a 0 counts as a real mark." testId="avg-zero-switch" />
         <Field label="Decimals"><Choices ariaLabel="Decimals" value={String(s.decimals)} onChange={(v) => saveSettings({ decimals: Number(v) }, 'Saved')} options={[{ value: '1', label: '94.5' }, { value: '0', label: '95' }]} /></Field>
 
         <h4 style={{ ...h3, fontSize: '15px', margin: '16px 0 2px' }}>Look and motion</h4>
