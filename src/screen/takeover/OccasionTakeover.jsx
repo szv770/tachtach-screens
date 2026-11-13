@@ -3,7 +3,7 @@ import { Panel, F } from '../design/ui.jsx';
 import { Fit } from '../design/fit.jsx';
 import { useDesign } from '../design/DesignRoot.jsx';
 import { layoutOf, lookOf, shows, numeralsStack } from '../design/useLayout.js';
-import { Label, HeroNum, TickLine, Backdrop, PhotoPane, PHOTO_SHARE, useBox, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, FitText, Kicker, SourceLine, READ } from '../components/slides/occasionParts.jsx';
+import { YearsBadge, Label, HeroNum, TickLine, Backdrop, PhotoPane, PHOTO_SHARE, useBox, SOFT_INK, LABEL_INK, ACC, useSmallAccent, WHY_LABEL, FitText, Kicker, SourceLine, READ } from '../components/slides/occasionParts.jsx';
 import { Confetti } from '../components/slides/BirthdaysSlide.jsx';
 import { textDir } from '../../shared/bidi.js';
 import { COPY, ZERO_WORDS, FAR_DAYS } from '../../shared/occasions.js';
@@ -153,6 +153,7 @@ function CountTk({ tk, now, L, portrait, font, tagline }) {
         <TkName name={tk.name} L={L} portrait center={center} />
         {number}
         {unitEl}
+        <YearsBadge years={tk.years} center={center} />
         {why && <WhyLine why={why} L={L} portrait center={center} />}
       </div>
     );
@@ -167,6 +168,7 @@ function CountTk({ tk, now, L, portrait, font, tagline }) {
             <span style={{ position: 'absolute', left: -1, top: 0, width: 4, height: 64, borderRadius: 2, background: 'var(--accentText)' }} />
           </span>
           {unitEl}
+          <YearsBadge years={tk.years} />
           <TkName name={tk.name} L={L} big />
           {why ? <WhyLine why={why} L={L} /> : <span />}
         </div>
@@ -199,6 +201,7 @@ function ZeroTk({ tk, L, portrait }) {
       {z.he && <Fit key={`zh|${z.he}|${portrait}`} className="tt-he tt-bd-hero" wrap vcenter dir="rtl" max={portrait ? 230 : 210} min={72} style={{ flex: 'none', width: '100%', height: portrait ? 340 : 250, overflow: 'visible', fontFamily: F.heD, fontWeight: 700, color: ACC, lineHeight: 1.25, textAlign: 'center' }}>{z.he}</Fit>}
       {z.en && <Fit key={`ze|${z.en}|${portrait}`} className="tt-bd-up" wrap vcenter max={portrait ? 120 : 104} min={48} style={{ '--t': '450ms', flex: 'none', width: '100%', height: portrait ? 200 : 140, overflow: 'visible', fontFamily: F.enD, fontWeight: z.he ? 400 : 700, color: z.he ? 'var(--ink)' : ACC, lineHeight: 1.1, textAlign: 'center' }}>{z.en}</Fit>}
       <div className="tt-bd-up" style={{ '--t': '800ms', width: '100%', flex: 'none' }}><TkName name={tk.name} L={L} portrait={portrait} center /></div>
+      <div className="tt-bd-up" style={{ '--t': '1100ms', flex: 'none' }}><YearsBadge years={tk.years} center /></div>
     </div>
   );
 }

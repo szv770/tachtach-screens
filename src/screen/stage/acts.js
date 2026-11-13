@@ -3,6 +3,7 @@
  * seconds each holds. The slide sums them and asks the rotation once for the total (onRequestDuration).
  *
  *   main   the hero: the big number + the name (or 'Today is' + the name on the day, the greeting at zero)
+ *   years  a milestone ('40 years', 'the 40th year'): the number set very large (only for a milestone; 10 s major, 7 s notable)
  *   facts  the day: when it is, its Hebrew date, when it begins, the event line (only when there is something to add)
  *   why    'Why we celebrate': the short sourced line, as a pull quote (a reveal act: the style may unroll it)
  *   step   the advent's 'Today's step' card (reveal act)
@@ -54,6 +55,7 @@ export function actsFor(row, opts = {}) {
   if (row.form === 'zero') return out;
   // every act after the hero is a REVEAL act: the style's reveal (the paper scroll) opens once after the hero, stays open
   // while the acts change on it, and closes once before the hero comes back
+  if (row.years?.tier && row.years.words) out.push({ id: 'years', secs: row.years.tier === 'major' ? 10 : 7, reveal: true });
   if (hasFacts(row, L)) out.push({ id: 'facts', secs: 8, reveal: true });
   if (hasText(row.why) && on(L, 'why')) out.push({ id: 'why', secs: readSecs(row.why, 8, 16), reveal: true });
   if (row.advent?.today) out.push({ id: 'step', ex: row.advent.today, secs: Math.max(12, readSecs(row.advent.today)), reveal: true });

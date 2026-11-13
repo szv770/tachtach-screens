@@ -520,3 +520,31 @@ export function TapPop({ x, y }) {
 /** Retired devices (the edge tick rows, the thin ring): kept as no-ops until every caller is moved to the Stage. */
 export const EdgeTicks = () => null;
 export const ThinRing = () => null;
+
+export const YEARS_HEAD = Object.freeze({ en: 'A milestone', he: 'ציון דרך' });
+
+/**
+ * The year seal of a milestone (a ring with the number, and the words beside it): 'years since' / 'entering the Nth year'.
+ * Flat: a ring, a number, two lines; the major tier has a second ring. Draws only for a milestone (years.tier and years.words).
+ */
+export function YearsBadge({ years, center = false, i = 3 }) {
+  const w = years?.words;
+  if (!years?.tier || !w) return null;
+  const major = years.tier === 'major';
+  const d = major ? 132 : 104;
+  const al = center ? 'center' : 'flex-start';
+  return (
+    <div data-s="" data-occ-years="" data-occ-years-tier={years.tier} style={{ '--i': i, flex: 'none', display: 'flex', alignItems: 'center', justifyContent: al, gap: 20, minWidth: 0 }}>
+      <div aria-hidden style={{
+        flex: 'none', width: d, height: d, borderRadius: '50%', display: 'grid', placeItems: 'center',
+        border: `${major ? 4 : 3}px solid var(--accentText)`, boxShadow: major ? '0 0 0 6px var(--bg), 0 0 0 9px var(--accentText)' : 'none',
+        fontFamily: F.enD, fontWeight: 800, fontSize: major ? (String(w.big).length > 3 ? 40 : 56) : 44, color: 'var(--ink)', fontVariantNumeric: 'lining-nums', lineHeight: 1, letterSpacing: '-.03em',
+      }}>{w.big}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: center ? 'center' : 'flex-start', minWidth: 0 }}>
+        <Label en={w.kicker?.en || ''} heText={w.kicker?.he || ''} color={ACC} size={22} style={{ justifyContent: al }} />
+        <Label en={w.line?.en || ''} heText={w.line?.he || ''} color={SOFT_INK} size={34} style={{ justifyContent: al }} />
+      </div>
+    </div>
+  );
+}
+

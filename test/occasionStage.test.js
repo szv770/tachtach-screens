@@ -92,3 +92,15 @@ test('motifs stay faithful: the menorah (chanukah style) only ever belongs to Ch
     assert.ok(o && o.style === 'chassidic', `${k} uses the chassidic (single light) style`);
   }
 });
+
+test('a milestone adds a years act right after the hero; an ordinary year and a plain day do not', async () => {
+  const { actsFor } = await import('../src/screen/stage/acts.js');
+  const row = (years) => ({ form: 'days', years, dates: { day: { en: 'Tuesday, Dec 15' } }, why: null, explain: null });
+  const major = actsFor(row({ tier: 'major', words: { big: '40' } }), { cycleSeconds: 10 });
+  assert.deepEqual(major.map((a) => a.id).slice(0, 3), ['main', 'years', 'facts']); assert.equal(major[1].secs >= 10, true);
+  const notable = actsFor(row({ tier: 'notable', words: { big: '30' } }), { cycleSeconds: 10 });
+  assert.equal(notable[1].id, 'years');
+  assert.deepEqual(actsFor(row({ tier: null, words: null }), { cycleSeconds: 10 }).map((a) => a.id), ['main', 'facts']);
+  assert.deepEqual(actsFor(row(null), { cycleSeconds: 10 }).map((a) => a.id), ['main', 'facts']);
+  assert.deepEqual(actsFor({ ...row({ tier: 'major', words: { big: '40' } }), form: 'zero' }, { cycleSeconds: 10 }).map((a) => a.id), ['main'], 'at zero only the hero (the greeting)');
+});

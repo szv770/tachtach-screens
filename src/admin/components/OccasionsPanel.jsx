@@ -5,6 +5,7 @@ import Sheet from './ui/Sheet.jsx';
 import { Field, Hint, SwitchRow, Choices, fieldStyle } from './look/kit.jsx';
 import { btn, card, h3, small, label, Select, TextIn, Chip, Group } from './occasions/occKit.jsx';
 import ExplainBox from './occasions/ExplainBox.jsx';
+import { BigSmallField, SinceField, YearVorts } from './occasions/MilestoneSection.jsx';
 import { HypeGlobal, HypeOwn } from './occasions/HypeSection.jsx';
 import { WordsEditor } from './occasions/WordsSection.jsx';
 import { LookEditor, DisplayField, StageStyleField, HypeField } from './occasions/LookSection.jsx';
@@ -55,7 +56,7 @@ const emptyDraft = () => ({
   on: true, nameEn: '', nameHe: '', rule: { kind: 'hebrew', month: 9, day: 19 }, repeat: 'yearly', year: '', days: 1, adar: 'adar2', missing30: '29',
   beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', category: 'custom', tapForms: null, autoForms: null, source: '', eventEn: '', eventHe: '',
   zeroKey: 'gutYomTov', zeroEn: '', zeroHe: '', celebrate: true, rail: true, banner: true, takeover: true, style: 'hype',
-  explainChecked: false, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
+  explainChecked: false, since: null, big: true, yearVorts: {}, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
   kind: 'countdown', from: null, total: 8, display: null, stageStyle: null, hype: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
 });
 
@@ -118,6 +119,8 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
           <Field label="Which kind of day" style={{ marginTop: 0 }}>
             <Select ariaLabel="Which kind of day" testId="occ-category" value={d.category || 'custom'} onChange={(v) => set({ category: v })} options={CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABEL[c] }))} />
           </Field>
+          <BigSmallField d={d} set={set} />
+          {!countup && <SinceField d={d} set={set} next={next} />}
           {countup ? (
             <>
               <Field label="The run starts on" style={{ marginTop: 0 }}>
@@ -144,6 +147,7 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
         <Step n={2} title="What the bochurim see" testId="occ-step-2">
           <p style={{ ...small, margin: '-6px 0 0' }}>The name and the dates always show. Here you can add why the day is special and why we celebrate it: a short line for the screen and the whole story, with the source.</p>
           <ExplainBox d={d} set={set} copyPrompt={() => copy(vortPrompt(next, d.nameEn || d.nameHe), 'Prompt copied')} />
+          {!countup && <YearVorts d={d} set={set} next={next} copy={copy} />}
         </Step>
 
         <Step n={3} title="Countdown options" testId="occ-step-3">
@@ -363,11 +367,11 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         <SwitchRow on={s.hebrewDate} onChange={() => saveSettings({ hebrewDate: !s.hebrewDate }, s.hebrewDate ? 'Hebrew date hidden' : 'Hebrew date shown')} label="Show the Hebrew date" />
         <SwitchRow on={s.civilDate} onChange={() => saveSettings({ civilDate: !s.civilDate }, s.civilDate ? 'Date hidden' : 'Date shown')} label="Show the regular date" />
         <SwitchRow on={s.seconds} onChange={() => saveSettings({ seconds: !s.seconds }, s.seconds ? 'Seconds off' : 'Seconds on')} label="Seconds in the last hour (12:07)" note="Off: whole minutes only. With approximate times there are never seconds." />
-        <SwitchRow on={s.comingUp} onChange={() => saveSettings({ comingUp: !s.comingUp }, s.comingUp ? 'Coming up hidden' : 'Coming up shown')} label="'Coming up' strip with the next ones" />
+        <SwitchRow on={s.comingUp} onChange={() => saveSettings({ comingUp: !s.comingUp }, s.comingUp ? 'Coming up hidden' : 'Coming up shown')} label="'Coming up' strip: every date inside the days below (up to the count), or just the next one when it is quiet" />
         {s.comingUp && (
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <Field label="How many"><NumberField value={s.comingUpCount} min={RANGES.comingUpCount.min} max={RANGES.comingUpCount.max} onCommit={(n) => saveSettings({ comingUpCount: n }, `${n} coming up`)} ariaLabel="How many coming up" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-            <Field label="Within days"><NumberField value={s.comingUpDays} min={RANGES.comingUpDays.min} max={RANGES.comingUpDays.max} onCommit={(n) => saveSettings({ comingUpDays: n }, `Coming up within ${n} days`)} ariaLabel="Coming up within days" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
+            <Field label="Counts as busy within (days)"><NumberField value={s.comingUpDays} min={RANGES.comingUpDays.min} max={RANGES.comingUpDays.max} onCommit={(n) => saveSettings({ comingUpDays: n }, `Coming up within ${n} days`)} ariaLabel="Coming up within days" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
           </div>
         )}
         <SwitchRow on={s.celebrate} onChange={() => saveSettings({ celebrate: !s.celebrate }, s.celebrate ? 'Confetti off' : 'Confetti on')} label="Confetti at the moment it begins" note="Falls once and is gone; never on Minimal motion. Each occasion can turn it off for itself." />

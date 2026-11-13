@@ -72,7 +72,7 @@ export const TAP_FORM_EXAMPLE = Object.freeze({ days: '20 days', daysFraction: '
 export const DEFAULT_TAP_FORMS = Object.freeze(['days', 'daysFraction', 'hours', 'flip']);
 export const AUTO_DEFAULTS = Object.freeze({ on: false, seconds: 15 });
 export const PICKS = Object.freeze(['nearest', 'pinned', 'cycle']);
-export const PICK_LABEL = Object.freeze({ nearest: 'The nearest one', pinned: 'One I choose', cycle: 'A few, taking turns' });
+export const PICK_LABEL = Object.freeze({ nearest: 'The nearest big day (automatic)', pinned: 'The big one I choose (while it is close)', cycle: 'A few big days, taking turns' });
 export const LANGS = Object.freeze(['both', 'hebrew', 'english']);
 export const LANG_LABEL = Object.freeze({ both: 'Hebrew and English', hebrew: 'Hebrew only', english: 'English only' });
 export const RANGES = Object.freeze({
@@ -1533,7 +1533,7 @@ export function heroModel(row, now, ctx) {
     layout: resolveOccLayout(s, o),
     display: o.display || s.display || 'classic',
     stageStyle: stageStyleOf(o.stageStyle || s.stageStyle),
-    hype: years?.tier === 'major' ? 'maximum' : (o.hype || s.hype || DEFAULT_HYPE), // a major milestone always gets the full treatment
+    hype: years?.tier === 'major' ? 'max' : (o.hype || s.hype || DEFAULT_HYPE), // a major milestone always gets the full treatment
     kind: o.kind === 'countup' ? 'countup' : 'countdown',
     run: o.kind === 'countup' ? runOf(row, now, { ...ctx, settings: s, today }, pickLang) : null,
     advent: adventOf(row, now, c, s, today, daysLeft, pickLang),
@@ -1733,7 +1733,7 @@ export function takeoverFor(file, now, ctx) {
   const o = r.occasion;
   const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
   const yrs = yearsOfRow(r, s, pickLang);
-  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, years: yrs, hype: yrs?.tier === 'major' ? 'maximum' : (o.hype || s.hype || DEFAULT_HYPE), look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, years: yrs, hype: yrs?.tier === 'major' ? 'max' : (o.hype || s.hype || DEFAULT_HYPE), look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
     // the same clear dates + short 'why' as a slide row (the kiosk takeover shows the quiet why line and 'until it begins')
     dates: datesOf(r, today, tz, pickLang), why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null };
   const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });

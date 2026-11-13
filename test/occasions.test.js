@@ -964,7 +964,7 @@ test('years on the slide: 40 years since Hey Teves 5747 is a major milestone wit
   const hey = { id: 'hey', nameEn: 'Hey Teves', rule: { kind: 'hebrew', month: 10, day: 5 }, since: { year: 5747 }, hype: 'calm' };
   const m = O.slideModel(file([hey]), at('2026-12-10T15:00:00Z'), NY).rows[0];
   assert.equal(m.years.completed, 40); assert.equal(m.years.tier, 'major'); assert.equal(m.years.words.big, '40');
-  assert.equal(m.years.words.line.en, '40 years'); assert.equal(m.hype, 'maximum', 'a major milestone overrides a calm setting');
+  assert.equal(m.years.words.line.en, '40 years'); assert.equal(m.hype, 'max', 'a major milestone overrides a calm setting');
   assert.match(m.explain.en, /forty years/i); assert.match(m.explain.source, /Avodah Zarah 5b/, 'the built-in vort carries its source');
   // an occasion with its own text for 40 uses it
   const own = O.slideModel(file([{ ...hey, yearVorts: { 40: { en: 'The Rebbe said ...', he: '', source: 'Sicha X' } } }]), at('2026-12-10T15:00:00Z'), NY).rows[0];
@@ -984,7 +984,7 @@ test('a major milestone has many more takeover moments on the way (100, 60, 30 .
   const start = O.upcoming(file([hey]), at('2026-09-06T15:00:00Z'), NY)[0].startISO;
   const hundredBefore = (() => { const [y, m, dd] = start.split('-').map(Number); const dt = new Date(Date.UTC(y, m - 1, dd - 100, 11, 0, 0)); return dt.toISOString(); })();
   const major = t(hundredBefore);
-  assert.ok(major && major.kind === 'milestone' && major.years.n === 40 && major.hype === 'maximum', 'a major milestone has a moment at 100 days');
+  assert.ok(major && major.kind === 'milestone' && major.years.n === 40 && major.hype === 'max', 'a major milestone has a moment at 100 days');
   assert.equal(t(hundredBefore, { ...hey, since: { year: 5750 } }), null, 'an ordinary year has none at 100 days');
 });
 

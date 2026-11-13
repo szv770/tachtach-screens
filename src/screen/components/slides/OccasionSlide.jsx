@@ -3,7 +3,7 @@ import { Panel, F, he, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { layoutOf, lookOf, orderedBlocks, shows, scaled, numeralsStack } from '../../design/useLayout.js';
-import { Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, inLang, primary, FORM_COPY, Kicker, ActHead, SourceLine, StoryText, PageDots, READ, FormDots, daysAndFraction, whenOnly, useNumMetrics, Digits, SUFFIX_STYLE } from './occasionParts.jsx';
+import { YearsBadge, YEARS_HEAD, Label, BigNum, Backdrop, PhotoPane, PHOTO_SHARE, TickLine, TapPop, LABEL_INK, SOFT_INK, ACC, useSmallAccent, WHY_LABEL, inLang, primary, FORM_COPY, Kicker, ActHead, SourceLine, StoryText, PageDots, READ, FormDots, daysAndFraction, whenOnly, useNumMetrics, Digits, SUFFIX_STYLE } from './occasionParts.jsx';
 import { Confetti } from './BirthdaysSlide.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { slideModel, ctxFrom, COPY, FAR_DAYS } from '../../../shared/occasions.js';
@@ -419,6 +419,36 @@ function FactsAct({ m, L, lang, portrait, long }) {
         {top.length > 0 && <div data-occ-date="" style={grid(top.length)}>{top.map((c, i) => <FactCell key={i} {...c} label={{ en: '', he: '' }} big k={k} i={i + 1} />)}</div>}
         {top.length > 0 && low.length > 0 && <span aria-hidden data-s="" style={{ '--i': 3, flex: 'none', height: 2, background: 'var(--line)' }} />}
         {low.length > 0 && <div style={grid(low.length)}>{low.map((c, i) => <FactCell key={i} {...c} k={k} i={i + 3} />)}</div>}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The milestone act ('40 years', 'the 40th year'): the number set very large with its Hebrew letters and words. Comes right after the
+ * hero for a milestone (7-10 seconds); the story act that follows carries its vort.
+ */
+function YearsAct({ m, L, lang, portrait, long }) {
+  const y = m.years; const w = y?.words;
+  if (!y?.tier || !w) return null;
+  const major = y.tier === 'major';
+  const kick = inLang(w.kicker, lang); const line = inLang(w.line, lang);
+  const rtl = lang === 'hebrew';
+  return (
+    <div data-occ-col="" data-occ-years-act="" data-occ-block="years" data-occ-years-tier={y.tier} style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: portrait ? 24 : 18 }}>
+      <ActHead en={rtl ? '' : YEARS_HEAD.en} heText={rtl ? YEARS_HEAD.he : ''} />
+      {long && shows(L, 'actName') && <NameLine name={m.name} L={L} lang={lang} compact />}
+      <div data-occ-col="" style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'safe center', gap: portrait ? 16 : 10, textAlign: 'center' }}>
+        {hasText(kick) && <div data-s="" style={{ '--i': 1, flex: 'none' }}><Label en={kick.en} heText={kick.he} color={ACC} size={major ? 34 : 28} style={{ justifyContent: 'center' }} /></div>}
+        <Fit key={`yn|${m.key}|${w.big}|${portrait}`} data-s="" vcenter max={major ? (portrait ? 330 : 250) : (portrait ? 210 : 200)} min={100} style={{
+          '--i': 2, flex: 'none', width: '100%', height: major ? (portrait ? 380 : 270) : (portrait ? 250 : 210), display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: F.enD, fontWeight: 800, color: 'var(--ink)', lineHeight: 1, letterSpacing: '-.04em', fontVariantNumeric: 'lining-nums',
+        }}>{w.big}</Fit>
+        {/* the Hebrew letters and the words share one row on a wide screen (the paper is short there) */}
+        <div style={{ flex: 'none', display: 'flex', flexDirection: portrait ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: portrait ? 6 : 36 }}>
+          {lang !== 'english' && w.letters && <div data-s="" className="tt-he" dir="rtl" style={{ '--i': 3, flex: 'none', fontFamily: F.heD, fontWeight: 700, fontSize: Math.round((major ? 76 : 60) * (L.k || 1)), color: ACC, lineHeight: 1.1 }}>{w.letters}</div>}
+          {hasText(line) && <div data-s="" dir={line.en ? 'ltr' : 'rtl'} className={line.en ? undefined : 'tt-he'} style={{ '--i': 4, flex: 'none', fontFamily: line.en ? F.enD : F.heD, fontWeight: 500, fontSize: Math.round((portrait ? 44 : 48) * (L.k || 1)), color: SOFT_INK, lineHeight: 1.15 }}>{line.en || line.he}</div>}
+        </div>
       </div>
     </div>
   );
@@ -870,6 +900,7 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
 
   const holdMs = Math.max(4000, (cur.secs || 10) * 1000 - (cur.reveal ? recipe.reveal.open + recipe.reveal.close : 0) - 600);
   const renderAct = (geo) => {
+    if (cur.view === 'years') return <YearsAct m={m} L={L} lang={lang} portrait={portrait} long={long} />;
     if (cur.view === 'facts') return <FactsAct m={m} L={L} lang={lang} portrait={portrait} long={long} />;
     if (cur.view === 'why') return <WhyAct m={m} L={L} lang={lang} portrait={portrait} long={long} holdMs={holdMs} />;
     if (cur.view === 'vort') return <VortAct m={m} ex={cur.ex} L={L} lang={lang} portrait={portrait} long={long} holdMs={holdMs} />;
