@@ -40,15 +40,12 @@ test('follow the default: layout, look and lines drop a field instead of writing
 
 test('explanation chip and the auto un-check on edits', () => {
   assert.deepEqual(H.explainChip({}), { text: 'No explanation', tone: 'none' });
-  assert.equal(H.explainChip({ explainEn: 'x', source: '' }).text, 'Needs checking');
-  assert.equal(H.explainChip({ explainEn: 'x', source: 'abc' }).text, 'Needs checking');
-  assert.deepEqual(H.explainChip({ explainEn: 'x', source: 'abc', explainChecked: true }), { text: 'Shows on the screen', tone: 'ok' });
+  assert.deepEqual(H.explainChip({ explainEn: 'x', source: '' }), { text: 'Shows (no source listed)', tone: 'ok' });
+  assert.deepEqual(H.explainChip({ explainEn: 'x', source: 'abc' }), { text: 'Shows on the screen', tone: 'ok' });
   const d = { explainEn: 'a', explainHe: '', source: 'abc', explainChecked: true };
-  assert.deepEqual(H.onExplainEdit(d, { explainEn: 'a' }), { explainEn: 'a' }, 'same text: still checked');
-  assert.deepEqual(H.onExplainEdit(d, { explainEn: 'b' }), { explainEn: 'b', explainChecked: false });
-  assert.equal(H.onExplainEdit(d, { source: 'abd' }).explainChecked, false);
-  assert.equal(H.onCardEdit({ en: 'a', source: 'abc', checked: true }, { en: 'b' }).checked, false);
-  assert.equal(H.onCardEdit({ en: 'a', source: 'abc', checked: true }, { photo: '/uploads/x' }).checked, true);
+  assert.deepEqual(H.onExplainEdit(d, { explainEn: 'b' }), { explainEn: 'b' }, 'editing never switches anything off');
+  assert.deepEqual(H.onExplainEdit(d, { source: 'abd' }), { source: 'abd' });
+  assert.equal(H.onCardEdit({ en: 'a', source: 'abc', checked: true }, { en: 'b' }).checked, true);
 });
 
 test('advent days list, test moments and the tile preview', () => {

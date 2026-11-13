@@ -192,7 +192,7 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
           {next && (
             <div>
               <button type="button" style={btn(false)} onClick={() => copy(shareFor(next, settings, ctxNow), 'Copied. Paste it into WhatsApp.')} data-testid="occ-share">Copy for WhatsApp</button>
-              <Hint>A message with the countdown, the day, the Hebrew date and when it begins{`${d.explainChecked ? ', and the short line about why it is special' : ''}`}.</Hint>
+              <Hint>A message with the countdown, the day, the Hebrew date and when it begins{`${d.explainShortEn || d.explainShortHe ? ', and the short line about why it is special' : ''}`}.</Hint>
             </div>
           )}
         </Step>

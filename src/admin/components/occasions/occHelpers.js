@@ -61,18 +61,15 @@ export function withLine(map, key, value) {
 /** The chip for an occasion's explanation: { text, tone: 'none'|'warn'|'ok' }. */
 export function explainChip(o) {
   const st = explainState(o);
-  return st === 'none' ? { text: 'No explanation', tone: 'none' } : st === 'shows' ? { text: 'Shows on the screen', tone: 'ok' } : { text: 'Needs checking', tone: 'warn' };
+  return st === 'none' ? { text: 'No explanation', tone: 'none' } : st === 'shows' ? { text: 'Shows on the screen', tone: 'ok' } : { text: 'Shows (no source listed)', tone: 'ok' };
 }
 
-/** What the draft's text change does to the 'checked' switch: any change to text or source switches it off. */
-export function onExplainEdit(draft, patch) {
-  const changed = ['explainEn', 'explainHe', 'explainShortEn', 'explainShortHe', 'source'].some((k) => k in patch && String(patch[k] ?? '') !== String(draft[k] ?? ''));
-  return changed ? { ...patch, explainChecked: false } : patch;
-}
+/** An edit to the explanation text or source is just saved: nothing is switched off any more (owner 2026-11-13: no lock). */
+export function onExplainEdit(draft, patch) { void draft; return patch; }
 /** The same for one advent daily card. */
 export function onCardEdit(card, patch) {
   const changed = ['en', 'he', 'source'].some((k) => k in patch && String(patch[k] ?? '') !== String(card?.[k] ?? ''));
-  return { ...(card || {}), ...patch, ...(changed && !('checked' in patch) ? { checked: false } : {}) };
+  return { ...(card || {}), ...patch };
 }
 
 /** Day counts that can have a daily card: 1 .. lead-up (at most 60, nearest first) as { n, label }. */

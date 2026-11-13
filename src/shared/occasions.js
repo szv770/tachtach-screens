@@ -397,7 +397,7 @@ export function normalizeAdvent(raw) {
   return { on: r.on === true, photo: typeof r.photo === 'string' && PHOTO_URL.test(r.photo) ? r.photo : '', grid: GRIDS[r.grid] ? r.grid : '3x3', daily };
 }
 /** A daily card shows its TEXT only with a source and the admin's check (like an explanation); a photo needs neither. */
-export const dailyTextShows = (c) => !!(c && (c.en || c.he) && String(c.source || '').trim().length >= 3 && c.checked === true);
+export const dailyTextShows = (c) => !!(c && (c.en || c.he)); // shows whenever there is text (no source / check lock, owner 2026-11-13)
 export function advProblem(raw) {
   if (!isObj(raw)) return 'The advent calendar is not valid.';
   for (const [k, v] of Object.entries(raw)) {
@@ -743,30 +743,25 @@ const hasShort = (o) => !!(o && (String(o.explainShortEn || '').trim() || String
 /** Is there any explanation text at all (the long story or the short line)? */
 export const hasExplainText = (o) => hasLong(o) || hasShort(o);
 /**
- * Does the explanation show on the screen? Only with text AND a source AND the admin's explicit 'I checked this with the
- * source' (owner rule 2026-11: every explanation is verified before it is public). Existing explanations stored before
- * `explainChecked` existed are therefore hidden until someone checks them.
- * The long story (`explainShows`) and the one-line 'why it's special' (`whyShows`) share the SAME source and the SAME check.
+ * Does the explanation show on the screen? Whenever there is text. (Owner 2026-11-13: the earlier rule that it needed a
+ * source AND an 'I checked this' tick locked the owner out of his own screen. He edits what he does not like. A source,
+ * when there is one, is still printed under it; the admin just sees a quiet 'no source listed' note.)
  */
-export const explainShows = (o) => hasLong(o) && hasSource(o) && o.explainChecked === true;
-export const whyShows = (o) => hasShort(o) && hasSource(o) && o.explainChecked === true;
+export const explainShows = (o) => hasLong(o);
+export const whyShows = (o) => hasShort(o);
 /** Either text may show (what the server keeps in the copies that leave it). */
-export const anyExplainShows = (o) => hasExplainText(o) && hasSource(o) && o.explainChecked === true;
-/** 'none' (no text) | 'needsSource' | 'needsCheck' (has a source, not checked) | 'shows'. For the admin's state chip. */
+export const anyExplainShows = (o) => hasExplainText(o);
+/** 'none' (no text) | 'noSource' (shows, no source listed) | 'shows'. For the admin's state chip. */
 export function explainState(o) {
   if (!hasExplainText(o)) return 'none';
-  if (!hasSource(o)) return 'needsSource';
-  return o.explainChecked === true ? 'shows' : 'needsCheck';
+  return hasSource(o) ? 'shows' : 'noSource';
 }
 export const EXPLAIN_CHIP = Object.freeze({
-  none: 'No explanation', needsSource: 'Needs checking', needsCheck: 'Needs checking', shows: 'Shows on the screen',
+  none: 'No explanation', noSource: 'Shows (no source listed)', shows: 'Shows on the screen',
 });
-/** Why an explanation is hidden (plain English for the edit sheet); '' when it shows or there is none. */
+/** A quiet note for the edit sheet (never blocks anything); '' when there is nothing to say. */
 export function explainWhy(o) {
-  const st = explainState(o);
-  if (st === 'needsSource') return 'Hidden: add the source, then check it against the source.';
-  if (st === 'needsCheck') return 'Hidden until you check it: open the source, compare, and switch on "I checked this with the source".';
-  return '';
+  return explainState(o) === 'noSource' ? 'Shows on the screen. No source is listed, so nothing is printed under it.' : '';
 }
 /** A URL inside the source text (first http/https link), or '' (for the admin's 'Open source' helper). Never shown on the kiosk. */
 export function sourceUrl(src) {
@@ -802,7 +797,7 @@ export function updateOccasion(file, id, patch) {
       const was = cur.advent?.daily?.[k];
       const t = (x) => String(x ?? '').trim();
       const changed = !was || t(c?.en) !== t(was.en) || t(c?.he) !== t(was.he) || t(c?.source) !== t(was.source);
-      daily[k] = isObj(c) ? { ...c, checked: changed && c.checked !== true ? false : c.checked } : c;
+      daily[k] = isObj(c) ? { ...c, checked: changed && c.checked !== true ? false : c.checked } : c; // 'checked' is only a note now: it never hides the text
     }
     merged.advent = { ...pt.advent, daily };
   }
@@ -1111,8 +1106,24 @@ function upcomingRaw(file, now, ctx, { horizonDays = 400, includeOff = false } =
   return out;
 }
 
-/** Whole calendar days from `today` to the civil date a row begins on (0 = it begins today). */
+/**
+ * Whole calendar days from `today` to the DAY ITSELF (the civil date of its first day), the way people count:
+ * on Beis Kislev, Yud Kislev is 8 days away. (It BEGINS the evening before, at shkia, which is why the last 24 hours
+ * read as hours until it begins.) 0 = the day is today.
+ */
 export function daysUntil(row, today) {
+  return fixedFromISO(dayISOOf(row)) - fixedFromISO(today);
+}
+
+/** The civil date of a row's first day (a row built without startISO: the evening it begins + 1, or the date itself at midnight). */
+function dayISOOf(row) {
+  if (row.startISO) return row.startISO;
+  const b = row.begin || {};
+  return b.evening ? addDaysISO(b.dateISO, 1) : b.dateISO;
+}
+
+/** Whole calendar days from `today` to the civil date a row BEGINS on (the evening before the day). */
+export function daysUntilBegin(row, today) {
   return fixedFromISO(row.begin.dateISO) - fixedFromISO(today);
 }
 
@@ -1126,7 +1137,7 @@ export const visibleRows = (rows, s) => rows.filter((r) => categoryShown(r.occas
 /**
  * What the slide shows: { mode, rows (hero first), coming }.
  * nearest: a running one first (the latest to begin), else the soonest inside its window.
- * pinned:  the pinned occasion whatever the distance (falls back to nearest when it is off or gone).
+ * pinned:  the pinned occasion while it is running or inside its window (falls back to nearest when it is off, gone or far).
  * cycle:   up to cycleCount inside their windows (running ones first), taking turns.
  */
 export function pickFor(file, now, ctx) {
@@ -1138,8 +1149,11 @@ export function pickFor(file, now, ctx) {
   const inWindow = all.filter((r) => !r.running && daysUntil(r, today) <= windowDays(r, s));
   let rows = [];
   if (s.pick === 'pinned' && s.pinnedId) {
+    // 'One I choose' shows while it is running or inside its lead-up window. Once it has passed, its NEXT year is hundreds of
+    // days away ('Rosh Chodesh Kislev, 5788, 365 days'): that is not a countdown anybody wants, so the screen goes back to the
+    // automatic choice until the chosen one is close again.
     const p = all.find((r) => r.id === s.pinnedId);
-    if (p) rows = [p];
+    if (p && (p.running || daysUntil(p, today) <= windowDays(p, s))) rows = [p];
   }
   if (!rows.length) {
     const ordered = [...running, ...inWindow];
@@ -1181,12 +1195,14 @@ export function countdownOf(row, now, settings, today) {
   }
   const secs = Math.floor((row.begin.ms - t) / 1000);
   const whole = Math.floor(secs / 86400);
+  // The number is calendar days to the DAY ITSELF (Beis Kislev -> Yud Kislev = 8), not the elapsed time to the evening
+  // it begins (7 days and some hours). The last 24 hours before it begins read as hours.
+  const dayCount = daysUntil(row, today || zonedParts(now, DEFAULT_TZ).date);
   if (whole > FAR_DAYS) {
     const lead = windowDays(row, s);
-    const days = daysUntil(row, today || zonedParts(now, DEFAULT_TZ).date);
-    return { form: 'far', approx, days, fraction: lead > 0 ? Math.max(0, Math.min(1, 1 - days / lead)) : 0, lead };
+    return { form: 'far', approx, days: dayCount, fraction: lead > 0 ? Math.max(0, Math.min(1, 1 - dayCount / lead)) : 0, lead };
   }
-  if (whole >= 1) return { form: 'days', approx, days: whole, hours: Math.floor((secs % 86400) / 3600) };
+  if (whole >= 1) return { form: 'days', approx, days: Math.max(1, dayCount), hours: Math.floor((secs % 86400) / 3600) };
   if (secs >= 3600) return { form: 'hours', approx, hours: Math.floor(secs / 3600), minutes: Math.floor((secs % 3600) / 60) };
   if (approx) return { form: 'minutes', approx, minutes: Math.max(1, Math.ceil(secs / 60)), seconds: null };
   return { form: 'minutes', approx, minutes: Math.floor(secs / 60), seconds: secs % 60, ticking: s.seconds };
@@ -1205,7 +1221,8 @@ export function countdownWords(c) {
     case 'far': return { big: String(c.days), unit: { en: `${plural(c.days, T.day.en, T.days.en)} ${T.toGo.en}`, he: `${T.toGo.he} ${plural(c.days, T.day.he, T.days.he)}` }, sub: null };
     case 'days': return {
       big: String(c.days), unit: { en: plural(c.days, T.day.en, T.days.en), he: plural(c.days, T.day.he, T.days.he) },
-      sub: c.hours ? { en: `${T.and.en} ${tilde}${c.hours} ${plural(c.hours, T.hour.en, T.hours.en)}`, he: `${T.and.he}־${tilde}${c.hours} ${plural(c.hours, T.hour.he, T.hours.he)}` } : null,
+      // the number is days to the DAY itself, so an 'and N hours' would disagree with it: the 'Begins ... evening' line says when
+      sub: null,
     };
     case 'hours': return c.approx
       ? { big: `~${c.hours}`, unit: { en: plural(c.hours, T.hour.en, T.hours.en), he: plural(c.hours, T.hour.he, T.hours.he) }, sub: null }
@@ -1297,9 +1314,11 @@ export function datesOf(row, today, tz, pickLang = (x) => x) {
 /** 'in 12 days' / 'tomorrow evening' / 'tonight' / 'now' for the coming-up strip and the rail card. */
 export function whenShort(row, today, now) {
   if (now && now.getTime() >= row.begin.ms) return COPY.nowShort;
+  // 'tonight' / 'tomorrow evening' are about WHEN IT BEGINS; 'in N days' counts to the day itself
+  const b = daysUntilBegin(row, today);
+  if (b <= 0) return row.begin.evening ? COPY.tonightShort : COPY.todayShort;
+  if (b === 1) return row.begin.evening ? COPY.tomorrowEve : COPY.tomorrow;
   const d = daysUntil(row, today);
-  if (d <= 0) return row.begin.evening ? COPY.tonightShort : COPY.todayShort;
-  if (d === 1) return row.begin.evening ? COPY.tomorrowEve : COPY.tomorrow;
   return { en: COPY.inDays.en.replace('{n}', d), he: COPY.inDays.he.replace('{n}', d) };
 }
 
@@ -1508,11 +1527,11 @@ export function occasionItems(file, now, ctx, { slideOn = false } = {}) {
   if (s.rail) {
     const r = rows.find((x) => !x.running && x.occasion.rail !== false && daysUntil(x, today) <= s.railDays);
     if (r) {
-      const d = daysUntil(r, today);
+      const d = daysUntil(r, today); const bd = daysUntilBegin(r, today);
       const nm = r.nameEn || r.nameHe; const nmHe = r.nameHe;
       let headlineEn; let headlineHe;
-      if (d <= 0) { headlineEn = `${r.begin.evening ? 'Tonight' : 'Today'}: ${nm}`; headlineHe = nmHe ? `${r.begin.evening ? 'הערב' : 'היום'}: ${nmHe}` : ''; }
-      else if (d === 1) { headlineEn = `${r.begin.evening ? 'Tomorrow evening' : 'Tomorrow'}: ${nm}`; headlineHe = nmHe ? `${r.begin.evening ? 'מחר בערב' : 'מחר'}: ${nmHe}` : ''; }
+      if (bd <= 0) { headlineEn = `${r.begin.evening ? 'Tonight' : 'Today'}: ${nm}`; headlineHe = nmHe ? `${r.begin.evening ? 'הערב' : 'היום'}: ${nmHe}` : ''; }
+      else if (bd === 1) { headlineEn = `${r.begin.evening ? 'Tomorrow evening' : 'Tomorrow'}: ${nm}`; headlineHe = nmHe ? `${r.begin.evening ? 'מחר בערב' : 'מחר'}: ${nmHe}` : ''; }
       else { headlineEn = `${d} days to ${nm}`; headlineHe = nmHe ? `עוד ${d} ימים ל${nmHe}` : ''; }
       out.push({
         ...baseItem(`auto-occasion-${r.id}-note`, r.begin.ms), display: 'note',

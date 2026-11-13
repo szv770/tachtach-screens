@@ -168,20 +168,16 @@ test('hype / words / look / layout over the routes: saved, refused when strict, 
 
   // the checked rule over the routes + what the kiosk / live copies carry
   r = await call('PUT', `/occasions/${id}`, { occasion: { explainEn: 'DRAFT-WORDS', source: 'chabad.org/a' } });
-  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, false);
   let ev = events.slice(-1)[0];
-  assert.ok(!ev.includes('DRAFT-WORDS'), 'an unchecked explanation is not broadcast');
-  r = await call('PUT', `/occasions/${id}`, { occasion: { explainChecked: true } });
-  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, true);
-  assert.ok(events.slice(-1)[0].includes('DRAFT-WORDS'), 'checked: it shows, so it is in the kiosk copy');
+  assert.ok(ev.includes('DRAFT-WORDS'), 'no check needed: the explanation is in the kiosk copy at once');
   r = await call('PUT', `/occasions/${id}`, { occasion: { source: 'chabad.org/b' } });
-  assert.equal(r.json.occasions.find((x) => x.id === id).explainChecked, false, 'editing the source un-checks it');
-  assert.equal((await call('PUT', `/occasions/${id}`, { occasion: { explainChecked: 'yes' } })).status, 400);
+  assert.equal(r.status, 200);
+  assert.equal((await call('PUT', `/occasions/${id}`, { occasion: { explainChecked: 'yes' } })).status, 400, 'junk is still refused');
   const { occasionsForKiosk } = await import('../src/server/occasionsStore.js');
   const kiosk = JSON.stringify(await occasionsForKiosk());
-  assert.ok(!kiosk.includes('DRAFT-WORDS') && !kiosk.includes('chabad.org/b'));
+  assert.ok(kiosk.includes('DRAFT-WORDS') && kiosk.includes('chabad.org/b'), 'the kiosk copy carries the explanation and its source');
   const { viewerState } = await import('../src/server/live.js');
-  assert.ok(!JSON.stringify(viewerState({ occasions: await occasionsForKiosk() }).occasions).includes('DRAFT-WORDS'), 'live viewers never get an unchecked explanation');
+  assert.ok(JSON.stringify(viewerState({ occasions: await occasionsForKiosk() }).occasions).includes('DRAFT-WORDS'), 'live viewers get it too (it is on the public screen)');
 
   // the file cap is enforced by the store
   const fat = Array.from({ length: 80 }, (_, i) => ({ id: `f${i}`, nameEn: 'n', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'y'.repeat(600), explainHe: 'ש'.repeat(600), source: 's'.repeat(100) }));
@@ -259,7 +255,7 @@ test('advent / count-up / sound over the routes: saved, strict, kiosk copy, undo
   assert.equal(r.status, 200);
   const o = r.json.occasions.find((x) => x.id === r.json.id);
   assert.equal(o.kind, 'countup'); assert.equal(o.days, 100); assert.equal(o.display, 'flip'); assert.equal(o.touch, false); assert.equal(o.soundOn, true); assert.equal(o.advent.grid, '4x3'); assert.equal(o.advent.daily['5'].checked, true); assert.equal(o.advent.daily['4'].checked, false);
-  assert.ok(!events.slice(-1)[0].includes('Draft card'), 'an unchecked card is not broadcast');
+  assert.ok(events.slice(-1)[0].includes('Draft card'), 'a card with text is in the kiosk copy: no check needed');
   assert.ok(events.slice(-1)[0].includes('"Card"') || events.slice(-1)[0].includes('Card'));
   assert.equal((await call('POST', '/occasions', { occasion: { nameEn: 'Bad', kind: 'countup', total: 5 } })).status, 400);
   assert.equal((await call('POST', '/occasions', { occasion: { nameEn: 'Bad', kind: 'countup', from: { kind: 'gregorian', month: 6, day: 1, year: 2027 }, total: 999 } })).status, 400);

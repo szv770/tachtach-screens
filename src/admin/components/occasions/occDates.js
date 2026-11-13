@@ -2,7 +2,7 @@
 // The words are plain English on purpose: the countdown reaches zero when the day BEGINS, which is usually the EVENING BEFORE the
 // day, so every line names 'the day' and 'begins' separately.
 import {
-  shareText, weekShareText, occurrencesBetween, upcoming, normalizeOccasion, hebrewWords, daysUntil, explainState, timeEn, MONTH_EN, ruleWords,
+  shareText, weekShareText, occurrencesBetween, upcoming, normalizeOccasion, hebrewWords, daysUntil, daysUntilBegin, explainState, timeEn, MONTH_EN, ruleWords,
 } from '../../../shared/occasions.js';
 import { fixedFromISO, hebrewFromFixed, isLeapYear, addDaysISO, ADAR, ADAR_II } from '../../../shared/hebrewCalendar.js';
 
@@ -83,11 +83,11 @@ export function rowTexts(row, today, tz) {
   const o = row.occasion;
   const heb = hebrewDayMonth(row.startISO);
   const multi = row.days > 1;
-  const d = daysUntil(row, today);
+  const d = daysUntil(row, today); const bd = daysUntilBegin(row, today);
   let inLine; let inSub = 'until it begins';
-  if (row.running) { inLine = 'On now'; inSub = ''; } else if (d <= 0) inLine = row.begin.evening ? 'Tonight' : 'Today';
-  else if (d === 1) inLine = row.begin.evening ? 'Tomorrow evening' : 'Tomorrow';
-  else inLine = `In ${d} days`;
+  if (row.running) { inLine = 'On now'; inSub = ''; } else if (bd <= 0) inLine = row.begin.evening ? 'Tonight' : 'Today';
+  else if (bd === 1) inLine = row.begin.evening ? 'Tomorrow evening' : 'Tomorrow';
+  else { inLine = `In ${d} days`; inSub = 'to the day'; }
   const countup = o.kind === 'countup';
   return {
     dayLine: `${multi ? 'The days' : 'The day'}: ${fmtShort(row.startISO)} · ${heb}${multi ? ` · ${row.days} days` : ''}`,

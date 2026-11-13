@@ -20,8 +20,8 @@ function Count({ n, max, testId }) {
 const FILLED_LABEL = { explainShortEn: 'the one line', explainShortHe: 'the Hebrew line', explainEn: 'the whole story', explainHe: 'the Hebrew story', source: 'the source' };
 
 /**
- * 'What the bochurim see': the one line for the screen (why it is special), the whole story, ONE source for both and ONE
- * 'I checked this' switch. Editing any of them switches the check off again. Owner rule: nothing shows without a source and the check.
+ * 'What the bochurim see': the one line for the screen (why it is special), the whole story and ONE optional source for
+ * both. Everything shows as soon as there is text (owner 2026-11-13: no source / check lock).
  */
 export default function ExplainBox({ d, set, copyPrompt }) {
   const edit = (patch) => set(onExplainEdit(d, patch));
@@ -54,7 +54,7 @@ export default function ExplainBox({ d, set, copyPrompt }) {
         <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Why it is special (optional)</h4>
         <Chip tone={chip.tone} testId="occ-explain-chip">{chip.text}</Chip>
       </div>
-      <p style={{ ...small, margin: '0 0 8px' }}>It only shows on the screen when it has a real source AND you have checked it against that source (Chabad.org is a fine source). Anything you type or change is hidden until you check it again.</p>
+      <p style={{ ...small, margin: '0 0 8px' }}>Whatever you type shows on the screen. Add a source if you have one and it is printed under it (Chabad.org is a fine source). You can change any line any time.</p>
 
       <span style={label}>One line for the screen (English)</span>
       <textarea value={d.explainShortEn} onChange={(e) => edit({ explainShortEn: e.target.value.replace(/\s*\n\s*/g, ' ') })} aria-label="One line for the screen in English" rows={2} maxLength={LIMITS.explainShort + 40} style={{ ...fieldStyle, width: '100%', minHeight: 64, resize: 'vertical' }} data-testid="occ-short-en" />
@@ -77,14 +77,13 @@ export default function ExplainBox({ d, set, copyPrompt }) {
       <span style={label}>Source for both (a sefer with page, the exact talk, or a link)</span>
       <TextIn value={d.source} onChange={(v) => edit({ source: v })} ariaLabel="Source" max={LIMITS.source} placeholder="Sefer, volume and page / https://www.chabad.org/..." testId="occ-source" />
       <OpenSource source={d.source} />
-      <SwitchRow on={d.explainChecked === true} onChange={() => { if (d.explainChecked !== true && st !== 'needsCheck') return; set({ explainChecked: d.explainChecked !== true }); }} label="I checked this with the source" note={st === 'none' || st === 'needsSource' ? 'Add the text and the source first.' : 'Only switch this on after you opened the source and compared it, word for word.'} testId="occ-checked" />
-      <p style={{ ...small, margin: '4px 0 0', color: st === 'shows' || st === 'none' ? colors.dim : colors.danger }} data-testid="occ-source-state">{st === 'shows' ? 'Checked: shows on the screen with this source under it.' : st === 'none' ? 'No explanation.' : explainWhy(d)}</p>
+      <p style={{ ...small, margin: '4px 0 0', color: colors.dim }} data-testid="occ-source-state">{st === 'shows' ? 'Shows on the screen with this source under it.' : st === 'noSource' ? 'Shows on the screen. No source is listed, so nothing is printed under it.' : 'No explanation.'}</p>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
         <button type="button" style={btn(false)} onClick={copyPrompt} data-testid="occ-claude">Copy a prompt for Claude</button>
         <button type="button" style={btn(false)} onClick={pasteFromClaude} data-testid="occ-paste-claude">Paste from Claude</button>
       </div>
-      <Hint>Paste the prompt into Claude. It is told to give exact sources and to say "I am not sure" rather than guess. Then tap "Paste from Claude" to fill the lines and the source. Check the source yourself before you switch on "I checked".</Hint>
+      <Hint>Paste the prompt into Claude. It is told to give exact sources and to say "I am not sure" rather than guess. Then tap "Paste from Claude" to fill the lines and the source. Read it before you keep it: you can change any line.</Hint>
       {paste !== null && (
         <div style={{ marginTop: 8 }}>
           <span style={label}>Paste Claude's reply here</span>

@@ -29,7 +29,6 @@ function CardEditor({ card, onChange, onClear }) {
           <span style={{ ...label, marginTop: 8 }}>Source for the text</span>
           <TextIn value={c.source} onChange={(v) => edit({ source: v })} ariaLabel="Card source" max={LIMITS.source} placeholder="Sefer and page / https://www.chabad.org/..." />
           <OpenSource source={c.source} />
-          <SwitchRow on={c.checked === true} onChange={() => { if (c.checked !== true && String(c.source || '').trim().length < 3) return; onChange({ ...c, checked: c.checked !== true }); }} label="I checked this with the source" note="Text shows on the screen only with a source and this switch." />
         </>
       )}
       <button type="button" style={btn(false, { marginTop: 8 })} onClick={onClear}>Clear this day</button>
@@ -77,7 +76,7 @@ export default function AdventEditor({ d, set, lead, preview }) {
               })}
             </div>
           </Field>
-          <Hint>Daily cards need the same care as explanations: check the source before you switch "I checked" on.</Hint>
+          <Hint>A card shows whenever it has text. A source is optional: add one if you want it printed under the card.</Hint>
         </>
       )}
     </div>

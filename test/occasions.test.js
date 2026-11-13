@@ -169,13 +169,13 @@ test('begins at: the screen\'s own zmanim win when fresh; candles on a Shabbos e
 test('countdown forms change at the thresholds; approximate times never tick seconds and say ~', () => {
   const s = O.normalizeSettings({ zeroMinutes: 30 });
   const begin = Date.parse('2026-12-01T22:00:00Z');
-  const row = { begin: { ms: begin, exact: true, dateISO: '2026-12-01', evening: true, at: 'shkia' }, end: { ms: begin + 26 * 3600000 }, occasion: occ({ rule: { kind: 'hebrew', month: 9, day: 1 } }), days: 1, startISO: '2026-12-02' };
-  const form = (msBefore, r = row) => O.countdownOf(r, new Date(begin - msBefore), s, '2026-11-01');
+  const row = { startISO: '2026-12-02', begin: { ms: begin, exact: true, dateISO: '2026-12-01', evening: true, at: 'shkia' }, end: { ms: begin + 26 * 3600000 }, occasion: occ({ rule: { kind: 'hebrew', month: 9, day: 1 } }), days: 1, startISO: '2026-12-02' };
+  const form = (msBefore, r = row) => { const n = new Date(begin - msBefore); return O.countdownOf(r, n, s, zonedParts(n, NY.tz).date); };
   const D = 86400000; const Hh = 3600000;
   assert.equal(form(15 * D + Hh).form, 'far');
-  assert.equal(form(15 * D + Hh).days, 30);
-  assert.equal(form(14 * D + 23 * Hh).form, 'days'); assert.equal(form(14 * D + 23 * Hh).days, 14); assert.equal(form(14 * D + 23 * Hh).hours, 23);
-  assert.equal(form(D).form, 'days'); assert.equal(form(D).days, 1);
+  assert.equal(form(15 * D + Hh).days, 16, 'calendar days to the day itself (Dec 2 from Nov 16)');
+  assert.equal(form(14 * D + 23 * Hh).form, 'days'); assert.equal(form(14 * D + 23 * Hh).days, 16); assert.equal(form(14 * D + 23 * Hh).hours, 23);
+  assert.equal(form(D).form, 'days'); assert.equal(form(D).days, 2, 'begins tomorrow evening: the day itself is 2 days away');
   assert.equal(form(D - 1000).form, 'hours');
   const h = form(5 * Hh + 42 * 60000);
   assert.deepEqual([h.form, h.hours, h.minutes], ['hours', 5, 42]);
@@ -194,12 +194,12 @@ test('countdown forms change at the thresholds; approximate times never tick sec
   assert.equal(O.countdownWords(form(5 * Hh + 42 * 60000, ap)).big, '~5');
   const am = form(12 * 60000 + 7000, ap);
   assert.equal(am.seconds, null); assert.equal(O.countdownWords(am).big, '~13');
-  assert.match(O.countdownWords(form(3 * D + 4 * Hh, ap)).sub.en, /and ~4 hours/);
+  assert.equal(O.countdownWords(form(3 * D + 4 * Hh, ap)).sub, null, 'the days form no longer adds hours: the number is days to the day, the Begins line says when');
   // seconds switched off: whole minutes, rounded up
   assert.equal(O.countdownWords(O.countdownOf(row, new Date(begin - (12 * 60000 + 7000)), O.normalizeSettings({ seconds: false }), '2026-11-30')).big, '13');
   // words
   assert.deepEqual(O.countdownWords({ form: 'far', days: 37 }).unit, { en: 'days to go', he: 'עוד ימים' });
-  assert.deepEqual(O.countdownWords({ form: 'days', days: 1, hours: 1 }), { big: '1', unit: { en: 'day', he: 'יום' }, sub: { en: 'and 1 hour', he: 'ו־1 שעה' } });
+  assert.deepEqual(O.countdownWords({ form: 'days', days: 1, hours: 1 }), { big: '1', unit: { en: 'day', he: 'יום' }, sub: null });
 });
 
 test('lead-up fraction of the far form follows the window', () => {
@@ -207,13 +207,13 @@ test('lead-up fraction of the far form follows the window', () => {
   const now = at('2026-11-21T15:00:00Z');
   const row = O.upcoming(f, now, NY)[0];
   const c = O.countdownOf(row, now, f.settings, '2026-11-21');
-  assert.equal(c.form, 'far'); assert.equal(c.days, 39); assert.equal(c.lead, 60);
-  assert.ok(Math.abs(c.fraction - (1 - 39 / 60)) < 1e-9);
+  assert.equal(c.form, 'far'); assert.equal(c.days, 40); assert.equal(c.lead, 60);
+  assert.ok(Math.abs(c.fraction - (1 - 40 / 60)) < 1e-9);
 });
 
 // ── what shows ──────────────────────────────────────────────────────────────
 
-test('nearest inside the window; pinned whatever the distance; cycle takes a few; running first; coming-up excludes the hero', () => {
+test('nearest inside the window; pinned only while close or running (then back to automatic); cycle takes a few; running first; coming-up excludes the hero', () => {
   const mk = (id, month, day, extra = {}) => ({ id, nameEn: id, rule: { kind: 'gregorian', month, day }, beginsAt: 'midnight', ...extra });
   const occs = [mk('a', 11, 20), mk('b', 11, 25), mk('c', 12, 20), mk('d', 3, 1), mk('off', 11, 10, { on: false })];
   const now = at('2026-11-05T15:00:00Z');
@@ -223,8 +223,12 @@ test('nearest inside the window; pinned whatever the distance; cycle takes a few
   p = O.pickFor(file(occs, { withinDays: 10 }), now, NY);
   assert.equal(p.rows.length, 0, 'nothing within 10 days');
   assert.equal(O.occasionVisible(file(occs, { withinDays: 10 }), now, NY), false);
+  p = O.pickFor(file(occs, { pick: 'pinned', pinnedId: 'b' }), now, NY);
+  assert.deepEqual(p.rows.map((r) => r.id), ['b'], 'a pinned one inside its window shows');
   p = O.pickFor(file(occs, { pick: 'pinned', pinnedId: 'd' }), now, NY);
-  assert.deepEqual(p.rows.map((r) => r.id), ['d']);
+  assert.deepEqual(p.rows.map((r) => r.id), ['a'], 'a pinned one months away (or next year after it passed) falls back to the nearest');
+  p = O.pickFor(file([mk('a', 11, 4), mk('b', 11, 20)], { pick: 'pinned', pinnedId: 'a' }), now, NY);
+  assert.deepEqual(p.rows.map((r) => r.id), ['b'], 'the pinned day has passed: its next year is NOT shown, the nearest is');
   p = O.pickFor(file(occs, { pick: 'pinned', pinnedId: 'off' }), now, NY); // pinned is gone from the list (off) -> nearest
   assert.deepEqual(p.rows.map((r) => r.id), ['a']);
   p = O.pickFor(file(occs, { pick: 'cycle', cycleCount: 2 }), now, NY);
@@ -240,20 +244,17 @@ test('nearest inside the window; pinned whatever the distance; cycle takes a few
   assert.equal(O.pickFor(file(occs, { comingUpCount: 1 }), now, NY).coming.length, 1);
 });
 
-test('the explanation only shows with a source (owner rule)', () => {
+test('the explanation shows whenever there is text; a source, when there is one, is printed under it (owner 2026-11-13: no lock)', () => {
   const base = { nameEn: 'X', rule: { kind: 'gregorian', month: 11, day: 20 }, beginsAt: 'midnight', explainEn: 'Some words.' };
-  assert.equal(O.explainShows(occ(base)), false);
-  assert.equal(O.explainShows(occ({ ...base, source: '  ' })), false);
-  assert.equal(O.explainShows(occ({ ...base, source: 'Sefer X, p. 12' })), false, 'a source alone is not enough: it has to be checked');
-  assert.equal(O.explainShows(occ({ ...base, source: 'Sefer X, p. 12', explainChecked: true })), true);
-  assert.equal(O.explainShows(occ({ ...base, explainChecked: true })), false, 'checked but no source: still hidden');
+  assert.equal(O.explainShows(occ(base)), true, 'no source and no check needed');
+  assert.equal(O.explainShows(occ({ ...base, explainEn: '' })), false);
   const now = at('2026-11-05T15:00:00Z');
-  assert.equal(O.slideModel(file([{ ...base, id: 'x' }]), now, NY).rows[0].explain, null);
-  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }]), now, NY).rows[0].explain, null, 'unchecked');
-  const m = O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }]), now, NY).rows[0];
+  const none = O.slideModel(file([{ ...base, id: 'x' }]), now, NY).rows[0];
+  assert.equal(none.explain.en, 'Some words.'); assert.equal(none.explain.source, '', 'nothing printed under it without a source');
+  const m = O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }]), now, NY).rows[0];
   assert.equal(m.explain.en, 'Some words.'); assert.equal(m.explain.source, 'Sefer X, p. 12');
-  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }], { credit: false }), now, NY).rows[0].explain.source, '');
-  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12', explainChecked: true }], { explain: false }), now, NY).rows[0].explain, null);
+  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }], { credit: false }), now, NY).rows[0].explain.source, '');
+  assert.equal(O.slideModel(file([{ ...base, id: 'x', source: 'Sefer X, p. 12' }], { explain: false }), now, NY).rows[0].explain, null);
 });
 
 test('the slide model: language, zero greeting, day label and day index, begins line', () => {
@@ -297,7 +298,7 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   assert.deepEqual(O.occasionItems(f, before, NY, { slideOn: false }), []);
   let items = O.occasionItems(f, before, NY, { slideOn: true });
   assert.equal(items.length, 1); assert.equal(items[0].display, 'note');
-  assert.equal(items[0].content.headlineEn, '5 days to Yud-Tes Kislev'); assert.equal(items[0].content.headlineHe, 'עוד 5 ימים לי״ט כסלו');
+  assert.equal(items[0].content.headlineEn, '6 days to Yud-Tes Kislev'); assert.equal(items[0].content.headlineHe, 'עוד 6 ימים לי״ט כסלו');
   assert.equal(O.occasionItems(f, at('2026-11-10T15:00:00Z'), NY, { slideOn: true }).length, 0, 'not yet inside railDays');
   assert.equal(O.occasionItems(f, at('2026-11-27T15:00:00Z'), NY, { slideOn: true })[0].content.headlineEn, 'Tomorrow evening: Yud-Tes Kislev');
   assert.equal(O.occasionItems(f, at('2026-11-28T15:00:00Z'), NY, { slideOn: true })[0].content.headlineEn, 'Tonight: Yud-Tes Kislev');
@@ -309,10 +310,10 @@ test('rail card, banner on the day, takeover at zero: only with the slide on, on
   assert.equal(items.find((i) => i.display === 'banner').content.headlineEn, 'Tonight: Yud-Tes Kislev · Farbrengen 8 PM, main hall');
   // the takeover carries the same clear dates as a slide row, and the short 'why' only when it is sourced AND checked
   assert.equal(tk.dates.toGoLabel.en, 'until it begins'); assert.equal(tk.dates.day.en, 'Sunday, November 29');
-  assert.equal(tk.why, null, 'no short why without a source + check');
+  assert.equal(tk.why, null, 'no short why when there is no text');
   const tkWhy = O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: true }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true });
   assert.equal(tkWhy.why.en, 'A short line.'); assert.equal(tkWhy.why.source, 'Chabad.org');
-  assert.equal(O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: false }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true }).why, null, 'unchecked text never reaches a takeover');
+  assert.equal(O.takeoverFor(file([{ ...o, explainShortEn: 'A short line.', source: 'Chabad.org', explainChecked: false }]), new Date(row.begin.ms + 60000), { ...NY, slideOn: true }).why.en, 'A short line.', 'no check needed: it reaches the takeover');
   items = O.occasionItems(f, new Date(row.begin.ms + 5 * 60000), NY, { slideOn: true });
   assert.deepEqual(items.map((i) => i.display), ['banner']);
   // per occasion switch, global switches, and no takeover on an approximate time
@@ -610,45 +611,33 @@ test('strict checks: settings and occasion patches refuse unknown keys and out-o
 
 // ── the explanation 'checked' rule ──────────────────────────────────────────
 
-test('explanation: needs text, a source AND an explicit check; editing text or source un-checks it; states for the admin', () => {
-  let f = O.normalizeFile({ occasions: [{ id: 'e', nameEn: 'E', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'Words.', source: 'chabad.org/x' }] });
-  const e = () => f.occasions.find((o) => o.id === 'e');
-  assert.equal(e().explainChecked, false, 'stored explanations from before the rule are hidden until checked');
-  assert.equal(O.explainShows(e()), false); assert.equal(O.explainState(e()), 'needsCheck'); assert.equal(O.EXPLAIN_CHIP.needsCheck, 'Needs checking');
-  assert.match(O.explainWhy(e()), /Hidden until you check it/);
-  f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
-  assert.equal(e().explainChecked, true); assert.equal(O.explainShows(e()), true); assert.equal(O.explainState(e()), 'shows'); assert.match(O.EXPLAIN_CHIP.shows, /Shows on the screen/);
-  f = O.updateOccasion(f, 'e', { eventEn: 'Hall' }).file; assert.equal(e().explainChecked, true, 'an unrelated edit keeps the check');
-  f = O.updateOccasion(f, 'e', { explainEn: 'Changed.' }).file; assert.equal(e().explainChecked, false, 'text changed');
-  f = O.updateOccasion(f, 'e', { explainChecked: true }).file;
-  f = O.updateOccasion(f, 'e', { source: 'chabad.org/y' }).file; assert.equal(e().explainChecked, false, 'source changed');
-  f = O.updateOccasion(f, 'e', { explainHe: 'שלום', explainChecked: true }).file; assert.equal(e().explainChecked, true, 'edited and checked again in the same save');
-  f = O.updateOccasion(f, 'e', { explainEn: '', explainHe: '' }).file; assert.equal(O.explainState(e()), 'none'); assert.equal(e().explainChecked, false);
-  assert.equal(O.explainState({ explainEn: 'x', source: '' }), 'needsSource'); assert.match(O.explainWhy({ explainEn: 'x', source: '' }), /add the source/);
-  assert.equal(O.EXPLAIN_CHIP.none, 'No explanation');
-  // add: checked only when there is text
-  assert.equal(O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: { kind: 'hebrew', month: 9, day: 1 }, explainChecked: true }).occasion.explainChecked, false);
-  assert.equal(O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'x', source: 'abc', explainChecked: true }).occasion.explainChecked, true);
+test('explanation states for the admin: none / shows (no source listed) / shows; nothing blocks the owner', () => {
+  const f = O.normalizeFile({ occasions: [{ id: 'e', nameEn: 'E', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'Words.' }] });
+  const e = f.occasions.find((o) => o.id === 'e');
+  assert.equal(O.explainShows(e), true);
+  assert.equal(O.explainState(e), 'noSource'); assert.equal(O.EXPLAIN_CHIP.noSource, 'Shows (no source listed)');
+  assert.match(O.explainWhy(e), /No source is listed/);
+  assert.equal(O.explainState({ ...e, source: 'chabad.org/x' }), 'shows'); assert.equal(O.explainWhy({ ...e, source: 'chabad.org/x' }), '');
+  assert.equal(O.explainState({ explainEn: '', explainHe: '', source: 'x' }), 'none'); assert.equal(O.EXPLAIN_CHIP.none, 'No explanation');
+  assert.match(O.EXPLAIN_CHIP.shows, /Shows on the screen/);
   // Open source helper
   assert.equal(O.sourceUrl('see https://www.chabad.org/library/article_cdo/aid/1/jewish/x.htm, p. 3'), 'https://www.chabad.org/library/article_cdo/aid/1/jewish/x.htm');
   assert.equal(O.sourceUrl('Sefer X, p. 12'), ''); assert.equal(O.sourceUrl('javascript:alert(1)'), ''); assert.equal(O.sourceUrl('ftp://x.test/a'), '');
 });
 
-test('the copies that leave the server carry no unchecked explanation, no hidden text and nothing secret', () => {
+test('the copies that leave the server carry the explanation whenever there is text, nothing from a switched-off day, nothing secret', () => {
   const f = file([
-    { id: 'draft', nameEn: 'Draft', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'SECRET-DRAFT', explainHe: 'טיוטה', source: 'Sefer Y p. 1' },
-    { id: 'ok', nameEn: 'Ok', rule: { kind: 'hebrew', month: 9, day: 2 }, explainEn: 'Public words', source: 'Sefer Z p. 2', explainChecked: true },
-    { id: 'off', nameEn: 'Off', on: false, rule: { kind: 'hebrew', month: 9, day: 3 }, explainEn: 'HIDDEN-OFF', source: 'Sefer Z p. 3', explainChecked: true },
+    { id: 'plain', nameEn: 'Plain', rule: { kind: 'hebrew', month: 9, day: 1 }, explainEn: 'PLAIN-WORDS', explainHe: 'טקסט' },
+    { id: 'ok', nameEn: 'Ok', rule: { kind: 'hebrew', month: 9, day: 2 }, explainEn: 'Public words', source: 'Sefer Z p. 2' },
+    { id: 'off', nameEn: 'Off', on: false, rule: { kind: 'hebrew', month: 9, day: 3 }, explainEn: 'HIDDEN-OFF', source: 'Sefer Z p. 3' },
   ]);
   for (const copy of [O.forKiosk(f), O.forViewer(f), O.forViewer(O.forKiosk(f))]) {
     const txt = JSON.stringify(copy);
-    assert.ok(!/SECRET-DRAFT|טיוטה|Sefer Y|HIDDEN-OFF/.test(txt), 'unchecked / switched-off text stays out');
-    assert.ok(txt.includes('Public words'));
-    assert.ok(!/token|secret|password|hash/i.test(txt.replace(/SECRET-DRAFT/g, '')), 'nothing secret-looking');
+    assert.ok(!/HIDDEN-OFF/.test(txt), 'a switched-off day stays out');
+    assert.ok(txt.includes('Public words') && txt.includes('PLAIN-WORDS'));
+    assert.ok(!/token|secret|password|hash/i.test(txt), 'nothing secret-looking');
   }
-  assert.equal(O.forKiosk(f).occasions.find((o) => o.id === 'draft').explainEn, '');
-  // the kiosk copy still resolves to the same slide
-  assert.equal(O.slideModel(O.forKiosk(f), at('2026-11-05T15:00:00Z'), NY).rows.every((r) => r.explain === null || r.explain.en === 'Public words'), true);
+  assert.equal(O.slideModel(O.forKiosk(f), at('2026-11-05T15:00:00Z'), NY).rows.every((r) => r.explain === null || /words/i.test(r.explain.en)), true);
 });
 
 test('uploads cleanup keeps the Countdown photos (global and per occasion, also switched-off ones)', async () => {
@@ -791,35 +780,21 @@ function zonedLocal(y, m, d, hh) { // the instant at which New York's wall clock
 }
 function isDst(iso) { return iso >= '2026-03-08' && iso < '2026-11-01' || iso >= '2027-03-14' && iso < '2027-11-07'; }
 
-test('advent daily cards: text needs a source AND a check, a photo needs neither; the kiosk copy hides the rest', () => {
-  const daily = { 7: { en: 'Card words', he: 'כרטיס', source: 'Sefer A p. 1', checked: true }, 6: { en: 'Unchecked words', source: 'Sefer B p. 2' }, 5: { en: 'No source', checked: true }, 4: { photo: PH }, 3: { en: 'With photo', photo: PH, source: '' }, 2: {} };
+test('advent daily cards: text shows whenever there is text (source optional), a photo needs neither', () => {
+  const daily = { 7: { en: 'Card words', he: 'כרטיס', source: 'Sefer A p. 1' }, 6: { en: 'Plain words' }, 4: { photo: PH }, 3: { en: 'Both', photo: PH }, 2: {} };
   const o = advOcc({}, { daily });
   const card = (left) => adv(o, `2026-12-${String(20 - left).padStart(2, '0')}T17:00:00Z`).today;
   assert.equal(card(7).en, 'Card words'); assert.equal(card(7).source, 'Sefer A p. 1');
-  assert.equal(card(6), null, 'unchecked text alone: nothing to show');
-  assert.equal(card(5), null, 'checked but no source: hidden');
-  assert.deepEqual(card(4), { en: '', he: '', photo: PH, source: '' }, 'photo-only card needs no source');
-  assert.deepEqual(card(3), { en: '', he: '', photo: PH, source: '' }, 'the photo shows, the unchecked text does not');
+  assert.equal(card(6).en, 'Plain words'); assert.equal(card(6).source, '', 'no source needed; nothing printed under it');
+  assert.deepEqual(card(4), { en: '', he: '', photo: PH, source: '' });
+  assert.equal(card(3).en, 'Both'); assert.equal(card(3).photo, PH);
   assert.equal(card(2), null); assert.equal(card(1), null);
   assert.equal(O.normalizeOccasion(o).advent.daily['2'], undefined, 'empty cards are dropped');
-  assert.equal(O.normalizeOccasion(advOcc({}, { daily: { 5: { en: 'x', checked: true } } })).advent.daily['5'].checked, true);
-  assert.equal(O.normalizeOccasion(advOcc({}, { daily: { 5: { photo: PH, checked: true } } })).advent.daily['5'].checked, false, 'nothing to check on a photo');
   // not on the day itself / after it begins
   assert.equal(adv(o, '2026-12-21T00:01:00Z').today, null);
-  // kiosk and viewer copies carry no unchecked card text and no source for it
+  // the kiosk and viewer copies carry the card text
   const txt = JSON.stringify(O.forViewer(O.forKiosk(file([o]))));
-  assert.ok(txt.includes('Card words') && !/Unchecked words|No source|Sefer B/.test(txt));
-  // editing a card un-checks it; checking again in the same save keeps it
-  let f = file([{ ...o, id: 'ad' }]);
-  const pick = () => f.occasions.find((x) => x.id === 'ad').advent.daily['7'];
-  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { ...daily[7], en: 'Edited words' } } } }).file;
-  assert.equal(pick().checked, true, 'the save says checked: it is trusted');
-  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { en: 'Edited again', he: 'כרטיס', source: 'Sefer A p. 1' } } } }).file;
-  assert.equal(pick().checked, false, 'text changed without the check');
-  f = O.updateOccasion(f, 'ad', { advent: { ...o.advent, daily: { ...daily, 7: { ...daily[7], checked: true } } } }).file;
-  assert.equal(pick().checked, true);
-  f = O.updateOccasion(f, 'ad', { advent: { ...f.occasions[0].advent, daily: { 7: { ...pick(), source: 'Sefer A p. 9', checked: false } } } }).file;
-  assert.equal(pick().checked, false);
+  assert.ok(txt.includes('Card words') && txt.includes('Plain words'));
   // strict refusals
   for (const a of [{ on: 'x' }, { grid: '9x9' }, { photo: 'http://x/y.jpg' }, { daily: { 0: { en: 'x' } } }, { daily: { 5: { en: 'x'.repeat(161) } } }, { daily: { 5: { evil: 1 } } }, { daily: { 5: { photo: '/etc/passwd' } } }, { daily: { 5: { checked: 'y' } } }, { nope: 1 }, { daily: Object.fromEntries(Array.from({ length: 61 }, (_, i) => [String(i + 1), { en: 'x' }])) }]) {
     assert.throws(() => O.addOccasion(O.normalizeFile(null), { nameEn: 'X', rule: { kind: 'hebrew', month: 9, day: 1 }, advent: a }), O.OccasionsError, JSON.stringify(a).slice(0, 60));
@@ -858,35 +833,18 @@ test('dates: the DAY, the evening it BEGINS, the time, and the words after the n
   assert.equal(en.dates.day.he, ''); assert.equal(en.dates.hebrew.he, '');
 });
 
-test('why: the short line shares the source and the check with the long story; hidden copies carry neither', () => {
+test('why: the short line shows whenever there is text; the source is printed only when there is one', () => {
   const base = { ...YT, explainShortEn: 'Short line.', explainShortHe: 'שורה קצרה.' };
   const row = (o, st) => O.slideModel(file([{ ...base, ...o }], st), NOW1, NY).rows[0];
-  assert.equal(row({}).why, null, 'no source');
-  assert.equal(row({ source: 'Sefer X p. 1' }).why, null, 'not checked');
-  assert.deepEqual(row({ source: 'Sefer X p. 1', explainChecked: true }).why, { en: 'Short line.', he: 'שורה קצרה.', source: 'Sefer X p. 1' });
-  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { credit: false }).why.source, '');
-  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { explain: false }).why, null);
-  assert.equal(row({ source: 'Sefer X p. 1', explainChecked: true }, { language: 'hebrew' }).why.en, '');
-  assert.equal(row({ source: 'ab', explainChecked: true }).why, null, 'a source needs 3+ characters');
-  // short only (no long text) still counts for the state and the check
-  const f = O.updateOccasion(O.addOccasion(O.normalizeFile(null), { ...YT, nameEn: 'N', explainShortEn: 'S' }).file, O.normalizeFile(null).occasions.length ? undefined : undefined, {});
-  assert.equal(f, null);
-  let g = O.addOccasion(O.normalizeFile(null), { nameEn: 'N', rule: YT.rule, explainShortEn: 'S', source: 'Sefer Z', explainChecked: true });
-  assert.equal(g.occasion.explainChecked, true); assert.equal(O.explainState(g.occasion), 'shows');
-  const id = g.occasion.id; g = g.file;
-  g = O.updateOccasion(g, id, { explainShortEn: 'S2' }).file; assert.equal(g.occasions.find((o) => o.id === id).explainChecked, false, 'editing the short line un-checks');
-  g = O.updateOccasion(g, id, { explainShortHe: 'ש', explainChecked: true }).file; assert.equal(g.occasions.find((o) => o.id === id).explainChecked, true);
+  assert.deepEqual(row({}).why, { en: 'Short line.', he: 'שורה קצרה.', source: '' }, 'no source needed');
+  assert.deepEqual(row({ source: 'Sefer X p. 1' }).why, { en: 'Short line.', he: 'שורה קצרה.', source: 'Sefer X p. 1' });
+  assert.equal(row({ source: 'Sefer X p. 1' }, { credit: false }).why.source, '');
+  assert.equal(row({ source: 'Sefer X p. 1' }, { explain: false }).why, null);
+  assert.equal(row({ source: 'Sefer X p. 1' }, { language: 'hebrew' }).why.en, '');
   // 160 characters, one paragraph, strict
   assert.match(O.occasionProblem({ ...YT, explainShortEn: 'x'.repeat(161) }), /160/);
   assert.equal(O.occasionProblem({ ...YT, explainShortEn: 'x'.repeat(160) }), null);
   assert.equal(O.normalizeOccasion({ ...YT, explainShortEn: 'a\nb\n  c' }).explainShortEn, 'a b c');
-  // what leaves the server: unchecked short text is stripped, checked stays
-  const k = O.forKiosk(file([{ ...base, id: 'h' }, { ...base, id: 'v', source: 'Sefer Q', explainChecked: true }]));
-  assert.equal(k.occasions.find((o) => o.id === 'h').explainShortEn, ''); assert.equal(k.occasions.find((o) => o.id === 'v').explainShortEn, 'Short line.');
-  assert.equal(O.forViewer(file([{ ...base, id: 'h' }])).occasions[0].explainShortHe, '');
-  // layout: 'why' is a part, shown by default, in the default order
-  assert.ok(O.LAYOUT_SPEC.show.includes('why') && O.LAYOUT_DEFAULTS.show.why === true); assert.deepEqual(O.LAYOUT_DEFAULTS.order, ['name', 'date', 'begins', 'why', 'event']);
-  assert.equal(O.occasionProblem({ ...YT, layout: { show: { why: false }, order: ['why', 'name'] } }), null);
 });
 
 test("Claude's reply splits into the short line, the story and the source", () => {
@@ -952,7 +910,7 @@ test('countdown views: tap forms and automatic rotation, settings and per occasi
   const row = O.pickFor(file([YT]), NOW1, NY).rows[0];
   const fw = (f, n = NOW1) => O.formWords(f, row, n, O.SETTINGS_DEFAULTS, '2026-11-08');
   assert.equal(fw('days').big, '20'); assert.match(fw('daysFraction').big, /^20[¼½¾]?$/); assert.equal(fw('days').unit.en, 'days');
-  assert.equal(fw('hours').big, String(Math.floor((row.begin.ms - NOW1.getTime()) / 3600000))); assert.equal(fw('sleeps').big, '20'); assert.match(fw('percent').big, /^\d+%$/); assert.equal(fw('flip'), null);
+  assert.equal(fw('hours').big, String(Math.floor((row.begin.ms - NOW1.getTime()) / 3600000))); assert.equal(fw('sleeps').big, '21'); assert.match(fw('percent').big, /^\d+%$/); assert.equal(fw('flip'), null);
   assert.equal(O.formWords('days', row, new Date(row.begin.ms + 1000), O.SETTINGS_DEFAULTS), null, 'nothing once it has begun');
   assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (1.25 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '1¼');
   assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (0.5 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '½');
@@ -971,11 +929,11 @@ test('share text: count, the day, the Hebrew date, when it begins; the why line 
   assert.equal(O.shareText(row, { ...opt, lang: 'both' }).split('\n\n').length, 2);
   assert.ok(O.shareText(row, { ...opt, emoji: true }).startsWith('⭐ '));
   const withWhy = (o) => O.pickFor(file([{ ...YT, explainShortEn: 'Short line.', ...o }]), NOW1, NY).rows[0];
-  assert.ok(!O.shareText(withWhy({}), opt).includes('Short line'), 'hidden: no source');
-  assert.ok(!O.shareText(withWhy({ source: 'Sefer X p. 1' }), opt).includes('Short line'), 'hidden: not checked');
-  const shown = O.shareText(withWhy({ source: 'Sefer X p. 1', explainChecked: true }), opt);
+  assert.ok(O.shareText(withWhy({}), opt).includes('Short line'), 'shown without a source');
+  assert.ok(!O.shareText(withWhy({}), opt).includes('Source:'));
+  const shown = O.shareText(withWhy({ source: 'Sefer X p. 1' }), opt);
   assert.ok(shown.endsWith('\nShort line. (Source: Sefer X p. 1)'));
-  assert.ok(!O.shareText(withWhy({ source: 'Sefer X p. 1', explainChecked: true }), { ...opt, settings: O.normalizeSettings({ credit: false }) }).includes('Source:'));
+  assert.ok(!O.shareText(withWhy({ source: 'Sefer X p. 1' }), { ...opt, settings: O.normalizeSettings({ credit: false }) }).includes('Source:'));
   // on now, and hours / minutes close to it
   const on = O.pickFor(file([YT]), at('2026-11-29T15:00:00Z'), NY).rows[0];
   assert.match(O.shareText(on, { ...opt, now: at('2026-11-29T15:00:00Z'), today: '2026-11-29' }), /^Yud-Tes Kislev is on now \(/);
