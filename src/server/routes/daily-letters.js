@@ -8,7 +8,7 @@
 import express, { Router } from 'express';
 import { readJSON, writeJSON } from '../storage.js';
 import { broadcast } from '../sse.js';
-import { normalizeDailyStoriesFile, normalizeStories, parseStoriesText, recordShownStory, changeTodaysStory, syncTodaysStory, forKiosk, LIMITS } from '../../shared/dailyStories.js';
+import { normalizeDailyStoriesFile, normalizeStories, parseStoriesText, recordShownStory, changeTodaysStory, syncTodaysStory, lettersForKiosk, LETTER_FILE_MAX_BYTES, LETTER_ADAPTER, LIMITS } from '../../shared/dailyStories.js';
 import { FILE as STORIES_FILE } from './daily-stories.js';
 import { randomFrom } from '../../shared/dailyToday.js';
 import { todayISO } from './daily-words.js';
@@ -22,10 +22,13 @@ export async function readDailyLetters() {
 let chain = Promise.resolve();
 const withLock = (fn) => { const run = chain.then(fn, fn); chain = run.catch(() => {}); return run; };
 
+class TooBig extends Error {}
 async function save(file) {
   const clean = normalizeDailyStoriesFile(file, [], 'letter');
+  const size = JSON.stringify(clean).length;
+  if (size > LETTER_FILE_MAX_BYTES) throw new TooBig(`The letter list is too big (${Math.round(size / 1000)} kB; the most is ${Math.round(LETTER_FILE_MAX_BYTES / 1000)} kB). Delete some letters you have already shown, then try again.`);
   await writeJSON(FILE, clean);
-  broadcast('daily-letters-update', forKiosk(clean));
+  broadcast('daily-letters-update', lettersForKiosk(clean));
   return clean;
 }
 
@@ -80,7 +83,7 @@ router.put('/daily-letters', async (req, res) => {
     if (errors.length) return res.status(400).json({ error: `Letter ${errors[0].index + 1}: ${errors[0].error}`, errors });
     const today = await todayISO();
     res.json({ ...(await withLock(async () => save(recordShownStory(syncTodaysStory({ order: body.order, stories, history: (await readDailyLetters()).history }, today), today).file))), today });
-  } catch { res.status(500).json({ error: 'Failed to save the letter list.' }); }
+  } catch (e) { if (e instanceof TooBig) return res.status(400).json({ error: e.message }); res.status(500).json({ error: 'Failed to save the letter list.' }); }
 });
 
 // Paste import: { text, mode: 'append' | 'replace', dryRun? }.
@@ -101,7 +104,7 @@ router.post('/daily-letters/import', async (req, res) => {
       return { ...result, file: await save({ order: cur.order, stories, history: cur.history }) };
     });
     res.json(out);
-  } catch { res.status(500).json({ error: 'Import failed.' }); }
+  } catch (e) { if (e instanceof TooBig) return res.status(400).json({ error: e.message }); res.status(500).json({ error: 'Import failed.' }); }
 });
 
 // Change what shows TODAY: { op: 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic', id?, entry? } (rules: src/shared/dailyToday.js).
@@ -115,13 +118,13 @@ router.post('/daily-letters/today', async (req, res) => {
     try { settings = await readJSON('settings.json'); } catch { /* default */ }
     const out = await withLock(async () => {
       const cur = await readDailyLetters();
-      const r = changeTodaysStory(cur, today, op, { id: typeof id === 'string' ? id : undefined, entry, randomFrom: randomFrom(settings) });
+      const r = changeTodaysStory(cur, today, op, { id: typeof id === 'string' ? id : undefined, entry, randomFrom: randomFrom(settings), adapter: LETTER_ADAPTER });
       if (r.error) return { error: r.error };
       return { file: await save(r.file), pickedId: r.pickedId ?? null };
     });
     if (out.error) return res.status(400).json({ error: out.error });
     res.json({ ...out.file, today, pickedId: out.pickedId });
-  } catch { res.status(500).json({ error: 'Could not change today.' }); }
+  } catch (e) { if (e instanceof TooBig) return res.status(400).json({ error: e.message }); res.status(500).json({ error: 'Could not change today.' }); }
 });
 
 export default router;

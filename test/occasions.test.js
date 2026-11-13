@@ -873,7 +873,12 @@ test('collections: starters, unknown values, and the Countdown can run one colle
   assert.equal(O.normalizeOccasion({ ...YT, category: 'nonsense' }).category, 'custom'); assert.equal(O.normalizeOccasion({ ...YT }).category, 'custom');
   assert.equal(O.normalizeOccasion({ ...YT, starter: 'purim' }).category, 'yomtov', 'an old stored starter follows its starter');
   assert.equal(O.occasionProblem({ ...YT, category: 'x' }) !== null, true);
-  assert.deepEqual(O.normalizeFile({ settings: { showCategories: ['chabad', 'bogus', 'chabad'] }, occasions: [] }).settings.showCategories, ['chabad']);
+  assert.deepEqual(O.normalizeFile({ settings: { showCategories: ['chabad', 'bogus', 'chabad'] }, occasions: [] }).settings.showCategories, ['chabad', 'dor'], 'a list saved before the Rebbe\u2019s days existed keeps showing those days, once');
+  // ... and once migrated, what the owner ticks is exactly what shows
+  const migrated = O.normalizeFile({ settings: { showCategories: ['chabad'] }, occasions: [] });
+  assert.equal(migrated.settings.categoriesV, 2);
+  assert.deepEqual(O.normalizeFile(migrated).settings.showCategories, ['chabad', 'dor']);
+  assert.deepEqual(O.setSettings(migrated, { showCategories: ['chabad'] }).settings.showCategories, ['chabad'], 'the owner can untick the Rebbe\u2019s days');
   assert.deepEqual(O.normalizeSettings({}).showCategories, [...O.CATEGORIES]);
   assert.match(O.settingsProblem({ showCategories: ['x'] }), /kinds/);
   // 'Chabad days only': the nearest, the coming-up strip, the rail card and the takeovers skip the other collections
@@ -911,11 +916,12 @@ test('countdown views: tap forms and automatic rotation, settings and per occasi
   // the words of each view
   const row = O.pickFor(file([YT]), NOW1, NY).rows[0];
   const fw = (f, n = NOW1) => O.formWords(f, row, n, O.SETTINGS_DEFAULTS, '2026-11-08');
-  assert.equal(fw('days').big, '20'); assert.match(fw('daysFraction').big, /^20[¼½¾]?$/); assert.equal(fw('days').unit.en, 'days');
+  assert.equal(fw('days').big, '21'); assert.match(fw('daysFraction').big, /^21[¼½¾]?$/); assert.equal(fw('days').unit.en, 'days');
   assert.equal(fw('hours').big, String(Math.floor((row.begin.ms - NOW1.getTime()) / 3600000))); assert.equal(fw('sleeps').big, '21'); assert.match(fw('percent').big, /^\d+%$/); assert.equal(fw('flip'), null);
   assert.equal(O.formWords('days', row, new Date(row.begin.ms + 1000), O.SETTINGS_DEFAULTS), null, 'nothing once it has begun');
-  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (1.25 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '1¼');
-  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (0.5 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '½');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (1.25 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '2¼', 'counted to the day itself: a day after it begins');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (1.5 * 86400000 + 1000)), O.SETTINGS_DEFAULTS).big, '2½');
+  assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - (0.5 * 86400000 + 1000)), O.SETTINGS_DEFAULTS), null, 'the last 24 hours are the hours view');
   assert.equal(O.formWords('daysFraction', row, new Date(row.begin.ms - 3600000), O.SETTINGS_DEFAULTS), null);
   for (const f of O.TAP_FORMS) assert.ok(O.TAP_FORM_EXAMPLE[f] && O.TAP_FORM_LABEL[f]);
 });
@@ -962,9 +968,12 @@ test("'Today' block for the TV: Hebrew date, weekday, the days running now (day 
 
 test('years on the slide: 40 years since Hey Teves 5747 is a major milestone with maximum hype and its vort', () => {
   const hey = { id: 'hey', nameEn: 'Hey Teves', rule: { kind: 'hebrew', month: 10, day: 5 }, since: { year: 5747 }, hype: 'calm' };
+  const heyLively = { ...hey, hype: undefined };
   const m = O.slideModel(file([hey]), at('2026-12-10T15:00:00Z'), NY).rows[0];
   assert.equal(m.years.completed, 40); assert.equal(m.years.tier, 'major'); assert.equal(m.years.words.big, '40');
-  assert.equal(m.years.words.line.en, '40 years'); assert.equal(m.hype, 'max', 'a major milestone overrides a calm setting');
+  assert.equal(m.years.words.line.en, '40 years'); assert.equal(m.hype, 'calm', 'a major milestone never raises a calm day');
+  assert.equal(O.slideModel(file([heyLively]), at('2026-12-10T15:00:00Z'), NY).rows[0].hype, 'max', 'with no hype of its own it gets the full treatment');
+  assert.equal(O.slideModel(file([{ ...heyLively, celebrate: false }]), at('2026-12-10T15:00:00Z'), NY).rows[0].hype, 'lively', 'a quiet day (celebrate off) stays as it is');
   assert.match(m.explain.en, /forty years/i); assert.match(m.explain.source, /Avodah Zarah 5b/, 'the built-in vort carries its source');
   // an occasion with its own text for 40 uses it
   const own = O.slideModel(file([{ ...hey, yearVorts: { 40: { en: 'The Rebbe said ...', he: '', source: 'Sicha X' } } }]), at('2026-12-10T15:00:00Z'), NY).rows[0];

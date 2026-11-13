@@ -199,3 +199,20 @@ test('typewriter pace: slower by default, and Stays up changes how long a page h
   assert.equal(sanitizeLetterLook({ hold: 'long' }).hold, 'long');
   assert.equal(modelLetterhead({ content: { letter: { body: 'x' } }, look: { letter: { paper: 'letterhead', hold: 'short' } } }).hold, 'short');
 });
+
+test('a very long letter is sped up to fit the cap (nothing cut); a short one is untouched; the admin estimate agrees', async () => {
+  const { planWithin, planTimeline, estimateSeconds, MAX_AUTO_SECONDS, SPEED_MUL } = await import('../src/shared/letterhead.js');
+  const long = { headLines: [20, 30], pages: Array.from({ length: 21 }, () => ({ lines: Array(18).fill(70), words: 190 })), wpm: 120, typeMul: 1, holdMul: 1 };
+  assert.ok(planTimeline(long).total > 2000, 'the raw plan of a 30,000-character letter is most of an hour');
+  const w = planWithin(long);
+  assert.ok(w.squeezed && w.plan.total <= MAX_AUTO_SECONDS * 1.05, `fits ${w.plan.total}`);
+  assert.equal(w.plan.pages.length, 21, 'every page is still there');
+  assert.ok(w.typeMul > 1 && w.holdMul < 1);
+  const short = planWithin({ headLines: [20], pages: [{ lines: [70, 60], words: 25 }], wpm: 120, typeMul: SPEED_MUL.normal, holdMul: 1 });
+  assert.equal(short.squeezed, false); assert.equal(short.typeMul, 1);
+  // the admin's estimate (no browser): a normal letter is under 2 minutes, a huge one is squeezed
+  const normal = estimateSeconds({ body: 'word '.repeat(95).trim(), salutation: 'Greeting:', signature: 'With esteem', date: 'Cheshvan 5738', to: 'The students' }, { paper: 'letterhead' });
+  assert.ok(normal.seconds > 20 && normal.seconds < 200 && !normal.squeezed, `${normal.seconds}s`);
+  const huge = estimateSeconds({ body: ('lorem ipsum dolor sit amet '.repeat(6) + '\n\n').repeat(150) }, { paper: 'letterhead' });
+  assert.ok(huge.squeezed && huge.seconds <= MAX_AUTO_SECONDS * 1.05 && huge.pages > 10, `${huge.seconds}s ${huge.pages} pages`);
+});

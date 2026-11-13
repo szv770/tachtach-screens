@@ -69,8 +69,9 @@ export const LETTERHEAD_CSS = `
 /* closing + signature + mailing block */
 .lhs .end { display: flex; justify-content: space-between; align-items: flex-end; gap: calc(30px * var(--hk)); min-height: calc(72px * var(--hk)); margin-top: calc(6px * var(--hk)); }
 .lhs.rtl .end { flex-direction: row-reverse; }
-.lhs .end .cl { display: flex; align-items: center; gap: calc(18px * var(--hk)); min-width: 0; font-size: calc(28px * var(--hk)); }
+.lhs .end .cl { flex-wrap: wrap; row-gap: calc(8px * var(--hk)); display: flex; align-items: center; gap: calc(18px * var(--hk)); min-width: 0; font-size: calc(28px * var(--hk)); }
 .lhs.rtl .end .cl { flex-direction: row-reverse; }
+.lhs .end .cl .ty { white-space: normal; min-width: 0; max-width: 100%; }
 .lhs .end .sig { height: calc(76px * var(--hk)); width: auto; display: block; will-change: clip-path, opacity; }
 .lhs .end .mb { display: flex; align-items: flex-end; gap: calc(22px * var(--hk)); }
 .lhs .end .mail { font-size: calc(19px * var(--hk)); line-height: 1.38; color: var(--ink); will-change: transform, opacity; }

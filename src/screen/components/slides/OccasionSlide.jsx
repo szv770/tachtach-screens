@@ -109,7 +109,8 @@ function unitWords(m, lang, n = m.countdown?.days) {
   const tg = inLang(m.dates?.toGoLabel, lang);
   if ((m.form !== 'far' && m.form !== 'days') || !hasText(tg) || !m.countdown) return m.words.unit;
   const noun = n === 1 ? COPY.day : COPY.days;
-  return inLang({ en: tg.en ? `${noun.en} ${tg.en}` : noun.en, he: tg.he ? `${noun.he} ${tg.he}` : noun.he }, lang);
+  // the number is days to the DAY itself, so the caption is 'days to go' (the 'Begins ... evening' line says when it starts)
+  return inLang({ en: `${noun.en} ${COPY.toGo.en}`, he: `${COPY.toGo.he} ${noun.he}` }, lang);
 }
 
 const SECONDS = { en: 'seconds', he: 'שניות' };
@@ -178,12 +179,13 @@ export function formsFor(m) {
   return out.length > 1 || (out.length === 1 && out[0] !== 'days') ? out : [];
 }
 const lastDayLeft = (m, nowMs) => Math.max(0, Number(m.beginMs) - nowMs);
+const dayLeft = (m, nowMs) => Math.max(0, (Number(m.dayMs) || Number(m.beginMs)) - nowMs); // to the DAY itself
 
 /** The numerals + label of one cycled form: { big, suffix, unit, bar } (rounded DOWN everywhere: never more time than is left). */
 function formWords(f, m, nowMs, lang) {
   const rem = lastDayLeft(m, nowMs);
   if (f === 'daysFraction') {
-    const { whole, glyph } = daysAndFraction(rem);
+    const { whole, glyph } = daysAndFraction(dayLeft(m, nowMs));
     return { big: String(whole), suffix: glyph, unit: unitWords(m, lang, glyph ? 0 : whole) };
   }
   if (f === 'hours') {

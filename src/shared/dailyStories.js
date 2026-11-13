@@ -145,6 +145,18 @@ export function normalizeDailyStoriesFile(file, seed = [], pool = 'story') {
   return { version: 1, order: file?.order === 'sequential' ? 'sequential' : 'shuffle', stories, history: normalizeHistory(file?.history) };
 }
 
+/**
+ * The Daily Letter copy for the kiosk and the live link: like forKiosk, but a letter that is switched off never shows, so its
+ * (long) text is not sent at all. Keeps every state load and every SSE update small.
+ */
+export function lettersForKiosk(file, keep = 3) {
+  const k = forKiosk(file, keep);
+  return { ...k, stories: (k.stories || []).filter((s) => s.enabled !== false) };
+}
+
+/** The most the letter list may weigh as JSON (the server refuses a save or import that would pass it; the parser takes 1 MB). */
+export const LETTER_FILE_MAX_BYTES = 900000;
+
 /** The slice the kiosk needs: the list plus only the last few days of history. */
 export function forKiosk(file, keep = 3) {
   const keys = Object.keys(file?.history || {}).sort().slice(-keep);
@@ -235,9 +247,15 @@ export const STORY_ADAPTER = Object.freeze({
   needsSource: (s) => s.kind === 'story',
 });
 
-/** Change today's story: op = 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic' (see dailyToday.js). */
-export function changeTodaysStory(file, iso, op, opts) {
-  return changeToday(file, STORY_ADAPTER, iso, op, opts);
+/** The Daily Letter list's adapter: every entry is forced to be a letter, and the cap is the letter cap (not the story one). */
+export const LETTER_ADAPTER = Object.freeze({
+  listKey: 'stories', itemKey: 'story', normalize: (raw) => normalizeStory(raw && typeof raw === 'object' ? { ...raw, kind: 'letter' } : raw),
+  snapshotOf, pickFromRotation, cap: LIMITS.letters,
+});
+
+/** Change today's story (or letter, with `adapter: LETTER_ADAPTER` in opts): op = 'pick' | 'random' | 'oneoff' | 'hide' | 'automatic' (see dailyToday.js). */
+export function changeTodaysStory(file, iso, op, opts = {}) {
+  return changeToday(file, opts.adapter || STORY_ADAPTER, iso, op, opts);
 }
 /** After a story was edited: today's archive copy follows it. */
 export function syncTodaysStory(file, iso) {

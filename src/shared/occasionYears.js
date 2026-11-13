@@ -92,16 +92,16 @@ const ORDINAL_EN = (n) => {
 };
 
 /** A number as Hebrew letters (125 = קכ״ה). */
-export const yearLetters = (n) => gematria(n);
+export const yearLetters = (n) => (n >= 1 && n < 1000 ? gematria(n) : ''); // gematria is for 1-999; a bigger number shows no letters
 
 /** The words of a milestone: { big: '40', letters: 'מ׳', line: {en,he}, kicker: {en,he} }. `line` is the sentence under the number. */
 export function yearWords(m) {
   if (!m || !m.n) return null;
   const letters = yearLetters(m.n);
   if (m.focus === 'entering') {
-    return { big: String(m.n), letters, kicker: { en: 'Entering the', he: 'נכנסים לשנה ה' }, line: { en: `the ${ORDINAL_EN(m.n)} year`, he: `${letters} (השנה ה־${m.n})` } };
+    return { big: String(m.n), letters, kicker: { en: 'Entering', he: 'נכנסים לשנת' }, line: { en: `the ${ORDINAL_EN(m.n)} year`, he: letters || String(m.n) } };
   }
-  return { big: String(m.n), letters, kicker: { en: 'Years since', he: 'שנים מאז' }, line: { en: `${m.n} years`, he: `${letters} שנים` } };
+  return { big: String(m.n), letters, kicker: { en: 'Years since', he: 'שנים מאז' }, line: { en: `${m.n} years`, he: `${letters || m.n} שנים`.trim() } };
 }
 
 /**

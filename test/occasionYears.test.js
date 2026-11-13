@@ -38,7 +38,10 @@ test('words: the seal, the sentence and the Hebrew letters', () => {
   const done = Y.yearWords(Y.milestoneOf({ year: 5747 }, iso(5787, TEVET, 5)));
   assert.equal(done.big, '40'); assert.equal(done.line.en, '40 years'); assert.match(done.letters, /מ/);
   const into = Y.yearWords(Y.milestoneOf({ year: 5748 }, iso(5787, SHVAT, 22)));
-  assert.equal(into.line.en, 'the 40th year'); assert.equal(into.kicker.en, 'Entering the');
+  assert.equal(into.line.en, 'the 40th year'); assert.equal(into.kicker.en, 'Entering');
+  assert.equal(Y.yearLetters(1000), ''); assert.equal(Y.yearLetters(1500), ''); assert.match(Y.yearLetters(125), /ק/);
+  const k1 = Y.yearWords({ n: 1000, completed: 1000, entering: 1001, tier: 'major', focus: 'completed' });
+  assert.equal(k1.letters, ''); assert.ok(!/undefined/.test(JSON.stringify(k1)), 'no "undefined" text for 1000 years');
   assert.equal(Y.yearWords(null), null);
 });
 

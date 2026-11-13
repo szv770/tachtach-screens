@@ -4,7 +4,7 @@ import { Field, Chip, Segmented, TextInput, TextArea } from '../announcements/An
 import StylePicker from '../announcements/StylePicker.jsx';
 import LetterheadControls from './LetterheadControls.jsx';
 import PagePreview from './PagePreview.jsx';
-import { NEW_LETTER_LOOK, MAX_LETTER_BODY, letterEntryItem } from '../../../shared/letterhead.js';
+import { NEW_LETTER_LOOK, MAX_LETTER_BODY, MAX_AUTO_SECONDS, estimateSeconds, letterEntryItem } from '../../../shared/letterhead.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
 
 const isHeb = (v) => /[֐-׿]/.test(String(v || ''));
@@ -33,6 +33,7 @@ export default function LetterEditor({ value, onChange, settings = {}, showTitle
   };
   const grid = { display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' };
   const ui = { Field, Chip, Segmented, TextInput, TextArea };
+  const est = String(letter.body || '').trim() ? estimateSeconds(letter, paper) : null;
   const previewItem = letterEntryItem({ id: 'editor', letter, paper, style: v.style });
 
   return (
@@ -54,6 +55,12 @@ export default function LetterEditor({ value, onChange, settings = {}, showTitle
         <span style={{ display: 'block', textAlign: 'right', fontSize: '12px', marginTop: '2px', color: String(letter.body || '').length > MAX_LETTER_BODY ? colors.danger : colors.dim }}>
           {String(letter.body || '').length.toLocaleString()} / {MAX_LETTER_BODY.toLocaleString()} characters{String(letter.body || '').length > MAX_LETTER_BODY ? ': too long, split it into two letters' : ''}
         </span>
+        {est && (
+          <span data-testid="letter-estimate" style={{ display: 'block', textAlign: 'right', fontSize: '12px', marginTop: '2px', color: est.squeezed ? colors.danger : colors.dim }}>
+            About {est.seconds >= 90 ? `${Math.round(est.seconds / 60)} minutes` : `${est.seconds} seconds`} on the screen{est.pages > 1 ? `, over ${est.pages} pages` : ''}
+            {est.squeezed ? ` (very long: it types faster so it fits in about ${Math.round(MAX_AUTO_SECONDS / 60)} minutes; think about splitting it into two letters)` : ''}.
+          </span>
+        )}
       </Field>
       <div style={grid}>
         <Field title="Source (English, optional)"><TextInput value={letter.source || ''} onChange={(x) => set('letter.source', x)} ariaLabel="Letter source" placeholder="Igros Kodesh vol. 12" /></Field>

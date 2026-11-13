@@ -457,11 +457,14 @@ export function formsProblem(tap, auto, { partial } = {}) {
   return null;
 }
 /** Which collections show (an array of CATEGORIES): a list with unknown names loses them; not a list = all. */
-export function normalizeShowCategories(raw) {
+/**
+ * Which collections show. `version` is the settings' `categoriesV`: a list saved BEFORE the Rebbe's-days collection existed
+ * (version below 2) that shows 'Chabad days' keeps showing those days (Hey Teves, Yud Shvat, Yud-Alef Nissan moved into 'dor'),
+ * once; from then on the list is exactly what the owner ticks.
+ */
+export function normalizeShowCategories(raw, version = 2) {
   if (!Array.isArray(raw)) return [...CATEGORIES];
-  // the list saved before the Rebbe's-days collection existed, with every kind ticked, gains it (a narrower choice is kept as chosen)
-  const legacyAll = CATEGORIES.filter((c) => c !== 'dor').every((c) => raw.includes(c));
-  const list = legacyAll && !raw.includes('dor') ? [...raw, 'dor'] : raw;
+  const list = version < 2 && raw.includes('chabad') && !raw.includes('dor') ? [...raw, 'dor'] : raw;
   return CATEGORIES.filter((c) => list.includes(c));
 }
 /** The occasion's own vorts for particular numbers: { '40': { en, he, source } }, at most LIMITS.yearVorts. */
@@ -574,7 +577,8 @@ export function normalizeSettings(raw) {
     stageStyle: oneOf(s.stageStyle, STAGE_STYLES, D.stageStyle),
     hype: oneOf(s.hype, HYPES, D.hype),
     sound: normalizeSound(s.sound),
-    showCategories: normalizeShowCategories(s.showCategories),
+    showCategories: normalizeShowCategories(s.showCategories, s.categoriesV === 2 ? 2 : 0),
+    categoriesV: 2, // the collections list has been moved to the version with the Rebbe's days
     tapForms: normalizeTapForms(s.tapForms, [...D.tapForms]),
     autoForms: normalizeAutoForms(s.autoForms),
     shareEmoji: bool('shareEmoji'),
@@ -1169,6 +1173,11 @@ function dayISOOf(row) {
   return b.evening ? addDaysISO(b.dateISO, 1) : b.dateISO;
 }
 
+/** The moment the DAY itself starts (ms): a day that begins the evening before starts 24 hours after it begins. */
+export function dayStartMs(row) {
+  return row.begin.evening ? row.begin.ms + 86400000 : row.begin.ms;
+}
+
 /** Whole calendar days from `today` to the civil date a row BEGINS on (the evening before the day). */
 export function daysUntilBegin(row, today) {
   return fixedFromISO(row.begin.dateISO) - fixedFromISO(today);
@@ -1474,6 +1483,12 @@ const soundOfRow = (s, o) => {
  * `words` is the seal ({ big, letters, kicker, line }) only for a milestone; `vort` is the occasion's own text for that number,
  * else the built-in one (src/shared/occasionYears.js), already in the screen's language.
  */
+/** The hype of a row: its own / the global choice, raised to 'max' by a MAJOR milestone unless it is calm, or a quiet day (celebrate off). */
+export function milestoneHype(o, s, years) {
+  const base = o.hype || s.hype || DEFAULT_HYPE;
+  return years?.tier === 'major' && o.celebrate !== false && base !== 'calm' ? 'max' : base;
+}
+
 export function yearsOfRow(row, s, pickLang = (x) => x) {
   const o = row.occasion;
   const m = o.since ? milestoneOf(o.since, row.startISO) : null;
@@ -1528,12 +1543,13 @@ export function heroModel(row, now, ctx) {
     daysLeft,
     // exact zero moment (ms epoch) for the flip clock's all-units view; null when the time is only approximate
     beginMs: c.approx ? null : row.begin.ms,
+    dayMs: c.approx ? null : dayStartMs(row), // when the DAY itself starts: the 'days and a quarter' view counts to it
     stageText: tagline ? pickLang(tagline) : null,
     look: resolveLook(s, o),
     layout: resolveOccLayout(s, o),
     display: o.display || s.display || 'classic',
     stageStyle: stageStyleOf(o.stageStyle || s.stageStyle),
-    hype: years?.tier === 'major' ? 'max' : (o.hype || s.hype || DEFAULT_HYPE), // a major milestone always gets the full treatment
+    hype: milestoneHype(o, s, years), // a major milestone raises the hype, but never above what the owner set for it
     kind: o.kind === 'countup' ? 'countup' : 'countdown',
     run: o.kind === 'countup' ? runOf(row, now, { ...ctx, settings: s, today }, pickLang) : null,
     advent: adventOf(row, now, c, s, today, daysLeft, pickLang),
@@ -1723,7 +1739,8 @@ export function takeoverFor(file, now, ctx) {
     const n = daysUntil(r, today);
     const mm = o.since ? milestoneOf(o.since, r.startISO) : null;
     // a MAJOR milestone gets many more moments on the way (100, 60, 30, 21, 14, 10, 7, 5, 3, 2, 1 days)
-    const days = mm?.tier === 'major' ? MAJOR_MILESTONE_DAYS : (o.milestones ?? s.milestones);
+    // (only for a day that celebrates, and only when the owner has not set his own list of days for it)
+    const days = mm?.tier === 'major' && o.celebrate !== false && o.milestones == null ? MAJOR_MILESTONE_DAYS : (o.milestones ?? s.milestones);
     if (n < 1 || !days.includes(n)) continue;
     const until = Math.min(slotEnd, r.begin.ms);
     if (t < until) offer('milestone', r, until, { n, slotStart });
@@ -1733,7 +1750,7 @@ export function takeoverFor(file, now, ctx) {
   const o = r.occasion;
   const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
   const yrs = yearsOfRow(r, s, pickLang);
-  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, years: yrs, hype: yrs?.tier === 'major' ? 'max' : (o.hype || s.hype || DEFAULT_HYPE), look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, years: yrs, hype: milestoneHype(o, s, yrs), look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
     // the same clear dates + short 'why' as a slide row (the kiosk takeover shows the quiet why line and 'until it begins')
     dates: datesOf(r, today, tz, pickLang), why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null };
   const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });
@@ -1813,8 +1830,11 @@ export function formWords(form, row, now, settings, today) {
   const T = COPY;
   const un = (n, one, many) => ({ en: n === 1 ? one.en : many.en, he: n === 1 ? one.he : many.he });
   if (form === 'days' || form === 'daysFraction') {
-    const n = ms / 86400000; const whole = Math.floor(n);
-    if (form === 'days') return whole >= 1 ? { big: String(whole), unit: un(whole, T.day, T.days) } : null;
+    // days (and the quarters of a day) are counted to the DAY ITSELF, the same as the big number; hours are to when it begins
+    if (ms < 86400000) return null; // the last 24 hours before it begins are the hours view's
+    const dayMs = dayStartMs(row);
+    const n = Math.max(0, dayMs - now.getTime()) / 86400000; const whole = Math.floor(n);
+    if (form === 'days') { const d = daysUntil(row, today || zonedParts(now, DEFAULT_TZ).date); return d >= 1 ? { big: String(d), unit: un(d, T.day, T.days) } : null; }
     const q = Math.floor((n - whole) * 4);
     if (whole === 0 && q === 0) return null;
     return { big: `${whole || ''}${QUARTER[q]}`, unit: un(whole === 1 && q === 0 ? 1 : 2, T.day, T.days) };
@@ -1835,7 +1855,9 @@ export function formWords(form, row, now, settings, today) {
 const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
 /** The count as words for a message: '20\u00BC days' / '5 hours' / '12 minutes' ('' once it has begun). */
 function countWords(row, now, s, today) {
-  const f = formWords('daysFraction', row, now, s, today) || formWords('hours', row, now, s, today);
+  // the last 24 hours before it BEGINS read as hours; before that, days and a quarter to the day itself
+  const near = row.begin.ms - now.getTime() < 86400000;
+  const f = near ? formWords('hours', row, now, s, today) : (formWords('daysFraction', row, now, s, today) || formWords('hours', row, now, s, today));
   if (f) return { en: `${f.big} ${f.unit.en}`, he: `${f.big} ${f.unit.he}` };
   const m = Math.max(1, Math.ceil((row.begin.ms - now.getTime()) / 60000));
   return { en: `${m} ${m === 1 ? 'minute' : 'minutes'}`, he: `${m} דקות` };

@@ -37,7 +37,7 @@ import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './rout
 import { forKiosk } from '../shared/dailyWords.js';
 import dailyStoriesRouter, { readDailyStories, startDailyStoryRecorder } from './routes/daily-stories.js';
 import dailyLettersRouter, { readDailyLetters, startDailyLetterRecorder } from './routes/daily-letters.js';
-import { forKiosk as storiesForKiosk } from '../shared/dailyStories.js';
+import { forKiosk as storiesForKiosk, lettersForKiosk } from '../shared/dailyStories.js';
 import menuRouter from './routes/menu.js';
 import averagesRouter, { startAveragesSync } from './routes/averages.js';
 import { averagesForKiosk } from './averagesStore.js';
@@ -99,7 +99,7 @@ const googlePhotosGate = async (req, res, next) => {
 };
 
 /** The /api paths that take bodies bigger than 16 kB (they get a 256 kB parser instead of the global one). */
-const BIG_BODY_PATHS = /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|menu|averages|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/;
+const BIG_BODY_PATHS = /^\/api\/(schedule\/(dates|blocks|weekly|entries|templates?|categories)|daily-words|daily-stories|daily-letters|menu|averages|shiurim|occasions|roster|chazan|saved-letters|slides|announcements)(\/|$)/;
 
 export function createApp() {
   const app = express();
@@ -358,7 +358,7 @@ export function createApp() {
         // Daily Story list ({ order, stories }); the kiosk picks today's story from it.
         dailyStories: storiesForKiosk(dailyStories),
         // Daily Letter list ({ order, stories }, every entry a letter); the kiosk picks today's letter from it.
-        dailyLetters: storiesForKiosk(dailyLetters),
+        dailyLetters: lettersForKiosk(dailyLetters),
         menu,
         shiurim,
         occasions,

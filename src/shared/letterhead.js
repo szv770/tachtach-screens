@@ -208,33 +208,83 @@ export function planTimeline({ headLines = [], pages = [], wpm = 150, typeMul = 
  */
 export function packPages(paras, capacity, gap = 0.5) {
   const pages = [];
-  let cur = null, used = 0;
+  let cur = null;
   const wc = (x) => (x.trim() ? x.trim().split(/\s+/).length : 0);
-  const open = () => { cur = { paras: [], words: 0 }; pages.push(cur); used = 0; };
+  const open = () => { cur = { paras: [], words: 0, used: 0 }; pages.push(cur); };
   for (const para of paras) {
     let piece = null;
     for (const line of para) {
       const gapCost = !piece && cur && cur.paras.length ? gap : 0;
-      if (!cur || (cur.paras.length && used + gapCost + 1 > capacity + 1e-6)) { if (cur && piece) cur.cont = true; open(); }
+      if (!cur || (cur.paras.length && cur.used + gapCost + 1 > capacity + 1e-6)) { if (cur && piece) cur.cont = true; open(); }
       if (!piece || cur.paras[cur.paras.length - 1] !== piece) {
-        used += cur.paras.length ? gap : 0;
+        cur.used += cur.paras.length ? gap : 0;
         piece = [];
         cur.paras.push(piece);
       }
-      piece.push(line); used += 1; cur.words += wc(line);
+      piece.push(line); cur.used += 1; cur.words += wc(line);
     }
   }
-  // no lone line stranded at the bottom of a page when its paragraph continues on the next one
+  // no lone line stranded at the foot of a page when its paragraph goes on: it moves to the next page, but only when that page has room
   for (let i = 0; i < pages.length - 1; i++) {
-    const a = pages[i], b = pages[i + 1];
+    const a = pages[i]; const b = pages[i + 1];
     const tail = a.paras[a.paras.length - 1];
-    if (tail && tail.length === 1 && a.paras.length > 1 && b.paras.length && b.contPara !== false && a.contPara !== false && a.cont) {
+    if (a.cont && tail && tail.length === 1 && a.paras.length > 1 && b.paras.length && b.used + 1 <= capacity + 1e-6) {
       const line = a.paras.pop()[0];
       b.paras[0].unshift(line);
-      const w = wc(line); a.words -= w; b.words += w;
+      const w = wc(line); a.words -= w; b.words += w; a.used -= 1 + gap; b.used += 1;
     }
   }
-  return pages.length ? pages : [{ paras: [], words: 0 }];
+  const out = pages.length ? pages : [{ paras: [], words: 0, used: 0 }];
+  return out.map(({ paras: p, words }) => ({ paras: p, words }));
+}
+
+/** The longest an AUTOMATIC letter slide aims to stay up (15 minutes). A longer letter is typed and held faster, never cut. */
+export const MAX_AUTO_SECONDS = 900;
+const MAX_SPEEDUP = 6;
+
+/**
+ * planTimeline within a time cap: a very long letter (hundreds of lines) would hold the screen for most of an hour, so the typing
+ * and the page holds are sped up step by step until it fits (or the limit of 6x). All the text still shows.
+ * Returns { plan, typeMul, holdMul, squeezed }.
+ */
+export function planWithin(opts, cap = MAX_AUTO_SECONDS) {
+  const t0 = opts.typeMul > 0 ? opts.typeMul : 1; const h0 = opts.holdMul > 0 ? opts.holdMul : 1;
+  let tm = t0; let hm = h0;
+  let plan = planTimeline({ ...opts, typeMul: tm, holdMul: hm });
+  for (let i = 0; i < 12 && plan.total > cap && tm < t0 * MAX_SPEEDUP; i++) {
+    tm *= 1.3; hm *= 0.75;
+    plan = planTimeline({ ...opts, typeMul: tm, holdMul: hm });
+  }
+  return { plan, typeMul: tm, holdMul: hm, squeezed: tm > t0 };
+}
+
+/**
+ * Seconds a letter will be on screen, estimated WITHOUT the browser (for the admin): ~70 characters a line, 9 lines a page.
+ * `letter` = its fields, `look` = look.letter. Approximate: the kiosk measures the real lines.
+ */
+export function estimateSeconds(letter, look = {}, screenSpeed = 'normal') {
+  const l = letter || {}; const lk = sanitizeLetterLook(look);
+  const rtl = HEB.test(l.body || '');
+  const lines = (txt) => String(txt || '').split(/\n+/).map((x) => x.trim()).filter(Boolean);
+  const wrap = (txt) => Math.max(1, Math.ceil([...txt].length / 70));
+  const body = lines(l.body);
+  const bodyLines = body.map((p) => ({ n: [...p].length, rows: wrap(p), words: p.split(/\s+/).length }));
+  const pageRows = 9; const pages = []; let cur = { lines: [], words: 0, rows: 0 };
+  for (const p of bodyLines) {
+    let left = p.n;
+    for (let r = 0; r < p.rows; r++) {
+      if (cur.rows >= pageRows) { pages.push(cur); cur = { lines: [], words: 0, rows: 0 }; }
+      const n = Math.min(70, left); left -= n; cur.lines.push(n); cur.rows += 1; cur.words += Math.round((p.words * n) / Math.max(1, p.n));
+    }
+  }
+  if (cur.lines.length || !pages.length) pages.push(cur);
+  const spd = effectiveSpeed(lk.speed, screenSpeed);
+  const head = [S(l.grace) || 'By the Grace of G-d', ...lines(l.date), ...lines(l.dateHe), ...lines(l.to), S(l.salutation)].filter(Boolean).map((x) => [...x].length);
+  const { plan, squeezed } = planWithin({
+    headLines: head, pages: pages.map((p) => ({ lines: p.lines, words: p.words })), wpm: rtl ? 90 : 120, typeMul: SPEED_MUL[spd], holdMul: HOLD_MUL[lk.hold] || 1,
+    hasClose: !!S(l.signature), closeChars: [...S(l.signature)].length, hasSig: lk.signature && !!HEAD_PRESETS[lk.head]?.signature, hasStamp: lk.stamp, hasMailed: lk.mailed && !!S(l.mailed), loop: false,
+  });
+  return { seconds: Math.round(plan.total), pages: pages.length, squeezed };
 }
 
 /** Seconds the rotation should give the slide (rounded up, + the page-transition extra). */

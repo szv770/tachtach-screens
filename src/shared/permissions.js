@@ -210,7 +210,7 @@ const RULES = Object.freeze([
   rule('media.delete', ['DELETE'], /^\/api\/(upload|images|media)(\/|$)/),
   rule('media.upload', ANY, /^\/api\/(upload|images|media)(\/|$)/),
   rule('feeds.edit', ANY, /^\/api\/(rss|google-album)(\/|$)/),
-  rule('dailyWord.edit', ANY, /^\/api\/daily-(words|stories)(\/|$)/),
+  rule('dailyWord.edit', ANY, /^\/api\/daily-(words|stories|letters)(\/|$)/),
   rule('menu.edit', ANY, /^\/api\/menu(\/|$)/),
   rule('averages.edit', ANY, /^\/api\/averages(\/|$)/),
   rule('shiurim.edit', ANY, /^\/api\/shiurim(\/|$)/),

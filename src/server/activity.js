@@ -18,6 +18,7 @@ const AREAS = [
   [/^custom-days/, 'custom day'],
   [/^daily-words/, 'Daily Word list'],
   [/^daily-stories/, 'Daily Story list'],
+  [/^daily-letters/, 'Daily Letter list'],
   [/^menu/, 'menu'],
   [/^averages/, 'test averages'],
   [/^shiurim/, 'shiurim'],

@@ -130,7 +130,8 @@ function CountTk({ tk, now, L, portrait, font, tagline }) {
   // 'N DAYS UNTIL IT BEGINS' when the model says so (the countdown runs to the evening before the day itself)
   const tg = tk.dates?.toGoLabel;
   const noun = days === 1 ? COPY.day : COPY.days;
-  const toGo = !final && tg && (tg.en || tg.he) ? { en: w.unit && !w.unit.en && w.unit.he ? '' : (tg.en ? `${noun.en} ${tg.en}` : noun.en), he: w.unit && !w.unit.he && w.unit.en ? '' : (tg.he ? `${noun.he} ${tg.he}` : noun.he) } : null;
+  // the number is days to the DAY itself: 'days to go' (the dates line says when it begins)
+  const toGo = !final && tg && (tg.en || tg.he) ? { en: w.unit && !w.unit.en && w.unit.he ? '' : `${noun.en} ${COPY.toGo.en}`, he: w.unit && !w.unit.he && w.unit.en ? '' : `${COPY.toGo.he} ${noun.he}` } : null;
   const unit = final ? { en: `${COPY.minutes.en} : seconds`, he: `${COPY.minutes.he} : שניות` }
     : toGo || (w.unit && (w.unit.en || w.unit.he) ? w.unit
       : { en: `${days === 1 ? COPY.day.en : COPY.days.en} ${COPY.toGo.en}`, he: `${COPY.toGo.he} ${days === 1 ? COPY.day.he : COPY.days.he}` });

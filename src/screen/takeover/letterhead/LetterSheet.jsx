@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { modelLetterhead, planTimeline, packPages, effectiveSpeed, SPEED_MUL, HOLD_MUL, TYPING } from '../../../shared/letterhead.js';
+import { modelLetterhead, planWithin, packPages, effectiveSpeed, SPEED_MUL, HOLD_MUL, TYPING } from '../../../shared/letterhead.js';
 import { wpmFor } from '../../../shared/longText.js';
 import { ensureLetterheadCss } from './css.js';
 import sigRebbe from './rebbe-signature.png';
@@ -45,25 +45,67 @@ function run(list, el, s, total, loop) {
   } catch { /* an engine without a property: the finished page just shows */ }
 }
 
-/** Visual lines of each text at `fs` px in a box `W` px wide, measured in the hidden `meas` element. */
+/**
+ * Visual lines of each text at `fs` px in a box `W` px wide, measured in the hidden `meas` element. A single word wider than the
+ * line (a long web address) is split into pieces so it wraps instead of running off the sheet (the pieces are joined with no space).
+ */
 function breakLines(meas, texts, fs, W) {
   meas.style.fontSize = fs + 'px';
   meas.style.width = W + 'px';
-  meas.replaceChildren();
-  const groups = texts.map((text) => {
-    const p = document.createElement('p');
-    const ws = String(text).split(/\s+/).filter(Boolean);
-    const spans = ws.map((w) => { const s = document.createElement('span'); s.textContent = w; p.appendChild(s); p.appendChild(document.createTextNode(' ')); return s; });
-    meas.appendChild(p);
-    return { ws, spans };
-  });
-  return groups.map(({ ws, spans }) => {
-    const lines = []; let cur = [], top = null;
-    spans.forEach((s, i) => {
-      const t = s.offsetTop;
-      if (top === null || Math.abs(t - top) < 3) { cur.push(ws[i]); if (top === null) top = t; } else { lines.push(cur.join(' ')); cur = [ws[i]]; top = t; }
+  const build = (tokenLists) => {
+    meas.replaceChildren();
+    return tokenLists.map((tokens) => {
+      const p = document.createElement('p');
+      const spans = tokens.map((tk) => {
+        const s = document.createElement('span'); s.textContent = tk.t; p.appendChild(s);
+        p.appendChild(document.createTextNode(tk.glue ? '' : ' '));
+        return s;
+      });
+      meas.appendChild(p);
+      return spans;
     });
-    if (cur.length) lines.push(cur.join(' '));
+  };
+  let lists = texts.map((text) => String(text).split(/\s+/).filter(Boolean).map((t) => ({ t, glue: false })));
+  let spansByPara = build(lists);
+  const scale = (meas.getBoundingClientRect().width / (meas.offsetWidth || 1)) || 1; // the slide is scaled: rects are screen px, widths here are layout px
+  let split = false;
+  lists = lists.map((tokens, pi) => {
+    const out = [];
+    tokens.forEach((tk, i) => {
+      const span = spansByPara[pi][i];
+      const rects = span.getClientRects();
+      const natural = ([...rects].reduce((n, r) => n + r.width, 0) / scale) || span.offsetWidth;
+      if (rects.length > 1 && tk.t.length > 4 && span.firstChild) {
+        // the browser already wrapped this one word (at a / or -): take its own break points, character by character
+        const range = document.createRange(); const node = span.firstChild; const pieces = []; let top = null; let cur = '';
+        for (let k = 0; k < node.length; k++) {
+          range.setStart(node, k); range.setEnd(node, k + 1);
+          const r = range.getClientRects()[0]; const t = r ? r.top : top;
+          if (top === null || (t !== null && Math.abs(t - top) < 3)) { cur += node.data[k]; if (top === null) top = t; } else { pieces.push(cur); cur = node.data[k]; top = t; }
+        }
+        if (cur) pieces.push(cur);
+        // a piece between two break points can still be wider than the line (a long run with no - or /): cut it by width too
+        const charW = natural / Math.max(1, tk.t.length); const fit = Math.max(2, Math.floor((W - 8) / Math.max(1, charW)));
+        const flat = pieces.flatMap((pc) => (pc.length > fit ? pc.match(new RegExp(`.{1,${fit}}`, 'gs')) : [pc]));
+        flat.forEach((pc, k) => out.push({ t: pc, glue: k < flat.length - 1 }));
+        split = true;
+      } else if (natural > W - 2 && tk.t.length > 4) {
+        // a word with no break point that is still wider than the line: cut it into pieces by width
+        const per = Math.max(2, Math.floor((tk.t.length * (W - 8)) / natural) - 1);
+        for (let k = 0; k < tk.t.length; k += per) out.push({ t: tk.t.slice(k, k + per), glue: k + per < tk.t.length });
+        split = true;
+      } else out.push(tk);
+    });
+    return out;
+  });
+  if (split) spansByPara = build(lists);
+  return lists.map((tokens, pi) => {
+    const lines = []; let cur = '', top = null;
+    tokens.forEach((tk, i) => {
+      const t = spansByPara[pi][i].offsetTop;
+      if (top === null || Math.abs(t - top) < 3) { cur += (cur && !tokens[i - 1]?.glue ? ' ' : '') + tk.t; if (top === null) top = t; } else { lines.push(cur); cur = tk.t; top = t; }
+    });
+    if (cur) lines.push(cur);
     return lines;
   });
 }
@@ -164,6 +206,18 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
   const pageCount = lay ? lay.pages.length : 1;
   useEffect(() => { if (forcedPage != null) onPages?.(pageCount); }, [forcedPage, pageCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Safety net: a line that is still wider than its box (a long web address, a long closing) is shrunk to fit, so nothing runs off the sheet.
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root || !lay) return;
+    for (const tx of root.querySelectorAll('.pg .tx, .meta .tx, .greet .tx')) {
+      tx.style.fontSize = '';
+      const box = tx.parentElement?.clientWidth || 0;
+      const w = tx.offsetWidth;
+      if (box > 40 && w > box + 1) tx.style.fontSize = `${Math.max(8, (parseFloat(getComputedStyle(tx).fontSize) * (box - 2)) / w).toFixed(2)}px`;
+    }
+  }, [lay, hl, ft, dimsKey]);
+
   // still mode: finished page, next lines on a timer
   const spd = effectiveSpeed(m.speed, speed); // this letter's own speed, else the screen's reading speed
   const wpm = wpmFor(spd, m.rtl ? 'he' : 'en');
@@ -192,12 +246,14 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
     const sigEl = root.querySelector('.sig'), stampEl = root.querySelector('.stamp'), mailEl = root.querySelector('.mail');
     const len = (el) => (el.querySelector('.tx')?.textContent || '').length;
 
-    const plan = planTimeline({
+    // a very long letter is typed and held faster until it fits MAX_AUTO_SECONDS (nothing is ever cut)
+    const { plan } = planWithin({
       headLines: heads.map(len),
       pages: lay.pages.map((p, i) => ({ lines: [...pgEls[i].querySelectorAll('.ty')].map(len), words: p.words })),
       wpm, typeMul: SPEED_MUL[spd], holdMul: HOLD_MUL[m.hold] || 1, hasClose: !!closeEl, closeChars: closeEl ? len(closeEl) : 0, hasSig: !!sigEl, hasStamp: !!stampEl, hasMailed: !!mailEl, loop,
     });
     const T = plan.total;
+    const noCaret = pgEls.reduce((n, p) => n + p.querySelectorAll('.ty').length, 0) > 150;
     const mono = !m.serif;
     const rtl = m.rtl;
 
@@ -206,6 +262,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
       const n = Math.max(1, len(el));
       const easing = mono ? `steps(${n}, end)` : 'linear';
       run(anims, tx, seq({ clipPath: HIDE(rtl) }).at(s, { clipPath: HIDE(rtl) }).ramp(e, { clipPath: SHOW }, easing), T, loop);
+      if (noCaret) return; // hundreds of lines: no per-line caret (it would double the animations)
       const x0 = tx.offsetLeft, W = tx.offsetWidth;
       const a = rtl ? x0 + W : x0, b = rtl ? x0 : x0 + W;
       const tr = (x) => `translateX(${Math.round(x)}px)`;
