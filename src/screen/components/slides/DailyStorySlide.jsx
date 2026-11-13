@@ -1,11 +1,9 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect } from 'react';
 import { Panel, F, bidiNodes } from '../../design/ui.jsx';
 import { Fit } from '../../design/fit.jsx';
 import { useDesign } from '../../design/DesignRoot.jsx';
 import { textDir } from '../../../shared/bidi.js';
 import { pickDailyStory, readingSeconds } from '../../../shared/dailyStories.js';
-import { letterEntryItem } from '../../../shared/letterhead.js';
-import AnnouncementSlide from './AnnouncementSlide.jsx';
 
 /**
  * Daily Story: a short story or thought to read, one a day (src/shared/dailyStories.js; the list is edited in
@@ -64,14 +62,11 @@ export default function DailyStorySlide({ dailyStories, dateISO, portrait: portr
   const design = useDesign();
   const portrait = portraitProp ?? design.portrait;
   const s = pickDailyStory(dailyStories, dateISO);
-  const letterItem = useMemo(() => (s?.kind === 'letter' ? letterEntryItem(s, Number(slide?.duration) || 0) : null), [s, slide?.duration]);
   const want = s ? readingSeconds(s, design.longText?.speed) : 0;
   const base = Number(slide?.duration) || 0;
   // seconds 0 = automatic: ask for exactly the reading time
   useEffect(() => { if (want && onRequestDuration && (!base || want > base)) onRequestDuration(want); }, [s?.id, want]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!s) return null;
-  // a LETTER of the day: the letterhead stage types it out and asks the rotation for the time it needs
-  if (s.kind === 'letter') return <AnnouncementSlide item={letterItem} onRequestDuration={onRequestDuration} />;
 
   const isThought = s.kind === 'thought';
   const date = dateLabel(dateISO);

@@ -49,6 +49,7 @@ export const SLIDE_TYPES = [
   { id: 'WEATHER', label: 'Weather', group: 'builtin', icon: 'sun', desc: 'Current conditions and forecast.', create: { kind: 'builtin' }, edit: ['weather'], defaults: { duration: 15 } },
   { id: 'DAILY_WORD', label: 'Daily Word', group: 'builtin', icon: 'word', desc: 'A new word every day.', create: { kind: 'builtin' }, edit: ['dailyWord'], moreSettings: { section: 'daily-word', label: 'Daily Word' }, defaults: { duration: 20 } },
   { id: 'DAILY_STORY', label: 'Daily Story', group: 'builtin', icon: 'message', desc: 'A short story or thought to read, a new one every day.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'daily-story', label: 'Daily Story' }, defaults: { duration: 25 } },
+  { id: 'DAILY_LETTER', label: 'Daily Letter', group: 'builtin', icon: 'message', desc: 'A letter of the Rebbe, typed out on letterhead, a new one every day.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'daily-letter', label: 'Daily Letter' }, defaults: { duration: 0 } },
   { id: 'BIRTHDAYS', label: 'Birthdays', group: 'builtin', icon: 'star', desc: 'Happy birthday to the bochurim whose Hebrew birthday it is. Only shows on those days.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'roster', label: 'Bochurim list' }, defaults: { duration: 15 } },
   { id: 'CHAZAN', label: 'Chazan', group: 'builtin', icon: 'star', desc: 'Who leads Shacharis, Mincha and Maariv today, tomorrow and the day after.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'chazan', label: 'Chazan rotation' }, defaults: { duration: 15 } },
   { id: 'AVERAGES', label: 'Test averages', group: 'builtin', icon: 'list', desc: 'Gemoro and Girsa test averages: a leaderboard with pillars, the most improved, and everyone in the program. Shows student names and marks.', create: { kind: 'builtin' }, edit: [], moreSettings: { section: 'averages', label: 'Test Averages' }, defaults: { duration: 20 } },
@@ -88,6 +89,7 @@ const SECONDS_NOTE = {
   OCCASION: 'The least time the Countdown stays up. When a few take turns it stays longer so each one is shown.',
   MENU: 'The least time the menu stays up. With several pages (very long menus) or both Today and Week it stays longer so every dish is shown.',
   DAILY_STORY: 'The least time the story stays up. A long story stays a little longer so it can be read.',
+  DAILY_LETTER: 'Automatic (0) keeps the letter up exactly as long as it takes to type and read. A number is the least time it stays up.',
   MIVTZAH_LIVE_EMBED: 'How long the live page stays up before the next slide.',
 };
 
@@ -104,7 +106,7 @@ export function popupSpec(typeId) {
     name: true,
     onOff: true,
     seconds: !own && typeId !== 'PDF_SLIDE',
-    secondsMin: typeId === 'VIDEO_SLIDE' || typeId === 'AVERAGES' || typeId === 'DAILY_STORY' ? 0 : SECONDS_MIN, // 0 = automatic (a video plays to its end, the Test Averages take as long as they need)
+    secondsMin: typeId === 'VIDEO_SLIDE' || typeId === 'AVERAGES' || typeId === 'DAILY_STORY' || typeId === 'DAILY_LETTER' ? 0 : SECONDS_MIN, // 0 = automatic (a video plays to its end, the Test Averages take as long as they need)
     secondsMax: SECONDS_MAX,
     secondsNote: SECONDS_NOTE[typeId] || 'How long this slide stays on the screen before the next one.',
     fullscreen: !own && typeId !== 'GOOGLE_PHOTOS_SLIDE',

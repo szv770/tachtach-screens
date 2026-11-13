@@ -57,7 +57,11 @@ export default function LetterheadControls({ look, c, set, ui, isMobile }) {
           </Field>
           <Field title="Speed">
             <Segmented ariaLabel="Letter speed" options={[{ value: 'screen', label: 'Like the screen' }, { value: 'slow', label: 'Slow' }, { value: 'normal', label: 'Normal' }, { value: 'fast', label: 'Fast' }]} value={lk.speed} onChange={(v) => setLk('speed', v)} />
-            <p style={note}>How fast it types and how long each page stays up. &ldquo;Like the screen&rdquo; follows Look &gt; Motion &gt; Long text.</p>
+            <p style={note}>How fast the typewriter types. &ldquo;Like the screen&rdquo; follows Look &gt; Motion &gt; Long text (its reading speed).</p>
+          </Field>
+          <Field title="Stays up after it finishes typing">
+            <Segmented ariaLabel="How long it stays" options={[{ value: 'short', label: 'Short' }, { value: 'normal', label: 'Normal' }, { value: 'long', label: 'Long' }]} value={lk.hold} onChange={(v) => setLk('hold', v)} />
+            <p style={note}>Time to finish reading before the next slide. Short is about half of Normal, Long almost twice.</p>
           </Field>
           <Field title="Sent to (one line each, optional)">
             <TextArea value={letter.to || ''} onChange={(v) => set('content.letter.to', v)} rows={3} rtl={/[֐-׿]/.test(letter.to || '')} ariaLabel="Sent to" placeholder={'To the Students of\nThe Landau Yeshiva\nMiami Beach, Fla.'} />

@@ -13,12 +13,12 @@
 
 import { wpmFor } from './longText.js';
 import { changeToday, syncTodaySnapshot } from './dailyToday.js';
-import { sanitizeLetterLook, NEW_LETTER_LOOK } from './letterhead.js';
+import { sanitizeLetterLook, NEW_LETTER_LOOK, MAX_LETTER_BODY } from './letterhead.js';
 import { LETTER_FIELDS, defaultTitle } from './savedLetters.js';
 import { normalizeStyleId } from './takeoverStyles.js';
 
 export const KINDS = ['story', 'thought', 'letter'];
-export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500, letterBody: 12000 };
+export const LIMITS = { title: 90, titleHe: 90, text: 700, textHe: 700, source: 100, tag: 24, tags: 8, stories: 500, letterBody: MAX_LETTER_BODY, letters: 300 };
 export const HISTORY_LIMIT = 800;
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -36,6 +36,7 @@ const newId = () => `s_${Date.now().toString(36)}_${(counter++).toString(36)}_${
 function normalizeLetterEntry(input) {
   const src = input.letter && typeof input.letter === 'object' ? input.letter : {};
   const letter = {};
+  if (String(src.body ?? '').length > MAX_LETTER_BODY) return { error: `"${line(input.title, LIMITS.title) || 'This letter'}" is too long (${String(src.body).length} characters; the most is ${MAX_LETTER_BODY}). Split it into two letters.` };
   for (const k of LETTER_FIELDS) letter[k] = String(src[k] ?? '').replace(/\r\n?/g, '\n').slice(0, k === 'body' ? LIMITS.letterBody : 300).trim();
   if (!letter.body) return { error: `"${line(input.title, LIMITS.title) || 'Untitled letter'}" needs the letter text` };
   const tagsIn = Array.isArray(input.tags) ? input.tags : typeof input.tags === 'string' ? input.tags.split(',') : [];
@@ -83,13 +84,19 @@ export function normalizeStory(input) {
   return { story: out };
 }
 
-/** Clean a list; drops invalid entries and reports why. Duplicate ids are re-issued. */
-export function normalizeStories(list) {
+/**
+ * Clean a list; drops invalid entries and reports why. Duplicate ids are re-issued.
+ * `pool` = 'story' (Daily Story: stories + thoughts, letters are not accepted here) or 'letter' (Daily Letter:
+ * every entry is a letter).
+ */
+export function normalizeStories(list, pool = 'story') {
   const stories = [];
   const errors = [];
   const seen = new Set();
-  (Array.isArray(list) ? list : []).slice(0, LIMITS.stories).forEach((raw, i) => {
-    const r = normalizeStory(raw);
+  const cap = pool === 'letter' ? LIMITS.letters : LIMITS.stories;
+  (Array.isArray(list) ? list : []).slice(0, cap).forEach((raw, i) => {
+    if (pool === 'story' && raw?.kind === 'letter') return; // letters have their own page and list
+    const r = normalizeStory(pool === 'letter' && raw && typeof raw === 'object' ? { ...raw, kind: 'letter' } : raw);
     if (r.error) { errors.push({ index: i, error: r.error }); return; }
     if (seen.has(r.story.id)) r.story.id = newId();
     seen.add(r.story.id);
@@ -99,7 +106,7 @@ export function normalizeStories(list) {
 }
 
 /** Parse pasted text: a JSON list, { stories: [...] }, or JSON inside a ```fence```. */
-export function parseStoriesText(text) {
+export function parseStoriesText(text, pool = 'story') {
   let raw = String(text ?? '').trim();
   const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) raw = fence[1].trim();
@@ -112,7 +119,7 @@ export function parseStoriesText(text) {
   }
   const list = Array.isArray(data) ? data : Array.isArray(data?.stories) ? data.stories : null;
   if (!list) return { stories: [], errors: [{ index: -1, error: 'expected a JSON list of stories' }] };
-  return normalizeStories(list);
+  return normalizeStories(list, pool);
 }
 
 /** Copy kept in the archive (survives the entry being edited or deleted). */
@@ -132,9 +139,9 @@ function normalizeHistory(h) {
 }
 
 /** Whole-file normaliser (server + kiosk): always a usable { order, stories, history }. */
-export function normalizeDailyStoriesFile(file, seed = []) {
+export function normalizeDailyStoriesFile(file, seed = [], pool = 'story') {
   const has = file && Array.isArray(file.stories);
-  const { stories } = normalizeStories(has ? file.stories : seed);
+  const { stories } = normalizeStories(has ? file.stories : seed, pool);
   return { version: 1, order: file?.order === 'sequential' ? 'sequential' : 'shuffle', stories, history: normalizeHistory(file?.history) };
 }
 
@@ -282,6 +289,24 @@ Reply with ONLY a JSON list, no commentary. One object per entry:
   "source": "REQUIRED for a story: the exact, checkable source, e.g. 'Sichos Kodesh 5731 vol. 2 p. 114' or 'Told by Rabbi Y. Y. Jacobson, <where>'"
 }
 Do not repeat these titles already on the list: {EXISTING}.`;
+
+/** Prompt the admin copies into a chat assistant to turn letters they paste (e.g. from the English Rebbe responsa site) into entries. */
+export const DAILY_LETTER_PROMPT = `You are helping fill the "Daily Letter" page of a Chabad yeshiva's digital screen. The screen types each letter out on a sheet of letterhead.
+I will paste {N} letter(s) of the Rebbe below (for example from the English responsa website). Do NOT write, invent, shorten or reword any letter: copy each one EXACTLY as I paste it, keeping every paragraph. If I paste only a link or a topic and no text, say so and stop.
+Reply with ONLY a JSON list, no commentary. One object per letter:
+{
+  "title": "a short name for my list, e.g. 'To the 5th grade, Cheshvan 5738'",
+  "letter": {
+    "dateHe": "the Hebrew date if the letter has one, else empty",
+    "date": "the English date and place exactly as written, e.g. 'In the Beginning of Cheshvan, 5738. Brooklyn, N.Y.'",
+    "to": "who it was sent to, one line each (use \\n), or empty",
+    "salutation": "the greeting, e.g. 'Greeting and Blessing:'",
+    "body": "the full text; separate paragraphs with a blank line (\\n\\n)",
+    "signature": "the closing, e.g. 'With esteem'",
+    "source": "where it is printed, e.g. 'Igros Kodesh vol. 12, p. 34' (only if I told you), else empty"
+  }
+}
+A letter must be under 30,000 characters. Do not repeat these titles already on my list: {EXISTING}.`;
 
 /**
  * Seconds a passer-by needs to read it: words at ~140 wpm (Hebrew a little slower) + a few seconds to look up.

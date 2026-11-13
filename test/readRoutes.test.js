@@ -122,6 +122,7 @@ const MATRIX = {
   '/api/kiddush-levana/months?count=12':  [1, 1, 1, 0],
   '/api/daily-words':                     [1, 1, 0, 0],
   '/api/daily-stories':                   [1, 1, 0, 0],
+  '/api/daily-letters':                   [1, 1, 0, 0],
   '/api/menu':                            [1, 1, 0, 0],
   '/api/averages':                        [1, 1, 0, 0],
   '/api/averages/roster-names':           [1, 1, 0, 0],

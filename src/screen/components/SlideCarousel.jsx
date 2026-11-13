@@ -10,6 +10,7 @@ import PirkeiAvosSlide from './slides/PirkeiAvosSlide.jsx';
 import DailyQuoteSlide from './slides/DailyQuoteSlide.jsx';
 import DailyWordSlide from './slides/DailyWordSlide.jsx';
 import DailyStorySlide from './slides/DailyStorySlide.jsx';
+import DailyLetterSlide from './slides/DailyLetterSlide.jsx';
 import MenuSlide from './slides/MenuSlide.jsx';
 import OccasionSlide from './slides/OccasionSlide.jsx';
 import ShiurimSlide from './slides/ShiurimSlide.jsx';
@@ -66,7 +67,7 @@ const VARIANTS = {
 export default function SlideCarousel({
   currentSlide, currentIndex, cache, tokens, settings, hold, onVideoEnded, onRequestDuration, googleAlbums,
   schedule, countdown, onCountdownComplete, rssCache, rssFeeds, portrait = false, portraitLayout = 'compact',
-  dailyWords, dailyStories, menu, menuNow, menuTz, averages, shiurim, shiurimCtx, shiurTags, occasions, occasionOffset = 0, dateISO, roster, chazan, customDays, shabbosModel,
+  dailyWords, dailyStories, dailyLetters, menu, menuNow, menuTz, averages, shiurim, shiurimCtx, shiurTags, occasions, occasionOffset = 0, dateISO, roster, chazan, customDays, shabbosModel,
 }) {
   const { motion: mode } = useDesign();
   if (hold) currentSlide = hold;
@@ -90,6 +91,7 @@ export default function SlideCarousel({
       case 'DAILY_QUOTE': return <DailyQuoteSlide cache={cache} tokens={tokens} settings={settings} />;
       case 'DAILY_WORD': return <DailyWordSlide dailyWords={dailyWords} dateISO={dateISO} />;
       case 'DAILY_STORY': return <DailyStorySlide dailyStories={dailyStories} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
+      case 'DAILY_LETTER': return <DailyLetterSlide dailyLetters={dailyLetters} dateISO={dateISO} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'AVERAGES': return <AveragesSlide data={averages} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;
       case 'SHIURIM': return <ShiurimSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} schedule={shiurimCtx?.schedule} scheduleDates={shiurimCtx?.scheduleDates} groups={shiurimCtx?.groups} />;
       case 'SPEAKER': return <SpeakerSlide data={shiurim} now={menuNow} tz={menuTz} portrait={portrait} onRequestDuration={onRequestDuration} slide={slide} />;

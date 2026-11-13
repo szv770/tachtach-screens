@@ -6,12 +6,12 @@
  * content.letter / content.sicha, so "Post again" is a straight copy.
  */
 import { normalizeStyleId } from './takeoverStyles.js';
-import { sanitizeLetterLook } from './letterhead.js';
+import { sanitizeLetterLook, MAX_LETTER_BODY } from './letterhead.js';
 
 export const LETTER_FIELDS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe', 'to', 'mailed', 'postmark', 'headEn', 'headHe', 'grace'];
 export const SICHA_FIELDS = ['title', 'titleHe', 'body', 'source'];
 export const KINDS = ['letter', 'sicha'];
-const MAX_BODY = 12000;
+const MAX_BODY = MAX_LETTER_BODY;
 
 export class LetterError extends Error {}
 
@@ -33,6 +33,7 @@ export function sanitizeSavedLetter(body) {
   const fields = kind === 'letter' ? LETTER_FIELDS : SICHA_FIELDS;
   const src = body[kind] && typeof body[kind] === 'object' ? body[kind] : {};
   const f = {};
+  if (String(src.body ?? '').length > MAX_BODY) throw new LetterError(`The text is too long (${String(src.body).length} characters; the most is ${MAX_BODY}). Split it into two letters.`);
   for (const k of fields) f[k] = clip(src[k], k === 'body' ? MAX_BODY : 300).trim();
   if (!f.body) throw new LetterError('There is no text to save.');
   const title = clip(body.title, 120).replace(/\s+/g, ' ').trim() || defaultTitle(kind, f);

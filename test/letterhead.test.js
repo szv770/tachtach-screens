@@ -16,7 +16,7 @@ test('look.letter: unknown values fall back, always complete, old letters stay p
   assert.equal(DEFAULT_LETTER_LOOK.paper, 'plain');
   assert.equal(NEW_LETTER_LOOK.paper, 'letterhead');
   const s = sanitizeLetterLook({ paper: 'x', head: 'nope', body: 'comic', grace: 0, signature: false, mailed: 1, stamp: true });
-  assert.deepEqual(s, { paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: false, mailed: false, stamp: true, speed: 'screen' });
+  assert.deepEqual(s, { paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: false, mailed: false, stamp: true, speed: 'screen', hold: 'normal' });
   assert.equal(isLetterhead({ look: { layout: 'letter' } }), false);
   assert.equal(isLetterhead(item()), true);
   assert.equal(isLetterhead({ look: { layout: 'sicha', letter: { paper: 'letterhead' } } }), false);
@@ -56,7 +56,7 @@ test('server whitelist keeps the new letter fields and look.letter, and rejects 
   const out = sanitizeInput({ content: { letter: { body: 'x', to: 'A\nB', mailed: 'M', postmark: 'P', headEn: 'E', headHe: 'H', grace: 'G', evil: 'no' } }, look: { layout: 'letter', letter: { paper: 'letterhead', head: 'rayatz', stamp: true, junk: 1 } } });
   assert.equal(out.content.letter.to, 'A\nB');
   assert.equal(out.content.letter.evil, undefined);
-  assert.deepEqual(out.look.letter, { paper: 'letterhead', head: 'rayatz', body: 'typed', grace: true, signature: true, mailed: false, stamp: true, speed: 'screen' });
+  assert.deepEqual(out.look.letter, { paper: 'letterhead', head: 'rayatz', body: 'typed', grace: true, signature: true, mailed: false, stamp: true, speed: 'screen', hold: 'normal' });
   const made = createItem(out, { id: 'a1' });
   assert.equal(made.look.letter.paper, 'letterhead');
   assert.equal(made.content.letter.mailed, 'M');
@@ -124,7 +124,7 @@ test('daily letter: a Daily Story entry of kind letter keeps the whole letter, i
   assert.equal(st.paper.speed, 'fast'); assert.equal(st.paper.paper, 'letterhead'); assert.equal(st.style, 'torah');
   assert.equal(snapshotOf(st).letter.to, 'The boys');
   assert.equal(readingSeconds(st), 0);
-  const file = normalizeDailyStoriesFile({ stories: [st] });
+  const file = normalizeDailyStoriesFile({ stories: [st] }, [], 'letter');
   const today = pickDailyStory(file, '2026-11-12');
   assert.equal(today.kind, 'letter');
   const item = letterEntryItem(today, 30);
@@ -152,4 +152,50 @@ test('automatic slide length: 0 seconds is kept for a letter and asks for exactl
   assert.equal(letterheadSlideSeconds(41.2, 60), 60, 'a set length is a minimum');
   const { letterEntryItem } = await import('../src/shared/letterhead.js');
   assert.equal(letterEntryItem({ letter: { body: 'x' } }).slide.duration, 0);
+});
+
+test('daily letter pool: letters are their own list, the story list never takes them, long letters are refused not cut', async () => {
+  const { normalizeStories, normalizeDailyStoriesFile, parseStoriesText, pickDailyStory, DAILY_LETTER_PROMPT, LIMITS } = await import('../src/shared/dailyStories.js');
+  const raw = [{ kind: 'letter', letter: { body: 'A letter' } }, { kind: 'story', text: 'A story', source: 'Somewhere' }];
+  assert.equal(normalizeStories(raw, 'story').stories.length, 1, 'the story list drops letters');
+  assert.equal(normalizeStories(raw, 'story').stories[0].kind, 'story');
+  const asLetters = normalizeStories([{ letter: { body: 'No kind given' } }, { letter: { body: '' } }], 'letter');
+  assert.equal(asLetters.stories.length, 1); assert.equal(asLetters.stories[0].kind, 'letter');
+  assert.equal(asLetters.errors.length, 1, 'an empty letter is reported');
+  // a letter over the limit is refused with a message, never silently cut
+  const big = normalizeStories([{ letter: { body: 'x'.repeat(LIMITS.letterBody + 1) } }], 'letter');
+  assert.equal(big.stories.length, 0); assert.match(big.errors[0].error, /too long/);
+  const ok = normalizeStories([{ letter: { body: 'x'.repeat(LIMITS.letterBody) } }], 'letter');
+  assert.equal(ok.stories[0].letter.body.length, LIMITS.letterBody);
+  // a pasted JSON list of letters imports (the Claude prompt's shape)
+  const parsed = parseStoriesText(JSON.stringify([{ title: 'To the 5th grade', letter: { date: 'Cheshvan, 5738', to: 'The students', salutation: 'Greeting and Blessing:', body: 'Text.', signature: 'With esteem' } }]), 'letter');
+  assert.equal(parsed.stories.length, 1); assert.equal(parsed.stories[0].letter.to, 'The students');
+  assert.match(DAILY_LETTER_PROMPT, /EXACTLY/);
+  // a letter pinned to a date shows on that date; other days pick from the pool
+  const f = normalizeDailyStoriesFile({ stories: [{ id: 'a', letter: { body: 'A' } }, { id: 'b', letter: { body: 'B' }, showOn: '2026-12-01' }] }, [], 'letter');
+  assert.equal(pickDailyStory(f, '2026-12-01').id, 'b');
+  assert.equal(pickDailyStory(f, '2026-12-02').id, 'a');
+});
+
+test('long letters: the composer / library / daily list all accept up to the same limit and refuse more', async () => {
+  const { MAX_LETTER_BODY } = await import('../src/shared/letterhead.js');
+  const { sanitizeInput } = await import('../src/server/announcements-model.js');
+  const { sanitizeSavedLetter, LetterError } = await import('../src/shared/savedLetters.js');
+  assert.equal(MAX_LETTER_BODY, 30000);
+  assert.equal(sanitizeInput({ content: { letter: { body: 'x'.repeat(20000) } } }).content.letter.body.length, 20000, 'was silently cut at 12,000');
+  assert.throws(() => sanitizeInput({ content: { letter: { body: 'x'.repeat(MAX_LETTER_BODY + 1) } } }), /too long/);
+  assert.equal(sanitizeSavedLetter({ kind: 'letter', letter: { body: 'x'.repeat(20000) } }).letter.body.length, 20000);
+  assert.throws(() => sanitizeSavedLetter({ kind: 'letter', letter: { body: 'x'.repeat(MAX_LETTER_BODY + 1) } }), LetterError);
+});
+
+test('typewriter pace: slower by default, and Stays up changes how long a page holds', async () => {
+  const { HOLD_MUL, sanitizeLetterLook, modelLetterhead } = await import('../src/shared/letterhead.js');
+  assert.ok(TYPING.bodyCps <= 24, 'the typewriter is slow enough to read along (it was 46 characters a second)');
+  const pages = [{ lines: [70, 70, 40], words: 90 }];
+  const short = planTimeline({ pages, wpm: 120, holdMul: HOLD_MUL.short });
+  const long = planTimeline({ pages, wpm: 120, holdMul: HOLD_MUL.long });
+  assert.ok(long.total > short.total, 'a longer Stays up keeps the letter on longer');
+  assert.equal(sanitizeLetterLook({ hold: 'nope' }).hold, 'normal');
+  assert.equal(sanitizeLetterLook({ hold: 'long' }).hold, 'long');
+  assert.equal(modelLetterhead({ content: { letter: { body: 'x' } }, look: { letter: { paper: 'letterhead', hold: 'short' } } }).hold, 'short');
 });

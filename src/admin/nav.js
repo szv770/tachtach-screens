@@ -9,6 +9,7 @@ export const navItems = [
   { key: 'images', en: 'Media', desc: 'Pictures, videos, photo albums, web pages & news feeds', area: 'screen', group: 'main' },
   { key: 'daily-word', en: 'Daily Word', desc: 'A new word every day', area: 'screen', group: 'daily' },
   { key: 'daily-story', en: 'Daily Story', desc: 'A short story or thought every day', area: 'screen', group: 'daily' },
+  { key: 'daily-letter', en: 'Daily Letter', desc: 'A letter of the Rebbe, typed out, one a day (plan weeks ahead)', area: 'screen', group: 'daily' },
   { key: 'menu', en: 'Menu', desc: 'Meals: today, the week, dishes and tags', area: 'screen', group: 'daily' },
   { key: 'averages', en: 'Test Averages', desc: 'Gemoro and Girsa test averages: leaderboard, most improved', area: 'screen', group: 'daily' },
   { key: 'shiurim', en: 'Shiurim', desc: 'Rebbeim, weekly shiurim, guest speakers', area: 'screen', group: 'daily' },

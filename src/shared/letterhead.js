@@ -13,6 +13,9 @@
  * PRESETS (the letterhead a letter was really written on), which are data, not code paths.
  */
 
+/** The longest letter text any part of the system accepts. Over it is REFUSED with a message (never silently cut). */
+export const MAX_LETTER_BODY = 30000;
+
 export const PAPERS = Object.freeze(['plain', 'letterhead']);
 export const BODY_FACES = Object.freeze(['typed', 'serif']);
 
@@ -43,9 +46,12 @@ export const HEAD_IDS = Object.freeze(Object.keys(HEAD_PRESETS));
 export const LETTER_SPEEDS = Object.freeze(['screen', 'slow', 'normal', 'fast']);
 /** Typing-speed multiplier of each per-letter speed ('screen' maps through the screen's own slow | normal | fast). */
 export const SPEED_MUL = Object.freeze({ slow: 0.7, normal: 1, fast: 1.5 });
+/** How long a page stays up after its last key (a share of the reading time): the owner's 'how fast it goes away'. */
+export const LETTER_HOLDS = Object.freeze(['short', 'normal', 'long']);
+export const HOLD_MUL = Object.freeze({ short: 0.5, normal: 1, long: 1.8 });
 
 export const DEFAULT_LETTER_LOOK = Object.freeze({
-  paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: true, mailed: false, stamp: false, speed: 'screen',
+  paper: 'plain', head: 'rebbe', body: 'typed', grace: true, signature: true, mailed: false, stamp: false, speed: 'screen', hold: 'normal',
 });
 
 /** What a NEW letter starts with in the composer (old letters have no look.letter and stay 'plain'). */
@@ -66,6 +72,7 @@ export function sanitizeLetterLook(v) {
     mailed: s.mailed === true,
     stamp: s.stamp === true,
     speed: oneOf(s.speed, LETTER_SPEEDS, d.speed),
+    hold: oneOf(s.hold, LETTER_HOLDS, d.hold),
   };
 }
 
@@ -115,7 +122,7 @@ export function modelLetterhead(item) {
     sigImg: lk.signature ? preset.signature : null, mailed, stamp, rtl,
     serif: rtl || lk.body === 'serif',
     source: [S(l.source), S(l.sourceHe)].filter(Boolean),
-    speed: lk.speed,
+    speed: lk.speed, hold: lk.hold,
   };
 }
 
@@ -139,15 +146,15 @@ export function letterEntryItem(e, seconds = 0) { // seconds 0 = automatic
 
 export const TYPING = Object.freeze({
   intro: 1.9,       // sheet lands + letterhead inks in before the first key
-  headCps: 70,      // header lines (date, addressee, greeting) type fast
-  bodyCps: 46,      // body characters per second (faster than anyone reads)
+  headCps: 38,      // header lines (date, addressee, greeting)
+  bodyCps: 20,      // body characters per second: slow enough to read along as it types (~150 words a minute)
   lineGap: 0.14,    // carriage return between lines
   minLine: 0.3,     // a short line still takes a beat
   pageGap: 0.7,     // old page clears, then the next one starts
   holdMin: 1.8,     // after the last key of a page
   sign: 1.5,        // signature write-on
   stamp: 0.35,      // postmark slam
-  endHold: 2.2,     // everything shown, still
+  endHold: 2.2,     // everything shown, still (scaled by 'Stays up')
   loopFade: 0.9,    // takeover loop: the sheet leaves before it replays
 });
 
@@ -163,7 +170,7 @@ const mulOf = (m) => (m > 0 ? m : 1);
  *   headT [{s,e}], pages [{ start, lineT:[{s,e}], typedEnd, end, fadeAt }], closeT {s,e}|null, sigT {s,e}|null,
  *   stampT, mailedT, total
  */
-export function planTimeline({ headLines = [], pages = [], wpm = 150, typeMul = 1, hasClose = false, closeChars = 0, hasSig = false, hasStamp = false, hasMailed = false, loop = false } = {}) {
+export function planTimeline({ headLines = [], pages = [], wpm = 150, typeMul = 1, holdMul = 1, hasClose = false, closeChars = 0, hasSig = false, hasStamp = false, hasMailed = false, loop = false } = {}) {
   let t = TYPING.intro;
   const mul = mulOf(typeMul);
   const headT = headLines.map((c) => { const s = t; const e = s + lineSec(c, TYPING.headCps * mul); t = e + TYPING.lineGap; return { s, e }; });
@@ -173,10 +180,11 @@ export function planTimeline({ headLines = [], pages = [], wpm = 150, typeMul = 
     let c = start;
     const lineT = pg.lines.map((n) => { const s = c; const e = s + lineSec(n, TYPING.bodyCps * mul); c = e + TYPING.lineGap; return { s, e }; });
     const typedEnd = lineT.length ? lineT[lineT.length - 1].e : start;
-    const read = (Math.max(1, pg.words || 0) * 60) / Math.max(40, wpm);
+    const hm = holdMul > 0 ? holdMul : 1;
+    const read = ((Math.max(1, pg.words || 0) * 60) / Math.max(40, wpm)) * hm;
     const last = pi === pages.length - 1;
     // the reader is already reading while it types, so the page holds for the LONGER of the two
-    const end = Math.max(typedEnd + TYPING.holdMin, start + read + 1);
+    const end = Math.max(typedEnd + TYPING.holdMin * hm, start + read + 1);
     out.push({ start, lineT, typedEnd, end, fadeAt: end, last });
     start = end + TYPING.pageGap;
   });

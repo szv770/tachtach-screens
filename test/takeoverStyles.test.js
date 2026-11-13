@@ -117,7 +117,7 @@ test('quote / sicha / letter are layouts and their fields are whitelisted', () =
   assert.deepEqual(out.content.quote, { text: 'A little light', textHe: 'מעט מן האור', source: 'Tanya 12', sourceHe: 'תניא' });
   assert.deepEqual(out.content.sicha, { title: 'From a Sicha', titleHe: 'מתוך שיחה', body: 'p1\n\np2', source: 'LS 5' });
   assert.deepEqual(Object.keys(out.content.letter).sort(), ['body', 'date', 'dateHe', 'salutation', 'signature', 'source', 'sourceHe']);
-  assert.equal(out.content.letter.body.length, 12000, 'long body is capped, not rejected');
+  assert.equal(out.content.letter.body.length, 20000, 'a long body is kept whole (the limit is 30,000 and over it is refused with a message), never silently cut');
   const d = defaultItem();
   assert.deepEqual(Object.keys(d.content.quote), ['text', 'textHe', 'source', 'sourceHe']);
   assert.deepEqual(Object.keys(d.content.sicha), ['title', 'titleHe', 'body', 'source']);

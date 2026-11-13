@@ -16,8 +16,6 @@ import { useSnackbar, useCopy } from './schedule/scheduleShared.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { pickDailyStory, normalizeStory, upcomingStories, archiveRows, pinStory, addDaysISO, DAILY_STORY_PROMPT, LIMITS } from '../../shared/dailyStories.js';
 import { toISODate } from '../../shared/scheduleResolution.js';
-import LetterEditor from './letters/LetterEditor.jsx';
-import { NEW_LETTER_LOOK } from '../../shared/letterhead.js';
 
 const blank = () => ({ kind: 'story', title: '', titleHe: '', text: '', textHe: '', source: '', tags: [], showOn: '', enabled: true });
 
@@ -34,7 +32,6 @@ function StoryForm({ initial, onSave, onCancel, busy, heading }) {
   useEffect(() => { rootRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, []);
   const set = (k, v) => setS((p) => ({ ...p, [k]: v }));
   const check = normalizeStory(s);
-  const isLetter = s.kind === 'letter';
   const needsSource = s.kind === 'story';
   const area = (k, text, props = {}) => (
     <label style={{ ...label, marginTop: '10px' }}>{text}
@@ -48,36 +45,26 @@ function StoryForm({ initial, onSave, onCancel, busy, heading }) {
       {heading !== '' && <h3 style={h3}>{heading ?? (initial?.id ? 'Edit story' : 'Add a story')}</h3>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px' }}>
         <label style={label}>Kind
-          <select value={s.kind} onChange={(e) => setS((p) => ({ ...p, kind: e.target.value, ...(e.target.value === 'letter' ? { letter: p.letter || {}, paper: p.paper || { ...NEW_LETTER_LOOK } } : {}) }))} style={inputStyle}>
+          <select value={s.kind} onChange={(e) => set('kind', e.target.value)} style={inputStyle}>
             <option value="story">Story</option>
             <option value="thought">Thought</option>
-            <option value="letter">Letter</option>
           </select>
         </label>
-        {!isLetter && <label style={label}>Title
+        <label style={label}>Title
           <input value={s.title} onChange={(e) => set('title', e.target.value)} style={inputStyle} maxLength={LIMITS.title} placeholder="The shepherd boy’s whistle" />
-        </label>}
-        {!isLetter && <label style={label}>Title in Hebrew (optional)
+        </label>
+        <label style={label}>Title in Hebrew (optional)
           <input value={s.titleHe} onChange={(e) => set('titleHe', e.target.value)} dir="rtl" style={{ ...inputStyle, fontFamily: adminFonts.hebrewPrimary, fontSize: '17px' }} maxLength={LIMITS.titleHe} />
-        </label>}
+        </label>
         <label style={label}>Show on this date (optional)
           <input type="date" value={s.showOn} onChange={(e) => set('showOn', e.target.value)} style={inputStyle} />
         </label>
       </div>
-      {isLetter ? (
-        <div style={{ marginTop: '10px' }}>
-          <LetterEditor value={{ title: s.title, letter: s.letter || {}, paper: s.paper, style: s.style }} showTitle
-            onChange={(n) => setS((p) => ({ ...p, title: n.title, letter: n.letter, paper: n.paper, style: n.style }))} />
-        </div>
-      ) : (
-        <>
-          {area('text', 'The story (English). Short reads best: about 60 to 90 words.', { placeholder: 'Once, on Yom Kippur…' })}
-          {area('textHe', 'In Hebrew (optional, shows beside the English)', { dir: 'rtl' })}
-          <label style={{ ...label, marginTop: '10px' }}>Source (required for a story: who told it / which book)
-            <input value={s.source} onChange={(e) => set('source', e.target.value)} style={inputStyle} maxLength={LIMITS.source} placeholder="Exact source, e.g. book and page" />
-          </label>
-        </>
-      )}
+      {area('text', 'The story (English). Short reads best: about 60 to 90 words.', { placeholder: 'Once, on Yom Kippur…' })}
+      {area('textHe', 'In Hebrew (optional, shows beside the English)', { dir: 'rtl' })}
+      <label style={{ ...label, marginTop: '10px' }}>Source (required for a story: who told it / which book)
+        <input value={s.source} onChange={(e) => set('source', e.target.value)} style={inputStyle} maxLength={LIMITS.source} placeholder="Exact source, e.g. book and page" />
+      </label>
       {!check.error && needsSource && !s.source.trim() && (s.title || s.text || s.textHe) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>A story needs a real source before it can go on the screen.</div>}
       {check.error && (s.title || s.text || s.textHe) && <div style={{ ...small, color: colors.danger, marginTop: '6px' }}>{check.error}</div>}
       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
@@ -152,7 +139,7 @@ export default function DailyStoryPanel() {
   const row = { display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 0', borderTop: `1px solid ${colors.muted}`, flexWrap: isMobile ? 'wrap' : 'nowrap' };
   const summary = (s, extra) => (
     <div style={{ flex: 1, minWidth: '170px' }}>
-      <div style={{ ...small, color: colors.text, fontSize: '14px', fontWeight: 600 }}>{s?.title || s?.titleHe || 'Untitled'} <span style={{ color: colors.dim, fontWeight: 400 }}>· {s?.kind === 'thought' ? 'thought' : s?.kind === 'letter' ? 'letter' : 'story'}</span>{s?.kind === 'story' && !s?.source && <span style={{ color: colors.danger, fontWeight: 600 }}> · needs a source, hidden</span>}{extra}</div>
+      <div style={{ ...small, color: colors.text, fontSize: '14px', fontWeight: 600 }}>{s?.title || s?.titleHe || 'Untitled'} <span style={{ color: colors.dim, fontWeight: 400 }}>· {s?.kind === 'thought' ? 'thought' : 'story'}</span>{s?.kind === 'story' && !s?.source && <span style={{ color: colors.danger, fontWeight: 600 }}> · needs a source, hidden</span>}{extra}</div>
       <div style={small}>{preview(s?.text || s?.textHe)}</div>
     </div>
   );
@@ -176,7 +163,7 @@ export default function DailyStoryPanel() {
               <div style={{ ...small, fontSize: '14px', marginTop: '4px', lineHeight: 1.45 }}>{preview(t.text || t.textHe, 260)}</div>
             </div>
           )}
-          chooseLabel={(x) => `${x.title || preview(x.text, 50)} · ${x.kind === 'thought' ? 'thought' : x.kind === 'letter' ? 'letter' : 'story'}`}
+          chooseLabel={(x) => `${x.title || preview(x.text, 50)} · ${x.kind === 'thought' ? 'thought' : 'story'}`}
           chooseSearch={(x) => [x.title, x.titleHe, x.text, x.source].join(' ')}
           renderOneOff={({ onSave, onCancel, busy: b }) => <StoryForm heading="" initial={null} busy={b} onSave={onSave} onCancel={onCancel} />}
           renderEdit={({ entry, onClose }) => (
@@ -270,11 +257,8 @@ export default function DailyStoryPanel() {
               <h3 style={{ ...h3, margin: 0, flex: 1 }}>The list</h3>
               <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search" style={{ ...inputStyle, maxWidth: '200px' }} />
               <button style={{ ...buttonPrimary, minHeight: '38px' }} onClick={() => { setEditing('new'); setEditDate(null); }}>+ Add a story</button>
-              <button style={{ ...buttonSecondary, minHeight: '38px', marginLeft: '8px' }} onClick={() => { setEditing('newLetter'); setEditDate(null); }}>+ Add a letter</button>
             </div>
             {editing === 'new' && renderForm(null)}
-            {editing === 'newLetter' && <StoryForm key="newLetter" heading="Add a letter" initial={{ kind: 'letter', letter: {}, paper: { ...NEW_LETTER_LOOK } }} busy={busy} onCancel={() => setEditing(null)}
-              onSave={async (st) => { if (await save({ ...file, stories: [...stories, st] }, 'Letter added.')) setEditing(null); }} />}
             {shown.length === 0 && <div style={small}>Nothing matches.</div>}
             {shown.map(({ s, i }) => (editing && editing !== 'new' && !editDate && editing.id === s.id ? <React.Fragment key={s.id}>{renderForm(editing)}</React.Fragment> : (
               <div key={s.id} style={{ ...row, opacity: s.enabled === false ? 0.5 : 1 }}>

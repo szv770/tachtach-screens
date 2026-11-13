@@ -86,8 +86,8 @@ export default function LettersTab({ caps, settings = {}, onPostLetter, onOpenCo
   const toDaily = async (rec) => {
     try {
       const entry = { kind: 'letter', title: rec.title, letter: rec.letter, paper: rec.paper, style: rec.style };
-      const r = await apiFetch('/api/daily-stories/import', { method: 'POST', body: JSON.stringify({ text: JSON.stringify([entry]), mode: 'append', dryRun: false }) });
-      notify(r?.added ? 'Added to the Daily Story rotation' : 'Already in the Daily Story rotation', 'success');
+      const r = await apiFetch('/api/daily-letters/import', { method: 'POST', body: JSON.stringify({ text: JSON.stringify([entry]), mode: 'append', dryRun: false }) });
+      notify(r?.added ? 'Added to the Daily Letter list' : 'Already in the Daily Letter list', 'success');
     } catch (e) { notify(e.message || 'Could not add it', 'error'); }
   };
 
@@ -125,7 +125,7 @@ export default function LettersTab({ caps, settings = {}, onPostLetter, onOpenCo
             <Btn primary onClick={() => setAgain(r)} style={{ minHeight: '44px' }} data-testid="letter-again">Post again</Btn>
             {r.kind === 'letter' && (!r.shared || canShared) && <Btn onClick={() => setEditRec(r)} style={{ minHeight: '44px' }} data-testid="letter-edit">Edit</Btn>}
             <Btn onClick={() => setView(r)} style={{ minHeight: '44px' }}>Preview</Btn>
-            {r.kind === 'letter' && <Btn onClick={() => toDaily(r)} style={{ minHeight: '44px' }} data-testid="letter-daily" title="Add it to the Daily Story rotation: one comes up each day">Add to Daily Story</Btn>}
+            {r.kind === 'letter' && <Btn onClick={() => toDaily(r)} style={{ minHeight: '44px' }} data-testid="letter-daily" title="Add it to the Daily Letter list: one comes up each day (plan the dates in Screen > Daily Letter)">Add to Daily Letter</Btn>}
             {(!r.shared || canShared) && <Btn danger onClick={() => setConfirmDel(r)} style={{ minHeight: '44px' }}>Delete</Btn>}
           </Row>
         </div>

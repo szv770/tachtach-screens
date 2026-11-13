@@ -39,6 +39,7 @@ import MediaPage from './components/media/MediaPage.jsx';
 import ScheduleSection from './components/ScheduleSection.jsx';
 import DailyWordPanel from './components/DailyWordPanel.jsx';
 import DailyStoryPanel from './components/DailyStoryPanel.jsx';
+import DailyLetterPanel from './components/DailyLetterPanel.jsx';
 import ShabbosPanel from './components/ShabbosPanel.jsx';
 import MenuPanel from './components/MenuPanel.jsx';
 import ShiurimPanel from './components/ShiurimPanel.jsx';
@@ -307,6 +308,8 @@ export default function App() {
         return <DailyWordPanel />;
       case 'daily-story':
         return <DailyStoryPanel />;
+      case 'daily-letter':
+        return <DailyLetterPanel settings={state?.settings || {}} slides={state?.slides || []} onUpdateSlides={updateSlides} canEditSlides={can(myCaps, 'slides.edit')} />;
       case 'averages':
         return <AveragesPanel canEdit={can(myCaps, 'averages.edit')} slides={state?.slides || []} onUpdateSlides={updateSlides} canEditSlides={can(myCaps, 'slides.edit')} />;
       case 'shiurim':

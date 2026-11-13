@@ -170,6 +170,8 @@ function AppContent() {
   );
   // Daily Story: out of the rotation when every story is hidden.
   const hasStory = React.useMemo(() => !!pickDailyStory(state?.dailyStories, scheduleDateISO), [state?.dailyStories, scheduleDateISO]);
+  // Daily Letter: likewise, only on a day that has a letter.
+  const hasLetter = React.useMemo(() => !!pickDailyStory(state?.dailyLetters, scheduleDateISO), [state?.dailyLetters, scheduleDateISO]);
   // Menu (src/shared/menu.js): in the rotation only when there is a menu to show AND it is inside the admin's schedule
   // window ('always', around the meals, or fixed hours). Re-checked each minute; the admin preview's ?previewAt= moves it.
   const menuTz = state?.settings?.location?.timezone;
@@ -228,6 +230,7 @@ function AppContent() {
       .filter((sl) => sl.type !== 'BIRTHDAYS' || birthdaysToday.length > 0)
       .filter((sl) => sl.type !== 'CHAZAN' || chazanHasSomething)
       .filter((sl) => sl.type !== 'DAILY_STORY' || hasStory)
+      .filter((sl) => sl.type !== 'DAILY_LETTER' || hasLetter)
       .filter((sl) => sl.type !== 'MENU' || hasMenu)
       .filter((sl) => sl.type !== 'SHIURIM' || hasShiurim)
       .filter((sl) => sl.type !== 'SPEAKER' || hasSpeaker)
@@ -447,6 +450,9 @@ function AppContent() {
         break;
       case 'daily-stories-update':
         setState(prev => prev ? { ...prev, dailyStories: data } : prev);
+        break;
+      case 'daily-letters-update':
+        setState(prev => prev ? { ...prev, dailyLetters: data } : prev);
         break;
       case 'menu-update':
         setState(prev => prev ? { ...prev, menu: data } : prev);
@@ -826,6 +832,7 @@ function AppContent() {
         rssFeeds={state?.rssFeeds || []}
         dailyWords={state?.dailyWords}
         dailyStories={state?.dailyStories}
+        dailyLetters={state?.dailyLetters}
         menu={state?.menu}
         menuNow={menuNow}
         menuTz={menuTz}

@@ -4,7 +4,7 @@ import { Field, Chip, Segmented, TextInput, TextArea } from '../announcements/An
 import StylePicker from '../announcements/StylePicker.jsx';
 import LetterheadControls from './LetterheadControls.jsx';
 import PagePreview from './PagePreview.jsx';
-import { NEW_LETTER_LOOK, letterEntryItem } from '../../../shared/letterhead.js';
+import { NEW_LETTER_LOOK, MAX_LETTER_BODY, letterEntryItem } from '../../../shared/letterhead.js';
 import useIsMobile from '../../hooks/useIsMobile.js';
 
 const isHeb = (v) => /[֐-׿]/.test(String(v || ''));
@@ -51,6 +51,9 @@ export default function LetterEditor({ value, onChange, settings = {}, showTitle
       </div>
       <Field title="Letter text (a blank line starts a new paragraph)">
         <TextArea value={letter.body || ''} onChange={(x) => set('letter.body', x)} rows={9} rtl={isHeb(letter.body)} ariaLabel="Letter text" />
+        <span style={{ display: 'block', textAlign: 'right', fontSize: '12px', marginTop: '2px', color: String(letter.body || '').length > MAX_LETTER_BODY ? colors.danger : colors.dim }}>
+          {String(letter.body || '').length.toLocaleString()} / {MAX_LETTER_BODY.toLocaleString()} characters{String(letter.body || '').length > MAX_LETTER_BODY ? ': too long, split it into two letters' : ''}
+        </span>
       </Field>
       <div style={grid}>
         <Field title="Source (English, optional)"><TextInput value={letter.source || ''} onChange={(x) => set('letter.source', x)} ariaLabel="Letter source" placeholder="Igros Kodesh vol. 12" /></Field>

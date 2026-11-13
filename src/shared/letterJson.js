@@ -33,7 +33,7 @@ export const JSON_FIELDS = {
     date: { type: 'text', max: 300, label: 'English date or place' },
     to: { type: 'lines', max: 300, label: 'Who it was sent to (omit if the letter does not say)' },
     salutation: { type: 'text', max: 300, label: 'Greeting' },
-    paragraphs: { type: 'paragraphs', max: 12000, label: 'Paragraphs' },
+    paragraphs: { type: 'paragraphs', max: 30000, label: 'Paragraphs' },
     closing: { type: 'text', max: 300, label: 'Closing and signature' },
     sourceHe: { type: 'text', max: 300, label: 'Hebrew source' },
     source: { type: 'text', max: 300, label: 'English source' },
@@ -41,7 +41,7 @@ export const JSON_FIELDS = {
   sicha: {
     titleHe: { type: 'text', max: 300, label: 'Hebrew title' },
     title: { type: 'text', max: 300, label: 'English title' },
-    paragraphs: { type: 'paragraphs', max: 12000, label: 'Paragraphs' },
+    paragraphs: { type: 'paragraphs', max: 30000, label: 'Paragraphs' },
     source: { type: 'text', max: 300, label: 'Source' },
   },
 };

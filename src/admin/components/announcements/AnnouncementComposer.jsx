@@ -5,7 +5,7 @@ import AnnouncementPreview from './AnnouncementPreview.jsx';
 import StylePicker from './StylePicker.jsx';
 import LetterTools from '../letters/LetterTools.jsx';
 import LetterheadControls from '../letters/LetterheadControls.jsx';
-import { NEW_LETTER_LOOK, isLetterhead } from '../../../shared/letterhead.js';
+import { NEW_LETTER_LOOK, MAX_LETTER_BODY, isLetterhead } from '../../../shared/letterhead.js';
 import { effectiveCaps } from '../../../shared/permissions.js';
 import { SOFT_LIMITS } from '../../../shared/takeoverStyles.js';
 import {
@@ -569,6 +569,9 @@ export default function AnnouncementComposer({
         </div>
         <Field title="Letter text (a blank line starts a new paragraph)">
           <TextArea value={c.letter.body} onChange={(v) => set('content.letter.body', v)} rows={8} rtl={isHeb(c.letter.body)} ariaLabel="Letter text" />
+          <span style={{ display: 'block', textAlign: 'right', fontSize: '12px', marginTop: '2px', color: String(c.letter.body || '').length > MAX_LETTER_BODY ? colors.danger : colors.muted }}>
+            {String(c.letter.body || '').length.toLocaleString()} / {MAX_LETTER_BODY.toLocaleString()} characters{String(c.letter.body || '').length > MAX_LETTER_BODY ? ': too long, split it into two letters' : ''}
+          </span>
         </Field>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 12px' }}>
           <Field title="Source (English)"><TextInput value={c.letter.source} onChange={(v) => set('content.letter.source', v)} placeholder="Igros Kodesh vol. 12, letter 4,123" ariaLabel="Letter source" /></Field>

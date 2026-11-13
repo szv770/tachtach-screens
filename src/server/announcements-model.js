@@ -11,7 +11,7 @@
 
 import { canonicalDay, durationMinutes, isActive, hasText, DEFAULT_TZ, LAYOUTS, listItemText } from '../shared/announcements.js';
 import { STYLE_IDS, normalizeStyleId, normalizeAnimation, DEFAULT_ANIMATION } from '../shared/takeoverStyles.js';
-import { sanitizeLetterLook } from '../shared/letterhead.js';
+import { sanitizeLetterLook, MAX_LETTER_BODY } from '../shared/letterhead.js';
 
 export { LAYOUTS };
 
@@ -36,7 +36,7 @@ const SICHA_KEYS = ['title', 'titleHe', 'body', 'source'];
 const NOTICE_KEYS = ['pre', 'focus', 'post', 'preHe', 'focusHe', 'postHe'];
 const LETTER_KEYS = ['date', 'dateHe', 'salutation', 'body', 'signature', 'source', 'sourceHe', 'to', 'mailed', 'postmark', 'headEn', 'headHe', 'grace'];
 const LONG_KEYS = new Set(['body']);
-const MAX_LONG = 12000;
+const MAX_LONG = MAX_LETTER_BODY;
 
 export function defaultItem() {
   return {
@@ -146,7 +146,10 @@ export function sanitizeInput(body) {
       const src = body.content[name];
       if (!src || typeof src !== 'object') return;
       out.content[name] = {};
-      for (const k of keys) if (k in src) out.content[name][k] = str(src[k], LONG_KEYS.has(k) ? MAX_LONG : 300);
+      for (const k of keys) if (k in src) {
+        if (LONG_KEYS.has(k) && String(src[k] ?? '').length > MAX_LONG) throw new ValidationError(`The text is too long (${String(src[k]).length} characters; the most is ${MAX_LONG}). Split it into two letters.`);
+        out.content[name][k] = str(src[k], LONG_KEYS.has(k) ? MAX_LONG : 300);
+      }
       extra?.(src, out.content[name]);
     };
     const c = body.content;

@@ -36,6 +36,7 @@ import freeze from './freeze.js';
 import dailyWordsRouter, { readDailyWords, startDailyWordRecorder } from './routes/daily-words.js';
 import { forKiosk } from '../shared/dailyWords.js';
 import dailyStoriesRouter, { readDailyStories, startDailyStoryRecorder } from './routes/daily-stories.js';
+import dailyLettersRouter, { readDailyLetters, startDailyLetterRecorder } from './routes/daily-letters.js';
 import { forKiosk as storiesForKiosk } from '../shared/dailyStories.js';
 import menuRouter from './routes/menu.js';
 import averagesRouter, { startAveragesSync } from './routes/averages.js';
@@ -131,6 +132,7 @@ export function createApp() {
         await ensureBuiltinSlides();
         startDailyWordRecorder();
         startDailyStoryRecorder();
+        startDailyLetterRecorder();
         await freeze.init(); // re-arms a freeze that survived a restart
         startKiddushLevana();
       } catch (bsErr) {
@@ -267,7 +269,7 @@ export function createApp() {
   // ── 1. Body parsing ──────────────────────────────────────────────────
   // /api/schedule/dates* and /blocks* parse their own bodies (256 kB — a
   // pasted multi-week schedule is bigger than 16 kB); see routes/schedule-dates.js.
-  // /api/slides (the whole rotation is saved at once: 45+ slides passed 16 kB) and /api/announcements (letters up to 12,000 characters) get 256 kB parsers on their own routes.
+  // /api/slides (the whole rotation is saved at once: 45+ slides passed 16 kB) and /api/announcements (letters up to 30,000 characters) get 256 kB parsers on their own routes.
   // The weekly schedule, its entries, categories and saved templates are big too (a 3-group yeshiva day is ~90 blocks > 16 kB: "That request is too large"); they get 256 kB parsers (routes/schedule-dates.js, routes/api.js).
   // /api/daily-words does too (256 kB, the client no longer sends the archive): the whole word list is saved at once and
   // is ~20 kB, so the 16 kB cap here made every edit fail with "request entity
@@ -317,7 +319,7 @@ export function createApp() {
   // failing response), and the change appeared to silently revert.
   app.get('/api/state', stateGate, viewerStateLimiter, csrfProtection, async (req, res) => {
     try {
-      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories, menu, shiurim, occasions, averages] = await Promise.all([
+      const [cache, settings, slides, announcementState, customDays, googleAlbums, schedule, rssFeeds, fonts, scheduleDates, dailyWords, roster, chazan, dailyStories, menu, shiurim, occasions, averages, dailyLetters] = await Promise.all([
         readJSON('cache.json'),
         readJSON('settings.json'),
         readJSON('slides.json'),
@@ -336,6 +338,7 @@ export function createApp() {
         shiurimForKiosk().catch(() => null), // P1 (rebbeim, guest speakers; adults): the kiosk resolves what shows with src/shared/shiurim.js
         occasionsForKiosk().catch(() => null), // P0 (names of days, the school's own events): the kiosk resolves what shows with src/shared/occasions.js
         averagesForKiosk().catch(() => null), // NAMES class (students + marks): the kiosk's own screen only, never in the live view
+        readDailyLetters(),
       ]);
       const body = {
         cache: cache ?? {},
@@ -354,6 +357,8 @@ export function createApp() {
         dailyWords: forKiosk(dailyWords),
         // Daily Story list ({ order, stories }); the kiosk picks today's story from it.
         dailyStories: storiesForKiosk(dailyStories),
+        // Daily Letter list ({ order, stories }, every entry a letter); the kiosk picks today's letter from it.
+        dailyLetters: storiesForKiosk(dailyLetters),
         menu,
         shiurim,
         occasions,
@@ -583,6 +588,7 @@ export function createApp() {
   app.use('/api', freezeRouter);
   app.use('/api', dailyWordsRouter);
   app.use('/api', dailyStoriesRouter);
+  app.use('/api', dailyLettersRouter);
   app.use('/api', menuRouter);
   app.use('/api', averagesRouter);
   app.use('/api', shiurimRouter);

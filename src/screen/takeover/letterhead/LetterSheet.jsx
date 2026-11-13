@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { modelLetterhead, planTimeline, packPages, effectiveSpeed, SPEED_MUL, TYPING } from '../../../shared/letterhead.js';
+import { modelLetterhead, planTimeline, packPages, effectiveSpeed, SPEED_MUL, HOLD_MUL, TYPING } from '../../../shared/letterhead.js';
 import { wpmFor } from '../../../shared/longText.js';
 import { ensureLetterheadCss } from './css.js';
 import sigRebbe from './rebbe-signature.png';
@@ -170,7 +170,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
   useEffect(() => {
     if (!stillMode || !lay) return undefined;
     if (forcedPage != null) { setCur(Math.min(forcedPage, pageCount - 1)); return undefined; }
-    const per = lay.pages.map((p) => Math.max(8, (p.words * 60) / wpm + 2));
+    const per = lay.pages.map((p) => Math.max(8, ((p.words * 60) / wpm) * (HOLD_MUL[m.hold] || 1) + 2));
     onDuration?.(per.reduce((a, b) => a + b, 0) + 2);
     if (pageCount < 2) { setCur(0); return undefined; }
     let i = 0, id;
@@ -195,7 +195,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
     const plan = planTimeline({
       headLines: heads.map(len),
       pages: lay.pages.map((p, i) => ({ lines: [...pgEls[i].querySelectorAll('.ty')].map(len), words: p.words })),
-      wpm, typeMul: SPEED_MUL[spd], hasClose: !!closeEl, closeChars: closeEl ? len(closeEl) : 0, hasSig: !!sigEl, hasStamp: !!stampEl, hasMailed: !!mailEl, loop,
+      wpm, typeMul: SPEED_MUL[spd], holdMul: HOLD_MUL[m.hold] || 1, hasClose: !!closeEl, closeChars: closeEl ? len(closeEl) : 0, hasSig: !!sigEl, hasStamp: !!stampEl, hasMailed: !!mailEl, loop,
     });
     const T = plan.total;
     const mono = !m.serif;
@@ -279,7 +279,7 @@ export default function LetterSheet({ item, w, h, anim = 'full', loop = false, s
 
     onDuration?.(T);
     return () => anims.forEach((a) => { try { a.cancel(); } catch { /* gone */ } });
-  }, [lay, stillMode, anim, loop, wpm, m]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lay, stillMode, anim, loop, wpm, spd, m]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sig = m.sigImg ? SIGNATURES[m.sigImg] : null;
   const showEnd = !!(m.close || sig || m.stamp || m.mailed.length);

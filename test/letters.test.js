@@ -138,7 +138,7 @@ test('AI JSON: clear line-level errors', () => {
   r = parseLetterJson('["x"]'); assert.match(r.errors[0].message, /one object/);
   r = parseLetterJson(''); assert.match(r.errors[0].message, /Paste the JSON/);
   r = parseLetterJson('{"paragraphs":["x"]}'); assert.match(r.errors[0].message, /letter" or a "sicha/);
-  r = parseLetterJson(JSON.stringify({ kind: 'sicha', paragraphs: ['x'.repeat(13000)] }));
+  r = parseLetterJson(JSON.stringify({ kind: 'sicha', paragraphs: ['x'.repeat(31000)] }));
   assert.match(r.errors[0].message, /too long/);
 });
 

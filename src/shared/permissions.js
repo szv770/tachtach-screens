@@ -144,6 +144,7 @@ const SECTION_CAPS = Object.freeze({
   announcements: ['announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete'],
   'daily-word': ['dailyWord.edit'],
   'daily-story': ['dailyWord.edit'],
+  'daily-letter': ['dailyWord.edit'],
   menu: ['menu.edit'],
   averages: ['averages.edit'],
   shiurim: ['shiurim.edit'],
@@ -300,6 +301,7 @@ export const READ_ROUTES = Object.freeze([
   readRule('/api/kiddush-levana/months', ANNOUNCE_CAPS, 'medium'),
   readRule('/api/daily-words', ['dailyWord.edit']),
   readRule('/api/daily-stories', ['dailyWord.edit']),
+  readRule('/api/daily-letters', ['dailyWord.edit']),
   readRule('/api/averages/roster-names', ['averages.edit']), // NAMES class: the Bochurim list, for a starter sheet
   readRule('/api/averages', ['averages.edit']),           // NAMES class (students + marks), whole document
   readRule('/api/menu', ['menu.edit']),                   // P0 (food), whole document incl. overrides

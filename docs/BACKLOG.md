@@ -2,6 +2,11 @@
 
 Not urgent individually; pick these up when touching the area (next redesign/upgrade pass). Newest first. Move to the CLAUDE.md changelog when shipped.
 
+## Added 2026-11-13 (owner) — NOT started, remember these
+
+- **Slide frequency ("how often").** Let the owner say how often each slide comes around: every round, every 2nd round, every 3rd round... So the short, useful daily slides (times / zmanim, learning, schedule) can play MORE often and heavier or less important slides LESS often. Today every slide plays once per round at its own seconds. Needs a per-slide "every N rounds" (and maybe a "twice per round") rule in `useSlideRotation` + `slides.json` + the Slides admin, plus a clear preview of one round. Think about how it mixes with Automatic length (seconds 0) and with takeovers/banners.
+- **Make the whole admin simple for a layman, from a phone.** The admin has grown too big and is hard to navigate: too many sections, tabs and options at once, even for someone who knows it. Goal: someone with no idea how the system works can do the common things (post a message, change today's schedule, add a letter, turn a slide on) from a phone in a few taps. Plan: list the 10 most common jobs, make each one a short guided flow from Home, hide everything else behind an 'Advanced' area, fewer top-level sections, plain words, bigger tap targets. Do this as its own design pass with the owner, section by section (see the Polish queue below).
+
 ## Added 2026-11-06 (owner) — customizable layouts, for EVERY screen type
 
 - **Layout customization everywhere.** Admins on desktop should be able to choose which parts of a page show, their order, which side the big element sits on and the overall size; phones get a simplified version (switches + a size slider, no drag). First version is built for the Countdown (Occasions) page as a small reusable shape (`layout: { show, order, side, scale }`, defaults under settings, per-item override). Next: look at the same controls for Schedule, Zmanim, Birthdays, Shiurim, Shabbos, Daily Word, announcements. Reuse the Countdown's admin editor + the kiosk `useLayout` helper instead of re-inventing.
