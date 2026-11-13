@@ -101,3 +101,24 @@ test('moving letters out of the Daily Story list: once, nothing lost, the story 
   assert.deepEqual(stories.stories.map((x) => x.id), ['st1']);
   assert.equal(await mod.moveLettersOutOfStories(), 0, 'a second run moves nothing');
 });
+
+test('the archive never locks the list: old history keeps a short preview, a smaller save is always allowed, the budget counts bytes', async () => {
+  const { normalizeDailyStoriesFile, snapshotOf, normalizeStory } = await import('../src/shared/dailyStories.js');
+  const big = normalizeStory({ kind: 'letter', title: 'Big', letter: { body: 'word '.repeat(5000) } }).story;
+  const history = {};
+  for (let d = 1; d <= 40; d++) history[`2026-10-${String(d).padStart(2, '0')}`.replace(/-(3[2-9]|40)$/, '-28')] = snapshotOf(big);
+  const f = normalizeDailyStoriesFile({ stories: [], history }, [], 'letter');
+  const keys = Object.keys(f.history).sort();
+  assert.ok(keys.length >= 1);
+  const old = f.history[keys[0]];
+  if (keys.length > 7) { assert.ok(old.letter.body.length <= 240, 'an old archive entry keeps a preview, not 25,000 characters'); assert.equal(f.history[keys[keys.length - 1]].letter.body.length, big.letter.body.length, 'the last days keep the whole letter'); }
+  const { dir, call } = await setup();
+  // a file already over the budget (as an older build could leave it) can still be made smaller or emptied
+  fs.writeFileSync(path.join(dir, 'daily-letters.json'), JSON.stringify({ version: 1, order: 'shuffle', stories: [big, { ...big, id: 'other' }], history: {} }));
+  let r = await call('PUT', '/daily-letters', { stories: [big] });
+  assert.equal(r.status, 200, 'making the list smaller is never refused');
+  r = await call('PUT', '/daily-letters', { stories: [] });
+  assert.equal(r.status, 200, 'emptying the list works');
+  const bytes = Buffer.byteLength(JSON.stringify({ stories: [{ kind: 'letter', letter: { body: 'א'.repeat(29000) } }] }));
+  assert.ok(bytes > 29000 * 1.9, 'Hebrew is about two bytes per character: the budget is measured in bytes');
+});

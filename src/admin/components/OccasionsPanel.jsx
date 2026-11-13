@@ -353,7 +353,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
           <h3 style={{ ...h3, margin: 0, flex: 1 }}>Coming up</h3>
           {canEdit && <button type="button" style={btn(true)} onClick={() => setAdding(true)} data-testid="occ-add">+ Add an occasion</button>}
         </div>
-        <p style={{ ...small, margin: '4px 0 10px' }} data-testid="occ-explain-dates">Each day is listed by the day it falls on. The countdown reaches zero when the day <strong>begins</strong>, which is usually the evening before, so "In 20 days" means 20 days until it begins.</p>
+        <p style={{ ...small, margin: '4px 0 10px' }} data-testid="occ-explain-dates">Each day is listed by the day it falls on. The countdown reaches zero when the day <strong>begins</strong>, which is usually the evening before. "In 20 days" counts the days to the day itself.</p>
         <Timeline rows={rows} today={today} tz={file.tz} canEdit={canEdit} offCount={offCount} onEdit={(o) => setSheet(o)} onToggle={toggle} />
         <p style={{ ...small, marginTop: '10px' }} data-testid="occ-footnote">
           The starter dates are calendar rules only: a name and a Hebrew date, no explanations. Please check them with your rav and your minhag (for example Yom Tov is one day shorter in Israel). Add your own school events too: a dinner, a trip, a siyum.

@@ -185,6 +185,7 @@ const dayLeft = (m, nowMs) => Math.max(0, (Number(m.dayMs) || Number(m.beginMs))
 function formWords(f, m, nowMs, lang) {
   const rem = lastDayLeft(m, nowMs);
   if (f === 'daysFraction') {
+    if (rem < 86400000) return formWords('hours', m, nowMs, lang); // the last 24 hours before it begins read as hours
     const { whole, glyph } = daysAndFraction(dayLeft(m, nowMs));
     return { big: String(whole), suffix: glyph, unit: unitWords(m, lang, glyph ? 0 : whole) };
   }

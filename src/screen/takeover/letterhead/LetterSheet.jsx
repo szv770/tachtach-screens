@@ -58,7 +58,7 @@ function breakLines(meas, texts, fs, W) {
       const p = document.createElement('p');
       const spans = tokens.map((tk) => {
         const s = document.createElement('span'); s.textContent = tk.t; p.appendChild(s);
-        p.appendChild(document.createTextNode(tk.glue ? '' : ' '));
+        p.appendChild(document.createTextNode(tk.glue ? '\u200b' : ' ')); // a zero-width break between the pieces of a split word
         return s;
       });
       meas.appendChild(p);

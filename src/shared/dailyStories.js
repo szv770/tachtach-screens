@@ -128,12 +128,24 @@ export function snapshotOf(s) {
   return { id: s.id, kind: s.kind || 'story', title: s.title || '', titleHe: s.titleHe || '', text: s.text || '', textHe: s.textHe || '', source: s.source || '' };
 }
 
+/** Days of history that keep a letter's WHOLE text (so today's letter survives its entry being deleted); older days keep a short preview. */
+const FULL_LETTER_DAYS = 7;
+const LETTER_PREVIEW = 240;
+
 function normalizeHistory(h) {
   const out = {};
   if (!h || typeof h !== 'object') return out;
-  Object.keys(h).filter((k) => ISO.test(k)).sort().slice(-HISTORY_LIMIT).forEach((k) => {
+  const keys = Object.keys(h).filter((k) => ISO.test(k)).sort().slice(-HISTORY_LIMIT);
+  keys.forEach((k, i) => {
     const r = normalizeStory(h[k]);
-    if (!r.error) out[k] = { ...snapshotOf(r.story), ...(h[k]?.manual === true ? { manual: true } : {}) };
+    if (r.error) return;
+    let snap = snapshotOf(r.story);
+    // the archive only needs to say WHICH letter showed: a 30,000-character letter kept for 800 days would lock the list (size budget)
+    if (snap.kind === 'letter' && i < keys.length - FULL_LETTER_DAYS) {
+      const body = String(snap.letter?.body || '').replace(/\s+/g, ' ').slice(0, LETTER_PREVIEW);
+      snap = { ...snap, letter: { ...snap.letter, body }, text: body };
+    }
+    out[k] = { ...snap, ...(h[k]?.manual === true ? { manual: true } : {}) };
   });
   return out;
 }

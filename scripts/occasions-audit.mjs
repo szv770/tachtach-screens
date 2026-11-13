@@ -435,9 +435,8 @@ async function datesChecks(tag, c, r, canvas, page) {
     if (c.approx) check(`${tag}: approximate: the '~' stays`, /~/.test(r.text) && /approximate/i.test(r.text), r.text.slice(0, 160));
   }
   if (c.dates && (c.form === 'far' || c.form === 'days')) {
-    check(`${tag}: the day count reads 'DAYS UNTIL IT BEGINS' (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /until it begins/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
-    check(`${tag}: the day count never reads 'days to go' next to an evening start`, !/days?\s+to go/i.test(r.unit) && !/days?\s+to go/i.test(r.text), r.unit);
-  }
+    check(`${tag}: the day count reads 'DAYS TO GO' (the number is days to the day itself) (${r.unit.replace(/\s+/g, ' ')})`, c.lang === 'he' ? HEB.test(r.unit) : /to go/i.test(r.unit) && (c.flip || /days?/i.test(r.unit)), r.unit);
+      }
   if (c.flip && c.dates) check(`${tag}: flip: 'until it begins' with the cells`, /until it begins/i.test(r.unit), r.unit);
   if (c.dates || c.why === true) {
     // the facts act: THE DAY / HEBREW DATE (/ BEGINS); then the why act

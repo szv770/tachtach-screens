@@ -25,8 +25,14 @@ const withLock = (fn) => { const run = chain.then(fn, fn); chain = run.catch(() 
 class TooBig extends Error {}
 async function save(file) {
   const clean = normalizeDailyStoriesFile(file, [], 'letter');
-  const size = JSON.stringify(clean).length;
-  if (size > LETTER_FILE_MAX_BYTES) throw new TooBig(`The letter list is too big (${Math.round(size / 1000)} kB; the most is ${Math.round(LETTER_FILE_MAX_BYTES / 1000)} kB). Delete some letters you have already shown, then try again.`);
+  // BYTES (Hebrew is two per character), the same unit as the body parser. A save that makes the file smaller is never refused, so
+  // deleting letters always works.
+  const size = Buffer.byteLength(JSON.stringify(clean));
+  if (size > LETTER_FILE_MAX_BYTES) {
+    let before = Infinity;
+    try { before = Buffer.byteLength(JSON.stringify(await readJSON(FILE))); } catch { /* none yet */ }
+    if (size > before) throw new TooBig(`The letter list is too big (${Math.round(size / 1000)} kB; the most is ${Math.round(LETTER_FILE_MAX_BYTES / 1000)} kB). Delete some letters, then try again.`);
+  }
   await writeJSON(FILE, clean);
   broadcast('daily-letters-update', lettersForKiosk(clean));
   return clean;
@@ -55,8 +61,10 @@ export async function moveLettersOutOfStories() {
     const have = new Set(cur.stories.map((x) => x.id));
     const { stories } = normalizeStories([...cur.stories, ...mine.filter((x) => !have.has(x.id))], 'letter');
     await save({ order: cur.order, stories, history: cur.history });
-    await writeJSON(STORIES_FILE, { ...raw, stories: raw.stories.filter((x) => x?.kind !== 'letter') });
-    return mine.length;
+    const moved = new Set(stories.map((x) => x.id));
+    // only the letters that really moved leave the story list (a letter that did not fit the cap stays where it is)
+    await writeJSON(STORIES_FILE, { ...raw, stories: raw.stories.filter((x) => !(x?.kind === 'letter' && moved.has(x.id))) });
+    return mine.filter((x) => moved.has(x.id)).length;
   });
 }
 
