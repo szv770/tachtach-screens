@@ -37,6 +37,8 @@ import { zmanMinutes } from './dayNight.js';
 import { normalizeLayout, layoutProblem, resolveLayout } from './layoutConfig.js';
 import { STAGE_STYLES, DEFAULT_STAGE_STYLE, stageStyleOf } from './stageStyles.js';
 import { HYPES, DEFAULT_HYPE } from './occasionHype.js';
+import { normalizeSince, milestoneOf, yearWords, vortFor, MAJOR_MILESTONE_DAYS, SINCE_MIN, SINCE_MAX } from './occasionYears.js';
+export { normalizeSince, milestoneOf, yearWords, vortFor, milestonePrompt, NUMBER_VORTS, MAJOR_MILESTONE_DAYS, SINCE_MIN, SINCE_MAX } from './occasionYears.js';
 export { STAGE_STYLES, STAGE_STYLE_LIST, DEFAULT_STAGE_STYLE } from './stageStyles.js';
 export { HYPES, HYPE_LABEL, HYPE_HINT, DEFAULT_HYPE } from './occasionHype.js';
 
@@ -47,7 +49,7 @@ export class OccasionsError extends Error {}
 export const LIMITS = Object.freeze({
   occasions: 80, name: 60, explain: 600, explainShort: 160, source: 140, event: 120, zero: 40, file: 240000, // 240 kB: under the 256 kB body of the Undo route
  
-  stageLine: 60, milestones: 12, milestoneTexts: 12, adventDays: 60, adventText: 160, momentText: 80, fontName: 60,
+  stageLine: 60, milestones: 12, milestoneTexts: 12, yearVorts: 12, yearVortText: 400, adventDays: 60, adventText: 160, momentText: 80, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
 export const BEGINS_LABEL = Object.freeze({
@@ -61,8 +63,8 @@ export const BEGINS_LABEL = Object.freeze({
 export const SHABBOS_MOVES = Object.freeze(['stay', 'sunday', 'thursday']);
 export const SHABBOS_LABEL = Object.freeze({ stay: 'Stays on Shabbos', sunday: 'Moves to Sunday', thursday: 'Moves back to Thursday' });
 /** Collections: which kind of day an occasion is (the Countdown can run 'Chabad days only', see settings.showCategories). */
-export const CATEGORIES = Object.freeze(['chabad', 'yomtov', 'fast', 'roshChodesh', 'school', 'custom']);
-export const CATEGORY_LABEL = Object.freeze({ chabad: 'Chabad days', yomtov: 'Yom Tov and Jewish days', fast: 'Fast days', roshChodesh: 'Rosh Chodesh', school: 'School events', custom: 'My own' });
+export const CATEGORIES = Object.freeze(['chabad', 'dor', 'yomtov', 'fast', 'roshChodesh', 'school', 'custom']);
+export const CATEGORY_LABEL = Object.freeze({ chabad: 'Chabad days', dor: 'Dor Hashvii (the Rebbe\u2019s days)', yomtov: 'Yom Tov and Jewish days', fast: 'Fast days', roshChodesh: 'Rosh Chodesh', school: 'School events', custom: 'My own' });
 /** The views a tap on the TV can cycle through (the kiosk draws them from `beginMs`; examples are for the admin). */
 export const TAP_FORMS = Object.freeze(['days', 'daysFraction', 'hours', 'flip', 'percent', 'sleeps']);
 export const TAP_FORM_LABEL = Object.freeze({ days: 'Days', daysFraction: 'Days and a quarter', hours: 'Total hours', flip: 'Days : hours : minutes', percent: 'Percent of the way', sleeps: 'Sleeps' });
@@ -75,7 +77,7 @@ export const LANGS = Object.freeze(['both', 'hebrew', 'english']);
 export const LANG_LABEL = Object.freeze({ both: 'Hebrew and English', hebrew: 'Hebrew only', english: 'English only' });
 export const RANGES = Object.freeze({
   withinDays: { min: 1, max: 400 }, cycleCount: { min: 2, max: 5 }, cycleSeconds: { min: 6, max: 60 },
-  comingUpCount: { min: 0, max: 4 }, comingUpDays: { min: 7, max: 400 }, zeroMinutes: { min: 1, max: 240 },
+  comingUpCount: { min: 0, max: 5 }, comingUpDays: { min: 7, max: 400 }, zeroMinutes: { min: 1, max: 240 },
   railDays: { min: 1, max: 60 }, takeoverMinutes: { min: 1, max: 30 }, showDays: { min: 0, max: 400 }, days: { min: 1, max: 9 },
   milestoneMinutes: { min: 1, max: 15 }, milestoneDay: { min: 1, max: 365 }, dim: { min: 30, max: 90 },
   total: { min: 1, max: 400 }, volume: { min: 10, max: 100 }, momentSeconds: { min: 5, max: 60 }, autoSeconds: { min: 8, max: 60 },
@@ -146,7 +148,7 @@ export const MOMENT_KINDS = Object.freeze(['burst', 'shoutout', 'ten']);
 export const SETTINGS_DEFAULTS = Object.freeze({
   pick: 'nearest', pinnedId: '', cycleCount: 3, cycleSeconds: 10,
   withinDays: 30, beginsAt: 'shkia', time: '18:00', fallbackTime: '18:00',
-  language: 'both', comingUp: true, comingUpCount: 3, comingUpDays: 120,
+  language: 'both', comingUp: true, comingUpCount: 5, comingUpDays: 30,
   seconds: true, zeroMinutes: 30, celebrate: true, explain: true, credit: true, hebrewDate: true, civilDate: true,
   rail: true, railDays: 7, banner: false, takeover: true, takeoverMinutes: 3,
   zeroEn: '', zeroHe: '',
@@ -222,33 +224,39 @@ export const COPY = Object.freeze({
 const H = (month, day) => ({ kind: 'hebrew', month, day });
 const RC = (month) => ({ kind: 'roshChodesh', month });
 export const STARTERS = Object.freeze([
-  { key: 'rc-kislev', en: 'Rosh Chodesh Kislev', he: 'ראש חודש כסלו', rule: RC(KISLEV), zero: 'chodeshTov', style: 'chassidic', on: true },
-  { key: 'yud-kislev', en: 'Yud Kislev', he: 'יו״ד כסלו', rule: H(KISLEV, 10), zero: 'gutYomTov', style: 'chassidic', on: true },
-  { key: 'yud-tes-kislev', en: 'Yud-Tes Kislev', he: 'י״ט כסלו', rule: H(KISLEV, 19), zero: 'gutYomTov', style: 'chassidic', on: true },
+  { key: 'rc-kislev', en: 'Rosh Chodesh Kislev', he: 'ראש חודש כסלו', rule: RC(KISLEV), zero: 'chodeshTov', style: 'chassidic', on: true, since: 5738 },
+  { key: 'yud-kislev', en: 'Yud Kislev', he: 'יו״ד כסלו', rule: H(KISLEV, 10), zero: 'gutYomTov', style: 'chassidic', on: true, since: 5587 },
+  { key: 'yud-tes-kislev', en: 'Yud-Tes Kislev', he: 'י״ט כסלו', rule: H(KISLEV, 19), zero: 'gutYomTov', style: 'chassidic', on: true, since: 5559 },
   { key: 'chanukah', en: 'Chanukah', he: 'חנוכה', rule: H(KISLEV, 25), days: 8, zero: 'chanukah', style: 'chanukah', on: true },
-  { key: 'hey-teves', en: 'Hey Teves', he: 'ה׳ טבת', rule: H(TEVET, 5), zero: 'gutYomTov', style: 'chassidic', on: true },
-  { key: 'yud-shvat', en: 'Yud Shvat', he: 'יו״ד שבט', rule: H(SHVAT, 10), zero: 'quiet', style: 'chassidic', on: true, celebrate: false },
+  { key: 'hey-teves', en: 'Hey Teves', he: 'ה׳ טבת', rule: H(TEVET, 5), zero: 'gutYomTov', style: 'chassidic', on: true, since: 5747 },
+  { key: 'chof-beis-shvat', en: 'Chof Beis Shvat', he: 'כ״ב שבט', rule: H(SHVAT, 22), zero: 'quiet', style: 'chassidic', on: true, celebrate: false, since: 5748 },
+  { key: 'yud-shvat', en: 'Yud Shvat', he: 'יו״ד שבט', rule: H(SHVAT, 10), zero: 'quiet', style: 'chassidic', on: true, celebrate: false, since: 5710 },
   { key: 'tu-bishvat', en: 'Tu BiShvat', he: 'ט״ו בשבט', rule: H(SHVAT, 15), zero: 'here', style: 'hype', on: true },
   { key: 'purim', en: 'Purim', he: 'פורים', rule: H(ADAR, 14), zero: 'purim', style: 'purim', on: true },
-  { key: 'yud-alef-nissan', en: 'Yud-Alef Nissan', he: 'י״א ניסן', rule: H(NISAN, 11), zero: 'gutYomTov', style: 'chassidic', on: true },
+  { key: 'yud-alef-nissan', en: 'Yud-Alef Nissan', he: 'י״א ניסן', rule: H(NISAN, 11), zero: 'gutYomTov', style: 'chassidic', on: true, since: 5662 },
   { key: 'pesach', en: 'Pesach', he: 'פסח', rule: H(NISAN, 15), days: 8, beginsAt: 'candles', zero: 'pesach', style: 'pesach', on: true },
   { key: 'pesach-sheni', en: 'Pesach Sheni', he: 'פסח שני', rule: H(IYYAR, 14), zero: 'here', style: 'hype', on: false },
   { key: 'lag-baomer', en: 'Lag BaOmer', he: 'ל״ג בעומר', rule: H(IYYAR, 18), zero: 'here', style: 'lagbaomer', on: true },
   { key: 'shavuos', en: 'Shavuos', he: 'שבועות', rule: H(SIVAN, 6), days: 2, beginsAt: 'candles', zero: 'chag', style: 'yomtov', on: true },
-  { key: 'yud-beis-tammuz', en: 'Yud-Beis & Yud-Gimmel Tammuz', he: 'י״ב–י״ג תמוז', rule: H(TAMUZ, 12), days: 2, zero: 'gutYomTov', style: 'chassidic', on: true },
+  { key: 'gimmel-tammuz', en: 'Gimmel Tammuz', he: 'ג׳ תמוז', rule: H(TAMUZ, 3), zero: 'quiet', style: 'chassidic', on: true, celebrate: false, since: 5754 },
+  { key: 'yud-beis-tammuz', en: 'Yud-Beis & Yud-Gimmel Tammuz', he: 'י״ב–י״ג תמוז', rule: H(TAMUZ, 12), days: 2, zero: 'gutYomTov', style: 'chassidic', on: true, since: 5687 },
   { key: 'tu-bav', en: "Tu B'Av", he: 'ט״ו באב', rule: H(AV, 15), zero: 'here', style: 'hype', on: true },
-  { key: 'chai-elul', en: 'Chai Elul', he: 'ח״י אלול', rule: H(ELUL, 18), zero: 'gutYomTov', style: 'chassidic', on: true },
+  { key: 'chai-elul', en: 'Chai Elul', he: 'ח״י אלול', rule: H(ELUL, 18), zero: 'gutYomTov', style: 'chassidic', on: true, since: 5458 },
   { key: 'rosh-hashana', en: 'Rosh Hashana', he: 'ראש השנה', rule: H(TISHREI, 1), days: 2, beginsAt: 'candles', zero: 'kesiva', style: 'yomtov', on: true, celebrate: false },
   { key: 'yom-kippur', en: 'Yom Kippur', he: 'יום כיפור', rule: H(TISHREI, 10), beginsAt: 'candles', zero: 'gmar', style: 'yomtov', on: true, celebrate: false },
   { key: 'sukkos', en: 'Sukkos', he: 'סוכות', rule: H(TISHREI, 15), days: 7, beginsAt: 'candles', zero: 'chag', style: 'yomtov', on: true },
   { key: 'shemini-atzeres', en: 'Shemini Atzeres & Simchas Torah', he: 'שמיני עצרת ושמחת תורה', rule: H(TISHREI, 22), days: 2, beginsAt: 'candles', zero: 'chag', style: 'yomtov', on: true },
-  { key: 'rosh-chodesh', en: 'Rosh Chodesh (every month)', he: 'ראש חודש', rule: RC(0), zero: 'chodeshTov', style: 'roshchodesh', on: false },
+  { key: 'rosh-chodesh', en: 'Rosh Chodesh (every month)', he: 'ראש חודש', rule: RC(0), zero: 'chodeshTov', style: 'roshchodesh', on: false, small: true },
 ]);
 /** The collection of each starter row (an old stored starter without a category gets this one). */
 export const STARTER_CATEGORY = Object.freeze({
-  'rc-kislev': 'roshChodesh', 'rosh-chodesh': 'roshChodesh', 'yud-kislev': 'chabad', 'yud-tes-kislev': 'chabad', 'hey-teves': 'chabad', 'yud-shvat': 'chabad',
-  'yud-alef-nissan': 'chabad', 'yud-beis-tammuz': 'chabad', 'chai-elul': 'chabad',
+  'rc-kislev': 'dor', 'rosh-chodesh': 'roshChodesh', 'yud-kislev': 'chabad', 'yud-tes-kislev': 'chabad', 'hey-teves': 'dor', 'chof-beis-shvat': 'dor', 'yud-shvat': 'dor',
+  'yud-alef-nissan': 'dor', 'gimmel-tammuz': 'dor', 'yud-beis-tammuz': 'chabad', 'chai-elul': 'chabad',
 });
+/** Starters that moved into 'dor' (the Rebbe's days): a stored row still carrying its OLD default category is moved with them. */
+const OLD_STARTER_CATEGORY = Object.freeze({ 'rc-kislev': 'roshChodesh', 'hey-teves': 'chabad', 'yud-shvat': 'chabad', 'yud-alef-nissan': 'chabad' });
+/** The Hebrew year each starter first happened (0 = none): the Countdown turns it into 'N years' and milestones. */
+const STARTER_SINCE = Object.freeze(Object.fromEntries(STARTERS.filter((x) => x.since).map((x) => [x.key, x.since])));
 const STARTER_BY_KEY = Object.freeze(Object.fromEntries(STARTERS.map((s) => [s.key, s])));
 
 // ── small helpers ───────────────────────────────────────────────────────────
@@ -451,7 +459,34 @@ export function formsProblem(tap, auto, { partial } = {}) {
 /** Which collections show (an array of CATEGORIES): a list with unknown names loses them; not a list = all. */
 export function normalizeShowCategories(raw) {
   if (!Array.isArray(raw)) return [...CATEGORIES];
-  return CATEGORIES.filter((c) => raw.includes(c));
+  // the list saved before the Rebbe's-days collection existed, with every kind ticked, gains it (a narrower choice is kept as chosen)
+  const legacyAll = CATEGORIES.filter((c) => c !== 'dor').every((c) => raw.includes(c));
+  const list = legacyAll && !raw.includes('dor') ? [...raw, 'dor'] : raw;
+  return CATEGORIES.filter((c) => list.includes(c));
+}
+/** The occasion's own vorts for particular numbers: { '40': { en, he, source } }, at most LIMITS.yearVorts. */
+export function normalizeYearVorts(raw) {
+  const out = {};
+  if (!isObj(raw)) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (!/^\d{1,4}$/.test(k) || !isObj(v) || Object.keys(out).length >= LIMITS.yearVorts) continue;
+    const en = para(v.en, LIMITS.yearVortText); const he = para(v.he, LIMITS.yearVortText);
+    if (en || he) out[String(Number(k))] = { en, he, source: line(v.source, LIMITS.source) };
+  }
+  return out;
+}
+export function yearVortsProblem(raw) {
+  if (!isObj(raw)) return 'Milestone vorts: a list of numbers with their words.';
+  const keys = Object.keys(raw);
+  if (keys.length > LIMITS.yearVorts) return `At most ${LIMITS.yearVorts} milestone vorts.`;
+  for (const k of keys) {
+    const v = raw[k];
+    if (!/^\d{1,4}$/.test(k) || !isObj(v)) return 'A milestone vort is for a number of years (1 to 9999).';
+    for (const f of ['en', 'he', 'source']) if (v[f] != null && typeof v[f] !== 'string') return 'Text only, please.';
+    if ([...String(v.en || '').trim()].length > LIMITS.yearVortText || [...String(v.he || '').trim()].length > LIMITS.yearVortText) return `A milestone vort is ${LIMITS.yearVortText} characters at most.`;
+    if ([...String(v.source || '').trim()].length > LIMITS.source) return `The source is ${LIMITS.source} characters at most.`;
+  }
+  return null;
 }
 export function normalizeSound(raw) {
   const r = isObj(raw) ? raw : {};
@@ -613,8 +648,16 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     missing30: raw.missing30 === 'first' ? 'first' : '29',
     // a Hebrew date that falls on Shabbos (the fasts): 'stay' | 'sunday' (Tisha B'Av, Tzom Gedalya, 17 Tammuz) | 'thursday' (Taanis Esther)
     shabbos: oneOf(raw.shabbos, SHABBOS_MOVES, 'stay'),
-    // collection: an old or unknown value follows the starter it came from, else 'custom'
-    category: CATEGORIES.includes(raw.category) ? raw.category : (STARTER_CATEGORY[raw.starter] || (starter ? 'yomtov' : 'custom')),
+    // collection: an old or unknown value follows the starter it came from, else 'custom'; a starter that moved into the Rebbe's
+    // days ('dor') takes a stored row that still has its old default with it
+    category: starter && OLD_STARTER_CATEGORY[starter] && OLD_STARTER_CATEGORY[starter] === raw.category ? STARTER_CATEGORY[starter]
+      : CATEGORIES.includes(raw.category) ? raw.category : (STARTER_CATEGORY[raw.starter] || (starter ? 'yomtov' : 'custom')),
+    // the Hebrew year it first happened ({ year: 5747 }): 'N years' and milestones. A starter row saved before this existed gets its
+    // starter's year; null clears it.
+    since: raw.since === undefined ? (starter && STARTER_SINCE[starter] ? { year: STARTER_SINCE[starter] } : null) : normalizeSince(raw.since),
+    yearVorts: normalizeYearVorts(raw.yearVorts),
+    // Big days can be the countdown's main one; Small days only appear in the 'coming up' strip (until nothing big is near)
+    big: typeof raw.big === 'boolean' ? raw.big : !(starter && STARTER_BY_KEY[starter]?.small) && !(rule.kind === 'roshChodesh' && rule.month === 0),
     tapForms: normalizeTapForms(raw.tapForms, null),
     autoForms: normalizeAutoForms(raw.autoForms, true),
     beginsAt: raw.beginsAt === 'default' || raw.beginsAt == null ? 'default' : oneOf(raw.beginsAt, BEGINS, 'default'),
@@ -658,6 +701,7 @@ export function starterOccasion(key, id) {
   return normalizeOccasion({
     id: id || `s-${key}`, on: s.on !== false, starter: key, nameEn: s.en, nameHe: s.he, rule: s.rule, days: s.days || 1,
     beginsAt: s.beginsAt || 'default', zeroKey: s.zero, style: s.style, celebrate: s.celebrate !== false, category: STARTER_CATEGORY[key] || 'yomtov',
+    since: s.since ? { year: s.since } : null, big: !s.small,
   });
 }
 export const starterList = () => STARTERS.map((s) => starterOccasion(s.key));
@@ -701,6 +745,9 @@ export function occasionProblem(raw) {
     if ([...String(raw[k] || '').replace(/\s+/g, ' ').trim()].length > LIMITS.explainShort) return `The one line for the screen is ${LIMITS.explainShort} characters at most.`;
   }
   if (raw.category != null && !CATEGORIES.includes(raw.category)) return 'Collection: one of the listed kinds.';
+  if (raw.since != null && !normalizeSince(raw.since)) return `The year it first happened: a Hebrew year such as 5747 (${SINCE_MIN} to ${SINCE_MAX}), or leave it empty.`;
+  if (raw.big != null && typeof raw.big !== 'boolean') return 'Big or small: yes or no.';
+  if (raw.yearVorts != null) { const m = yearVortsProblem(raw.yearVorts); if (m) return m; }
   { const m = formsProblem(raw.tapForms, raw.autoForms, { partial: true }); if (m) return m; }
   if (raw.shabbos != null && !SHABBOS_MOVES.includes(raw.shabbos)) return 'If it falls on Shabbos: stay, move to Sunday or move to Thursday.';
   if (raw.kind === 'countup' && !normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
@@ -1145,24 +1192,32 @@ export function pickFor(file, now, ctx) {
   const s = normalizeSettings(f.settings);
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
   const all = visibleRows(upcoming(f, now, { ...ctx, today }), s);
+  const near = (r) => daysUntil(r, today) <= windowDays(r, s);
+  // BIG days lead; SMALL days only fill the 'coming up' strip (unless nothing big is near: then the nearest small one leads, so the
+  // slide is never empty while something is close)
   const running = all.filter((r) => r.running).sort((a, b) => b.begin.ms - a.begin.ms);
-  const inWindow = all.filter((r) => !r.running && daysUntil(r, today) <= windowDays(r, s));
+  const inWindow = all.filter((r) => !r.running && r.occasion.big !== false && near(r));
   let rows = [];
   if (s.pick === 'pinned' && s.pinnedId) {
-    // 'One I choose' shows while it is running or inside its lead-up window. Once it has passed, its NEXT year is hundreds of
+    // 'The big one I choose' shows while it is running or inside its lead-up window. Once it has passed, its NEXT year is hundreds of
     // days away ('Rosh Chodesh Kislev, 5788, 365 days'): that is not a countdown anybody wants, so the screen goes back to the
     // automatic choice until the chosen one is close again.
     const p = all.find((r) => r.id === s.pinnedId);
-    if (p && (p.running || daysUntil(p, today) <= windowDays(p, s))) rows = [p];
+    if (p && (p.running || near(p))) rows = [p];
   }
   if (!rows.length) {
     const ordered = [...running, ...inWindow];
     rows = s.pick === 'cycle' ? ordered.slice(0, s.cycleCount) : ordered.slice(0, 1);
   }
+  if (!rows.length) rows = all.filter((r) => !r.running && near(r)).slice(0, 1);
   const shown = new Set(rows.map((r) => `${r.id}|${r.startISO}`));
-  const coming = s.comingUp && s.comingUpCount > 0
-    ? all.filter((r) => !r.running && !shown.has(`${r.id}|${r.startISO}`) && daysUntil(r, today) <= s.comingUpDays).slice(0, s.comingUpCount)
-    : [];
+  // Coming up: in a busy stretch ALL the dates inside the window (up to the count); in a quiet one just the next date, whatever the distance
+  let coming = [];
+  if (s.comingUp && s.comingUpCount > 0) {
+    const pool = all.filter((r) => !r.running && !shown.has(`${r.id}|${r.startISO}`));
+    coming = pool.filter((r) => daysUntil(r, today) <= s.comingUpDays).slice(0, s.comingUpCount);
+    if (!coming.length) coming = pool.slice(0, 1);
+  }
   return { mode: s.pick, rows, coming, today };
 }
 
@@ -1414,6 +1469,24 @@ const soundOfRow = (s, o) => {
  * Everything the kiosk page needs for one row, as plain data (also the fit test's input).
  * @param {object} row  from pickFor().rows
  */
+/**
+ * The years of one row, in kiosk words: null without `since`; otherwise { completed, entering, tier, focus, n, words, vort }.
+ * `words` is the seal ({ big, letters, kicker, line }) only for a milestone; `vort` is the occasion's own text for that number,
+ * else the built-in one (src/shared/occasionYears.js), already in the screen's language.
+ */
+export function yearsOfRow(row, s, pickLang = (x) => x) {
+  const o = row.occasion;
+  const m = o.since ? milestoneOf(o.since, row.startISO) : null;
+  if (!m) return null;
+  if (!m.tier) return { completed: m.completed, entering: m.entering, tier: null, focus: null, n: null, words: null, vort: null };
+  const w = yearWords(m); const v = vortFor(m, o.yearVorts);
+  return {
+    completed: m.completed, entering: m.entering, tier: m.tier, focus: m.focus, n: m.n,
+    words: { big: w.big, letters: w.letters, kicker: pickLang(w.kicker), line: pickLang(w.line) },
+    vort: v ? { ...pickLang({ en: v.en, he: v.he }), source: v.source, own: v.own } : null,
+  };
+}
+
 export function heroModel(row, now, ctx) {
   const s = ctx.settings || SETTINGS_DEFAULTS;
   const today = ctx.today || zonedParts(now, ctx.tz || DEFAULT_TZ).date;
@@ -1427,8 +1500,9 @@ export function heroModel(row, now, ctx) {
   const di = c.form === 'day' || c.form === 'zero' ? dayIndexOf(row, now, { ...ctx, settings: s, today }) : null;
   const daysLeft = c.form === 'day' || c.form === 'zero' ? 0 : Math.max(0, daysUntil(row, today));
   const tagline = stageTextFor(o, s, c.form, daysLeft);
+  const years = yearsOfRow(row, s, pickLang);
   return {
-    id: row.id, key: `${row.id}|${row.startISO}`, form: c.form, countdown: c, words: { ...words, unit: pickLang(words.unit), sub: words.sub ? pickLang(words.sub) : null },
+    id: row.id, key: `${row.id}|${row.startISO}`, form: c.form, years, countdown: c, words: { ...words, unit: pickLang(words.unit), sub: words.sub ? pickLang(words.sub) : null },
     name: pickLang(name),
     hebrewDate: s.hebrewDate ? pickLang(hebrewWords(row.startISO)) : null,
     civilDate: s.civilDate ? pickLang(civilWords(row.startISO)) : null,
@@ -1442,7 +1516,8 @@ export function heroModel(row, now, ctx) {
     celebrate: c.form === 'zero' && s.celebrate && o.celebrate !== false,
     dayLabel: c.form === 'day' ? pickLang(evening ? COPY.tonight : COPY.today) : null,
     event: (c.form === 'day' || c.form === 'zero' || c.form === 'hours' || c.form === 'minutes') ? pickLang({ en: o.eventEn, he: o.eventHe }) : null,
-    explain: s.explain && explainShows(o) ? { ...pickLang({ en: o.explainEn, he: o.explainHe }), source: s.credit ? o.source : '' } : null,
+    explain: s.explain && explainShows(o) ? { ...pickLang({ en: o.explainEn, he: o.explainHe }), source: s.credit ? o.source : '' }
+      : s.explain && years?.vort ? { ...pickLang(years.vort), source: s.credit ? years.vort.source : '' } : null, // a milestone's vort stands in when the day has no story of its own
     // the short 'why it's special' line: the same source and the same check as `explain`, 160 characters at most
     why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null,
     dates: datesOf(row, today, ctx.tz || DEFAULT_TZ, pickLang),
@@ -1458,7 +1533,7 @@ export function heroModel(row, now, ctx) {
     layout: resolveOccLayout(s, o),
     display: o.display || s.display || 'classic',
     stageStyle: stageStyleOf(o.stageStyle || s.stageStyle),
-    hype: o.hype || s.hype || DEFAULT_HYPE,
+    hype: years?.tier === 'major' ? 'maximum' : (o.hype || s.hype || DEFAULT_HYPE), // a major milestone always gets the full treatment
     kind: o.kind === 'countup' ? 'countup' : 'countdown',
     run: o.kind === 'countup' ? runOf(row, now, { ...ctx, settings: s, today }, pickLang) : null,
     advent: adventOf(row, now, c, s, today, daysLeft, pickLang),
@@ -1646,7 +1721,10 @@ export function takeoverFor(file, now, ctx) {
     if ((o.finalOn ?? s.finalOn) && r.begin.exact && t >= r.begin.ms - FINAL_SECONDS * 1000) { offer('final', r, r.begin.ms, {}); continue; }
     if (!slotOpen || !(o.milestoneOn ?? s.milestoneOn)) continue;
     const n = daysUntil(r, today);
-    if (n < 1 || !(o.milestones ?? s.milestones).includes(n)) continue;
+    const mm = o.since ? milestoneOf(o.since, r.startISO) : null;
+    // a MAJOR milestone gets many more moments on the way (100, 60, 30, 21, 14, 10, 7, 5, 3, 2, 1 days)
+    const days = mm?.tier === 'major' ? MAJOR_MILESTONE_DAYS : (o.milestones ?? s.milestones);
+    if (n < 1 || !days.includes(n)) continue;
     const until = Math.min(slotEnd, r.begin.ms);
     if (t < until) offer('milestone', r, until, { n, slotStart });
   }
@@ -1654,7 +1732,8 @@ export function takeoverFor(file, now, ctx) {
   const { kind, row: r, until, extra } = best;
   const o = r.occasion;
   const name = pickLang({ en: r.nameEn || (lang === 'english' ? r.nameHe : ''), he: r.nameHe || (lang === 'hebrew' ? r.nameEn : '') });
-  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
+  const yrs = yearsOfRow(r, s, pickLang);
+  const base = { kind, id: r.id, until, beginMs: r.begin.ms, name, style: o.style, years: yrs, hype: yrs?.tier === 'major' ? 'maximum' : (o.hype || s.hype || DEFAULT_HYPE), look: resolveLook(s, o), layout: resolveOccLayout(s, o), greeting: null, celebrate: false, live: false, sound: soundFor(s, o, kind),
     // the same clear dates + short 'why' as a slide row (the kiosk takeover shows the quiet why line and 'until it begins')
     dates: datesOf(r, today, tz, pickLang), why: s.explain && whyShows(o) ? whyOf(o, s, pickLang) : null };
   const wrap = (w) => ({ big: w.big, unit: pickLang(w.unit), sub: w.sub ? pickLang(w.sub) : null });

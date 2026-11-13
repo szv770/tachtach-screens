@@ -29,12 +29,12 @@ const calendarIndex = (rule) => (rule.month === 0 ? 99 : MONTH_ORDER.indexOf(rul
 // which category each starter row belongs to
 const STARTER_CAT = {
   'rc-kislev': 'roshchodesh', 'yud-kislev': 'chassidic', 'yud-tes-kislev': 'chassidic', chanukah: 'minor', 'hey-teves': 'chassidic',
-  'yud-shvat': 'chassidic', 'tu-bishvat': 'minor', purim: 'minor', 'yud-alef-nissan': 'chassidic', pesach: 'yomtov', 'pesach-sheni': 'minor',
+  'yud-shvat': 'chassidic', 'chof-beis-shvat': 'chassidic', 'gimmel-tammuz': 'chassidic', 'tu-bishvat': 'minor', purim: 'minor', 'yud-alef-nissan': 'chassidic', pesach: 'yomtov', 'pesach-sheni': 'minor',
   'lag-baomer': 'minor', shavuos: 'yomtov', 'yud-beis-tammuz': 'chassidic', 'tu-bav': 'minor', 'chai-elul': 'chassidic', 'rosh-hashana': 'yomtov',
   'yom-kippur': 'yomtov', sukkos: 'yomtov', 'shemini-atzeres': 'yomtov', 'rosh-chodesh': 'roshchodesh',
 };
 const STARTER_FIND = {
-  chanukah: ['hanukkah', 'hanukah', 'chanuka'], 'tu-bishvat': ['tu bishvat', 'tu beshvat', 'new year of the trees'], purim: ['purim'], 'lag-baomer': ['lag baomer', 'lag b omer', 'lag laomer'],
+  'chof-beis-shvat': ['22 shvat'], 'gimmel-tammuz': ['3 tammuz'], chanukah: ['hanukkah', 'hanukah', 'chanuka'], 'tu-bishvat': ['tu bishvat', 'tu beshvat', 'new year of the trees'], purim: ['purim'], 'lag-baomer': ['lag baomer', 'lag b omer', 'lag laomer'],
   'rosh-hashana': ['rosh hashanah', 'rosh hashana', 'new year'], 'yom-kippur': ['yom kippur', 'kippur'], sukkos: ['sukkot', 'succos'], shavuos: ['shavuot'],
   'shemini-atzeres': ['simchas torah', 'simchat torah', 'shemini atzeret'], 'tu-bav': ['tu bav', 'tu b av', '15 av'], 'yud-beis-tammuz': ['12 tammuz', '13 tammuz', 'yud gimmel tammuz'],
   'pesach-sheni': ['pesach sheini', 'second pesach'], 'rosh-chodesh': ['rosh chodesh', 'new month'],
@@ -62,12 +62,10 @@ const extras = [
   X('tes-vav-elul', 'Tes-Vav Elul', 'ט״ו אלול', H(ELUL, 15), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['15 elul'] }),
   X('beis-iyar', 'Beis Iyar', 'ב׳ אייר', H(IYYAR, 2), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['2 iyar'] }),
   X('chof-ches-sivan', 'Chof-Ches Sivan', 'כ״ח סיון', H(SIVAN, 28), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['28 sivan'] }),
-  X('chof-beis-shvat', 'Chof-Beis Shvat', 'כ״ב שבט', H(SHVAT, 22), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['22 shvat'] }),
   X('chof-hey-adar', 'Chof-Hey Adar', 'כ״ה אדר', H(ADAR, 25), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['25 adar'] }),
   X('chof-av', 'Chof Av', 'כ׳ אב', H(AV, 20), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['20 av'] }),
   X('chof-cheshvan', 'Chof Cheshvan', 'כ׳ חשון', H(CHESHVAN, 20), { zero: 'gutYomTov', style: 'chassidic', cat: 'chassidic', find: ['20 cheshvan'] }),
   X('chof-daled-teves', 'Chof-Daled Teves', 'כ״ד טבת', H(TEVET, 24), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['24 teves', '24 tevet'] }),
-  X('gimmel-tammuz', 'Gimmel Tammuz', 'ג׳ תמוז', H(TAMUZ, 3), { zero: 'quiet', style: 'chassidic', celebrate: false, cat: 'chassidic', find: ['3 tammuz'] }),
   // Yom Tov and the days before
   X('erev-rosh-hashana', 'Erev Rosh Hashana', 'ערב ראש השנה', H(ELUL, 29), { zero: 'quiet', celebrate: false, cat: 'yomtov' }),
   X('erev-yom-kippur', 'Erev Yom Kippur', 'ערב יום כיפור', H(TISHREI, 9), { zero: 'quiet', celebrate: false, cat: 'yomtov', find: ['tes tishrei', '9 tishrei'] }),

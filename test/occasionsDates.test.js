@@ -109,7 +109,7 @@ test('category filter, share helpers', () => {
   const rows = O.upcoming(f, NOW, { ...NY, today: '2026-11-08' }, { includeOff: true });
   const ids = (category) => rows.filter((r) => D.rowMatches(r, { category })).map((r) => r.id);
   assert.ok(ids('chabad').includes('s-yud-tes-kislev') && !ids('chabad').includes('s-purim'));
-  assert.ok(ids('yomtov').includes('s-purim') && ids('roshChodesh').includes('s-rc-kislev'));
+  assert.ok(ids('yomtov').includes('s-purim') && ids('dor').includes('s-rc-kislev') && ids('dor').includes('s-hey-teves'));
   assert.equal(ids('all').length, rows.length); assert.equal(ids('school').length, 0);
   const row = rows.find((r) => r.id === 's-yud-tes-kislev');
   const msg = D.shareFor(row, settings, ctxNow);

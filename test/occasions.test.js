@@ -219,7 +219,9 @@ test('nearest inside the window; pinned only while close or running (then back t
   const now = at('2026-11-05T15:00:00Z');
   let p = O.pickFor(file(occs), now, NY);
   assert.deepEqual(p.rows.map((r) => r.id), ['a']);
-  assert.deepEqual(p.coming.map((r) => r.id), ['b', 'c', 'd'].slice(0, 3));
+  assert.deepEqual(p.coming.map((r) => r.id), ['b'], 'a busy stretch shows every date inside the window (30 days), a quiet one only the next');
+  p = O.pickFor(file(occs.filter((x) => x.id !== 'b')), now, NY);
+  assert.deepEqual(p.coming.map((r) => r.id), ['c'], 'nothing inside the window: just the next one, whatever the distance');
   p = O.pickFor(file(occs, { withinDays: 10 }), now, NY);
   assert.equal(p.rows.length, 0, 'nothing within 10 days');
   assert.equal(O.occasionVisible(file(occs, { withinDays: 10 }), now, NY), false);
@@ -867,7 +869,7 @@ test('Shabbos move field is strict and survives a round trip', () => {
 test('collections: starters, unknown values, and the Countdown can run one collection only', () => {
   const f = O.normalizeFile(null);
   const cat = (key) => f.occasions.find((o) => o.starter === key).category;
-  assert.equal(cat('yud-tes-kislev'), 'chabad'); assert.equal(cat('pesach'), 'yomtov'); assert.equal(cat('rc-kislev'), 'roshChodesh');
+  assert.equal(cat('yud-tes-kislev'), 'chabad'); assert.equal(cat('pesach'), 'yomtov'); assert.equal(cat('rc-kislev'), 'dor'); assert.equal(cat('hey-teves'), 'dor'); assert.equal(cat('rosh-chodesh'), 'roshChodesh');
   assert.equal(O.normalizeOccasion({ ...YT, category: 'nonsense' }).category, 'custom'); assert.equal(O.normalizeOccasion({ ...YT }).category, 'custom');
   assert.equal(O.normalizeOccasion({ ...YT, starter: 'purim' }).category, 'yomtov', 'an old stored starter follows its starter');
   assert.equal(O.occasionProblem({ ...YT, category: 'x' }) !== null, true);
@@ -954,4 +956,62 @@ test("'Today' block for the TV: Hebrew date, weekday, the days running now (day 
   assert.equal(t1.occasionsToday.length, 1); assert.deepEqual(t1.occasionsToday[0].name, { en: 'Chanukah', he: 'חנוכה' }); assert.deepEqual(t1.occasionsToday[0].dayIndex, { k: 3, n: 8 });
   const t2 = O.slideModel(file([YT], { language: 'english' }), at('2026-11-29T17:00:00Z'), NY).today;
   assert.equal(t2.occasionsToday[0].name.he, ''); assert.equal(t2.weekday.he, ''); assert.equal(t2.occasionsToday[0].dayIndex, null);
+});
+
+// ── milestone years, big / small days, the coming-up rule ───────────────────
+
+test('years on the slide: 40 years since Hey Teves 5747 is a major milestone with maximum hype and its vort', () => {
+  const hey = { id: 'hey', nameEn: 'Hey Teves', rule: { kind: 'hebrew', month: 10, day: 5 }, since: { year: 5747 }, hype: 'calm' };
+  const m = O.slideModel(file([hey]), at('2026-12-10T15:00:00Z'), NY).rows[0];
+  assert.equal(m.years.completed, 40); assert.equal(m.years.tier, 'major'); assert.equal(m.years.words.big, '40');
+  assert.equal(m.years.words.line.en, '40 years'); assert.equal(m.hype, 'maximum', 'a major milestone overrides a calm setting');
+  assert.match(m.explain.en, /forty years/i); assert.match(m.explain.source, /Avodah Zarah 5b/, 'the built-in vort carries its source');
+  // an occasion with its own text for 40 uses it
+  const own = O.slideModel(file([{ ...hey, yearVorts: { 40: { en: 'The Rebbe said ...', he: '', source: 'Sicha X' } } }]), at('2026-12-10T15:00:00Z'), NY).rows[0];
+  assert.equal(own.explain.en, 'The Rebbe said ...'); assert.equal(own.years.vort.own, true);
+  // its own long explanation still wins over the vort
+  assert.equal(O.slideModel(file([{ ...hey, explainEn: 'Its own story.' }]), at('2026-12-10T15:00:00Z'), NY).rows[0].explain.en, 'Its own story.');
+  // an ordinary year: numbers but no seal and no change of hype
+  const plain = O.slideModel(file([{ ...hey, since: { year: 5750 } }]), at('2026-12-10T15:00:00Z'), NY).rows[0];
+  assert.equal(plain.years.completed, 37); assert.equal(plain.years.tier, null); assert.equal(plain.years.words, null); assert.equal(plain.hype, 'calm');
+  // no `since`: no years at all
+  assert.equal(O.slideModel(file([{ ...hey, since: null }]), at('2026-12-10T15:00:00Z'), NY).rows[0].years, null);
+});
+
+test('a major milestone has many more takeover moments on the way (100, 60, 30 ... days); a plain day does not', () => {
+  const hey = { id: 'hey', nameEn: 'Hey Teves', rule: { kind: 'hebrew', month: 10, day: 5 }, since: { year: 5747 } };
+  const t = (iso, o = hey) => O.takeoverFor(file([o], { milestoneFrom: '07:00' }), at(iso), { ...NY, slideOn: true });
+  const start = O.upcoming(file([hey]), at('2026-09-06T15:00:00Z'), NY)[0].startISO;
+  const hundredBefore = (() => { const [y, m, dd] = start.split('-').map(Number); const dt = new Date(Date.UTC(y, m - 1, dd - 100, 11, 0, 0)); return dt.toISOString(); })();
+  const major = t(hundredBefore);
+  assert.ok(major && major.kind === 'milestone' && major.years.n === 40 && major.hype === 'maximum', 'a major milestone has a moment at 100 days');
+  assert.equal(t(hundredBefore, { ...hey, since: { year: 5750 } }), null, 'an ordinary year has none at 100 days');
+});
+
+test('big days lead, small days only fill the strip, and the nearest small one leads when nothing big is near', () => {
+  const mk = (id, day, extra = {}) => ({ id, nameEn: id, rule: { kind: 'gregorian', month: 11, day }, beginsAt: 'midnight', ...extra });
+  const now = at('2026-11-05T15:00:00Z');
+  let p = O.pickFor(file([mk('small', 10, { big: false }), mk('big', 20)]), now, NY);
+  assert.deepEqual(p.rows.map((r) => r.id), ['big'], 'the big one leads although the small one is nearer');
+  assert.deepEqual(p.coming.map((r) => r.id), ['small'], 'the small one is in the strip');
+  p = O.pickFor(file([mk('small', 10, { big: false })]), now, NY);
+  assert.deepEqual(p.rows.map((r) => r.id), ['small'], 'only a small one is near: it leads rather than leaving the slide empty');
+  p = O.pickFor(file([mk('small', 10, { big: false }), mk('farbig', 28)], { withinDays: 10 }), now, NY);
+  assert.deepEqual(p.rows.map((r) => r.id), ['small'], 'the big one is outside its window');
+  assert.equal(O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 } }).big, true, 'big by default');
+  assert.equal(O.normalizeOccasion({ nameEn: 'X', starter: 'rosh-chodesh', rule: { kind: 'roshChodesh', month: 0 } }).big, false, 'the every-month Rosh Chodesh is small');
+  assert.match(O.occasionProblem({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, big: 'yes' }), /Big or small/);
+});
+
+test('since / year vorts: stored, cleared, strict, and an old starter row gets its starter’s year', () => {
+  const o = O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, since: { year: '5747' }, yearVorts: { 40: { en: 'a', source: 's' }, bad: { en: 'x' }, 41: {} } });
+  assert.deepEqual(o.since, { year: 5747 }); assert.deepEqual(Object.keys(o.yearVorts), ['40']);
+  assert.equal(O.normalizeOccasion({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, since: null }).since, null);
+  assert.match(O.occasionProblem({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, since: { year: 12 } }), /Hebrew year/);
+  assert.match(O.occasionProblem({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, yearVorts: { abc: { en: 'x' } } }), /number of years/);
+  assert.match(O.occasionProblem({ nameEn: 'X', rule: { kind: 'gregorian', month: 1, day: 1 }, yearVorts: { 40: { en: 'x'.repeat(401) } } }), /400/);
+  const old = O.normalizeOccasion({ nameEn: 'Hey Teves', starter: 'hey-teves', rule: { kind: 'hebrew', month: 10, day: 5 }, category: 'chabad' });
+  assert.deepEqual(old.since, { year: 5747 }, 'saved before years existed'); assert.equal(old.category, 'dor', 'its old default collection moved to the Rebbe’s days');
+  assert.equal(O.normalizeOccasion({ nameEn: 'Hey Teves', starter: 'hey-teves', rule: { kind: 'hebrew', month: 10, day: 5 }, category: 'chabad', since: null }).since, null, 'cleared stays cleared');
+  assert.equal(O.normalizeOccasion({ nameEn: 'Mine', starter: 'hey-teves', rule: { kind: 'hebrew', month: 10, day: 5 }, category: 'school' }).category, 'school', 'a deliberate choice is kept');
 });
