@@ -159,6 +159,18 @@ export const ACT_ORDER = Object.freeze(['years', 'specialty', 'photo', 'history'
 const ACT_SECONDS = Object.freeze({ hero: 12, dayHero: 12, specialty: 6, photo: 6, history: 8, story: 10, vort: 7 });
 const HERO_SECONDS = Object.freeze({ announce: 12, month: 12, twoWeeks: 11, week: 11, eve: 10, lastHour: 10 });
 const yearsSeconds = (tier) => (tier === 'major' ? 10 : 7);
+const wordsOf = (t) => (String(t || '').trim() ? String(t).trim().split(/\s+/).length : 0);
+/**
+ * Seconds a text act holds: its base seconds, or longer when its text needs it, read from across the room (~130 words a
+ * minute, Hebrew a little slower; the same rate as the Countdown Stage's readSecs), at most 45 s. Only the languages the
+ * screen shows count. A long story or vort used to get a fixed 7-10 s and flashed past (its pages too).
+ */
+export function readSeconds(base, texts, language = 'both') {
+  let en = 0; let he = 0;
+  for (const x of texts) { if (!x) continue; if (language !== 'hebrew') en += wordsOf(x.en); if (language !== 'english') he += wordsOf(x.he); }
+  if (!en && !he) return base;
+  return Math.max(base, Math.min(45, Math.round(5 + en * 0.46 + he * 0.3)));
+}
 
 /** How many story acts follow the countdown in a round (Infinity = all). */
 export function actsPerRound(stage, depth) {
@@ -265,8 +277,15 @@ export function spotlightModel(now, settings, occasions, opts = {}) {
   };
   const avail = SPOTLIGHT_ACTS.filter((a) => sp.acts[a] !== false && (a === 'years' ? !!years : a === 'history' ? story.history.length > 0 : !!story[a === 'photo' ? 'photo' : a])).filter((a) => dayExtras || stage !== 'day');
   const ids = actPlan({ stage, depth: sp.depth, acts: avail, major, round });
+  const lang = s.language || 'both';
+  const actSeconds = (id) => {
+    if (id === 'years') return readSeconds(yearsSeconds(years.tier), [years.vort], lang);
+    if (id === 'history') return readSeconds(ACT_SECONDS.history, story.history, lang);
+    if (id === 'specialty' || id === 'story' || id === 'vort') return readSeconds(ACT_SECONDS[id], [story[id]], lang);
+    return ACT_SECONDS[id];
+  };
   const acts = [{ id: stage === 'day' ? 'dayHero' : 'hero', seconds: stage === 'day' ? ACT_SECONDS.dayHero : HERO_SECONDS[stage] || ACT_SECONDS.hero },
-    ...ids.map((id) => ({ id, seconds: id === 'years' ? yearsSeconds(years.tier) : ACT_SECONDS[id] }))];
+    ...ids.map((id) => ({ id, seconds: actSeconds(id) }))];
 
   const kicker = stage === 'eve' ? (row.begin.dateISO === today ? STAGE_WORDS.eveTonight : STAGE_WORDS.eveTomorrow) : STAGE_WORDS[stage];
   return {

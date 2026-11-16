@@ -318,3 +318,16 @@ test('the file stays under its size cap with 40 days holding typical history + v
   const full = O.normalizeFile({ occasions: rows.map((r) => ({ ...r, explainEn: 'e'.repeat(600), explainHe: 'ה'.repeat(600), history: Array.from({ length: 8 }, () => ({ year: 5747, en: 'h'.repeat(140), he: 'ה'.repeat(140) })), vort: { en: 'v'.repeat(400), he: 'ו'.repeat(400), source: 's'.repeat(140) } })) });
   assert.ok(O.fileBytes(full) > O.LIMITS.file);
 });
+
+test('text acts hold long enough to read (a long story / vort is not flashed past in 7-10 s)', () => {
+  assert.equal(S.readSeconds(10, [{ en: '', he: '' }]), 10);
+  assert.equal(S.readSeconds(7, [{ en: 'Short line.', he: '' }]), 7);
+  const long = Array.from({ length: 70 }, () => 'word').join(' ');
+  assert.equal(S.readSeconds(7, [{ en: long, he: '' }]), Math.round(5 + 70 * 0.46));
+  assert.equal(S.readSeconds(7, [{ en: long, he: long }], 'english'), Math.round(5 + 70 * 0.46), 'only the shown language counts');
+  assert.equal(S.readSeconds(10, [{ en: `${long} ${long} ${long}`, he: long }]), 45, 'at most 45 s');
+  const f = O.normalizeFile({ settings: { spotlight: { v: 1, depth: 'full' } }, occasions: [{ id: 'd1', nameEn: 'D1', rule: { kind: 'gregorian', month: 7, day: 20 }, beginsAt: 'midnight', explainEn: long, vort: { en: long, he: '' } }] });
+  const m = S.spotlightModel(new Date('2026-07-10T15:00:00Z'), null, f, { ctx: { tz: 'America/New_York', loc: { lat: 40.67, lon: -73.94 } } });
+  const sec = Object.fromEntries(m.acts.map((a) => [a.id, a.seconds]));
+  assert.ok(sec.story >= 37 && sec.vort >= 37, JSON.stringify(sec));
+});

@@ -28,8 +28,13 @@ const PHOTO = `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://
 
 const LONG_STORY_EN = 'On the fifth of Teves 5747 the federal court in New York ruled that the library of the Previous Rebbe belongs to Agudas Chassidei Chabad, and not to any one person. The Rebbe asked that the day be celebrated with joy, and that every Jew should add in buying and learning seforim. Since then, Chassidim mark the day by buying new seforim, learning them, and farbrenging about the meaning of the victory: that the Rebbe, and his teachings, belong to all the Chassidim and to the whole Jewish people. '.repeat(2).trim();
 
-export function fixtureModel({ stage = 'month', nowMs = Date.now(), lang = 'both', tier = 'major', photo = true, long = false, accent = '' } = {}) {
-  const startMs = nowMs + STAGE_OFFSETS[stage];
+export function fixtureModel({ stage = 'month', nowMs = Date.now(), lang = 'both', tier = 'major', photo = true, long = false, accent = '', far = 0, bare = false } = {}) {
+  // far = N: N days (+ a few hours) away instead of the stage's usual distance (3-digit numbers); bare: every optional field missing
+  const startMs = nowMs + (far > 0 && stage !== 'day' ? far * DAY + 5 * HOUR : STAGE_OFFSETS[stage]);
+  if (bare) {
+    const d0 = stage === 'day' ? 0 : Math.max(0, Math.round((startOfDay(startMs + 6 * HOUR) - startOfDay(nowMs)) / DAY));
+    return { key: 'bare', name: { en: long ? 'A school event with a rather long name that goes on and on' : 'Siyum', he: '' }, lang, stage, heat: STAGE_HEAT[stage], startMs, days: d0, history: [], strip: [], facts: [] };
+  }
   const days = stage === 'day' ? 0 : Math.max(0, Math.round((startOfDay(startMs + 6 * HOUR) - startOfDay(nowMs)) / DAY));
   const years = tier === 'none' ? null : tier === 'major'
     ? { tier: 'major', n: 40, letters: 'מ׳', completed: 40, entering: 41, focus: 'completed', what: { en: 'Didan Notzach', he: 'דידן נצח' },

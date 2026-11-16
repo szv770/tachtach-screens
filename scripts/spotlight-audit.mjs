@@ -31,7 +31,7 @@ const KIND_STAGES = {
   calendar: ['month', 'week'], meter: ['announce'], sleeps: ['week'], odometer: ['lastHour', 'month'],
 };
 const cases = [];
-const SIZES = { land: [1600, 900], port: [900, 1600] };
+const SIZES = { land: [1600, 900], port: [900, 1600], uhd: [3840, 2160] };
 for (const [type, stages] of Object.entries(KIND_STAGES)) {
   for (const stage of stages) {
     for (const o of ['land', 'port']) {
@@ -47,6 +47,12 @@ for (const photo of ['1', '0']) for (const o of ['land', 'port']) cases.push({ t
 cases.push({ tag: 'flip-week-land-long', q: { view: 'count', type: 'flip', stage: 'week', long: '1' }, o: 'land' });
 cases.push({ tag: 'act-story-land-long', q: { view: 'act:story', long: '1' }, o: 'land' });
 cases.push({ tag: 'day-port-long-hebrew', q: { view: 'day', long: '1', lang: 'hebrew' }, o: 'port' });
+// edge cases: 3-digit days (a lead time up to 400), every optional field missing, English only, a 4K screen
+for (const type of ['journey', 'glow', 'meter']) for (const o of ['land', 'port']) for (const lang of ['both', 'hebrew']) cases.push({ tag: `${type}-far250-${o}-${lang}`, q: { view: 'count', type, stage: 'announce', far: '250', lang }, o });
+for (const [type, stages] of Object.entries(KIND_STAGES)) for (const o of ['land', 'port']) cases.push({ tag: `${type}-${stages[0]}-${o}-bare`, q: { view: 'count', type, stage: stages[0], bare: '1', long: o === 'port' ? '1' : '' }, o });
+for (const o of ['land', 'port']) cases.push({ tag: `day-${o}-bare`, q: { view: 'day', bare: '1' }, o });
+for (const type of ['flip', 'calendar', 'journey']) cases.push({ tag: `${type}-week-land-english`, q: { view: 'count', type, stage: 'week', lang: 'english' }, o: 'land' });
+for (const view of ['count', 'seal', 'act:history', 'day']) cases.push({ tag: `${view.replace(':', '-')}-uhd`, q: { view, type: 'ring', stage: 'eve' }, o: 'uhd' });
 cases.push({ tag: 'journey-eve-port-sheet', q: { view: 'count', type: 'journey', stage: 'eve' }, o: 'port', sheet: true });
 cases.push({ tag: 'calendar-week-port-hebrew-sheet', q: { view: 'count', type: 'calendar', stage: 'week', lang: 'hebrew' }, o: 'port', sheet: true });
 
@@ -102,7 +108,9 @@ async function run(c, reduced) {
       if (b.x < -2 || b.y < -2 || b.x + b.w > out.W + 2 || b.y + b.h > out.H + 2) out.outside.push(`card @${Math.round(b.x)},${Math.round(b.y)}`);
     }
     for (const el of cv.querySelectorAll('[data-sp-fit]')) {
-      if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) out.unfit.push(`${el.textContent.slice(0, 30)} ${el.scrollWidth}/${el.clientWidth} ${el.scrollHeight}/${el.clientHeight}`);
+      // a one-line Latin display face at 150-200 px has ascent+descent metrics ~0.06em past its .1em ink padding: no ink is cut
+      const slackH = Math.max(2, (parseFloat(getComputedStyle(el).fontSize) || 0) * 0.07);
+      if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + slackH) out.unfit.push(`${el.textContent.slice(0, 30)} ${el.scrollWidth}/${el.clientWidth} ${el.scrollHeight}/${el.clientHeight}`);
     }
     // text blocks that overlap (neither contains the other)
     for (let i = 0; i < texts.length; i++) {

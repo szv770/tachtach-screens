@@ -5,6 +5,7 @@
  *   stage = announce | month | twoWeeks | week | eve | lastHour | day
  *   lang = both | english | hebrew   theme = any theme id (dark, parchment, ...)   tier = major | notable | none
  *   motion = smooth | minimal | lively   photo = 0|1   long = 1 (worst-case long name/story)   live = 0 (freeze the clock)
+ *   far = N (N days away: 3-digit numbers)   bare = 1 (no optional field: no years, story, facts, strip, Hebrew name)
  *   now = epoch ms (default: a fixed Monday 2026-11-16 10:00 local)   cycle = 1 (every type in turn, 6 s each)
  */
 import React, { useEffect, useState } from 'react';
@@ -33,7 +34,7 @@ function App() {
   const type = cycle ? TYPE_IDS[i % TYPE_IDS.length] : get('type', 'flip');
   const view = parseView(get('view', 'count'), type);
   const stage = view.kind === 'day' ? 'day' : get('stage', 'month');
-  const sp = fixtureModel({ stage, nowMs: NOW, lang: get('lang', 'both'), tier: get('tier', 'major'), photo: get('photo', '1') !== '0', long: get('long', '') === '1' });
+  const sp = fixtureModel({ stage, nowMs: NOW, lang: get('lang', 'both'), tier: get('tier', 'major'), photo: get('photo', '1') !== '0', long: get('long', '') === '1', far: Number(get('far', '0')) || 0, bare: get('bare', '') === '1' });
   const settings = { theme: get('theme', 'dark'), motion: get('motion', 'smooth') };
   return (
     <DesignRoot settings={settings} style={{ position: 'absolute', inset: 0 }}>
