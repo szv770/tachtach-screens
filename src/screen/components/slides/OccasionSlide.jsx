@@ -972,5 +972,5 @@ export default function OccasionSlide(props) {
   const mode = useMemo(() => modelAt(occasions, settings, cache, Date.now() + clockOffset, null)?.mode || 'none', [occasions, settings, cache, tick, clockOffset]); // eslint-disable-line react-hooks/exhaustive-deps
   const classic = <ClassicOccasionSlide {...props} />;
   if (mode !== 'spotlight') return classic;
-  return <SpotlightGuard fallback={classic}><SpotlightSlide {...props} /></SpotlightGuard>;
+  return <SpotlightGuard fallback={classic}><SpotlightSlide {...props} fallback={classic} /></SpotlightGuard>;
 }

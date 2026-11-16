@@ -34,7 +34,7 @@ export function modelAt(occasions, settings, cache, ms, typeState) {
   } catch { return null; }
 }
 
-export default function SpotlightSlide({ occasions, settings, cache, clockOffset = 0, onRequestDuration, slide }) {
+export default function SpotlightSlide({ occasions, settings, cache, clockOffset = 0, onRequestDuration, slide, fallback = null }) {
   // a new round each time the slide mounts (the carousel keys each appearance); computed once, saved once (StrictMode-safe)
   const [round] = useState(() => {
     const prev = memory.load();
@@ -75,7 +75,8 @@ export default function SpotlightSlide({ occasions, settings, cache, clockOffset
     if (need > base && asked.current !== sig) { asked.current = sig; onRequestDuration(need); }
   }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!m || m.mode !== 'spotlight') return null;
+  // the spotlight day just ended (or the rules failed) between the wrapper's once-a-minute checks: the plain Countdown, never a blank page
+  if (!m || m.mode !== 'spotlight') return fallback;
   const sp = toSpot(m, { lang, look });
   const act = m.acts[a.index] || m.acts[0];
   const view = viewOf(act.id, m);
