@@ -5,8 +5,9 @@
  * kept in memory (and in localStorage when it works, so a reload does not restart the bag), never sent to the server.
  *
  *   startRound(model, prev) -> state         the typeState for the new round (prev = the last round's, or null)
- *   actAt(acts, elapsedMs) -> { index, startMs, endMs }   which act plays at a moment of the round (the acts in order,
- *                                            then again from the hero when the slide's own seconds are longer)
+ *   actAt(acts, elapsedMs, { loop }) -> { index, startMs, endMs }   which act plays at a moment of the round (the acts in
+ *                                            order; the last one stays, or with `loop` (the slide's own seconds are longer
+ *                                            than the round) again from the hero)
  *   roundSeconds(model) -> n                 the time a round needs (what the slide asks the rotation for, + 1 s)
  *   withRepeat(slides, n, type)              the rotation with the slide n times (eve / lastHour: model.repeat = 2), the
  *                                            copy about half a round later, id `${id}~2`
@@ -24,10 +25,11 @@ export function roundSeconds(model) {
   return model.acts.reduce((t, a) => t + (Number(a.seconds) || 0), 0) + 1;
 }
 
-export function actAt(acts, elapsedMs) {
+export function actAt(acts, elapsedMs, { loop = false } = {}) {
   const list = Array.isArray(acts) && acts.length ? acts : [{ id: 'hero', seconds: 10 }];
   const total = list.reduce((t, a) => t + Math.max(1, Number(a.seconds) || 0) * 1000, 0);
   let t = Math.max(0, Number(elapsedMs) || 0);
+  if (!loop && t >= total) t = total - 1; // the round's time is up: the last act stays until the rotation moves on
   const lap = Math.floor(t / total) * total;
   t -= lap;
   let start = 0;

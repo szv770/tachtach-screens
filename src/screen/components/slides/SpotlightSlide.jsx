@@ -58,16 +58,17 @@ export default function SpotlightSlide({ occasions, settings, cache, clockOffset
   if (phase.sig !== sig) setPhase({ sig, start: Date.now() });
   const [, force] = useState(0);
   const el = Date.now() - phase.start;
-  const a = actAt(m?.acts, el);
+  const base = Number(slide?.duration) || 0;
+  const loop = base > roundSeconds(m);
+  const a = actAt(m?.acts, el, { loop });
   useEffect(() => {
-    if (!sig) return undefined;
+    if (!sig || (!loop && a.index === (m?.acts?.length || 1) - 1)) return undefined;
     const t = setTimeout(() => force((x) => x + 1), Math.max(50, a.endMs - (Date.now() - phase.start) + 20));
     return () => clearTimeout(t);
   }, [sig, a.index, a.startMs, phase.start]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ask the rotation once for the round's time (slide seconds 0 = automatic, as the plain Countdown does)
   const asked = useRef('');
-  const base = Number(slide?.duration) || 0;
   useEffect(() => {
     if (!sig || !onRequestDuration) return;
     const need = roundSeconds(m);

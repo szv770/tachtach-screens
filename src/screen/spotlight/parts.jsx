@@ -163,7 +163,7 @@ export function Strip({ sp, lang, max = 3, portrait = false }) {
         const nh = textDir(nm) === 'rtl';
         const when = isHe(lang) ? WORDS.inDays.he(x.days) : WORDS.inDays.en(x.days);
         return (
-          <div key={x.key || i} className="sp-in" style={{ '--d': `${600 + i * 90}ms`, flex: portrait ? '1 1 0' : 'none', minWidth: 0, maxWidth: portrait ? 'none' : 260,
+          <div key={x.key || i} className="sp-in" style={{ '--d': `${600 + i * 90}ms`, flex: portrait ? '1 1 0' : 'none', minWidth: 0, maxWidth: portrait ? 'none' : 300,
             display: 'flex', flexDirection: 'column', gap: 2, padding: '12px 18px', borderRadius: 16, background: 'var(--sp-surface)', boxShadow: 'inset 0 0 0 1.5px var(--sp-line)' }}>
             <span dir={nh ? 'rtl' : 'ltr'} style={{ fontFamily: nh ? F.he : F.en, fontWeight: 600, fontSize: nh ? he(26) : 24, color: 'var(--sp-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.25 }}>{nm}</span>
             <span dir={isHe(lang) ? 'rtl' : 'ltr'} style={{ fontFamily: isHe(lang) ? F.he : F.en, fontSize: 24, fontWeight: 600, color: 'var(--sp-acc)', whiteSpace: 'nowrap', lineHeight: 1.2 }}>{when}</span>

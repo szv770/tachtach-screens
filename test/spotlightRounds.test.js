@@ -52,7 +52,8 @@ test('acts play in order with their seconds, then again from the hero', () => {
   assert.equal(actAt(acts, 0).index, 0);
   assert.equal(actAt(acts, 9999).index, 0);
   assert.equal(actAt(acts, 10000).index, 1);
-  assert.deepEqual(actAt(acts, 16000), { index: 0, startMs: 15000, endMs: 25000 });
+  assert.equal(actAt(acts, 16000).index, 1, 'the round is over: the last act stays');
+  assert.deepEqual(actAt(acts, 16000, { loop: true }), { index: 0, startMs: 15000, endMs: 25000 });
   assert.equal(actAt([], 5000).index, 0);
   assert.equal(roundSeconds({ mode: 'spotlight', acts }), 16);
   assert.equal(roundSeconds({ mode: 'none' }), 0);
