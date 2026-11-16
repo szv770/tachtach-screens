@@ -331,3 +331,25 @@ test('text acts hold long enough to read (a long story / vort is not flashed pas
   const sec = Object.fromEntries(m.acts.map((a) => [a.id, a.seconds]));
   assert.ok(sec.story >= 37 && sec.vort >= 37, JSON.stringify(sec));
 });
+
+test('a kind never shows where it cannot draw the number: always-one sleeps / calendar far away, a day whose own kinds do not fit', () => {
+  const ctx = { tz: 'America/New_York', loc: { lat: 40.67, lon: -73.94 } };
+  const occ = (extra = {}) => ({ id: 'd1', nameEn: 'D1', rule: { kind: 'gregorian', month: 7, day: 20 }, beginsAt: 'midnight', ...extra });
+  const far = new Date('2026-04-10T15:00:00Z'); // ~100 days before
+  const near = new Date('2026-07-12T15:00:00Z'); // 8 days before
+  for (const one of ['sleeps', 'calendar']) {
+    const f = O.normalizeFile({ settings: { spotlight: { v: 1, pick: 'pinned', queue: [{ id: 'd1' }], leadDays: 120, typeMode: 'one', oneType: one } }, occasions: [occ()] });
+    const m = S.spotlightModel(far, null, f, { ctx });
+    assert.equal(m.mode, 'spotlight');
+    assert.notEqual(m.type.id, one, `${one} at ${m.days} days`);
+    assert.ok(m.type.eligible.length > 0);
+    assert.equal(m.type.mode, 'auto', 'the usual turns, so the kinds still change each round');
+    const a = S.advanceType(m, null); const b = S.advanceType(m, a.state);
+    assert.ok(a.type !== one && b.type !== one && a.type !== b.type, `${a.type} ${b.type}`);
+    assert.equal(S.spotlightModel(near, null, f, { ctx }).type.id, one, `${one} close to the day`);
+  }
+  const g = O.normalizeFile({ settings: { spotlight: { v: 1, pick: 'pinned', queue: [{ id: 'd1' }], leadDays: 120 } }, occasions: [occ({ spotlight: { types: ['sleeps'] } })] });
+  const m = S.spotlightModel(far, null, g, { ctx });
+  assert.ok(m.type.id && m.type.id !== 'sleeps', `got ${m.type.id}`);
+  assert.equal(S.spotlightModel(near, null, g, { ctx }).type.id, 'sleeps');
+});

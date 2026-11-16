@@ -251,10 +251,15 @@ export function spotlightModel(now, settings, occasions, opts = {}) {
   // the kind of countdown (none on the day itself)
   const only = o.spotlight?.types || null;
   let eligible = eligibleTypes({ stage, days: st.days, off: sp.types.off, only, order: sp.types.order });
+  // this day's own kinds may all be wrong for the stage (only 'sleeps' a month out): then the switched-on ones, then any
+  if (!eligible.length && stage !== 'day') eligible = eligibleTypes({ stage, days: st.days, off: sp.types.off, order: sp.types.order });
+  if (!eligible.length && stage !== 'day') eligible = eligibleTypes({ stage, days: st.days, order: sp.types.order });
   let mode = sp.typeMode;
   if (stage !== 'day' && mode === 'one') {
     const one = TYPES[sp.oneType] && (!only || only.includes(sp.oneType)) ? sp.oneType : (only ? only[0] : sp.oneType);
-    eligible = [one];
+    // 'always the same one' still respects what a kind can draw: sleeps / calendar only up to their maxDays (14 / 60);
+    // further away the usual turns take over (sleeps showed '14 sleeps to go' 250 days out)
+    if (!TYPES[one].maxDays || st.days <= TYPES[one].maxDays) eligible = [one]; else mode = 'auto';
   }
   if (mode === 'one' && eligible.length <= 1) mode = 'auto';
   const ts = opts.typeState || null;

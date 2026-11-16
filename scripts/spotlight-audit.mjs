@@ -48,7 +48,8 @@ cases.push({ tag: 'flip-week-land-long', q: { view: 'count', type: 'flip', stage
 cases.push({ tag: 'act-story-land-long', q: { view: 'act:story', long: '1' }, o: 'land' });
 cases.push({ tag: 'day-port-long-hebrew', q: { view: 'day', long: '1', lang: 'hebrew' }, o: 'port' });
 // edge cases: 3-digit days (a lead time up to 400), every optional field missing, English only, a 4K screen
-for (const type of ['journey', 'glow', 'meter']) for (const o of ['land', 'port']) for (const lang of ['both', 'hebrew']) cases.push({ tag: `${type}-far250-${o}-${lang}`, q: { view: 'count', type, stage: 'announce', far: '250', lang }, o });
+// 'Always the same one' (typeMode one) shows its kind in EVERY stage, so every kind must also survive 250 days
+for (const type of ['journey', 'glow', 'meter', 'flip', 'ring', 'calendar', 'sleeps', 'odometer']) for (const o of ['land', 'port']) for (const lang of ['both', 'hebrew']) cases.push({ tag: `${type}-far250-${o}-${lang}`, q: { view: 'count', type, stage: 'announce', far: '250', lang }, o });
 for (const [type, stages] of Object.entries(KIND_STAGES)) for (const o of ['land', 'port']) cases.push({ tag: `${type}-${stages[0]}-${o}-bare`, q: { view: 'count', type, stage: stages[0], bare: '1', long: o === 'port' ? '1' : '' }, o });
 for (const o of ['land', 'port']) cases.push({ tag: `day-${o}-bare`, q: { view: 'day', bare: '1' }, o });
 for (const type of ['flip', 'calendar', 'journey']) cases.push({ tag: `${type}-week-land-english`, q: { view: 'count', type, stage: 'week', lang: 'english' }, o: 'land' });
