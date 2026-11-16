@@ -92,8 +92,8 @@ test('occasions routes: starter list, add, edit, on/off, settings, delete, resto
   r = await call('POST', '/occasions/restore-starters');
   assert.equal(r.json.added, 1); assert.ok(r.json.occasions.some((o) => o.starter === 'purim'));
 
-  // body limit (64 kB)
-  assert.equal((await call('POST', '/occasions', null, JSON.stringify({ occasion: { nameEn: 'x', explainEn: 'y'.repeat(70000) } }))).status, 413);
+  // body limit (128 kB for one occasion / the settings)
+  assert.equal((await call('POST', '/occasions', null, JSON.stringify({ occasion: { nameEn: 'x', explainEn: 'y'.repeat(140000) } }))).status, 413);
   // too many
   const many = Array.from({ length: 79 }, (_, i) => ({ id: `m${i}`, nameEn: `n${i}`, rule: { kind: 'hebrew', month: 9, day: 1 } }));
   r = await call('PUT', '/occasions/all', { file: { occasions: many } });
@@ -299,4 +299,20 @@ test('spotlight over the routes: strict, partial nested patch, old keys follow, 
   assert.equal(r.json.settings.spotlight.pick, 'pinned'); assert.deepEqual(r.json.settings.spotlight.queue, [{ id: 's-purim', startISO: '' }]); assert.equal(r.json.settings.spotlight.typeMode, 'one');
   assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'occasions.json'), 'utf8')).settings.spotlight, undefined);
   fs.rmSync(other, { force: true });
+});
+
+test('worst-case occasion: one occasion at every limit (advent, year vorts, the Spotlight history + vort) is accepted', async () => {
+  const { call } = await setup();
+  const O = await import('../src/shared/occasions.js');
+  const L = O.LIMITS; const he = (n) => 'א'.repeat(n); const en = (n) => 'a'.repeat(n);
+  const daily = {}; for (let i = 1; i <= L.adventDays; i++) daily[i] = { en: en(L.adventText), he: he(L.adventText), source: en(L.source), checked: true };
+  const yearVorts = {}; for (let i = 0; i < L.yearVorts; i++) yearVorts[String(10 * (i + 1))] = { en: en(L.yearVortText), he: he(L.yearVortText), source: en(L.source) };
+  const occasion = { nameEn: en(L.name), nameHe: he(L.name), rule: { kind: 'hebrew', month: 9, day: 19 }, explainEn: en(L.explain), explainHe: he(L.explain),
+    explainShortEn: en(L.explainShort), explainShortHe: he(L.explainShort), source: en(L.source), eventEn: en(L.event), eventHe: he(L.event), advent: { on: true, photo: '', grid: '3x3', daily }, yearVorts,
+    history: Array.from({ length: L.history }, (_, i) => ({ year: 5700 + i, en: en(L.historyText), he: he(L.historyText) })), vort: { en: en(L.vort), he: he(L.vort), source: en(140) } };
+  // the admin sends the whole edited occasion (its stored, normalised shape)
+  const body = JSON.stringify({ occasion: O.normalizeOccasion(occasion, { keepId: false }) });
+  assert.ok(Buffer.byteLength(body) > 64 * 1024, 'the case is bigger than the old 64 kB limit');
+  const r = await call('POST', '/occasions', null, body);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
 });

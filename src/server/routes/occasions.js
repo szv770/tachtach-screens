@@ -2,7 +2,7 @@
  * /api/occasions: the Countdown slide's calendar (admin Screen > Occasions). Mounted on /api AFTER requireAuth +
  * csrfProtection + the mutation limiter, gated by the `occasions.edit` capability (src/shared/permissions.js). Granular
  * writes (one occasion, the settings) so two people editing different occasions cannot overwrite each other; every one
- * runs under the store lock and ends in an SSE `occasions-update`, so the TV follows at once. Bodies are bounded (64 kB; 256 kB for the Undo of the whole document).
+ * runs under the store lock and ends in an SSE `occasions-update`, so the TV follows at once. Bodies are bounded (128 kB; 256 kB for the Undo of the whole document).
  * Ids from the URL are only compared with stored ids, never used as paths. Unknown ids answer 404.
  */
 import express, { Router } from 'express';
@@ -14,7 +14,10 @@ const router = Router();
 // Undo sends the whole previous document back (up to the 200 kB file cap), so only that one route takes a 256 kB body.
 router.use('/occasions/moment', express.json({ limit: '4kb' }));
 router.use('/occasions/all', express.json({ limit: '256kb' }));
-router.use('/occasions', express.json({ limit: '64kb' }));
+// one occasion at its limits (60 advent cards, 12 year vorts, the Spotlight's history + vort, both languages) is ~66 kB of JSON:
+// 64 kB refused it (413), so one occasion / the settings take 128 kB (test/occasionsRoutes.test.js 'worst-case occasion')
+export const ONE_BODY_LIMIT = 128 * 1024;
+router.use('/occasions', express.json({ limit: ONE_BODY_LIMIT }));
 
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const fail = (res, e) => {
