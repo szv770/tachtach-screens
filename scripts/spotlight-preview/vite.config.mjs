@@ -9,6 +9,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   root: here,
   plugins: [react()],
-  server: { port: 5199, strictPort: true, host: '127.0.0.1', fs: { allow: [resolve(here, '../..')] } },
+  server: { port: 5199, strictPort: true, host: '127.0.0.1', fs: { allow: [resolve(here, '../..')] }, watch: { usePolling: true, interval: 400 } },
   build: { outDir: resolve(here, '../../.spotlight-preview-dist'), emptyOutDir: true },
 });

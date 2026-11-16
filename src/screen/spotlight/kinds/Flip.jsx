@@ -113,7 +113,7 @@ function Groups({ sp, t, box, ctx, wheels }) {
   return (
     <div data-sp-kind={wheels ? 'odometer' : 'flip'} style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 40 }}>
       {rows.map((row, ri) => (
-        <div key={ri} dir="ltr" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', flexDirection: ctx.rtl ? 'row-reverse' : 'row' }}>
+        <div key={ri} dir="ltr" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>{/* a clock reads left to right in Hebrew too */}
           {row.map((g, gi) => (
             <React.Fragment key={g.id}>
               {gi > 0 && <Colon ch={ch} pulse={!ctx.still && t.secs} />}

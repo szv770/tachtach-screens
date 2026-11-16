@@ -2,7 +2,7 @@
 /**
  * Programmatic checks of the Spotlight graphics (src/screen/spotlight), through the dev preview (scripts/spotlight-preview).
  *   npx vite --config scripts/spotlight-preview/vite.config.mjs &      (serves http://127.0.0.1:5199)
- *   node scripts/spotlight-audit.mjs [http://127.0.0.1:5199] [--sheet out.png] [--only flip] [--quick]
+ *   node scripts/spotlight-audit.mjs [http://127.0.0.1:5199] [--sheet out.png [--pick tag,tag]] [--only flip] [--quick]
  * Per case (every kind at its stages, the seal (major / notable), every story act, the Day hero; landscape 1600x900 +
  * portrait 900x1600; English+Hebrew ('both') and Hebrew RTL; dark + light themes):
  *   - no page error; the canvas and the expected view render;
@@ -23,6 +23,7 @@ const BASE = args.find((a) => a.startsWith('http')) || 'http://127.0.0.1:5199';
 const SHEET = args.includes('--sheet') ? args[args.indexOf('--sheet') + 1] : null;
 const ONLY = args.includes('--only') ? args[args.indexOf('--only') + 1] : null;
 const QUICK = args.includes('--quick');
+const PICK = args.includes('--pick') ? args[args.indexOf('--pick') + 1].split(',') : null; // sheet: exactly these case tags
 const MAX_LOOPS = 7;
 
 const KIND_STAGES = {
@@ -138,7 +139,7 @@ async function run(c, reduced) {
   check(`${tag} transform/opacity only`, !r.badAnim.length, [...new Set(r.badAnim)].join('; '));
   check(`${tag} loops <= ${MAX_LOOPS}`, r.loops <= MAX_LOOPS, `loops=${r.loops}`);
   if (reduced) check(`${tag} no animations`, r.anims === 0, `anims=${r.anims}`);
-  if (SHEET && c.sheet && !reduced) shots.push({ tag, buf: await page.screenshot({ type: 'png' }), o: c.o });
+  if (SHEET && (PICK ? PICK.includes(c.tag) : c.sheet) && !reduced) shots.push({ tag, buf: await page.screenshot({ type: 'png' }), o: c.o });
   console.log(`ok   ${tag} (loops ${r.loops}, anims ${r.anims})`);
   await ctx.close();
 }

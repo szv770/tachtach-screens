@@ -57,8 +57,12 @@ export function Fit({ text, max, min = 24, maxH = 0, lines = 2, as: Tag = 'div',
       const w = el.parentElement.clientWidth;
       if (!w) return;
       el.style.whiteSpace = 'nowrap';
-      const one = (px) => { el.style.fontSize = `${px}px`; return el.scrollWidth <= el.clientWidth - 2; };
-      if (one(max)) { setSt({ size: max, wrap: false }); return; }
+      const one = (px) => { // the text's natural one-line width (max-content) against the room, 2 px slack for sub-pixel advance
+        el.style.fontSize = `${px}px`; el.style.width = 'max-content'; el.style.maxWidth = 'none';
+        const nat = el.offsetWidth; el.style.width = ''; el.style.maxWidth = '100%';
+        return nat <= w - 2;
+      };
+      if (one(max)) { el.style.fontSize = `${max}px`; if (el.scrollWidth <= el.clientWidth + 1) { setSt({ size: max, wrap: false }); return; } }
       let lo = min; let hi = max;
       if (one(min) && (!maxH || true)) {
         while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (one(mid)) lo = mid; else hi = mid; }
@@ -68,6 +72,8 @@ export function Fit({ text, max, min = 24, maxH = 0, lines = 2, as: Tag = 'div',
           if (wr > lo * 1.15) { setSt({ size: wr, wrap: true }); return; }
         }
         el.style.whiteSpace = 'nowrap';
+        el.style.fontSize = `${lo}px`;
+        for (let k = 0; k < 30 && lo > min && el.scrollWidth > el.clientWidth + 1; k++) { lo -= 1; el.style.fontSize = `${lo}px`; } // the real box has the last word
         setSt({ size: lo, wrap: false });
         return;
       }
