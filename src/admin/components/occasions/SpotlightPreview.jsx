@@ -60,14 +60,17 @@ export default function SpotlightPreview({ file, spotlight, row, ctxNow, canvasW
     if (!row) return null;
     const { now, ctx } = ctxNow();
     const settings = { ...file.settings, spotlight: { ...spotlight, pick: 'queue', queue: [{ id: row.id, startISO: row.startISO }], leadDays: Math.max(spotlight.leadDays, 60) } };
-    return { settings, ctx, now, m0: spotlightModel(now, settings, file, { ctx }) };
+    // a half-typed draft must never take the admin page down: no preview instead
+    try { return { settings, ctx, now, m0: spotlightModel(now, settings, file, { ctx }) }; } catch { return null; }
   }, [file, spotlight, row, ctxNow]);
   const at = base && base.m0.mode === 'spotlight' ? momentFor(base.m0, stage) : null;
   const model = useMemo(() => {
     if (!base || at == null) return null;
     const ts = kind ? { ...emptyTypeState(), last: kind } : null;
-    const m = spotlightModel(new Date(at), base.settings, file, { ctx: base.ctx, typeState: ts });
-    return m.mode === 'spotlight' ? m : null;
+    try {
+      const m = spotlightModel(new Date(at), base.settings, file, { ctx: base.ctx, typeState: ts });
+      return m.mode === 'spotlight' ? m : null;
+    } catch { return null; }
   }, [base, at, kind, file]);
   if (!row) return <Hint>Choose a day in step 1 to see it here.</Hint>;
   const eligibleKinds = model?.type.eligible || [];

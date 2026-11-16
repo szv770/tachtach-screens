@@ -40,16 +40,27 @@ export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, 
   const tid = targetRow?.id;
   const draft = targetRow ? { ...targetRow.occasion, ...(edits[tid] || {}) } : null;
   const setDraft = (patch) => setEdits((e) => ({ ...e, [tid]: { ...(e[tid] || {}), ...patch } }));
-  const problem = draft ? occasionProblem({ ...draft, nameEn: draft.nameEn, rule: draft.rule }) : null;
   const dirty = pick !== sp0.pick || JSON.stringify(queue) !== JSON.stringify(sp0.queue) || JSON.stringify(off) !== JSON.stringify(sp0.types.off) || Object.keys(edits).length > 0;
 
   const toggleKind = (id) => setOff((o) => (o.includes(id) ? o.filter((x) => x !== id) : o.length >= TYPE_IDS.length - 1 ? o : [...o, id]));
-  const save = () => {
+  // every day whose story was changed in this sheet is saved (changing the day in step 1 after editing a story used to drop
+  // the first day's edits silently)
+  const storyOf = (e) => {
     const story = {};
-    if (tid && edits[tid]) for (const k of STORY_KEYS) if (k in edits[tid]) story[k] = k === 'vort' ? (edits[tid].vort && (edits[tid].vort.en || edits[tid].vort.he) ? edits[tid].vort : null) : edits[tid][k];
-    if (tid && edits[tid]?.history) story.history = edits[tid].history.map((h) => ({ ...h, year: h.year === '' ? null : Number(h.year) }));
-    onSave({ spotlight: { pick, queue, types: { off } }, occasionId: tid, story: Object.keys(story).length ? story : null });
+    for (const k of STORY_KEYS) if (k in e) story[k] = k === 'vort' ? (e.vort && (e.vort.en || e.vort.he) ? e.vort : null) : e[k];
+    if (e.history) story.history = e.history.map((h) => ({ ...h, year: h.year === '' || h.year == null ? null : Number(h.year) }));
+    return Object.keys(story).length ? story : null;
   };
+  const stories = Object.entries(edits).map(([occasionId, e]) => ({ occasionId, story: storyOf(e) })).filter((x) => x.story && file.occasions.some((o) => o.id === x.occasionId));
+  // a problem in ANY edited day blocks Save, and is said on every step (Save is disabled on every step)
+  const problems = Object.keys(edits).map((id) => {
+    const o = file.occasions.find((x) => x.id === id);
+    const m = o ? occasionProblem({ ...o, ...edits[id] }) : null;
+    return m ? `${o.nameEn || o.nameHe}: ${m}` : null;
+  }).filter(Boolean);
+  const save = () => onSave({ spotlight: { pick, queue, types: { off } }, stories });
+  // the preview draws the days as edited here, not only what is saved
+  const previewFile = useMemo(() => (Object.keys(edits).length ? { ...file, occasions: file.occasions.map((o) => (edits[o.id] ? { ...o, ...edits[o.id] } : o)) } : file), [file, edits]);
 
   const nav = { position: 'sticky', bottom: 0, background: colors.surface || colors.card, padding: '10px 0', borderTop: `1px solid ${colors.line}`, display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' };
   return (
@@ -128,15 +139,15 @@ export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, 
           <section style={{ display: 'grid', gap: 10 }} aria-label="Step 4: Preview" data-testid="spot-step-4">
             <h3 style={h3}>Preview{targetRow ? `: ${rowName(targetRow)}` : ''}</h3>
             <p style={{ ...small, margin: 0 }}>See it at different times on the way to the day. {dirty ? 'This shows what you have chosen so far.' : ''}</p>
-            <SpotlightPreview file={file} spotlight={spotlight} row={targetRow} ctxNow={ctxNow} appSettings={appSettings} canvasWidth={Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 64)} onOpenFull={onOpenFull} />
+            <SpotlightPreview file={previewFile} spotlight={spotlight} row={targetRow} ctxNow={ctxNow} appSettings={appSettings} canvasWidth={Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 64)} onOpenFull={onOpenFull} />
           </section>
         )}
-        {problem && step === 3 && <p style={{ ...small, color: colors.danger, margin: 0 }} data-testid="spot-problem">{problem}</p>}
+        {problems.length > 0 && <p style={{ ...small, color: colors.danger, margin: 0 }} data-testid="spot-problem">{problems.join(' ')}{step !== 3 ? ' (step 3)' : ''}</p>}
       </div>
       <div style={nav}>
         {step > 1 && <button type="button" style={btn(false)} onClick={() => setStep(step - 1)} data-testid="spot-back">Back</button>}
         {step < 4 && <button type="button" style={btn(false)} onClick={() => setStep(step + 1)} data-testid="spot-next">Next</button>}
-        <button type="button" style={btn(true)} disabled={!canEdit || busy || !!problem || !dirty} onClick={save} data-testid="spot-save">Save</button>
+        <button type="button" style={btn(true)} disabled={!canEdit || busy || problems.length > 0 || !dirty} onClick={save} data-testid="spot-save">Save</button>
         <button type="button" style={btn(false, { marginLeft: 'auto' })} onClick={onClose}>Cancel</button>
       </div>
     </Sheet>

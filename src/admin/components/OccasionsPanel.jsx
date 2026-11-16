@@ -318,8 +318,8 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const toggle = (o) => change('PUT', `/${o.id}`, { occasion: { on: !o.on } }, `${o.nameEn || o.nameHe}: ${o.on ? 'off' : 'on'}`);
   const remove = async (o) => { setConfirm(null); if (await change('DELETE', `/${o.id}`, undefined, `Removed ${o.nameEn || o.nameHe}`)) setSheet(null); };
 
-  const saveWizard = async ({ spotlight, occasionId, story }) => {
-    if (story && !(await change('PUT', `/${occasionId}`, { occasion: story }, null))) return;
+  const saveWizard = async ({ spotlight, stories = [] }) => {
+    for (const { occasionId, story } of stories) if (!(await change('PUT', `/${occasionId}`, { occasion: story }, null))) return;
     if (await change('PUT', '/settings', { settings: { spotlight } }, 'Spotlight saved')) setWizard(0);
   };
 
