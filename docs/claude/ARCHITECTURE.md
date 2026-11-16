@@ -158,6 +158,6 @@ Remote code execution by design, so the web process is kept out of it. Flow: **a
 
 ## Occasions countdown: routes, settings, events (customization pass)
 
-- `/api/occasions` adds `POST /moment` and `DELETE /moment` (live moments, in memory, SSE `occasion-moment`, `occasionMoment` in `/api/state` and the viewer allow-list). `PUT /all` (Undo) takes a 256 kB body, every other occasions route 64 kB (the app-wide parser may already allow 256 kB for `/api/occasions`; the moment route re-checks 4 kB itself).
+- `/api/occasions` adds `POST /moment` and `DELETE /moment` (live moments, in memory, SSE `occasion-moment`, `occasionMoment` in `/api/state` and the viewer allow-list). `PUT /all` (Undo) takes a 256 kB body, every other occasions route 128 kB (64 kB until 2026-11-16: a worst-case occasion with the Spotlight fields is ~66 kB; the app-wide parser may already allow 256 kB for `/api/occasions`; the moment route re-checks 4 kB itself).
 - `settings` gained `milestoneOn, milestones, milestoneMinutes, milestoneEveryMinutes, milestoneFrom, milestoneTo, finalOn, stageText, milestoneText, look, layout, display, sound`; `takeover` now defaults true. Whole objects are replaced by a settings PUT (the admin always sends the complete object). The kiosk full-screen moment comes from `takeoverFor()`, not from a virtual announcement item.
 - `src/server/cleanup.js` keeps the Countdown's uploaded photos (`uploadFilesFromOccasions`).
