@@ -68,7 +68,7 @@ export function FlipCard({ v, still, ch }) {
   const flipping = !still && st.prev !== st.cur;
   const cw = Math.round(ch * (st.cur.length > 1 ? 0.7 * st.cur.length : 0.7));
   return (
-    <div className={`sp-card${flipping ? ' sp-flipping' : ''}`} style={{ '--ch': `${ch}px`, '--cw': `${cw}px` }}>
+    <div data-sp-glyph="" className={`sp-card${flipping ? ' sp-flipping' : ''}`} style={{ '--ch': `${ch}px`, '--cw': `${cw}px` }}>
       <div className="sp-half t"><span>{st.cur}</span></div>
       <div className="sp-half b"><span>{flipping ? st.prev : st.cur}</span></div>
       {flipping && <div className="sp-fshade" />}
@@ -87,7 +87,7 @@ export function FlipCard({ v, still, ch }) {
 function Wheel({ d, wh, ww }) {
   const n = Number(d) || 0;
   return (
-    <div className="sp-wheel" style={{ '--wh': `${wh}px`, '--ww': `${ww}px` }}>
+    <div data-sp-glyph="" className="sp-wheel" style={{ '--wh': `${wh}px`, '--ww': `${ww}px` }}>
       <div className="sp-strip" style={{ transform: `translate3d(0, ${-n * wh}px, 0)` }}>
         {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => <span key={k}>{k}</span>)}
       </div>

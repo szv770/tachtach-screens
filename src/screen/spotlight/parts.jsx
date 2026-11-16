@@ -127,7 +127,7 @@ export function NameBlock({ sp, lang, max = 96, min = 40, sub = 34, maxH = 0, al
   return (
     <div className="sp-in" style={{ '--d': '140ms', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: align === 'center' ? 'center' : 'stretch', textAlign: align === 'center' ? 'center' : 'start' }}>
       <Fit text={big} max={bigHe ? Math.round(max * 1.06) : max} min={min} maxH={maxH} lines={2}
-        style={{ fontFamily: bigHe ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.06, color: 'var(--sp-ink)', letterSpacing: bigHe ? 0 : '-.015em', textAlign: align === 'center' ? 'center' : 'start' }} />
+        style={{ fontFamily: bigHe ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.22, color: 'var(--sp-ink)', letterSpacing: bigHe ? 0 : '-.015em', textAlign: align === 'center' ? 'center' : 'start' }} />
       {small ? <Fit text={small} max={sub} min={24} style={{ fontFamily: F.enD, fontWeight: 500, color: 'var(--sp-dim)', marginTop: 6, lineHeight: 1.2, textAlign: align === 'center' ? 'center' : 'start' }} /> : null}
     </div>
   );
