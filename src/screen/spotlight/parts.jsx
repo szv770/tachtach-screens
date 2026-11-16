@@ -57,7 +57,7 @@ export function Fit({ text, max, min = 24, maxH = 0, lines = 2, as: Tag = 'div',
       const w = el.parentElement.clientWidth;
       if (!w) return;
       el.style.whiteSpace = 'nowrap';
-      const one = (px) => { el.style.fontSize = `${px}px`; return el.scrollWidth <= el.clientWidth + 1; };
+      const one = (px) => { el.style.fontSize = `${px}px`; return el.scrollWidth <= el.clientWidth - 2; };
       if (one(max)) { setSt({ size: max, wrap: false }); return; }
       let lo = min; let hi = max;
       if (one(min) && (!maxH || true)) {
@@ -120,6 +120,7 @@ export function Kicker({ sp, lang, size = 26 }) {
 
 /** The name: Hebrew big (English under it) in 'both'; one language otherwise. */
 export function NameBlock({ sp, lang, max = 96, min = 40, sub = 34, maxH = 0, align = 'start' }) {
+  const edge = align === 'center' ? 'center' : isHe(lang) ? 'right' : 'left'; // both lines on the frame's start edge, whatever their direction
   const n = sp.name || {};
   const bigHe = lang !== 'english' && !!n.he;
   const big = bigHe ? n.he : (n.en || n.he || '');
@@ -127,8 +128,8 @@ export function NameBlock({ sp, lang, max = 96, min = 40, sub = 34, maxH = 0, al
   return (
     <div className="sp-in" style={{ '--d': '140ms', minWidth: 0, width: '100%', display: 'flex', flexDirection: 'column', alignItems: align === 'center' ? 'center' : 'stretch', textAlign: align === 'center' ? 'center' : 'start' }}>
       <Fit text={big} max={bigHe ? Math.round(max * 1.06) : max} min={min} maxH={maxH} lines={2}
-        style={{ fontFamily: bigHe ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.22, color: 'var(--sp-ink)', letterSpacing: bigHe ? 0 : '-.015em', textAlign: align === 'center' ? 'center' : 'start' }} />
-      {small ? <Fit text={small} max={sub} min={24} style={{ fontFamily: F.enD, fontWeight: 500, color: 'var(--sp-dim)', marginTop: 6, lineHeight: 1.2, textAlign: align === 'center' ? 'center' : 'start' }} /> : null}
+        style={{ fontFamily: bigHe ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.22, color: 'var(--sp-ink)', letterSpacing: bigHe ? 0 : '-.015em', textAlign: edge }} />
+      {small ? <Fit text={small} max={sub} min={24} style={{ fontFamily: F.enD, fontWeight: 500, color: 'var(--sp-dim)', marginTop: 6, lineHeight: 1.2, textAlign: edge }} /> : null}
     </div>
   );
 }

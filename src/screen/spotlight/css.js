@@ -54,6 +54,10 @@ export const SPOT_CSS = `
   --hinge: color-mix(in srgb, var(--text) 100%, transparent);
   --pin: color-mix(in srgb, var(--text) 70%, var(--bg));
 }
+/* bilingual alignment (GOTCHAS): every run sits on the FRAME's start edge whatever its own direction (an RTL block with
+   text-align: start would drift to the right edge of an English frame). Inline textAlign (centred layouts) still wins. */
+.sp-root[dir=ltr] [dir=rtl], .sp-root[dir=ltr] [dir=ltr] { text-align: left; }
+.sp-root[dir=rtl] [dir=ltr], .sp-root[dir=rtl] [dir=rtl] { text-align: right; }
 .sp-num { font-family: var(--f-cd, var(--f-num)); font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum" 1, "tnum" 1; }
 .sp-cap { font-family: var(--f-en); font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
 .sp-he { direction: rtl; unicode-bidi: isolate; }

@@ -103,17 +103,17 @@ export function YearsSealAct({ sp, box, ctx }) {
   return (
     <div data-sp-view="seal" data-sp-tier={y.tier} style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: p ? 'column' : 'row', alignItems: 'center', justifyContent: 'center', gap: p ? 44 : 90 }}>
       <SealArt years={y} size={size} lang={lang} name={sp.name} still={ctx.still} />
-      <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18, alignItems: p ? 'center' : 'flex-start', textAlign: p ? 'center' : 'start', alignSelf: 'stretch', justifyContent: 'center', minHeight: 0 }}>
+      <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 18, alignItems: p ? 'center' : 'flex-start', textAlign: p ? 'center' : undefined, alignSelf: 'stretch', justifyContent: 'center', minHeight: 0 }}>
         <Cap bi={WORDS.milestone} lang={lang} size={26} color="var(--sp-acc)" className="sp-in" style={{ '--d': '700ms' }} />
         <div className="sp-in" style={{ '--d': '850ms', width: '100%' }}>
-          <Fit text={line1} max={major ? 76 : 64} min={36} maxH={p ? 190 : 200} lines={3} style={{ fontFamily: heb ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.1, color: 'var(--sp-ink)', textAlign: p ? 'center' : 'start' }} />
+          <Fit text={line1} max={major ? 76 : 64} min={36} maxH={p ? 190 : 200} lines={3} style={{ fontFamily: heb ? F.heD : F.enD, fontWeight: 700, lineHeight: 1.1, color: 'var(--sp-ink)', textAlign: p ? 'center' : undefined }} />
         </div>
         <div className="sp-in" style={{ '--d': '1000ms', width: '100%' }}>
-          <Fit text={line2} max={40} min={26} style={{ fontFamily: heb ? F.he : F.en, fontWeight: 600, color: 'var(--sp-acc)', lineHeight: 1.2, textAlign: p ? 'center' : 'start' }} />
+          <Fit text={line2} max={40} min={26} style={{ fontFamily: heb ? F.he : F.en, fontWeight: 600, color: 'var(--sp-acc)', lineHeight: 1.2, textAlign: p ? 'center' : undefined }} />
         </div>
         {vt && (
           <div className="sp-in" style={{ '--d': '1200ms', marginTop: 14, paddingInlineStart: p ? 0 : 26, borderInlineStart: p ? 'none' : '4px solid var(--sp-acc)', width: '100%', minHeight: 0, overflow: 'hidden' }}>
-            <Fit text={vt} max={34} min={24} maxH={p ? 260 : 230} lines={6} dir={vh ? 'rtl' : 'ltr'} style={{ fontFamily: vh ? F.th : F.te, fontWeight: 500, lineHeight: 1.38, color: 'var(--sp-ink)', textAlign: p ? 'center' : 'start' }} />
+            <Fit text={vt} max={34} min={24} maxH={p ? 260 : 230} lines={6} dir={vh ? 'rtl' : 'ltr'} style={{ fontFamily: vh ? F.th : F.te, fontWeight: 500, lineHeight: 1.38, color: 'var(--sp-ink)', textAlign: p ? 'center' : undefined }} />
             {v.source ? <div style={{ marginTop: 10, fontFamily: F.en, fontSize: 24, color: 'var(--sp-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} dir={textDir(v.source)}>{v.source}</div> : null}
           </div>
         )}
