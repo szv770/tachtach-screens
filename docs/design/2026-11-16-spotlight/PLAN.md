@@ -294,3 +294,12 @@ dropped, isolation stub), `occasionStage.test.js` (act plan per stage and depth)
 5. **"A few big days taking turns"** goes away (one spotlight; the others in the side strip). OK?
 6. **Seconds far away**: flip cards tick seconds all the time (more alive) or only from the last day (calmer)?
 7. **Hebrew words** for the stages, the seal ("שנה ל..." / "נכנסים לשנת ה...") and the kinds: a native speaker to confirm.
+
+## Owner decisions (2026-11-16) — these settle the open questions
+1. Ambient motion: YES, and the owner wants MORE movement and action (rays, glows, pulsing "you are here", drifting light). Allowed on the Spotlight slide in every stage (not only the last week), finite or looping, but still transform/opacity only, few layers, Pi 5 at 4K budget; amend GOTCHAS with this dated exception.
+2. After the day: the day itself shows "Today" (it is still happening); once it is over a short "It was ..." card for 12 hours, then the next spotlight.
+3. Countdown appears twice per round on the last evening and last hour (needs a minimal 'repeat' rule for this slide; the general slide-frequency feature stays in the backlog).
+4. Close to the day only seconds-ticking types: yes.
+5. One spotlight + side strip; the old 'few big days taking turns' goes away.
+6. Flip cards tick seconds only from the last day (builder's choice).
+7. Owner will check Hebrew wording later; mark new Hebrew strings in one list for review.
