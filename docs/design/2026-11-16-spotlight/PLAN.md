@@ -303,3 +303,6 @@ dropped, isolation stub), `occasionStage.test.js` (act plan per stage and depth)
 5. One spotlight + side strip; the old 'few big days taking turns' goes away.
 6. Flip cards tick seconds only from the last day (builder's choice).
 7. Owner will check Hebrew wording later; mark new Hebrew strings in one list for review.
+
+### Correction (owner, later same day)
+NO "It was ..." card. Decision 2 is replaced: while the day is happening (all of it; a 2-day occasion = both days) the spotlight shows "Today / Happening now"; the moment it is over, the next spotlight takes over at once. Remove the "after the day" period and card from the model, settings, admin and screen.
