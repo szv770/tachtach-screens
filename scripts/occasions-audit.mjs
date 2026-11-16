@@ -2,6 +2,10 @@
 /**
  * Programmatic checks of the Countdown page (OccasionSlide.jsx), its takeovers (takeover/OccasionTakeover.jsx) and the live
  * moments (takeover/OccasionMoment.jsx), in every form with the worst content.
+ * 2026-11-16 SPOTLIGHT: the OCCASION slide now plays the Spotlight (src/screen/spotlight, checked by scripts/spotlight-audit.mjs)
+ * whenever a spotlight day exists; the old Stage checked below is only its fallback. Slide cases that now show the Spotlight
+ * only check that it renders and are counted as skipped; the takeovers, live moments, the count-up and 'not shown' still run
+ * in full (they do not go through the Spotlight).
  * Run against a THROWAWAY copy of the app (scratch TACHTACH_DATA_DIR), never real data:
  *   npm run build && TACHTACH_DATA_DIR=$(mktemp -d) PORT=3100 node server.js &
  *   node scripts/occasions-audit.mjs http://localhost:3100 [--shots DIR] [--only TAG] [--quick]
@@ -124,11 +128,11 @@ const cases = [
   { tag: 'photo grey, light theme', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: GREY, dim: 30 } }]), form: 'far', contrast: true, theme: 'ivory' },
   { tag: 'photo dark red, dark theme: the photo shows', time: T('2026-11-01T11:00:00'), occ: doc([{ ...YT, look: { photo: DARK, dim: 30 } }]), form: 'far', contrast: true, visible: true },
   { tag: 'all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), form: 'days', themes: true },
-  // takeovers (an exact 6 PM start)
-  { tag: 'takeover: milestone (7 days)', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fonts: true, shot: 'land' },
+  // takeovers (an exact 6 PM start; 12 Nov = 7 CALENDAR days to the day, 19 Nov, since the 2026-11-13 days rule)
+  { tag: 'takeover: milestone (7 days)', time: T('2026-11-12T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fonts: true, shot: 'land' },
   { tag: 'takeover: final minute', time: T('2026-11-18T17:59:20'), occ: doc([SIX]), takeover: 'final', tabular: true },
   { tag: 'takeover: zero', time: T('2026-11-18T18:00:20'), occ: doc([SIX]), takeover: 'zero', zero: true, fonts: true },
-  { tag: 'takeover: worst case name, milestone', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
+  { tag: 'takeover: worst case name, milestone', time: T('2026-11-12T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fonts: true },
   // live moments (admin fired; real time)
   { tag: 'moment: burst', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH], { cycleSeconds: 30 }), moment: { kind: 'burst', text: { en: '', he: '' }, occasionKey: 'yt', secs: 8 }, zero: true },
   { tag: 'moment: shout-out', time: T('2026-11-01T11:00:00'), occ: doc([RC, YT, CH]), moment: { kind: 'shoutout', text: { en: 'Mazel tov to the 8th grade on finishing Mishnayos!', he: 'מזל טוב לכיתה ח׳ על סיום משניות!' }, occasionKey: '', secs: 15 } },
@@ -164,8 +168,8 @@ cases.push(
   { tag: 'dates+why contrast, day view, light theme', time: T('2026-11-29T12:00:00'), occ: doc([RCw, YTw, CHw]), form: 'day', ...DW, wcag: true, theme: 'ivory' },
   { tag: 'dates+why all themes: small text reads at 4.5:1', time: T('2026-11-01T11:00:00'), occ: doc([RCw, YTw, CHw]), form: 'days', ...DW, themes: true },
   // the milestone takeover's quiet line
-  { tag: 'takeover: milestone with why', time: T('2026-11-11T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fx: FX_TK, whyTk: true, fonts: true, shot: 'land' },
-  { tag: 'takeover: milestone with why, worst case', time: T('2026-11-11T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_TK_W, whyTk: 'either', fonts: true },
+  { tag: 'takeover: milestone with why', time: T('2026-11-12T11:00:30'), occ: doc([SIX]), takeover: 'milestone', fx: FX_TK, whyTk: true, fonts: true, shot: 'land' },
+  { tag: 'takeover: milestone with why, worst case', time: T('2026-11-12T11:00:30'), occ: doc([{ ...SIX, nameEn: LONG_EN, nameHe: LONG_HE }]), takeover: 'milestone', fx: FX_TK_W, whyTk: 'either', fonts: true },
 );
 
 // ── the Stage: persistent rail, shared number, the scroll opens and closes, hype levels, Minimal motion, the calm style ──
@@ -246,8 +250,11 @@ const SEL = { slide: 'section.tt-panel[data-occ-form]', takeover: '[data-occ-tak
 const probe = (page, sel) => page.evaluate((sel) => {
   const panel = document.querySelector(sel);
   const out = { panel: !!panel, form: panel?.getAttribute('data-occ-form') || null, view: panel?.getAttribute('data-occ-view') || null, overflow: [], small: [], big: 0, anims: [], text: panel ? panel.innerText : document.body.innerText.slice(0, 300), confetti: 0, fit: [], overlap: [] };
-  out.anims = document.getAnimations().filter((a) => a.playState === 'running' && !a.effect?.target?.closest?.('#tt-splash')).map((a) => { const t = a.effect?.target; return `${a.animationName || a.transitionProperty || 'anim'}:${a.effect?.getComputedTiming?.().iterations}@${t?.tagName}.${String(t?.className || '').slice(0, 40)}`; });
-  out.infinite = document.getAnimations().filter((a) => a.effect?.getComputedTiming?.().iterations === Infinity && !a.effect?.target?.closest?.('#tt-splash')).length;
+  // the Spotlight slide's ambient loops (owner exception 2026-11-16, GOTCHAS; budget checked by scripts/spotlight-audit.mjs) are
+  // allowed: they sit on the slide under a takeover / moment
+  const own = (a) => !a.effect?.target?.closest?.('#tt-splash') && !a.effect?.target?.closest?.('.sp-root');
+  out.anims = document.getAnimations().filter((a) => a.playState === 'running' && own(a)).map((a) => { const t = a.effect?.target; return `${a.animationName || a.transitionProperty || 'anim'}:${a.effect?.getComputedTiming?.().iterations}@${t?.tagName}.${String(t?.className || '').slice(0, 40)}`; });
+  out.infinite = document.getAnimations().filter((a) => a.effect?.getComputedTiming?.().iterations === Infinity && own(a)).length;
   if (!panel) return out;
   const pb = panel.getBoundingClientRect();
   const scale = pb.width / panel.offsetWidth || 1;
@@ -399,7 +406,7 @@ async function contrast(page, needAll = 0) {
   return worst;
 }
 
-let shots = 0;
+let shots = 0; let skipped = 0;
 const shot = async (page, name) => {
   if (!SHOTS || shots >= 6) return;
   shots++;
@@ -524,7 +531,7 @@ async function formsChecks(page, tag, c, r) {
 /** The milestone takeover's quiet why line: there, with its source, or (crowded) dropped cleanly: never clipped. */
 function takeoverWhyChecks(tag, c, r) {
   if (c.whyTk === true) warn(`${tag}: the quiet 'why we celebrate' line shows (needs takeoverFor() to carry why)`, r.whyEl && /why we celebrate/i.test(r.text), `${r.whyEl}`);
-  if (c.whyTk === 'either') check(`${tag}: worst case: the why line is whole or dropped (${r.whyEl ? 'shown' : 'dropped'})`, !r.whyEl || r.whyText.length > 100, r.whyText.slice(0, 30));
+  if (c.whyTk === 'either') check(`${tag}: worst case: the why line is whole or dropped (${r.whyEl ? 'shown' : 'dropped'})`, !r.whyEl || (r.whyText || '').length > 100, (r.whyText || '').slice(0, 30));
   warn(`${tag}: milestone: 'until it begins' under the number (needs takeoverFor() to carry dates)`, /until it begins/i.test(r.text) && !/days? to go/i.test(r.text), r.text.replace(/\s+/g, ' ').slice(0, 100));
   if (r.whyEl) check(`${tag}: the why line is >= 28 px`, r.whyFs >= 27.5, String(r.whyFs));
 }
@@ -537,6 +544,18 @@ async function run(canvas, c, font) {
   const { page, close } = await open({ canvas, time: c.time, occ: c.occ, noLoc: c.noLoc, font, theme: c.theme, moment: c.moment, seedAdvent, fx: c.fx, motion: c.motion });
   try {
     let r = await probe(page, sel);
+    // 2026-11-16: the OCCASION slide plays the SPOTLIGHT whenever the rules name a spotlight day (OccasionSlide.jsx); the old
+    // Stage below is only its fallback (nothing to spotlight, e.g. a count-up alone). Its graphics are checked by
+    // scripts/spotlight-audit.mjs (dev preview) and its rules by test/spotlight*.test.js, so here a slide case that now shows
+    // the Spotlight only checks that it renders, and the old-Stage checks are skipped (counted below).
+    if (!c.takeover && !c.moment) {
+      const spot = await page.evaluate(() => !!document.querySelector('section.tt-panel[data-occ-view="spotlight"] [data-sp-canvas]'));
+      if (spot) {
+        check(`${tag}: the Spotlight renders${c.absent ? ' (expected: not shown)' : ''}`, !c.absent);
+        skipped++; console.log(`SKIP ${tag}: old-Stage checks (the Spotlight shows: scripts/spotlight-audit.mjs)`);
+        return;
+      }
+    }
     if (c.absent) { check(`${tag}: the Countdown is not shown`, r.form === null, r.text.slice(0, 80)); return; }
     if (c.takeover) check(`${tag}: takeover '${c.takeover}' shows`, r.panel && r.form === c.takeover, `${r.form} ${r.text.slice(0, 80)}`);
     else if (c.moment) check(`${tag}: moment overlay shows`, r.panel, r.text.slice(0, 80));
@@ -697,5 +716,5 @@ for (const canvas of ['land', 'port', '4k']) {
   }
 }
 await browser.close();
-console.log(`\n${checks - fails.length}/${checks} checks passed`);
+console.log(`\n${checks - fails.length}/${checks} checks passed${skipped ? ` (${skipped} slide cases now show the Spotlight: old-Stage checks skipped, see scripts/spotlight-audit.mjs)` : ''}`);
 if (fails.length) { console.log('FAILED:\n' + fails.join('\n')); process.exit(1); }
