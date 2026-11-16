@@ -1,0 +1,9 @@
+{
+  "_about": "Deliberate exceptions to test/occasionsExposure.test.js: an occasions setting or occasion field the server accepts but the admin has no control for yet. Every entry needs a reason and EITHER an expiry date (YYYY-MM-DD; the test fails after it so the exception gets revisited) OR permanent:true. Add a control instead whenever you can.",
+  "spotlight": {
+    "typeMode": { "reason": "Spotlight build step 9 (admin More options > Kinds and order) adds the mode picker; the server and kiosk rules exist already", "expires": "2026-12-31" },
+    "oneType": { "reason": "Spotlight build step 9 (admin More options > Kinds and order, 'Always the same one') adds it", "expires": "2026-12-31" },
+    "acts": { "reason": "Spotlight build step 9 (admin More options > What the story shows) adds the act switches", "expires": "2026-12-31" },
+    "depth": { "reason": "Spotlight build step 9 (admin More options > Hype, story parts per round) adds it", "expires": "2026-12-31" }
+  }
+}

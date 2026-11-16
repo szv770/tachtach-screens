@@ -46,7 +46,7 @@ import {
   SPOTLIGHT_DEFAULTS, SPOTLIGHT_LIMITS, normalizeSpotlight, spotlightProblem, spotlightToLegacy, legacyToSpotlight,
   normalizeHistory, historyProblem, normalizeVort, vortProblem, normalizeOccSpotlight, occSpotlightProblem,
 } from './spotlightSettings.js';
-export { SPOTLIGHT_DEFAULTS, SPOTLIGHT_LIMITS } from './spotlightSettings.js';
+export { SPOTLIGHT_DEFAULTS, SPOTLIGHT_LIMITS, OCC_SPOTLIGHT_DEFAULT } from './spotlightSettings.js';
 
 export class OccasionsError extends Error {}
 

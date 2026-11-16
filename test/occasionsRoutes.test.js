@@ -265,3 +265,38 @@ test('advent / count-up / sound over the routes: saved, strict, kiosk copy, undo
   assert.equal((await call('PUT', '/occasions/settings', { settings: { sound: { volume: 5 } } })).status, 400);
   assert.equal((await call('PUT', '/occasions/settings', { settings: { display: 'big' } })).status, 400);
 });
+
+test('spotlight over the routes: strict, partial nested patch, old keys follow, unknown line-up id dropped, another org\'s document untouched', async () => {
+  const { dir, call, events } = await setup();
+  // SaaS isolation stub: another org's document sits next to ours; its ids are not ours, and it stays byte-identical
+  const other = path.join(dir, 'occasions-other-org.json');
+  fs.writeFileSync(other, JSON.stringify({ version: 1, settings: {}, occasions: [{ id: 'theirs1', nameEn: 'Their day', rule: { kind: 'hebrew', month: 9, day: 19 } }] }));
+  const before = fs.readFileSync(other, 'utf8');
+  let r = await call('POST', '/occasions', { occasion: { nameEn: 'Mine', rule: { kind: 'gregorian', month: 3, day: 5 }, history: [{ year: 5747, en: 'Then' }], vort: { en: 'A vort', source: 'Sicha' }, spotlight: { types: ['ring'] } } });
+  assert.equal(r.status, 200);
+  const mine = r.json.id;
+  const added = r.json.occasions.find((o) => o.id === mine);
+  assert.equal(added.history[0].year, 5747); assert.equal(added.vort.source, 'Sicha'); assert.deepEqual(added.spotlight, { types: ['ring'], leadDays: null });
+  const n0 = events.length;
+  r = await call('PUT', '/occasions/settings', { settings: { spotlight: { pick: 'queue', queue: [{ id: 'theirs1', startISO: '' }, { id: mine, startISO: '2027-03-05' }], strip: { count: 2 } } } });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json.settings.spotlight.queue, [{ id: mine, startISO: '2027-03-05' }], 'an id that is not in this document is dropped');
+  assert.equal(r.json.settings.spotlight.strip.count, 2); assert.equal(r.json.settings.spotlight.strip.days, 30, 'a partial patch keeps the rest');
+  assert.equal(r.json.settings.pinnedId, mine, 'old keys follow for one release');
+  assert.ok(events.slice(n0).some((e) => e.includes('occasions-update')));
+  assert.equal(fs.readFileSync(other, 'utf8'), before, 'the other document is byte-identical');
+  for (const bad of [{ pick: 'everything' }, { queue: [{ id: '../../x' }] }, { stages: { after: true } }, { strip: { count: 9 } }, { zzz: 1 }]) {
+    assert.equal((await call('PUT', '/occasions/settings', { settings: { spotlight: bad } })).status, 400, JSON.stringify(bad));
+  }
+  assert.equal((await call('PUT', `/occasions/${mine}`, { occasion: { history: Array.from({ length: 9 }, () => ({ en: 'x' })) } })).status, 400);
+  assert.equal((await call('PUT', `/occasions/${mine}`, { occasion: { vort: { en: 'x'.repeat(401) } } })).status, 400);
+  // deleting the day takes it out of the line-up
+  r = await call('DELETE', `/occasions/${mine}`);
+  assert.deepEqual(r.json.settings.spotlight.queue, []);
+  // an old document (no spotlight yet) is migrated on read, nothing is written by the read
+  fs.writeFileSync(path.join(dir, 'occasions.json'), JSON.stringify({ version: 1, settings: { pick: 'pinned', pinnedId: 's-purim', display: 'flip' }, occasions: [{ id: 's-purim', nameEn: 'Purim', rule: { kind: 'hebrew', month: 12, day: 14 } }] }));
+  r = await call('GET', '/occasions');
+  assert.equal(r.json.settings.spotlight.pick, 'pinned'); assert.deepEqual(r.json.settings.spotlight.queue, [{ id: 's-purim', startISO: '' }]); assert.equal(r.json.settings.spotlight.typeMode, 'one');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'occasions.json'), 'utf8')).settings.spotlight, undefined);
+  fs.rmSync(other, { force: true });
+});
