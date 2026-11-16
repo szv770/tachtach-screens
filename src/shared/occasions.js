@@ -42,6 +42,12 @@ export { normalizeSince, milestoneOf, yearWords, vortFor, milestonePrompt, NUMBE
 export { STAGE_STYLES, STAGE_STYLE_LIST, DEFAULT_STAGE_STYLE } from './stageStyles.js';
 export { HYPES, HYPE_LABEL, HYPE_HINT, DEFAULT_HYPE } from './occasionHype.js';
 
+import {
+  SPOTLIGHT_DEFAULTS, SPOTLIGHT_LIMITS, normalizeSpotlight, spotlightProblem, spotlightToLegacy, legacyToSpotlight,
+  normalizeHistory, historyProblem, normalizeVort, vortProblem, normalizeOccSpotlight, occSpotlightProblem,
+} from './spotlightSettings.js';
+export { SPOTLIGHT_DEFAULTS, SPOTLIGHT_LIMITS } from './spotlightSettings.js';
+
 export class OccasionsError extends Error {}
 
 // ── limits and choices ──────────────────────────────────────────────────────
@@ -49,6 +55,7 @@ export class OccasionsError extends Error {}
 export const LIMITS = Object.freeze({
   occasions: 80, name: 60, explain: 600, explainShort: 160, source: 140, event: 120, zero: 40, file: 240000, // 240 kB: under the 256 kB body of the Undo route
  
+  history: SPOTLIGHT_LIMITS.history, historyText: SPOTLIGHT_LIMITS.historyText, vort: SPOTLIGHT_LIMITS.vort, queue: SPOTLIGHT_LIMITS.queue,
   stageLine: 60, milestones: 12, milestoneTexts: 12, yearVorts: 12, yearVortText: 400, adventDays: 60, adventText: 160, momentText: 80, fontName: 60,
 });
 export const BEGINS = Object.freeze(['shkia', 'tzeis', 'candles', 'time', 'midnight']);
@@ -159,6 +166,8 @@ export const SETTINGS_DEFAULTS = Object.freeze({
   stageText: Object.freeze({}), milestoneText: Object.freeze({}), look: LOOK_DEFAULTS, layout: LAYOUT_DEFAULTS,
   display: 'classic', stageStyle: DEFAULT_STAGE_STYLE, hype: DEFAULT_HYPE, sound: SOUND_DEFAULTS,
   showCategories: CATEGORIES, tapForms: DEFAULT_TAP_FORMS, autoForms: AUTO_DEFAULTS, shareEmoji: false,
+  // the Spotlight (one star day, the kinds of countdown, the stages): src/shared/spotlightSettings.js. pick / pinnedId / display above stay written for one release.
+  spotlight: SPOTLIGHT_DEFAULTS,
 });
 
 /** Takeover styles an occasion may use at its zero moment (src/shared/takeoverStyles.js ids). */
@@ -536,9 +545,12 @@ export function normalizeSettings(raw) {
   const s = isObj(raw) ? raw : {};
   const D = SETTINGS_DEFAULTS; const R = RANGES;
   const bool = (k) => (typeof s[k] === 'boolean' ? s[k] : D[k]);
+  // the spotlight: a versioned object; settings saved before it existed are migrated ONCE from pick / pinnedId / display
+  const spotlight = normalizeSpotlight(s.spotlight, s);
   return {
     pick: oneOf(s.pick, PICKS, D.pick),
     pinnedId: typeof s.pinnedId === 'string' && ID.test(s.pinnedId) ? s.pinnedId : '',
+    spotlight,
     cycleCount: intIn(s.cycleCount, R.cycleCount, D.cycleCount),
     cycleSeconds: intIn(s.cycleSeconds, R.cycleSeconds, D.cycleSeconds),
     withinDays: intIn(s.withinDays, R.withinDays, D.withinDays),
@@ -664,6 +676,11 @@ export function normalizeOccasion(raw, { keepId = true } = {}) {
     big: typeof raw.big === 'boolean' ? raw.big : !(starter && STARTER_BY_KEY[starter]?.small) && !(rule.kind === 'roshChodesh' && rule.month === 0),
     tapForms: normalizeTapForms(raw.tapForms, null),
     autoForms: normalizeAutoForms(raw.autoForms, true),
+    // Spotlight: this day's own kinds / lead time (an old row that was set to the flip clock keeps that choice, once), a short
+    // teaching of its own, and 'this day in history' lines
+    spotlight: normalizeOccSpotlight(raw.spotlight, raw.display),
+    vort: normalizeVort(raw.vort),
+    history: normalizeHistory(raw.history),
     beginsAt: raw.beginsAt === 'default' || raw.beginsAt == null ? 'default' : oneOf(raw.beginsAt, BEGINS, 'default'),
     time: typeof raw.time === 'string' && HHMM.test(raw.time) ? raw.time : '',
     timeDay: raw.timeDay === 'day' ? 'day' : 'eve',
@@ -728,6 +745,8 @@ export function normalizeFile(raw) {
   }
   const settings = normalizeSettings(raw.settings);
   if (settings.pinnedId && !seen.has(settings.pinnedId)) settings.pinnedId = '';
+  // line-up entries only ever name days of THIS document (an id from anywhere else is dropped)
+  if (settings.spotlight.queue.some((e) => !seen.has(e.id))) settings.spotlight = { ...settings.spotlight, queue: settings.spotlight.queue.filter((e) => seen.has(e.id)) };
   return { version: 1, settings, occasions };
 }
 export const fileBytes = (f) => new TextEncoder().encode(JSON.stringify(f)).length;
@@ -753,6 +772,9 @@ export function occasionProblem(raw) {
   if (raw.big != null && typeof raw.big !== 'boolean') return 'Big or small: yes or no.';
   if (raw.yearVorts != null) { const m = yearVortsProblem(raw.yearVorts); if (m) return m; }
   { const m = formsProblem(raw.tapForms, raw.autoForms, { partial: true }); if (m) return m; }
+  if (raw.history != null) { const m = historyProblem(raw.history); if (m) return m; }
+  if (raw.vort != null) { const m = vortProblem(raw.vort); if (m) return m; }
+  if (raw.spotlight != null) { const m = occSpotlightProblem(raw.spotlight); if (m) return m; }
   if (raw.shabbos != null && !SHABBOS_MOVES.includes(raw.shabbos)) return 'If it falls on Shabbos: stay, move to Sunday or move to Thursday.';
   if (raw.kind === 'countup' && !normalizeFrom(raw.from)) return 'Say the date the run starts on (day, month and year).';
   const r = raw.kind === 'countup' && normalizeFrom(raw.from) ? { kind: raw.from.kind, month: raw.from.month, day: raw.from.day } : raw.rule;
@@ -836,6 +858,8 @@ export function updateOccasion(file, id, patch) {
   if (!cur) return null; // -> 404
   const pt = isObj(patch) ? patch : {};
   const merged = { ...cur, ...pt, id: cur.id, starter: cur.starter };
+  // an old admin that still edits this day's `display` keeps the spotlight kinds in step (flip = only the flip cards)
+  if (pt.display !== undefined && pt.spotlight === undefined) merged.spotlight = { ...(cur.spotlight || {}), types: pt.display === 'flip' ? ['flip'] : null };
   const p = occasionProblem(merged);
   if (p) throw new OccasionsError(p);
   // Editing the text or the source un-checks the explanation, unless the same save switches the check on again.
@@ -858,7 +882,8 @@ export function updateOccasion(file, id, patch) {
 
 export function removeOccasion(file, id) {
   if (!file.occasions.some((o) => o.id === id)) return null;
-  const settings = file.settings.pinnedId === id ? { ...file.settings, pinnedId: '' } : file.settings;
+  let settings = file.settings.pinnedId === id ? { ...file.settings, pinnedId: '' } : file.settings;
+  if (settings.spotlight?.queue?.some((e) => e.id === id)) settings = { ...settings, spotlight: { ...settings.spotlight, queue: settings.spotlight.queue.filter((e) => e.id !== id) } };
   return { file: { ...file, settings, occasions: file.occasions.filter((o) => o.id !== id) } };
 }
 
@@ -877,6 +902,7 @@ export function settingsProblem(patch) {
     if (SETTING_ENUMS[k]) { if (!SETTING_ENUMS[k].includes(v)) return `${k}: not one of the choices.`; continue; }
     if (typeof SETTINGS_DEFAULTS[k] === 'boolean') { if (typeof v !== 'boolean') return `${k}: on or off.`; continue; }
     if (k === 'time' || k === 'fallbackTime') { if (typeof v !== 'string' || !HHMM.test(v)) return 'Choose a time like 18:00.'; continue; }
+    if (k === 'spotlight') { const m = spotlightProblem(v); if (m) return m; continue; }
     if (k === 'pinnedId') { if (v !== '' && !(typeof v === 'string' && ID.test(v))) return 'That occasion is not on the list.'; continue; }
     if (k === 'zeroEn' || k === 'zeroHe') { if (typeof v !== 'string' || [...v.trim()].length > LIMITS.zero) return `The greeting is ${LIMITS.zero} characters at most.`; continue; }
     if (k === 'milestones') { const m = milestonesProblem(v); if (m) return m; continue; }
@@ -901,8 +927,24 @@ export function setSettings(file, patch) {
   const p = settingsProblem(patch);
   if (p) throw new OccasionsError(p);
   const merged = { ...file.settings, ...patch };
+  if (isObj(patch.spotlight)) {
+    // a spotlight patch may be partial: nested groups merge into what is there
+    const cur = file.settings.spotlight || SPOTLIGHT_DEFAULTS;
+    const sp = { ...cur, ...patch.spotlight };
+    for (const g of ['types', 'stages', 'acts', 'strip']) if (isObj(patch.spotlight[g])) sp[g] = { ...cur[g], ...patch.spotlight[g] };
+    merged.spotlight = sp;
+  } else if (patch.pick !== undefined || patch.pinnedId !== undefined || patch.display !== undefined) {
+    // an old admin editing the old keys: carry the meaning over to the spotlight
+    const m = legacyToSpotlight(merged);
+    merged.spotlight = { ...file.settings.spotlight };
+    if (patch.pick !== undefined || patch.pinnedId !== undefined) { merged.spotlight.pick = m.pick; merged.spotlight.queue = m.queue || []; }
+    if (patch.display !== undefined) { merged.spotlight.typeMode = m.typeMode; merged.spotlight.oneType = m.oneType; }
+  }
   if (minutesOf(merged.milestoneFrom) >= minutesOf(merged.milestoneTo)) throw new OccasionsError('The hours go from an earlier time to a later one, for example 07:00 to 21:00.');
   if (merged.milestoneMinutes >= merged.milestoneEveryMinutes) throw new OccasionsError('A milestone takeover has to be shorter than the time between them.');
+  if (Array.isArray(merged.spotlight?.queue)) merged.spotlight = { ...merged.spotlight, queue: merged.spotlight.queue.filter((e) => isObj(e) && file.occasions.some((o) => o.id === e.id)) };
+  // the old keys follow the spotlight for one release (additive), so a rollback finds sensible values
+  if (isObj(patch.spotlight)) Object.assign(merged, spotlightToLegacy(normalizeSpotlight(merged.spotlight)));
   const next = normalizeSettings(merged);
   if (patch.pinnedId && !file.occasions.some((o) => o.id === patch.pinnedId)) throw new OccasionsError('That occasion is not on the list.');
   return { ...file, settings: next };
