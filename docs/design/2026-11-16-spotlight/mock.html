@@ -85,11 +85,7 @@ html,body{height:100%;background:#03050b;color:var(--ink);font-family:"Manrope",
 .chips b{display:block;font-size:34px;font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700}
 .chips span{font-size:18px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:700}
 </style></head><body>
-<div class="bar">
-  <b>Look</b><button data-v="A" class="on">A · Flip cards</button><button data-v="B">B · Ring</button><button data-v="C">C · Journey</button>
-  <b style="margin-left:14px">Pretend it is</b>
-  <button data-t="32d" class="on">32 days out</button><button data-t="7d">a week out</button><button data-t="1d">tomorrow night</button><button data-t="1h">last hour</button><button data-t="1m">final minute</button>
-</div>
+<div class="bar"><b id="cap">Round 1</b><span id="cap2" style="color:var(--dim)"></span></div>
 <div class="wrap"><div class="stage" id="stage">
   <div class="rays"></div>
   <div class="kick"><i></i><span id="kick">Get ready</span></div>
@@ -187,7 +183,12 @@ function frame(){
   }
 }
 setInterval(frame,250);frame();
-document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x===b));['A','B','C'].forEach(v=>document.getElementById('v'+v).classList.toggle('on',v===b.dataset.v));frame()});
 const OFF={'32d':32*DAY+7*HR+12*60000+45000,'7d':7*DAY+3*HR+20*60000,'1d':DAY-5*HR-40000,'1h':HR-14*60000-20000,'1m':60000-1000};
-document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));target=Date.now()+OFF[b.dataset.t];frame()});
+/* no buttons: each round shows the next look at the next stage, like the kiosk rotation would */
+const ROUNDS=[['A','32d','Flip cards, a month out'],['B','7d','Ring, a week out'],['C','1d','Journey, tomorrow night'],['A','1h','Flip cards, the last hour'],['B','1m','Ring, the final minute'],['C','32d','Journey, a month out']];
+let r=0;
+function round(){const [v,t,txt]=ROUNDS[r%ROUNDS.length];r++;
+  ['A','B','C'].forEach(x=>document.getElementById('v'+x).classList.toggle('on',x===v));
+  target=Date.now()+OFF[t];document.getElementById('cap').textContent='Round '+r;document.getElementById('cap2').textContent=txt;frame()}
+round();setInterval(round,9000);
 </script></body></html>
