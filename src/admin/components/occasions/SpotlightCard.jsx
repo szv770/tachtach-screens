@@ -8,7 +8,8 @@ import { KindThumb } from './SpotlightParts.jsx';
 export default function SpotlightCard({ model, sp, canEdit, onChange, onStory, onPreview, nameOf }) {
   const on = model.mode === 'spotlight';
   const kinds = on && model.type.id ? model.type.eligible : on ? [] : sp.types.order.filter((t) => !sp.types.off.includes(t));
-  const next = on ? model.strip[0] : model.strip[0];
+  const next = model.strip[0];
+  const txt = (v) => (typeof v === 'string' ? v : v?.en || v?.he || '');
   const nextQueue = on && sp.pick !== 'auto' ? sp.queue.slice(1)[0] : null;
   return (
     <div style={{ ...card, borderColor: colors.accent, display: 'grid', gap: 10 }} data-testid="spot-card">
@@ -22,7 +23,7 @@ export default function SpotlightCard({ model, sp, canEdit, onChange, onStory, o
           <div style={{ fontFamily: adminFonts.englishBody, fontSize: 22, fontWeight: 800, color: colors.text, overflowWrap: 'anywhere' }} data-testid="spot-card-name">{model.nameEn || model.nameHe}</div>
           {model.nameEn && model.nameHe && <div dir="rtl" style={{ fontSize: 17, color: colors.dim }}>{model.nameHe}</div>}
           <p style={{ ...small, margin: '4px 0 0', color: colors.text }} data-testid="spot-card-line">
-            {model.stage === 'day' ? 'Today, happening now' : `${model.days} day${model.days === 1 ? '' : 's'} to go`}{model.begins?.beginsLine ? ` · ${model.begins.beginsLine}` : ''}
+            {model.stage === 'day' ? 'Today, happening now' : `${model.days} day${model.days === 1 ? '' : 's'} to go`}{txt(model.begins?.beginsLine) ? ` · ${txt(model.begins.beginsLine)}` : ''}
           </p>
         </div>
       ) : <p style={{ ...small, margin: 0, color: colors.text }} data-testid="spot-card-none">No day is close enough, so the Countdown skips itself. Nothing is wrong: it comes back when a day is near.</p>}
