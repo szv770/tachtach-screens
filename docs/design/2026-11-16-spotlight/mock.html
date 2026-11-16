@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spotlight countdown: look mock</title>
+<style>
+/* A MOCK, not the kiosk code: it shows the proposed look and motion. Everything here is plain CSS/SVG so it can be rebuilt
+   with transform + opacity only. Fonts fall back to system condensed faces; the kiosk uses the bundled Barlow Condensed / Miriam Libre. */
+:root{--ink:#f4f1ea;--dim:rgba(244,241,234,.62);--faint:rgba(244,241,234,.14);--acc:#e9b25a;--acc2:#ff7a45;--bg0:#070a14;--bg1:#0d1428;--heat:0}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#03050b;color:var(--ink);font-family:"Manrope","Inter",system-ui,sans-serif}
+.bar{position:fixed;z-index:20;top:0;left:0;right:0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:10px 14px;background:rgba(3,5,11,.86);border-bottom:1px solid var(--faint);font-size:13px}
+.bar b{color:var(--dim);font-weight:600;margin-right:2px}
+.bar button{font:inherit;color:var(--ink);background:transparent;border:1px solid var(--faint);border-radius:999px;padding:7px 13px;cursor:pointer}
+.bar button.on{background:var(--acc);color:#1b1204;border-color:var(--acc);font-weight:700}
+.wrap{position:absolute;inset:92px 0 0 0;display:grid;place-items:center;overflow:hidden}
+.stage{position:relative;width:1600px;height:900px;transform-origin:center;overflow:hidden;border-radius:28px;
+ background:
+  radial-gradient(900px 520px at 78% 8%, color-mix(in srgb,var(--acc) calc(10% + var(--heat)*22%),transparent), transparent 70%),
+  radial-gradient(1100px 700px at 12% 110%, color-mix(in srgb,var(--acc2) calc(4% + var(--heat)*18%),transparent), transparent 70%),
+  linear-gradient(180deg,var(--bg1),var(--bg0));}
+.stage::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 79px,rgba(255,255,255,.025) 79px 80px),repeating-linear-gradient(0deg,transparent 0 79px,rgba(255,255,255,.02) 79px 80px);mask-image:radial-gradient(70% 70% at 50% 45%,#000,transparent);-webkit-mask-image:radial-gradient(70% 70% at 50% 45%,#000,transparent)}
+.rays{position:absolute;inset:-30%;opacity:calc(.05 + var(--heat)*.16);background:conic-gradient(from 200deg at 70% 8%,transparent 0 8%,rgba(255,255,255,.5) 9% 10%,transparent 11% 20%,rgba(255,255,255,.4) 21% 22%,transparent 23% 38%,rgba(255,255,255,.5) 39% 40%,transparent 41%);mask-image:radial-gradient(60% 60% at 70% 8%,#000,transparent);-webkit-mask-image:radial-gradient(60% 60% at 70% 8%,#000,transparent);animation:sway 30s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-2deg)}to{transform:rotate(2deg)}}
+.kick{position:absolute;left:96px;top:70px;display:flex;align-items:center;gap:18px;font-size:24px;letter-spacing:.18em;text-transform:uppercase;color:var(--acc);font-weight:700}
+.kick i{display:block;width:56px;height:3px;background:var(--acc);border-radius:2px}
+.name{position:absolute;left:96px;top:118px}
+.name .he{font-family:"Miriam Libre","Frank Ruhl Libre","David Libre",serif;font-size:96px;font-weight:700;line-height:1.05;direction:rtl;text-align:left}
+.name .en{font-size:34px;color:var(--dim);margin-top:4px;font-weight:500}
+.seal{position:absolute;right:96px;top:62px;display:flex;align-items:center;gap:20px}
+.seal .ring{width:132px;height:132px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:58px;letter-spacing:-.03em;border:4px solid var(--acc);box-shadow:0 0 0 7px var(--bg0),0 0 0 10px color-mix(in srgb,var(--acc) 60%,transparent),0 0 60px color-mix(in srgb,var(--acc) 30%,transparent)}
+.seal small{display:block;font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc);font-weight:700}
+.seal span{font-size:36px;font-weight:500}
+.foot{position:absolute;left:96px;right:96px;bottom:58px;display:flex;justify-content:space-between;align-items:flex-end;gap:40px}
+.begins{font-size:28px;color:var(--dim)}.begins b{color:var(--ink);font-weight:700}
+.vort{max-width:760px;font-size:28px;line-height:1.35;color:var(--ink);border-left:4px solid var(--acc);padding-left:24px}
+.vort em{display:block;margin-top:8px;font-style:normal;font-size:20px;color:var(--dim);letter-spacing:.04em}
+.variant{display:none}.variant.on{display:block}
+/* ---------- A: FLIP ---------- */
+.flips{position:absolute;left:0;right:0;top:330px;display:flex;justify-content:center;gap:54px}
+.grp{display:flex;flex-direction:column;align-items:center;gap:26px}
+.pair{display:flex;gap:12px}
+.lab{font-size:24px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.card{--w:132px;--h:196px;position:relative;width:var(--w);height:var(--h);perspective:900px;border-radius:14px;box-shadow:0 30px 50px -18px rgba(0,0,0,.8),0 2px 0 rgba(255,255,255,.07) inset}
+.half{position:absolute;left:0;right:0;height:50%;overflow:hidden;background:linear-gradient(180deg,#2b3347,#1b2234);backface-visibility:hidden}
+.half.up{top:0;border-radius:14px 14px 0 0;background:linear-gradient(180deg,#323b52,#1f2639)}
+.half.low{bottom:0;border-radius:0 0 14px 14px;background:linear-gradient(180deg,#171d2e,#222a3f)}
+.half span{position:absolute;left:0;right:0;height:200%;display:flex;align-items:center;justify-content:center;font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700;font-size:176px;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+.half.up span{top:0}.half.low span{top:-100%}
+.leaf{position:absolute;left:0;right:0;top:0;height:50%;transform-origin:50% 100%;transform-style:preserve-3d;z-index:3}
+.leaf .half{backface-visibility:hidden}
+.leaf .back{transform:rotateX(180deg)}
+.card::after{content:"";position:absolute;left:0;right:0;top:calc(50% - 1.5px);height:3px;background:#05070d;z-index:5;box-shadow:0 1px 0 rgba(255,255,255,.06)}
+.card .pin{position:absolute;top:calc(50% - 9px);width:9px;height:18px;border-radius:3px;background:#0a0e19;z-index:6}
+.card .pin.l{left:-3px}.card .pin.r{right:-3px}
+.sec .card{box-shadow:0 30px 50px -18px rgba(0,0,0,.8),0 0 0 1px color-mix(in srgb,var(--acc) 45%,transparent),0 0 40px color-mix(in srgb,var(--acc) calc(var(--heat)*40%),transparent)}
+.sheen{position:absolute;left:0;right:0;top:0;height:50%;background:linear-gradient(180deg,rgba(255,255,255,.1),transparent 60%);border-radius:14px 14px 0 0;z-index:4;pointer-events:none}
+.colon{align-self:center;display:flex;flex-direction:column;gap:22px;margin-top:-52px}
+.colon i{width:12px;height:12px;border-radius:50%;background:var(--acc);opacity:.85}
+/* ---------- B: RING ---------- */
+.rings{position:absolute;inset:0}
+.big{position:absolute;left:96px;top:300px;width:520px;height:520px}
+.big .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.big .num b{font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700;font-size:290px;line-height:.9;letter-spacing:-.02em}
+.big .num span{font-size:26px;letter-spacing:.28em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-top:6px}
+.mini{position:absolute;top:390px;display:flex;gap:46px;left:700px}
+.mini .m{width:230px;height:230px;position:relative}
+.mini .m .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.mini .m .num b{font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700;font-size:96px;line-height:1}
+.mini .m .num span{font-size:19px;letter-spacing:.24em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-top:4px}
+.tick{stroke-linecap:round}
+/* ---------- C: JOURNEY ---------- */
+.jnum{position:absolute;left:96px;top:300px}
+.jnum b{display:block;font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700;font-size:430px;line-height:.82;letter-spacing:-.03em;background:linear-gradient(180deg,#fff,color-mix(in srgb,var(--acc) 70%,#fff));-webkit-background-clip:text;background-clip:text;color:transparent}
+.jnum span{display:block;font-size:30px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);font-weight:700;margin-top:16px}
+.path{position:absolute;left:560px;right:96px;top:420px}
+.path .rail{position:relative;height:8px;border-radius:4px;background:var(--faint);margin-top:56px}
+.path .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:linear-gradient(90deg,var(--acc2),var(--acc));box-shadow:0 0 24px color-mix(in srgb,var(--acc) 55%,transparent)}
+.path .dot{position:absolute;top:50%;width:20px;height:20px;border-radius:50%;transform:translate(-50%,-50%);background:var(--bg0);border:3px solid var(--faint)}
+.path .dot.done{border-color:var(--acc);background:var(--acc)}
+.path .dot small{position:absolute;top:34px;left:50%;transform:translateX(-50%);font-size:19px;color:var(--dim);white-space:nowrap;letter-spacing:.06em}
+.path .now{position:absolute;top:50%;width:46px;height:46px;border-radius:50%;transform:translate(-50%,-50%);background:var(--acc);box-shadow:0 0 0 8px color-mix(in srgb,var(--acc) 25%,transparent),0 0 40px color-mix(in srgb,var(--acc) 60%,transparent);display:grid;place-items:center;color:#1b1204;font-weight:800;font-size:15px}
+.path .goal{position:absolute;right:0;top:50%;transform:translate(50%,-50%);width:64px;height:64px;border-radius:50%;border:4px solid var(--acc);background:radial-gradient(circle,color-mix(in srgb,var(--acc) 40%,transparent),transparent 70%);display:grid;place-items:center;font-weight:800;font-size:26px}
+.path h4{font-size:24px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.chips{display:flex;gap:14px;margin-top:150px}
+.chips div{border:1px solid var(--faint);border-radius:16px;padding:16px 22px;background:rgba(255,255,255,.03)}
+.chips b{display:block;font-size:34px;font-family:"Barlow Condensed","Oswald","Arial Narrow",sans-serif;font-weight:700}
+.chips span{font-size:18px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:700}
+</style></head><body>
+<div class="bar">
+  <b>Look</b><button data-v="A" class="on">A · Flip cards</button><button data-v="B">B · Ring</button><button data-v="C">C · Journey</button>
+  <b style="margin-left:14px">Pretend it is</b>
+  <button data-t="32d" class="on">32 days out</button><button data-t="7d">a week out</button><button data-t="1d">tomorrow night</button><button data-t="1h">last hour</button><button data-t="1m">final minute</button>
+</div>
+<div class="wrap"><div class="stage" id="stage">
+  <div class="rays"></div>
+  <div class="kick"><i></i><span id="kick">Get ready</span></div>
+  <div class="name"><div class="he">ה׳ טבת</div><div class="en">Hey Teves</div></div>
+  <div class="seal"><div><small>Years since</small><span>Didan Notzach</span></div><div class="ring">40</div></div>
+
+  <div class="variant on" id="vA"><div class="flips" id="flips"></div></div>
+
+  <div class="variant" id="vB"><div class="rings">
+    <div class="big" id="bigRing"><svg viewBox="0 0 1000 1000" width="520" height="520" id="svgBig"></svg><div class="num"><b id="bn">32</b><span id="bu">days to go</span></div></div>
+    <div class="mini" id="mini"></div>
+  </div></div>
+
+  <div class="variant" id="vC">
+    <div class="jnum"><b id="jn">32</b><span id="ju">days to go</span></div>
+    <div class="path"><h4>The way to the day</h4><div class="rail" id="rail"><div class="fill" id="fill"></div></div>
+      <div class="chips" id="chips"></div></div>
+  </div>
+
+  <div class="foot"><div class="begins">Begins <b>Monday evening</b> · Shkia 5:32 PM</div>
+    <div class="vort">Forty years: &ldquo;a person does not stand on his teacher&rsquo;s mind until forty years&rdquo;, when the heart is given &ldquo;to know.&rdquo;<em>Avodah Zarah 5b · Rashi on Devarim 29:3</em></div></div>
+</div></div>
+<script>
+const DAY=86400000, HR=3600000;
+let target=Date.now()+32*DAY+7*HR+12*60000+45000, window_=60*DAY;
+const stage=document.getElementById('stage');
+function fit(){const s=Math.min(innerWidth/1640,(innerHeight-110)/940);stage.style.transform='scale('+s+')'}addEventListener('resize',fit);fit();
+
+/* ---- flip cards ---- */
+const groups=[['days','Days',2],['hours','Hours',2],['minutes','Minutes',2],['seconds','Seconds',2]];
+const flips=document.getElementById('flips');const cards={};
+groups.forEach(([k,l],gi)=>{
+  const g=document.createElement('div');g.className='grp'+(k==='seconds'?' sec':'');
+  const p=document.createElement('div');p.className='pair';
+  cards[k]=[0,1].map(()=>{const c=mk();p.appendChild(c.el);return c});
+  g.appendChild(p);const lab=document.createElement('div');lab.className='lab';lab.textContent=l;g.appendChild(lab);flips.appendChild(g);
+  if(gi<3){const col=document.createElement('div');col.className='colon';col.innerHTML='<i></i><i></i>';flips.appendChild(col)}
+});
+function mk(){
+  const el=document.createElement('div');el.className='card';
+  el.innerHTML='<div class="half up"><span>0</span></div><div class="half low"><span>0</span></div><div class="sheen"></div><i class="pin l"></i><i class="pin r"></i><div class="leaf"><div class="half up front"><span>0</span></div><div class="half low back"><span>0</span></div></div>';
+  const q=(s)=>el.querySelector(s);
+  const o={el,v:'0',up:q('.half.up span'),low:q('.half.low span'),lf:q('.front span'),lb:q('.back span'),leaf:q('.leaf')};
+  return o;
+}
+function setCard(c,v){
+  if(c.v===v)return;const old=c.v;c.v=v;
+  c.up.textContent=v;c.lf.textContent=old;c.lb.textContent=v;
+  c.leaf.style.transition='none';c.leaf.style.transform='rotateX(0deg)';void c.leaf.offsetWidth;
+  c.leaf.style.transition='transform .55s cubic-bezier(.45,.05,.25,1)';c.leaf.style.transform='rotateX(-180deg)';
+  setTimeout(()=>{c.low.textContent=v;c.leaf.style.transition='none';c.leaf.style.transform='rotateX(0deg)';c.lf.textContent=v},560);
+}
+/* ---- ring ---- */
+function ticks(svg,cx,cy,r0,r1,n,litFrac,opts={}){
+  let h='';for(let i=0;i<n;i++){const a=i/n*Math.PI*2-Math.PI/2;const on=i/n<litFrac;
+    const x0=cx+Math.cos(a)*r0,y0=cy+Math.sin(a)*r0,x1=cx+Math.cos(a)*(on?r1+(opts.grow||0):r1),y1=cy+Math.sin(a)*(on?r1+(opts.grow||0):r1);
+    const head=Math.abs(i/n-litFrac)<1/n;
+    h+=`<line class="tick" x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="${head?'#fff':on?'var(--acc)':'rgba(255,255,255,.16)'}" stroke-width="${head?opts.w*1.9:opts.w}" opacity="${on?1:.9}"/>`}
+  svg.innerHTML=h;
+}
+const mini=document.getElementById('mini');['hours','minutes','seconds'].forEach(k=>{
+  const d=document.createElement('div');d.className='m';d.innerHTML=`<svg viewBox="0 0 230 230" width="230" height="230" id="s_${k}"></svg><div class="num"><b id="n_${k}">00</b><span>${k}</span></div>`;mini.appendChild(d)});
+/* ---- journey ---- */
+const stops=[[60,'60'],[30,'30'],[14,'14'],[7,'7'],[3,'3'],[1,'1']];
+const rail=document.getElementById('rail');
+rail.insertAdjacentHTML('beforeend',stops.map(([d,t])=>`<div class="dot" data-d="${d}" style="left:${(1-d/60)*100}%"><small>${t}</small></div>`).join('')+'<div class="now" id="now">now</div><div class="goal">40</div>');
+document.getElementById('chips').innerHTML=['Hebrew year|5747','This year|5787','Day|Tuesday 15 Dec','Begins|Mon evening'].map(s=>{const[a,b]=s.split('|');return `<div><b>${b}</b><span>${a}</span></div>`}).join('');
+
+const p2=(n)=>String(n).padStart(2,'0');
+let lastHeat=-1;
+function frame(){
+  const ms=Math.max(0,target-Date.now());
+  const d=Math.floor(ms/DAY),h=Math.floor(ms%DAY/HR),m=Math.floor(ms%HR/60000),s=Math.floor(ms%60000/1000);
+  // hype ladder -> heat + kicker
+  let heat=0,k='Get ready';
+  if(ms<=DAY*14){heat=.25;k='Two weeks to go'}if(ms<=DAY*7){heat=.45;k='This week'}if(ms<=DAY){heat=.7;k='Tonight is the night'}if(ms<=HR){heat=.88;k='The last hour'}if(ms<=60000){heat=1;k='Final minute'}
+  if(heat!==lastHeat){lastHeat=heat;stage.style.setProperty('--heat',heat);document.getElementById('kick').textContent=k}
+  const useDays=d>0;
+  setCard(cards.days[0],p2(d)[0]);setCard(cards.days[1],p2(d)[1]);
+  setCard(cards.hours[0],p2(h)[0]);setCard(cards.hours[1],p2(h)[1]);
+  setCard(cards.minutes[0],p2(m)[0]);setCard(cards.minutes[1],p2(m)[1]);
+  setCard(cards.seconds[0],p2(s)[0]);setCard(cards.seconds[1],p2(s)[1]);
+  const frac=Math.min(1,Math.max(0,1-ms/window_));
+  if(document.getElementById('vB').classList.contains('on')){
+    ticks(document.getElementById('svgBig'),500,500,392,452,120,frac,{w:7,grow:12});
+    const big=d>0?String(d):h>0?String(h):m>0?String(m):String(s);
+    document.getElementById('bn').textContent=big;document.getElementById('bu').textContent=d>0?'days to go':h>0?'hours to go':m>0?'minutes to go':'seconds';
+    ticks(document.getElementById('s_hours'),115,115,92,108,24,h/24,{w:4});ticks(document.getElementById('s_minutes'),115,115,92,108,60,m/60,{w:3});ticks(document.getElementById('s_seconds'),115,115,92,108,60,s/60,{w:3});
+    document.getElementById('n_hours').textContent=p2(h);document.getElementById('n_minutes').textContent=p2(m);document.getElementById('n_seconds').textContent=p2(s);
+  }
+  if(document.getElementById('vC').classList.contains('on')){
+    document.getElementById('jn').textContent=d>0?d:h>0?h:m>0?m:s;document.getElementById('ju').textContent=d>0?'days to go':h>0?'hours to go':m>0?'minutes to go':'seconds to go';
+    document.getElementById('fill').style.width=(frac*100)+'%';document.getElementById('now').style.left=(frac*100)+'%';
+    rail.querySelectorAll('.dot').forEach(x=>x.classList.toggle('done',ms/DAY<=+x.dataset.d));
+  }
+}
+setInterval(frame,250);frame();
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-v]').forEach(x=>x.classList.toggle('on',x===b));['A','B','C'].forEach(v=>document.getElementById('v'+v).classList.toggle('on',v===b.dataset.v));frame()});
+const OFF={'32d':32*DAY+7*HR+12*60000+45000,'7d':7*DAY+3*HR+20*60000,'1d':DAY-5*HR-40000,'1h':HR-14*60000-20000,'1m':60000-1000};
+document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-t]').forEach(x=>x.classList.toggle('on',x===b));target=Date.now()+OFF[b.dataset.t];frame()});
+</script></body></html>
