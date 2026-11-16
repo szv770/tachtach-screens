@@ -71,7 +71,7 @@ export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, 
             <li key={t} style={{ flex: 1, minWidth: 0 }}>
               <button type="button" onClick={() => setStep(i + 1)} aria-current={step === i + 1 ? 'step' : undefined} aria-label={`Step ${i + 1}: ${t}`} data-testid={`spot-step-btn-${i + 1}`}
                 style={{ width: '100%', minHeight: 44, border: 'none', borderBottom: `3px solid ${step >= i + 1 ? colors.accent : colors.line}`, background: 'transparent', color: step === i + 1 ? colors.text : colors.dim, fontFamily: adminFonts.englishBody, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '0 2px' }}>
-                {i + 1}<span style={{ display: 'block', fontWeight: 600, fontSize: 11, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}</span>
+                {i + 1}<span style={{ display: 'block', fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t}</span>
               </button>
             </li>
           ))}
