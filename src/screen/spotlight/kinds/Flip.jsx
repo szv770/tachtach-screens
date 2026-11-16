@@ -16,12 +16,12 @@ import { UnitLabel } from '../parts.jsx';
 
 /** The groups to show: [{ id, digits: '032', unit }] */
 export function groupsFor(t, { seconds }) {
-  if (t.secs) {
+  if (t.near) {
     const hh = Math.floor(t.ms / HOUR);
     const g = [];
-    if (hh > 0) g.push({ id: 'h', v: pad2(hh), unit: hh === 1 ? 'hour' : 'hours' });
+    if (hh > 0 || !t.secs) g.push({ id: 'h', v: pad2(hh), unit: hh === 1 ? 'hour' : 'hours' });
     g.push({ id: 'm', v: pad2(t.m), unit: 'minutes' });
-    g.push({ id: 's', v: pad2(t.s), unit: 'seconds', hot: true });
+    if (t.secs) g.push({ id: 's', v: pad2(t.s), unit: 'seconds', hot: true });
     return g;
   }
   const g = [
@@ -29,7 +29,7 @@ export function groupsFor(t, { seconds }) {
     { id: 'h', v: pad2(t.h), unit: 'hours' },
     { id: 'm', v: pad2(t.m), unit: 'minutes' },
   ];
-  if (seconds) g.push({ id: 's', v: pad2(t.s), unit: 'seconds', hot: true });
+  if (seconds && t.exact) g.push({ id: 's', v: pad2(t.s), unit: 'seconds', hot: true });
   return g;
 }
 

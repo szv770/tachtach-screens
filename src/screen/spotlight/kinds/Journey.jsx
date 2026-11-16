@@ -19,7 +19,16 @@ export function JourneyKind({ sp, t, box, ctx }) {
   const numW = p ? box.w : Math.min(box.w * 0.36, 560);
   const numSize = Math.floor(Math.min(p ? box.h * 0.36 : box.h * 0.78, (numW * 0.94) / (digits * 0.52), 440));
   const pathW = p ? box.w : box.w - numW - 80;
-  const stops = STOPS.filter((d) => d < t.leadDays - 0.5);
+  // the stops inside the lead, never closer than 90 px to each other or 110 px to the goal (their numbers would touch)
+  const railPx = pathW - 80;
+  const stops = [];
+  for (const d of STOPS) {
+    if (d >= t.leadDays - 0.5) continue;
+    const x = (1 - d / t.leadDays) * railPx;
+    if (railPx - x < 110) continue;
+    if (stops.length && x - (1 - stops[stops.length - 1] / t.leadDays) * railPx < 90) continue;
+    stops.push(d);
+  }
   const frac = Math.min(1, Math.max(0, t.frac));
   const start = ctx.rtl ? 'right' : 'left';
   const facts = (sp.facts || []).slice(0, p ? 4 : 3);

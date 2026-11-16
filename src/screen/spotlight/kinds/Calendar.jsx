@@ -33,12 +33,13 @@ export function CalendarKind({ sp, t, box, ctx, nowMs }) {
   const months = [...new Set(days.map((d) => new Intl.DateTimeFormat(isHe(ctx.lang) ? 'he' : 'en-US', { month: 'long' }).format(new Date(d.ms))))].join(' \u2013 ');
   const sideW = p ? box.w : Math.min(420, box.w * 0.3);
   const gridW = p ? box.w : box.w - sideW - 70;
-  const gridH = p ? box.h - Math.min(330, box.h * 0.32) : box.h;
+  const sideH = adv ? 250 : 190; // portrait: the number row above the grid
+  const gridH = p ? box.h - sideH - 30 : box.h;
   const cols = p ? 7 : weeks; const rows = p ? weeks : 7;
   const head = 34;
   const tile = Math.floor(Math.min((gridW - (p ? 0 : head + 8) - (cols - 1) * gap) / cols, (gridH - (p ? head + 8 : 0) - (rows - 1) * gap) / rows, 120));
   const wd = isHe(ctx.lang) ? WORDS.weekdays.he : WORDS.weekdays.en;
-  const numSize = Math.floor(Math.min(p ? 230 : box.h * 0.5, (sideW * 0.9) / (String(big.n).length * 0.52), 320));
+  const numSize = Math.floor(Math.min(p ? 170 : box.h * 0.5, (sideW * 0.9) / (String(big.n).length * 0.52), 320));
   const gridPxW = (p ? 0 : head + 8) + cols * tile + (cols - 1) * gap;
   const gridPxH = (p ? head + 8 : 0) + rows * tile + (rows - 1) * gap;
   const mx = (x, w) => (ctx.rtl ? gridPxW - x - w : x); // Hebrew: the calendar reads right to left

@@ -40,6 +40,8 @@
  * @property {Bi} [advent]                     today's advent line (Calendar kind)
  * @property {{ key: string, name: Bi, days: number }[]} [strip]   the side strip (already filtered: count / days / small)
  * @property {string} [accent]                 look.accent (a CSS colour) or ''
+ * @property {boolean} [approx]               the begin time is approximate (rules: approx): no seconds anywhere
+ * @property {boolean} [ticks]                seconds are shown live (rules: ticksSeconds; false when the time is approximate)
  * @property {string} [numeralsFont]           look.numeralsFont (a font NAME, through fontStack) or ''
  *
  * @typedef {{ kind: 'count', type: SpotType }
@@ -65,7 +67,8 @@ export const SECONDS_STAGES = Object.freeze(['eve', 'lastHour']);
  * @property {number} days      calendar days to the day
  * @property {number} frac      0..1 of the way from leadStartMs to startMs
  * @property {number} leadDays  length of the lead, days
- * @property {boolean} secs     seconds tick (eve / lastHour)
+ * @property {boolean} near     the last day (eve / lastHour): hours / minutes replace days
+ * @property {boolean} secs     seconds tick (near AND the time is exact: sp.ticks from the rules' ticksSeconds)
  */
 export function timeLeft(sp, nowMs) {
   const ms = Math.max(0, (sp.startMs || 0) - nowMs);
@@ -76,15 +79,16 @@ export function timeLeft(sp, nowMs) {
   const days = Number.isFinite(sp.days) ? Math.max(0, sp.days) : Math.ceil(ms / DAY);
   const lead = Math.max(HOUR, (sp.startMs || 0) - (sp.leadStartMs ?? (sp.startMs - 60 * DAY)));
   const frac = Math.min(1, Math.max(0, 1 - ms / lead));
-  return { ms, d, h, m, s, days, frac, leadDays: lead / DAY, secs: SECONDS_STAGES.includes(sp.stage) };
+  const near = SECONDS_STAGES.includes(sp.stage);
+  return { ms, d, h, m, s, days, frac, leadDays: lead / DAY, near, secs: near && sp.ticks !== false, exact: !sp.approx };
 }
 
 /** The ONE big number and its unit, for kinds that show a single number. */
 export function bigCount(t) {
-  if (!t.secs && t.days >= 1) return { n: t.days, unit: t.days === 1 ? 'day' : 'days' };
+  if (!t.near && t.days >= 1) return { n: t.days, unit: t.days === 1 ? 'day' : 'days' };
   if (t.ms >= HOUR) { const n = Math.floor(t.ms / HOUR); return { n, unit: n === 1 ? 'hour' : 'hours' }; }
   if (t.ms >= MIN) { const n = Math.floor(t.ms / MIN); return { n, unit: n === 1 ? 'minute' : 'minutes' }; }
-  return { n: Math.floor(t.ms / 1000), unit: 'seconds' };
+  return t.secs ? { n: Math.floor(t.ms / 1000), unit: 'seconds' } : { n: Math.max(1, Math.ceil(t.ms / MIN)), unit: 'minutes' };
 }
 
 export const pad2 = (n) => String(Math.max(0, n)).padStart(2, '0');
@@ -92,6 +96,7 @@ export const pad2 = (n) => String(Math.max(0, n)).padStart(2, '0');
 /** H:MM:SS (or M:SS in the last hour) for the seconds stages. */
 export function clockText(t) {
   const hh = Math.floor(t.ms / HOUR);
+  if (!t.secs) return `${hh}:${pad2(t.m)}`;
   return hh > 0 ? `${hh}:${pad2(t.m)}:${pad2(t.s)}` : `${t.m}:${pad2(t.s)}`;
 }
 

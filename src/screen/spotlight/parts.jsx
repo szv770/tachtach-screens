@@ -81,7 +81,7 @@ export function Fit({ text, max, min = 24, maxH = 0, lines = 2, as: Tag = 'div',
   }, [text, max, min, maxH, lines, ft]);
   return (
     <Tag ref={ref} data-sp-fit="" dir={dir || textDir(text)} className={className}
-      style={{ maxWidth: '100%', overflow: 'hidden', ...style, fontSize: st.size, whiteSpace: st.wrap ? 'normal' : 'nowrap', overflowWrap: 'anywhere', unicodeBidi: 'isolate' }} {...rest}>
+      style={{ maxWidth: '100%', overflow: 'hidden', ...style, paddingBlock: '.1em', marginBlock: '-.1em', fontSize: st.size, whiteSpace: st.wrap ? 'normal' : 'nowrap', overflowWrap: 'anywhere', unicodeBidi: 'isolate' }} {...rest}>
       {text}
     </Tag>
   );

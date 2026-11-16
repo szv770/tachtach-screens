@@ -37,7 +37,7 @@ export function MeterKind({ t, box, ctx }) {
   return (
     <div data-sp-kind="meter" style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: p ? 40 : 46 }}>
       <div style={{ display: 'flex', flexDirection: p ? 'column' : 'row', alignItems: p ? 'center' : 'flex-end', gap: p ? 10 : 48 }}>
-        <span className="sp-num sp-in" dir="ltr" style={{ '--d': '100ms', fontSize: numSize, fontWeight: 700, lineHeight: 0.84, letterSpacing: '-.02em', color: 'var(--sp-ink)' }}>
+        <span className="sp-num sp-in" dir="ltr" style={{ '--d': '100ms', fontSize: numSize, fontWeight: 700, lineHeight: p ? 1 : 0.84, letterSpacing: '-.02em', color: 'var(--sp-ink)' }}>
           {shown}<span style={{ fontSize: '.42em', color: 'var(--sp-acc)', marginLeft: '.04em' }}>%</span>
         </span>
         <div className="sp-in" style={{ '--d': '250ms', display: 'flex', flexDirection: 'column', alignItems: p ? 'center' : 'flex-start', gap: 12, paddingBottom: p ? 0 : numSize * 0.06 }}>

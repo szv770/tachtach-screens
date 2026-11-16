@@ -86,14 +86,19 @@ async function run(c, reduced) {
       const own = [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
       if (!own || el.closest('[aria-hidden]') || cs.visibility === 'hidden' || cs.display === 'none') continue;
       if (el.closest('svg')) continue; // SVG text (the seal's ring) is geometry, checked by eye
+      if (el.closest('[data-sp-glyph]')) continue; // a flip card / wheel: checked as one block below
       const b = rel(el);
       if (b.w < 1) continue;
+      if (el.hasAttribute('data-sp-fit')) { const pt = parseFloat(cs.paddingTop) || 0; const pb = parseFloat(cs.paddingBottom) || 0; b.y += pt; b.h -= pt + pb; } // the fit's ink padding
       texts.push({ el, b, t: el.textContent.trim().slice(0, 40) });
-      const strip = el.closest('[data-sp-glyph]');
-      if (strip) { const sb = rel(strip); if (b.y + b.h < sb.y || b.y > sb.y + sb.h) continue; } // a wheel's digits outside its window are clipped
       if (b.x < -2 || b.y < -2 || b.x + b.w > out.W + 2 || b.y + b.h > out.H + 2) out.outside.push(`${el.textContent.trim().slice(0, 30)} @${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.w)}x${Math.round(b.h)}`);
       const fs = parseFloat(cs.fontSize);
       if (fs < 23.5) out.small.push(`${el.textContent.trim().slice(0, 24)}=${fs}`);
+    }
+    for (const g of cv.querySelectorAll('[data-sp-glyph]')) {
+      const b = rel(g);
+      texts.push({ el: g, b, t: `card ${g.textContent.trim().slice(0, 4)}` });
+      if (b.x < -2 || b.y < -2 || b.x + b.w > out.W + 2 || b.y + b.h > out.H + 2) out.outside.push(`card @${Math.round(b.x)},${Math.round(b.y)}`);
     }
     for (const el of cv.querySelectorAll('[data-sp-fit]')) {
       if (el.scrollWidth > el.clientWidth + 2 || el.scrollHeight > el.clientHeight + 2) out.unfit.push(`${el.textContent.slice(0, 30)} ${el.scrollWidth}/${el.clientWidth} ${el.scrollHeight}/${el.clientHeight}`);

@@ -12,7 +12,7 @@ import { UnitLabel, useUid } from '../parts.jsx';
 export function GlowKind({ t, box, ctx }) {
   const id = useUid('glow');
   const big = bigCount(t);
-  const text = t.secs ? clockText(t) : String(big.n);
+  const text = t.near ? clockText(t) : String(big.n);
   const unit = big.unit;
   const glyphs = text.replace(/:/g, '').length + (text.split(':').length - 1) * 0.45;
   const size = Math.floor(Math.min(box.h * 0.8, (box.w * 0.9) / (glyphs * 0.53), 720));
