@@ -23,7 +23,7 @@ const tile = (on) => ({ minHeight: '56px', padding: '8px 12px', borderRadius: 'v
  * 1 Which day (automatic, or tap days to line them up) · 2 Kinds of countdown · 3 The day's story · 4 Preview with stage chips.
  * Saves the spotlight settings (pick, line-up, kinds switched off) and the story fields of the chosen day in one go.
  */
-export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, canEdit, busy, ctxNow, copy, onClose, onSave, onOpenFull }) {
+export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, appSettings, canEdit, busy, ctxNow, copy, onClose, onSave, onOpenFull }) {
   const sp0 = file.settings.spotlight;
   const [step, setStep] = useState(initialStep);
   const [queue, setQueue] = useState(sp0.queue);
@@ -128,7 +128,7 @@ export default function SpotlightWizard({ file, rows, autoRow, initialStep = 1, 
           <section style={{ display: 'grid', gap: 10 }} aria-label="Step 4: Preview" data-testid="spot-step-4">
             <h3 style={h3}>Preview{targetRow ? `: ${rowName(targetRow)}` : ''}</h3>
             <p style={{ ...small, margin: 0 }}>See it at different times on the way to the day. {dirty ? 'This shows what you have chosen so far.' : ''}</p>
-            <SpotlightPreview file={file} spotlight={spotlight} row={targetRow} ctxNow={ctxNow} canvasWidth={Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 64)} onOpenFull={onOpenFull} />
+            <SpotlightPreview file={file} spotlight={spotlight} row={targetRow} ctxNow={ctxNow} appSettings={appSettings} canvasWidth={Math.min(360, (typeof window !== 'undefined' ? window.innerWidth : 360) - 64)} onOpenFull={onOpenFull} />
           </section>
         )}
         {problem && step === 3 && <p style={{ ...small, color: colors.danger, margin: 0 }} data-testid="spot-problem">{problem}</p>}

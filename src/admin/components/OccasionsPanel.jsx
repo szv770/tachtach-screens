@@ -461,7 +461,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
           onPick={async (e) => { const next = await change('POST', '', { occasion: libraryDraft(e) }, `Added ${e.en}`); if (next) { setAdding(false); setSheet(next.occasions.find((o) => o.id === next.id) || null); } }} />
       )}
       {wizard > 0 && (
-        <SpotlightWizard file={file} rows={rows} autoRow={spot?.mode === 'spotlight' ? spot.row : null} initialStep={wizard} canEdit={canEdit} busy={busy} ctxNow={ctxNow} copy={copy}
+        <SpotlightWizard file={file} rows={rows} autoRow={spot?.mode === 'spotlight' ? spot.row : null} initialStep={wizard} appSettings={appSettings} canEdit={canEdit} busy={busy} ctxNow={ctxNow} copy={copy}
           onClose={() => setWizard(0)} onSave={saveWizard} onOpenFull={openPreview} />
       )}
       {sheet && (
