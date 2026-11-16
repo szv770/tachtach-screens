@@ -15,6 +15,8 @@ import { board as averagesBoard } from '../shared/averages.js';
 import { shiurimVisible, guestsActive, scheduleTagMap } from '../shared/shiurim.js';
 import * as OccasionsLib from '../shared/occasions.js';
 import { occasionVisible, ctxFrom as occasionCtx } from '../shared/occasions.js';
+import { spotlightModel } from '../shared/spotlight.js';
+import { withRepeat } from './spotlight/rounds.js';
 import { OccasionTakeoverLayer } from './takeover/OccasionTakeover.jsx';
 import { OccasionMomentLayer, momentShowing } from './takeover/OccasionMoment.jsx';
 import { zonedTimeToUtc } from '../shared/announcements.js';
@@ -198,9 +200,16 @@ function AppContent() {
   }, [state?.averages]);
   // Countdown (src/shared/occasions.js): in the rotation only while an occasion is inside its window (or pinned), re-checked
   // each minute on the same clock as the Menu (so ?previewAt= moves it).
-  const hasOccasion = React.useMemo(() => {
-    try { return occasionVisible(state?.occasions, menuNow, occasionCtx(state?.settings, state?.cache, menuNow)); } catch { return false; }
+  // The Spotlight (src/shared/spotlight.js) counts too: a chosen day inside its own lead time keeps the slide in; on the last
+  // evening and the last hour (model.repeat 2) the slide comes up twice per round (owner decision 3, spotlight/rounds.js).
+  const spotNow = React.useMemo(() => {
+    try { return spotlightModel(menuNow, null, state?.occasions, { ctx: occasionCtx(state?.settings, state?.cache, menuNow) }); } catch { return null; }
   }, [state?.occasions, state?.settings, state?.cache, menuNow]);
+  const hasOccasion = React.useMemo(() => {
+    if (spotNow?.mode === 'spotlight') return true;
+    try { return occasionVisible(state?.occasions, menuNow, occasionCtx(state?.settings, state?.cache, menuNow)); } catch { return false; }
+  }, [state?.occasions, state?.settings, state?.cache, menuNow, spotNow]);
+  const spotRepeat = spotNow?.mode === 'spotlight' ? spotNow.repeat || 1 : 1;
   // a linked shiur's 'Rabbi X · Place' under its row on the Schedule page (Screen > Shiurim > 'Show the rebbe's name on the schedule')
   const shiurTags = React.useMemo(() => {
     try { return state?.shiurim ? scheduleTagMap(state.shiurim, scheduleDateISO, shiurimCtx) : null; } catch { return null; }
@@ -238,10 +247,11 @@ function AppContent() {
       .filter((sl) => sl.type !== 'AVERAGES' || hasAverages),
     [state?.slides, ann, birthdaysToday, chazanHasSomething, hasStory, hasMenu, hasShiurim, hasSpeaker, hasOccasion, hasAverages, shabbosNow.rowType],
   );
+  const repeatedSlides = React.useMemo(() => withRepeat(allSlides, spotRepeat, 'OCCASION'), [allSlides, spotRepeat]);
   // Slides marked 'Hide on Shabbos and Yom Tov' drop out from candle lighting to nightfall (re-checked each minute).
   const rotationSlides = React.useMemo(
-    () => withoutShabbosSlides(allSlides, shabbosNow.at, zmanimToday),
-    [allSlides, shabbosNow.at, zmanimToday],
+    () => withoutShabbosSlides(repeatedSlides, shabbosNow.at, zmanimToday),
+    [repeatedSlides, shabbosNow.at, zmanimToday],
   );
   // During Shabbos itself (settings.shabbos.during): 'sign' = one still page, 'off' = blank, both only with exact
   // zmanim and back to normal at nightfall by themselves; a manual Freeze still wins over them.

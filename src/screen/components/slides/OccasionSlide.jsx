@@ -11,6 +11,7 @@ import { hypeOf } from '../../../shared/occasionHype.js';
 import { Stage } from '../../stage/Stage.jsx';
 import { recipeOf } from '../../stage/styles.js';
 import { actsFor, readSecs } from '../../stage/acts.js';
+import SpotlightSlide, { modelAt } from './SpotlightSlide.jsx';
 
 /**
  * The Countdown page (OCCASION), redesigned 2026-11 as ONE STAGE with acts (src/screen/stage/):
@@ -730,7 +731,7 @@ function railProgress(m, L, hc, nowMs, strong = false, level = 0) {
   return null;
 }
 
-export default function OccasionSlide({ occasions, settings, cache, clockOffset = 0, portrait: portraitProp, onRequestDuration, slide }) {
+export function ClassicOccasionSlide({ occasions, settings, cache, clockOffset = 0, portrait: portraitProp, onRequestDuration, slide }) {
   const design = useDesign();
   const portrait = portraitProp ?? design.portrait;
   const [fast, setFast] = useState(false);
@@ -946,3 +947,30 @@ export default function OccasionSlide({ occasions, settings, cache, clockOffset 
 }
 
 export { readSecs };
+
+/** A crash in the Spotlight graphics never blanks the page: the plain Countdown takes over. */
+class SpotlightGuard extends React.Component {
+  constructor(p) { super(p); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e) { try { console.warn('[spotlight] falling back to the plain Countdown:', e?.message || e); } catch { /* ignore */ } }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
+
+/**
+ * The OCCASION slide: the SPOTLIGHT (SpotlightSlide.jsx) whenever the rules name a spotlight day (spotlightModel mode
+ * 'spotlight', PLAN docs/design/2026-11-16-spotlight/PLAN.md); the plain Countdown above only as the fallback (mode 'none',
+ * or the rules / graphics failing). Re-checked each minute; a switch remounts the other path.
+ */
+export default function OccasionSlide(props) {
+  const { occasions, settings, cache, clockOffset = 0 } = props;
+  const minute = Math.floor((Date.now() + clockOffset) / 60000);
+  const [tick, setTick] = useState(minute);
+  useEffect(() => {
+    const t = setTimeout(() => setTick(Math.floor((Date.now() + clockOffset) / 60000)), 60000 - ((Date.now() + clockOffset) % 60000) + 20);
+    return () => clearTimeout(t);
+  }, [tick, clockOffset]);
+  const mode = useMemo(() => modelAt(occasions, settings, cache, Date.now() + clockOffset, null)?.mode || 'none', [occasions, settings, cache, tick, clockOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+  const classic = <ClassicOccasionSlide {...props} />;
+  if (mode !== 'spotlight') return classic;
+  return <SpotlightGuard fallback={classic}><SpotlightSlide {...props} /></SpotlightGuard>;
+}
