@@ -1,9 +1,8 @@
 {
   "_about": "Deliberate exceptions to test/occasionsExposure.test.js: an occasions setting or occasion field the server accepts but the admin has no control for yet. Every entry needs a reason and EITHER an expiry date (YYYY-MM-DD; the test fails after it so the exception gets revisited) OR permanent:true. Add a control instead whenever you can.",
-  "spotlight": {
-    "typeMode": { "reason": "Spotlight build step 9 (admin More options > Kinds and order) adds the mode picker; the server and kiosk rules exist already", "expires": "2026-12-31" },
-    "oneType": { "reason": "Spotlight build step 9 (admin More options > Kinds and order, 'Always the same one') adds it", "expires": "2026-12-31" },
-    "acts": { "reason": "Spotlight build step 9 (admin More options > What the story shows) adds the act switches", "expires": "2026-12-31" },
-    "depth": { "reason": "Spotlight build step 9 (admin More options > Hype, story parts per round) adds it", "expires": "2026-12-31" }
+  "settings": {
+    "pinnedId": { "reason": "Retired by the Spotlight (owner decision 5, 2026-11-16): the line-up in settings.spotlight.queue replaces it; the key is still written (derived) for one release so a rollback finds sensible values", "expires": "2027-03-31" },
+    "cycleCount": { "reason": "Retired by the Spotlight (owner decision 5): 'a few big days taking turns' is gone, the other days sit in the side strip; the key is only kept so old data and a rollback stay valid", "expires": "2027-03-31" },
+    "cycleSeconds": { "reason": "Retired by the Spotlight (owner decision 5): 'a few big days taking turns' is gone; the key is only kept so old data and a rollback stay valid", "expires": "2027-03-31" }
   }
 }

@@ -8,7 +8,11 @@ import ExplainBox from './occasions/ExplainBox.jsx';
 import { BigSmallField, SinceField, YearVorts } from './occasions/MilestoneSection.jsx';
 import { HypeGlobal, HypeOwn } from './occasions/HypeSection.jsx';
 import { WordsEditor } from './occasions/WordsSection.jsx';
-import { LookEditor, DisplayField, StageStyleField, HypeField } from './occasions/LookSection.jsx';
+import { LookEditor, StageStyleField, HypeField } from './occasions/LookSection.jsx';
+import SpotlightCard from './occasions/SpotlightCard.jsx';
+import SpotlightWizard from './occasions/SpotlightWizard.jsx';
+import SpotlightMore, { OccSpotlightOwn } from './occasions/SpotlightMore.jsx';
+import { spotlightModel } from '../../shared/spotlight.js';
 import { LayoutEditor } from './occasions/LayoutSection.jsx';
 import { SoundGlobal, SoundOwn } from './occasions/SoundSection.jsx';
 import AdventEditor from './occasions/AdventSection.jsx';
@@ -25,7 +29,7 @@ import { useCopy } from './schedule/scheduleShared.jsx';
 import { apiFetch, notify } from '../hooks/useAdminState.js';
 import {
   upcoming, ctxFrom, daysUntil, normalizeOccasion, resolveLook, resolveOccLayout, occasionProblem, vortPrompt, countdownOf, countdownWords,
-  CATEGORIES, CATEGORY_LABEL, TAP_FORMS, BEGINS, BEGINS_LABEL, PICKS, PICK_LABEL, LANGS, LANG_LABEL, RANGES, LIMITS, MONTH_EN, ZERO_WORDS, OCC_STYLES, SETTINGS_DEFAULTS, beginsOf, timeEn, STAGE_TEXT_DEFAULTS, LAYOUT_DEFAULTS, LOOK_DEFAULTS, windowDays,
+  CATEGORIES, CATEGORY_LABEL, TAP_FORMS, BEGINS, BEGINS_LABEL, LANGS, LANG_LABEL, RANGES, LIMITS, MONTH_EN, ZERO_WORDS, OCC_STYLES, SETTINGS_DEFAULTS, beginsOf, timeEn, STAGE_TEXT_DEFAULTS, LAYOUT_DEFAULTS, LOOK_DEFAULTS, windowDays,
 } from '../../shared/occasions.js';
 
 /**
@@ -57,7 +61,7 @@ const emptyDraft = () => ({
   beginsAt: 'default', time: '19:00', timeDay: 'eve', showDays: 0, explainEn: '', explainHe: '', explainShortEn: '', explainShortHe: '', shabbos: 'stay', category: 'custom', tapForms: null, autoForms: null, source: '', eventEn: '', eventHe: '',
   zeroKey: 'gutYomTov', zeroEn: '', zeroHe: '', celebrate: true, rail: true, banner: true, takeover: true, style: 'hype',
   explainChecked: false, since: null, big: true, yearVorts: {}, milestoneOn: null, finalOn: null, milestones: null, stageText: {}, milestoneText: {}, look: {}, layout: {},
-  kind: 'countdown', from: null, total: 8, display: null, stageStyle: null, hype: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
+  kind: 'countdown', from: null, total: 8, display: null, spotlight: { types: null, leadDays: null }, stageStyle: null, hype: null, advent: { on: false, photo: '', grid: '3x3', daily: {} }, soundOn: null, touch: true,
 });
 
 const stepH = { fontFamily: adminFonts.englishBody, fontSize: '17px', fontWeight: 700, color: colors.text, margin: '8px 0 0', display: 'flex', alignItems: 'center', gap: '10px' };
@@ -215,10 +219,12 @@ function OccasionSheet({ initial, onClose, onSave, onDelete, settings, ctxNow, b
                 <WordsEditor level="own" stageText={d.stageText || {}} milestoneText={d.milestoneText || {}} baseStage={settings.stageText} baseMilestone={settings.milestoneText} onChange={(patch) => set(patch)} />
               </Group>
               <Group title="Look" summary={Object.keys(d.look || {}).length ? 'Its own look' : 'Follows the default'} testId="occ-own-look">
-                <DisplayField level="own" value={d.display} base={settings.display} onChange={(v) => set({ display: v })} />
                 <StageStyleField level="own" value={d.stageStyle ?? null} base={settings.stageStyle || 'scroll'} onChange={(v) => set({ stageStyle: v })} />
                 <HypeField level="own" value={d.hype ?? null} base={settings.hype || 'lively'} onChange={(v) => set({ hype: v })} />
                 <LookEditor level="own" look={d.look || {}} base={settings.look} onChange={(l) => set({ look: l })} />
+              </Group>
+              <Group title="Spotlight: kinds and start" summary={d.spotlight?.types || d.spotlight?.leadDays ? 'Its own' : 'Follows the default'} testId="occ-own-spotlight">
+                <OccSpotlightOwn value={d.spotlight} off={settings.spotlight.types.off} baseLead={settings.spotlight.leadDays} onChange={(v) => set({ spotlight: v })} />
               </Group>
               <Group title="Layout" summary={Object.keys(d.layout || {}).length ? 'Its own layout' : 'Follows the default'} testId="occ-own-layout">
                 <LayoutEditor level="own" layout={d.layout || {}} base={settings.layout} onChange={(l) => set({ layout: l })} />
@@ -248,6 +254,7 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const [sheet, setSheet] = useState(null); // occasion | {} (new)
   const [confirm, setConfirm] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [wizard, setWizard] = useState(0); // 0 closed, else the step it opens on
   const { copy, modal } = useCopy(notify);
 
   const load = useCallback(async () => {
@@ -280,6 +287,11 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
     try { const { now, ctx } = ctxNow(); return upcoming(file, now, ctx, { includeOff: true }); } catch { return []; }
   }, [file, ctxNow]);
 
+  const spot = useMemo(() => {
+    if (!file) return null;
+    try { const { now, ctx } = ctxNow(); return spotlightModel(now, null, file, { ctx }); } catch { return null; }
+  }, [file, ctxNow]);
+
   if (error) return <div style={{ display: 'grid', gap: '12px', maxWidth: '760px' }}><Hint style={{ color: colors.danger }}>{error}</Hint><button type="button" style={btn(false)} onClick={load}>Try again</button></div>;
   if (!file) return <Hint>Loading the occasions...</Hint>;
 
@@ -293,7 +305,8 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const now = new Date();
   // what the TV shows now (the same rules as the kiosk)
   const nowRows = onRows.filter((r) => r.running || daysUntil(r, today) <= (r.occasion.showDays || s.withinDays));
-  const hero = s.pick === 'pinned' && s.pinnedId ? rows.find((r) => r.id === s.pinnedId) || nowRows[0] : nowRows[0] || onRows[0];
+  const hero = spot?.mode === 'spotlight' ? spot.row : nowRows[0] || onRows[0];
+  const nameOf = (id) => { const o = file.occasions.find((x) => x.id === id); return o ? o.nameEn || o.nameHe : id; };
 
   const save = async (payload) => {
     const isNew = !sheet?.id;
@@ -305,6 +318,11 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
   const toggle = (o) => change('PUT', `/${o.id}`, { occasion: { on: !o.on } }, `${o.nameEn || o.nameHe}: ${o.on ? 'off' : 'on'}`);
   const remove = async (o) => { setConfirm(null); if (await change('DELETE', `/${o.id}`, undefined, `Removed ${o.nameEn || o.nameHe}`)) setSheet(null); };
 
+  const saveWizard = async ({ spotlight, occasionId, story }) => {
+    if (story && !(await change('PUT', `/${occasionId}`, { occasion: story }, null))) return;
+    if (await change('PUT', '/settings', { settings: { spotlight } }, 'Spotlight saved')) setWizard(0);
+  };
+
   const heroForm = hero ? countdownOf(hero, now, s, today) : null;
   const heroWords = heroForm ? countdownWords(heroForm) : null;
 
@@ -314,6 +332,8 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         A countdown to the next Chassidic or Jewish day, or a school event: its name, its Hebrew date, and a countdown to the evening it begins that changes as the time gets close. Dates come from the Hebrew calendar and times from the screen's zmanim.
       </p>
 
+      <SpotlightCard model={spot || { mode: 'none', strip: [] }} sp={s.spotlight} canEdit={canEdit} nameOf={nameOf} onChange={setWizard} onStory={setWizard} onPreview={() => setWizard(4)} />
+
       <MomentCard canEdit={canEdit} notify={notify} choices={onRows.filter((r) => !r.running).map((r) => ({ value: `${r.id}|${r.startISO}`, label: r.nameEn || r.nameHe }))}
         fire={(body) => api('POST', '/moment', body)} stop={() => api('DELETE', '/moment')} />
 
@@ -322,27 +342,12 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         {row && canEditSlides
           ? <SwitchRow on={!!row.enabled} onChange={toggleSlide} label="Show the Countdown" note="Also the switch for its rail card, banner and takeover. The page skips itself when nothing is close enough." testId="occ-slide-switch" />
           : <p style={small}>The Countdown slide is {row ? (row.enabled ? 'on' : 'off') : 'not in the slide list yet'}. {canEditSlides ? '' : 'Someone who can change slides switches it on or off.'}</p>}
-        <Field label="Which one shows">
-          <Choices ariaLabel="Which one shows" value={s.pick} onChange={(v) => saveSettings({ pick: v }, `Countdown shows: ${PICK_LABEL[v].toLowerCase()}`)} options={PICKS.map((v) => ({ value: v, label: PICK_LABEL[v] }))} />
-        </Field>
-        {s.pick === 'pinned' && (
-          <Field label="The one to show" hint="Shows whatever the distance (even months away). If it is switched off, the nearest one shows.">
-            <Select ariaLabel="The one to show" value={s.pinnedId} onChange={(v) => saveSettings({ pinnedId: v }, 'Pinned occasion changed')} disabled={!canEdit}
-              options={[{ value: '', label: 'Choose...' }, ...file.occasions.filter((o) => o.on).map((o) => ({ value: o.id, label: o.nameEn || o.nameHe }))]} />
-          </Field>
-        )}
-        {s.pick === 'cycle' && (
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            <Field label="How many take turns"><NumberField value={s.cycleCount} min={RANGES.cycleCount.min} max={RANGES.cycleCount.max} onCommit={(n) => saveSettings({ cycleCount: n }, `${n} take turns`)} ariaLabel="How many take turns" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-            <Field label="Seconds each"><NumberField value={s.cycleSeconds} min={RANGES.cycleSeconds.min} max={RANGES.cycleSeconds.max} onCommit={(n) => saveSettings({ cycleSeconds: n }, `${n} seconds each`)} ariaLabel="Seconds each" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} /></Field>
-          </div>
-        )}
-        <Field label="Show it from how many days before" hint={`${RANGES.withinDays.min} to ${RANGES.withinDays.max}. Default ${SETTINGS_DEFAULTS.withinDays}. An occasion can have its own number.`}>
+        <Field label="Show it from how many days before" hint={`For the automatic choice. ${RANGES.withinDays.min} to ${RANGES.withinDays.max}. Default ${SETTINGS_DEFAULTS.withinDays}. A day you choose in the Spotlight starts at its own lead time (More options). An occasion can have its own number.`}>
           <NumberField value={s.withinDays} min={RANGES.withinDays.min} max={RANGES.withinDays.max} onCommit={(n) => saveSettings({ withinDays: n }, `Shows from ${n} days before`)} ariaLabel="Days before" disabled={!canEdit} style={{ ...fieldStyle, maxWidth: '96px' }} />
         </Field>
         <p style={{ ...small, margin: '8px 0 0', color: colors.text }} data-testid="occ-now">
-          {hero && (s.pick === 'pinned' || nowRows.length)
-            ? <>Now on the screen: <strong>{hero.nameEn || hero.nameHe}</strong>{heroWords?.big ? ` · ${heroWords.big} ${heroWords.unit.en}` : heroForm?.form === 'day' ? ' · today' : ''}{s.pick === 'cycle' && nowRows.length > 1 ? ` (+${Math.min(nowRows.length, s.cycleCount) - 1} more taking turns)` : ''}</>
+          {spot?.mode === 'spotlight'
+            ? <>Now on the screen: <strong>{spot.nameEn || spot.nameHe}</strong>{spot.stage === 'day' ? ' · today' : heroWords?.big ? ` · ${heroWords.big} ${heroWords.unit.en}` : ''}</>
             : `Nothing within ${s.withinDays} days, so the Countdown skips itself.`}
           {hero && !hero.begin.exact ? ' · The screen has no location for zmanim, so times are approximate (~).' : ''}
         </p>
@@ -361,6 +366,8 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         <button type="button" style={btn(false, { marginTop: '6px', marginRight: '8px' })} onClick={() => copy(weekShare(file, ctxNow), 'Copied. Paste it into WhatsApp.')} data-testid="occ-share-week">Copy this week's days</button>
         {canEdit && <button type="button" style={btn(false, { marginTop: '6px' })} onClick={() => change('POST', '/restore-starters', undefined, 'Starter dates put back')} data-testid="occ-restore">Put back starter dates I removed</button>}
       </div>
+
+      <SpotlightMore s={s} file={file} model={spot} hero={hero} canEdit={canEdit} save={saveSettings} change={change} />
 
       <Collapsible id="occ-look" title="How the Countdown looks" icon="list" summary={`${LANG_LABEL[s.language]}${s.comingUp ? ` · ${s.comingUpCount} coming up` : ''}${s.celebrate ? ' · confetti' : ''}`}>
         <Field label="Language"><Choices ariaLabel="Language" value={s.language} onChange={(v) => saveSettings({ language: v }, `Countdown: ${LANG_LABEL[v]}`)} options={LANGS.map((v) => ({ value: v, label: LANG_LABEL[v] }))} /></Field>
@@ -422,14 +429,6 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
         <WordsEditor level="global" stageText={s.stageText} milestoneText={s.milestoneText} disabled={!canEdit} onChange={(patch, msg) => saveSettings(patch, msg)} />
       </Collapsible>
 
-      <Collapsible id="occ-look2" title="Look" icon="palette" summary={`${s.display === 'flip' ? 'Flip clock' : 'Classic'}${s.look.accent ? ` · ${s.look.accent}` : ''}${s.look.photo ? ' · photo' : ''}`}>
-        <Hint style={{ marginTop: 0 }}>For every countdown. Each occasion can have its own look in its edit sheet.</Hint>
-        <DisplayField level="global" value={s.display} onChange={(v) => saveSettings({ display: v }, `Numbers: ${v === 'flip' ? 'flip clock' : 'classic'}`)} />
-        <StageStyleField level="global" value={s.stageStyle || 'scroll'} onChange={(v) => saveSettings({ stageStyle: v }, `Explanation: ${v}`)} />
-        <HypeField level="global" value={s.hype || 'lively'} onChange={(v) => saveSettings({ hype: v }, `Hype: ${v}`)} />
-        <LookEditor level="global" look={s.look} disabled={!canEdit} onChange={(l, msg) => saveSettings({ look: l }, msg)} />
-      </Collapsible>
-
       <Collapsible id="occ-layout" title="Layout" icon="list" summary={`${s.layout.side === 'right' ? 'Numbers on the right' : 'Numbers on the left'} · ${s.layout.scale}%`}>
         <Hint style={{ marginTop: 0 }}>For every countdown. Each occasion can have its own in its edit sheet.</Hint>
         <LayoutEditor level="global" layout={s.layout} disabled={!canEdit} onChange={(l, msg) => saveSettings({ layout: l }, msg)} />
@@ -460,6 +459,10 @@ export default function OccasionsPanel({ canEdit = true, slides = [], onUpdateSl
       {adding && (
         <LibraryPicker file={file} today={today} busy={busy} onClose={() => setAdding(false)} onOwn={() => { setAdding(false); setSheet({}); }}
           onPick={async (e) => { const next = await change('POST', '', { occasion: libraryDraft(e) }, `Added ${e.en}`); if (next) { setAdding(false); setSheet(next.occasions.find((o) => o.id === next.id) || null); } }} />
+      )}
+      {wizard > 0 && (
+        <SpotlightWizard file={file} rows={rows} autoRow={spot?.mode === 'spotlight' ? spot.row : null} initialStep={wizard} canEdit={canEdit} busy={busy} ctxNow={ctxNow} copy={copy}
+          onClose={() => setWizard(0)} onSave={saveWizard} onOpenFull={openPreview} />
       )}
       {sheet && (
         <OccasionSheet
