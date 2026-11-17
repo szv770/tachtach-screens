@@ -60,7 +60,7 @@ test('presets resolve to the right capabilities', () => {
   const full = effectiveCaps({ role: 'editor' });
   assert.ok(full.includes('announcements.takeover') && full.includes('announcements.delete') && full.includes('schedule.edit'));
   for (const off of ['look.change', 'settings.change', 'team.manage']) assert.ok(!full.includes(off), off);
-  assert.deepEqual(effectiveCaps({ role: 'editor', preset: 'messages' }), ['announcements.post', 'screen.control']);
+  assert.deepEqual(effectiveCaps({ role: 'editor', preset: 'messages' }), ['announcements.post', 'screen.control', 'ai.connect']);
   assert.deepEqual(effectiveCaps({ role: 'editor', preset: 'view' }), []);
   assert.deepEqual(effectiveCaps({ role: 'editor', preset: 'bogus' }), [], 'unknown stored preset fails closed to view only');
   assert.deepEqual(effectiveCaps({ role: 'guest' }), []);

@@ -300,7 +300,7 @@ test('new people default to Full editor; presets and overrides are stored and cl
   const b = await store.createUser({ name: 'Ben', preset: 'messages', overrides: { grant: ['schedule.edit', 'team.manage', 'bogus'], deny: ['screen.control'] } });
   assert.equal(b.preset, 'messages');
   assert.deepEqual(b.overrides, { grant: ['schedule.edit'], deny: ['screen.control'] });
-  assert.deepEqual(b.caps, ['announcements.post', 'schedule.edit']);
+  assert.deepEqual(b.caps, ['announcements.post', 'schedule.edit', 'ai.connect']);
   await assert.rejects(store.createUser({ name: 'Cy', preset: 'god' }), { code: 'bad_preset' });
   const upd = await store.updateUser(b.id, { preset: 'view' });
   assert.deepEqual(upd.overrides, { grant: [], deny: [] }, 'a new preset starts with no tweaks');

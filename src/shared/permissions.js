@@ -52,6 +52,8 @@ export const CAPABILITIES = Object.freeze([
   { id: 'settings.change', group: 'Look and settings', label: 'Change settings', hint: 'Location, timezone, sources, clean-up.' },
   { id: 'team.manage', group: 'People', label: 'Manage people and security', hint: 'Always admins only.', adminOnly: true },
   { id: 'system.update', group: 'System', label: 'Update the screen software', hint: 'Always admins only. Runs the update on the server.', adminOnly: true },
+  { id: 'ai.connect', group: 'AI', label: 'Connect an AI assistant to the screens', hint: 'Make a private connection so Claude (or another AI app) can look at and change what this person may. Admins have it; it can be added for one person.' },
+  { id: 'ai.manage', group: 'AI', label: 'Manage AI access for everyone', hint: 'Always admins only. Turn AI access on or off for the whole school, see every connection, and cut one off.', adminOnly: true },
 ]);
 
 export const CAP_IDS = Object.freeze(CAPABILITIES.map((c) => c.id));
@@ -65,12 +67,13 @@ const CONTENT = [
   'announcements.post', 'announcements.takeover', 'announcements.edit', 'announcements.delete',
   'slides.edit', 'slides.delete', 'media.upload', 'media.delete', 'feeds.edit', 'dailyWord.edit', 'menu.edit', 'averages.edit', 'shiurim.edit', 'occasions.edit', 'roster.edit', 'chazan.edit', 'shabbos.edit',
   'screen.control', 'schedule.edit', 'customDays.edit',
+  'ai.connect', // admins and editors may connect their own AI; it can never do more than that person can
 ];
 
 export const PRESETS = Object.freeze({
   admin: { label: 'Admin', blurb: 'Everything', caps: CAP_IDS },
   full: { label: 'Full editor', blurb: 'All the day-to-day content. Not the look, settings or people.', caps: CONTENT },
-  messages: { label: 'Messages only', blurb: 'Post messages and control the screen.', caps: ['announcements.post', 'screen.control'] },
+  messages: { label: 'Messages only', blurb: 'Post messages and control the screen.', caps: ['announcements.post', 'screen.control', 'ai.connect'] },
   view: { label: 'View only', blurb: 'Can look, but not change anything.', caps: [] },
 });
 /** What an admin can pick for a non-admin person (admin is the role). */
@@ -158,6 +161,7 @@ const SECTION_CAPS = Object.freeze({
   style: ['look.change'],
   settings: ['settings.change'],
   team: ['team.manage'],
+  ai: ['ai.connect', 'ai.manage'],
 });
 
 /**
@@ -224,6 +228,9 @@ const RULES = Object.freeze([
   rule('look.change', ANY, /^\/api\/(fonts|logo)(\/|$)/),
   rule('settings.change', ANY, /^\/api\/(settings|cleanup)(\/|$)/),
   rule('team.manage', ANY, /^\/api\/security(\/|$)/),
+  // AI connections: /api/ai/admin = the school-wide switch and everyone's connections; the rest = a person's own.
+  rule('ai.manage', ANY, /^\/api\/ai\/admin(\/|$)/),
+  rule('ai.connect', ANY, /^\/api\/ai(\/|$)/),
 ]);
 
 /**
