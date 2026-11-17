@@ -129,8 +129,9 @@ export const WORDS = Object.freeze({
   wayThere: { en: 'The way there', he: 'הדרך אל היום' },
   youAreHere: { en: 'Today', he: 'היום' },
   theDay: { en: 'The day', he: 'היום הגדול' },
-  ofTheWay: { en: 'of the way', he: 'מהדרך' },
-  chosen: { en: 'Started', he: 'התחלנו' },
+  ofTheWayTo: { en: (n) => (n ? `of the way to ${n}` : 'of the way there'), he: (n) => (n ? `מהדרך אל ${n}` : 'מהדרך') },
+  countingSince: { en: 'Counting since', he: 'סופרים מאז' },
+  countingStarts: { en: 'Counting starts', he: 'הספירה מתחילה' },
   sleeps: { en: 'sleeps to go', he: 'לילות נותרו' },
   sleep: { en: 'sleep to go', he: 'לילה נותר' },
   tonight: { en: 'Tonight', he: 'הלילה' },
@@ -145,6 +146,8 @@ export const WORDS = Object.freeze({
   comingUp: { en: 'Coming up', he: 'בהמשך' },
   inDays: { en: (n) => (n === 1 ? 'tomorrow' : `in ${n} days`), he: (n) => (n === 1 ? 'מחר' : `בעוד ${n} ימים`) },
   yearsSince: { en: 'years since', he: 'שנים מאז' },
+  /** the headline of the years seal: 'N years since X' (Hebrew: 2-10 שנים, 11 and up שנה, as in ארבעים שנה) */
+  yearsOf: { en: (n, what) => `${n} ${n === 1 ? 'year' : 'years'} since ${what}`, he: (l, n, what) => `${l} ${n >= 2 && n <= 10 ? 'שנים' : 'שנה'} ל${what}` },
   entering: { en: (n) => `Entering the ${ordinal(n)} year`, he: (l) => `נכנסים לשנת ה${l}` },
   milestone: { en: 'A milestone year', he: 'שנת ציון דרך' },
   weekdays: { en: ['S', 'M', 'T', 'W', 'T', 'F', 'S'], he: ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'] },
@@ -155,9 +158,10 @@ export const HE_REVIEW = Object.freeze([
   ...Object.values(WORDS.units).map((x) => x.he),
   ...Object.values(WORDS.toGo).map((x) => x.he),
   ...Object.values(WORDS.stage).map((x) => x.he),
-  ...['wayThere', 'youAreHere', 'theDay', 'ofTheWay', 'chosen', 'sleeps', 'sleep', 'tonight', 'today', 'todayIs', 'happening',
+  ...['wayThere', 'youAreHere', 'theDay', 'countingSince', 'countingStarts', 'sleeps', 'sleep', 'tonight', 'today', 'todayIs', 'happening',
     'happened', 'history', 'vort', 'story', 'source', 'comingUp', 'yearsSince', 'milestone'].map((k) => WORDS[k].he),
   'בעוד N ימים', 'מחר', 'נכנסים לשנת ה…', 'שנה ל…',
+  'N שנים ל… (2-10) / N שנה ל… (11+)', 'מהדרך אל …', 'מהדרך',
 ]);
 
 export function ordinal(n) {
