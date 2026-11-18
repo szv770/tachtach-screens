@@ -33,6 +33,7 @@ export const navItems = [
   { key: 'this-screen', en: 'This screen', desc: 'Screen name and storage', area: 'look', group: 'system' },
   { key: 'history', en: 'Recent changes', desc: 'Who changed what, and Undo', area: 'look', group: 'system' },
   { key: 'health', en: 'System health', desc: 'Is the screen online, is the data fresh, is there room left', area: 'look', group: 'system' },
+  { key: 'ai', en: 'Connect an AI', desc: 'Let Claude or another AI look at and change the screen (you tap Allow)', area: 'look', group: 'system' },
   { key: 'team', en: 'Team', desc: 'People who can sign in', area: 'look', group: 'system' },
   { key: 'account', en: 'My account', desc: 'Your name, password & 2-step', area: 'look', group: 'system' },
   { key: 'help', en: 'Help', desc: 'Learn the basics', area: null },

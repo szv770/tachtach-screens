@@ -17,6 +17,7 @@ import { RANDOM_FROM } from './dailyToday.js';
 import { POST_STYLES } from './postDefaults.js';
 import { INSERT_AT, START_AS, SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from './postList.js';
 import { DURING, GREETINGS, SPELLINGS, EREV_HOURS, MOTZEI_MINUTES, reminderListProblem } from './shabbosPage.js';
+import { AI_LIMIT_BOUNDS } from './aiAccess.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -31,6 +32,10 @@ const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
 
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
+  { path: 'aiAccess.enabled', label: 'AI connections', check: bool },
+  { path: 'aiAccess.allowAverages', label: 'AI may see the Test Averages', check: bool },
+  { path: 'aiAccess.changesPerMinute', label: 'Changes one AI connection may make per minute', check: int(AI_LIMIT_BOUNDS.changesPerMinute.min, AI_LIMIT_BOUNDS.changesPerMinute.max) },
+  { path: 'aiAccess.changesPerDay', label: 'Changes one AI connection may make per day', check: int(AI_LIMIT_BOUNDS.changesPerDay.min, AI_LIMIT_BOUNDS.changesPerDay.max) },
   { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },
   { path: 'announcements.archiveDays', label: 'Days to keep ended posts', check: int(1, 365) },
   { path: 'announcements.insertAt', label: 'Where new message slides go in the rotation', check: (v) => (INSERT_AT.includes(v) ? null : 'end or start') },

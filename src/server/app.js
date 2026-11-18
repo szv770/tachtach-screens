@@ -7,8 +7,9 @@ import { TRUST_PROXY_SETTING, normalizeIp } from './clientIp.js';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { setupCheck, requireAuth, enforceRole, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
+import { setupCheck, requireAuth, enforceRole, aiLimiter, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
+import aiRouter from './routes/ai.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
 import { createDataPackRouter } from './routes/dataPack.js';
 import systemInfoRouter from './routes/systemInfo.js';
@@ -568,7 +569,7 @@ export function createApp() {
   // express.json() stays harmless. A write that still reaches enforceRole unparsed fails closed in canDo (writesTakeover).
   const bigJson = express.json({ limit: '256kb' });
   const parseBigBodies = (req, res, next) => (/^\/api\/announcements(\/|$)/.test(req.baseUrl + req.path) ? bigJson(req, res, next) : next());
-  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, parseBigBodies, enforceRole, readBudget(), logActivity); // readBudget: per-person limit on the expensive GETs listed in READ_ROUTES
+  app.use('/api', requireAuth, csrfProtection, apiMutationLimiter, parseBigBodies, enforceRole, aiLimiter, readBudget(), logActivity); // readBudget: per-person limit on the expensive GETs listed in READ_ROUTES
 
   // ── 9. API routes ────────────────────────────────────────────────────
   // Announcements first: it also answers the legacy /messages, /pinned and
@@ -577,6 +578,7 @@ export function createApp() {
   app.use('/api/system/live', liveAdminRouter); // admin-only (the /api/system area): public live view on/off + its word
   app.use('/api/system/data-pack', createDataPackRouter({ afterInstall: refreshAfterPack })); // admin-only: the offline data pack (upload / build on this Pi / status)
   app.use('/api', teamRouter);
+  app.use('/api', aiRouter); // AI connections: a person's own keys + the admin's overview (never reachable with an AI key)
   app.use('/api', systemUpdateRouter); // admin-only software update (writes one request file; a root unit does the work)
   app.use('/api', pushRouter);
   app.use('/api', statusRouter); // /screen/status + /health (read-only)

@@ -92,6 +92,8 @@ test('an unlisted GET (even a future one) is admin-only; odd spellings do not do
 const MATRIX = {
   // route (concrete)                      admin  full   msgs   view
   '/api/state':                           [1, 1, 1, 1],
+  '/api/ai/connections':                  [1, 1, 1, 0],
+  '/api/ai/admin/connections':            [1, 0, 0, 0],
   '/api/screen/state':                    [1, 1, 1, 1],
   '/api/kiddush-levana/shown':            [1, 1, 1, 1],
   '/api/google-album/abc/photos':         [1, 1, 1, 1],

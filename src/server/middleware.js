@@ -1,7 +1,9 @@
 import crypto from 'crypto';
 import users from './users.js';
 import activity, { describe as describeAction, areaOf } from './activity.js';
-import { canDo, normalizeApiPath } from '../shared/permissions.js';
+import { canDo, normalizeApiPath, aiUserFrom } from '../shared/permissions.js';
+import { aiAccessFrom, createChangeLimiter } from '../shared/aiAccess.js';
+import { readJSON } from './storage.js';
 
 /** The signed-in person for a session cookie, or null. Never includes secrets. */
 export async function userForRequest(req) {
@@ -11,6 +13,30 @@ export async function userForRequest(req) {
   if (!s) return null;
   const { id, username, name, role, preset, overrides } = s.user;
   return { id, username, name, role, preset, overrides };
+}
+
+/** The key an AI app presents (`Authorization: Bearer ttk_...`), or null when none was sent. */
+function bearerOf(req) {
+  const h = req.headers?.authorization;
+  if (typeof h !== 'string') return null;
+  const m = /^Bearer\s+(\S+)\s*$/i.exec(h);
+  return m ? m[1] : null;
+}
+
+/**
+ * Judge an AI key. Returns { user } (the AI's identity: the person's access minus what an AI may never do),
+ * or { error } with the sentence to send back. Never falls back to a cookie: a request that presents a key is
+ * a key request. Keys work only while an admin has switched AI connections on for this school.
+ */
+async function userForApiKey(secret) {
+  const settings = (await readJSON('settings.json').catch(() => null)) || {};
+  const access = aiAccessFrom(settings);
+  if (!access.enabled) return { error: 'AI connections are switched off for this screen.' };
+  const found = await users.getByApiToken(secret);
+  if (!found) return { error: 'This AI connection key is not valid (it may have been removed or expired).' };
+  const user = aiUserFrom(found.user, found.key, { allowAverages: access.allowAverages });
+  if (!user) return { error: 'This AI connection key is not valid.' };
+  return { user, access };
 }
 
 /** Setup is done once somebody can sign in; picks up an old single-owner auth.json on first look. */
@@ -25,6 +51,16 @@ export async function checkSetupComplete() {
  * all other requests are redirected to /login.
  */
 export async function requireAuth(req, res, next) {
+  // An AI key is honoured on /api only (never for the admin pages, the live view or the kiosk gates, which use userForRequest).
+  const secret = bearerOf(req);
+  if (secret !== null && req.originalUrl.startsWith('/api/')) {
+    const r = await userForApiKey(secret);
+    if (r.error) return res.status(401).json({ error: r.error });
+    req.user = r.user;
+    req.viaApiKey = true;
+    req.aiAccess = r.access;
+    return next();
+  }
   const user = await userForRequest(req);
 
   if (!user) {
@@ -54,8 +90,27 @@ export function enforceRole(req, res, next) {
   next();
 }
 
+/**
+ * Per-key limit on CHANGES (reads are free): the school's changesPerMinute / changesPerDay (src/shared/aiAccess.js).
+ * Runs after enforceRole, so a refused request is not counted. In memory: a restart forgives, which is fine for a safety net.
+ */
+const aiChangeLimiter = createChangeLimiter();
+export function aiLimiter(req, res, next) {
+  if (!req.user?.ai || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const r = aiChangeLimiter.check(req.user.ai.connectionId, req.aiAccess || aiAccessFrom(null));
+  if (r.ok) return next();
+  res.set('Retry-After', String(r.retryAfterSec));
+  return res.status(429).json({
+    error: r.reason === 'day'
+      ? 'This AI connection has used its changes for today. Try again tomorrow, or an admin can raise the daily limit.'
+      : 'Slow down: too many changes in a minute from this AI connection. Wait a moment and try again.',
+    retryAfterSeconds: r.retryAfterSec,
+  });
+}
+export const forgetAiKeyHits = (keyId) => aiChangeLimiter.forget(keyId);
+
 // system: the software-update routes write their own, more specific activity lines.
-const NOT_LOGGED = /^\/api\/(preview|team|account|me|history|system)(\/|$)/;
+const NOT_LOGGED = /^\/api\/(preview|team|account|me|history|system|ai)(\/|$)/; // ai: routes/ai.js writes its own lines (a new key's secret must never reach a log)
 // Loaded on first use: undoIo pulls in the SSE module, whose heartbeat timer would keep short-lived test processes open.
 let undoSvc = null;
 const undoService = async () => (undoSvc ||= (await import('./undoRuntime.js')).undoService);
@@ -149,6 +204,9 @@ export async function localhostOrAuth(req, res, next) {
  * token is only valid for the current session.
  */
 export function csrfProtection(req, res, next) {
+  // An AI key carries no cookie, so there is nothing for a malicious web page to ride on: CSRF does not apply.
+  // A request that ALSO has a session cookie is a browser, and gets the normal check.
+  if (req.viaApiKey && !req.cookies?.tachtach_session) return next();
   const sessionToken = req.cookies?.tachtach_session || '';
 
   // Generate a session-bound CSRF token

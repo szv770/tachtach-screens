@@ -55,6 +55,7 @@ export const SETTINGS_INDEX = [
   S('schedule-display', 'Schedule Hebrew names (show / English only)', 'hebrew english language names', { anchor: 'set-schedule-display', match: 'Hebrew names' }),
   S('schedule-display', 'Two schedules in one day (Track A / B)', 'dual track switch time morning afternoon', { anchor: 'set-dual-track-schedule' }),
   // Look & Settings > System
+  S('ai', 'Connect an AI (Claude, MCP)', 'ai claude mcp connector assistant key chatgpt', { anchor: 'ai-new' }),
   S('security', 'Trusted devices (2-step)', 'security remember device forget totp', { anchor: 'set-security' }),
   S('health', 'System health (is everything working?)', 'health check status online offline screen connected zmanim fresh stale disk space storage clock time fix errors feeds albums certificate poppler pdf backups uptime', { match: 'System health' }),
   S('health', 'Is the screen online? (last seen)', 'online offline connected tv last seen reconnect', { match: 'Screen connected' }),

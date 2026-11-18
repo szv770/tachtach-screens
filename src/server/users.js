@@ -14,7 +14,7 @@ import bcrypt from 'bcrypt';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { readJSON, writeJSON } from './storage.js';
-import { ROLES, DEFAULT_PRESET, isAssignablePreset, sanitizeOverrides, effectiveCaps } from '../shared/permissions.js';
+import { ROLES, DEFAULT_PRESET, isAssignablePreset, sanitizeOverrides, effectiveCaps, AI_MODES } from '../shared/permissions.js';
 
 const USERS_FILE = 'users.json';
 const LEGACY_FILE = 'auth.json';
@@ -28,6 +28,12 @@ export const ENROLL_MS = 10 * 60 * 1000; // a fresh 2-step secret is good for th
 export const INVITE_MS = 7 * DAY;
 export const SIGNIN_LINK_MS = 60 * 60 * 1000;
 const ROLL_INTERVAL_MS = 60 * 60 * 1000;
+// AI connection keys (Account > Connect an AI): a private key an AI app sends as `Authorization: Bearer ttk_...`.
+export const API_TOKEN_PREFIX = 'ttk_';
+export const API_TOKEN_DEFAULT_DAYS = 180;
+export const API_TOKEN_MAX_DAYS = 365;
+export const API_TOKEN_MAX_PER_PERSON = 10;
+const API_TOKEN_TOUCH_MS = 5 * 60 * 1000; // "last used" is written at most this often
 const TOTP_ISSUER = 'TachTach-Screens';
 // One 30 s step either side tolerates a phone clock that is a little off; each step still works only once.
 const totp = authenticator.clone({ window: 1 });
@@ -109,6 +115,8 @@ export function createUserStore({
     for (const u of d.users) {
       u.sessions = Array.isArray(u.sessions) ? u.sessions : [];
       u.trustedDevices = Array.isArray(u.trustedDevices) ? u.trustedDevices : [];
+      u.apiTokens = Array.isArray(u.apiTokens) ? u.apiTokens.filter((k) => k && typeof k.hash === 'string' && k.id) : [];
+      for (const k of u.apiTokens) if (!AI_MODES.includes(k.mode)) k.mode = 'read'; // unknown mode fails closed to look-only
       // Access level (see shared/permissions.js). Old records have none: editors become
       // "Full editor", which is what the old fixed editor role could do.
       if (u.role === 'admin') { u.preset = 'admin'; u.overrides = { grant: [], deny: [] }; }
@@ -136,6 +144,7 @@ export function createUserStore({
     for (const u of d.users) {
       u.sessions = u.sessions.filter((s) => alive(s) && Date.parse(s.createdAt) + SESSION_MAX_MS > t);
       u.trustedDevices = u.trustedDevices.filter(alive);
+      u.apiTokens = (u.apiTokens || []).filter(alive);
     }
     // keep used/expired links for a day so "link already used" can be told apart from "unknown"
     d.links = d.links.filter((l) => Date.parse(l.expiresAt) + DAY > t);
@@ -216,7 +225,7 @@ export function createUserStore({
       d.users.push({
         id: newId(), username, name, role: 'admin', passwordHash,
         totpSecret: null, totpEnabled: false, lastTotpStep: 0,
-        trustedDevices: [], sessions: [], createdAt: iso(now()), lastLoginAt: null,
+        trustedDevices: [], sessions: [], apiTokens: [], createdAt: iso(now()), lastLoginAt: null,
       });
     });
   }
@@ -265,7 +274,7 @@ export function createUserStore({
         preset: role === 'admin' ? 'admin' : (preset || DEFAULT_PRESET),
         overrides: role === 'admin' ? { grant: [], deny: [] } : sanitizeOverrides(preset || DEFAULT_PRESET, overrides),
         passwordHash: null, totpSecret: null, totpEnabled: false, lastTotpStep: 0,
-        trustedDevices: [], sessions: [], createdAt: iso(now()), createdBy, lastLoginAt: null,
+        trustedDevices: [], sessions: [], apiTokens: [], createdAt: iso(now()), createdBy, lastLoginAt: null,
       };
       d.users.push(user);
       return publicUser(user, d.links, now());
@@ -436,8 +445,111 @@ export function createUserStore({
     const keep = exceptToken ? sha256(exceptToken) : null;
     await tx(async (d) => {
       const u = byId(d, userId);
-      if (u) u.sessions = u.sessions.filter((s) => keep && s.hash === keep);
+      if (u) {
+        u.sessions = u.sessions.filter((s) => keep && s.hash === keep);
+        u.apiTokens = []; // "sign out everywhere" also cuts every AI connection (fail closed)
+      }
     });
+  }
+
+  // ── AI connection keys (many per person; only the hash is stored) ─────────
+  const publicKey = (k) => ({
+    id: k.id, label: k.label, client: k.client, mode: k.mode,
+    createdAt: k.createdAt, expiresAt: k.expiresAt, lastUsedAt: k.lastUsedAt || null,
+  });
+
+  /** Make a key. The secret is returned HERE ONCE and never stored. */
+  async function createApiToken(userId, { label = '', client = '', mode = 'read', expiresInDays = API_TOKEN_DEFAULT_DAYS } = {}) {
+    if (!AI_MODES.includes(mode)) throw new StoreError('bad_mode', 'Pick “look only” or “can change things”.');
+    const days = Math.min(API_TOKEN_MAX_DAYS, Math.max(1, Math.round(Number(expiresInDays) || API_TOKEN_DEFAULT_DAYS)));
+    const secret = API_TOKEN_PREFIX + newToken();
+    const t = now();
+    const key = {
+      id: newId(),
+      hash: sha256(secret),
+      label: String(label || '').trim().slice(0, 60) || 'AI connection',
+      client: String(client || '').trim().slice(0, 60),
+      mode,
+      createdAt: iso(t),
+      expiresAt: iso(t + days * DAY),
+      lastUsedAt: null,
+    };
+    await tx(async (d) => {
+      const u = byId(d, userId);
+      if (!u) throw new StoreError('not_found', 'No such person.');
+      if (u.apiTokens.length >= API_TOKEN_MAX_PER_PERSON) throw new StoreError('too_many', `At most ${API_TOKEN_MAX_PER_PERSON} AI connections per person. Remove one first.`);
+      u.apiTokens.push(key);
+    });
+    return { token: secret, key: publicKey(key) };
+  }
+
+  /** secret -> { user, key } | null. Unknown / expired / malformed = null. "Last used" is written at most every 5 minutes. */
+  async function getByApiToken(secret) {
+    if (typeof secret !== 'string' || !secret.startsWith(API_TOKEN_PREFIX) || secret.length !== API_TOKEN_PREFIX.length + 64) return null;
+    const hash = sha256(secret);
+    const t = now();
+    const d = await load();
+    for (const u of d.users) {
+      const k = u.apiTokens.find((x) => x.hash === hash);
+      if (!k) continue;
+      if (Date.parse(k.expiresAt) <= t) return null;
+      if (!k.lastUsedAt || t - Date.parse(k.lastUsedAt) > API_TOKEN_TOUCH_MS) {
+        await tx(async (dd) => {
+          const kk = byId(dd, u.id)?.apiTokens.find((x) => x.hash === hash);
+          if (kk) kk.lastUsedAt = iso(t);
+        });
+      }
+      return { user: { ...u }, key: publicKey(k) };
+    }
+    return null;
+  }
+
+  async function listApiTokens(userId) {
+    const u = byId(await load(), userId);
+    return u ? u.apiTokens.map(publicKey) : [];
+  }
+
+  /** Everyone's keys for the admin's overview: who it belongs to, never a hash. */
+  async function listAllApiTokens() {
+    const d = await load();
+    return d.users.flatMap((u) => u.apiTokens.map((k) => ({ ...publicKey(k), userId: u.id, userName: u.name })));
+  }
+
+  async function updateApiToken(userId, keyId, { mode, label } = {}) {
+    if (mode !== undefined && !AI_MODES.includes(mode)) throw new StoreError('bad_mode', 'Pick “look only” or “can change things”.');
+    let out = null;
+    await tx(async (d) => {
+      const k = byId(d, userId)?.apiTokens.find((x) => x.id === keyId);
+      if (!k) throw new StoreError('not_found', 'No such connection.');
+      if (mode !== undefined) k.mode = mode;
+      if (label !== undefined) k.label = String(label || '').trim().slice(0, 60) || k.label;
+      out = publicKey(k);
+    });
+    return out;
+  }
+
+  async function revokeApiToken(userId, keyId) {
+    let found = false;
+    await tx(async (d) => {
+      const u = byId(d, userId);
+      if (!u) return;
+      const before = u.apiTokens.length;
+      u.apiTokens = u.apiTokens.filter((k) => k.id !== keyId);
+      found = u.apiTokens.length < before;
+    });
+    return found;
+  }
+
+  async function revokeAllApiTokens(userId = null) {
+    let n = 0;
+    await tx(async (d) => {
+      for (const u of d.users) {
+        if (userId && u.id !== userId) continue;
+        n += u.apiTokens.length;
+        u.apiTokens = [];
+      }
+    });
+    return n;
   }
 
   // ── pre-auth (password or link accepted, 2-step code still owed) ──────────
@@ -682,6 +794,7 @@ export function createUserStore({
     listUsers, userCount, getUser, getPublicUser, createUser, updateUser, removeUser, markLogin,
     hashPassword, setPassword, setPasswordHash, verifyLogin,
     createSession, getSession, destroySession, destroyUserSessions,
+    createApiToken, getByApiToken, listApiTokens, listAllApiTokens, updateApiToken, revokeApiToken, revokeAllApiTokens,
     createPreAuth, getPreAuth, clearPreAuth,
     beginTotpEnrollment, confirmTotp, verifyTotp, disableTotp,
     trustDevice, isTrustedDevice, isTrustedDeviceForName, forgetTrustedDevices,

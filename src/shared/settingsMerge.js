@@ -36,6 +36,7 @@ export const SETTINGS_KEYS = Object.freeze([
   'post',              // { style: 'sheet'|'classic' } the + / New button: one Post sheet (default) or the four cards; scope org (src/shared/postDefaults.js)
   'dailyPick',         // { randomFrom: 'unshown'|'all' } what 'Show a different one' picks from on Daily Word / Daily Story (src/shared/dailyToday.js); scope org
   'showChabadCredit',  // false hides the small 'Courtesy of Chabad.org' line on the pages that show its content (default on)
+  'aiAccess',          // { enabled, allowAverages, changesPerMinute, changesPerDay } school-wide switch + limits for AI connections (src/shared/aiAccess.js); scope org; the AI itself may never write it
   'dataSource',        // 'live' (default: Hebcal + Chabad.org) | 'local' (calculated here + data pack); see docs/DATA-PACK-PLAN.md
   // Theme / layout (kiosk)
   'theme', 'customTheme', 'themeAuto', 'orientation', 'portraitLayout', 'clockSide',
@@ -68,7 +69,7 @@ export const SETTINGS_KEYS = Object.freeze([
  * Nothing reads this at run time yet except test/settingScope.test.js (every key must be tagged).
  */
 export const SETTING_SCOPE = Object.freeze({
-  location: 'org', siteName: 'org', scheduleGroups: 'org', announcements: 'org', post: 'org', dailyPick: 'org', shabbos: 'org', kiddushLevana: 'org', showChabadCredit: 'org',
+  aiAccess: 'org', location: 'org', siteName: 'org', scheduleGroups: 'org', announcements: 'org', post: 'org', dailyPick: 'org', shabbos: 'org', kiddushLevana: 'org', showChabadCredit: 'org',
   scheduler: 'platform',     // org on a self-hosted box; the cloud runs one platform tick
   dataSource: 'platform',    // org on a self-hosted box; sources are shared in the cloud
   theme: 'org+box', customTheme: 'org', themeAuto: 'org+box', orientation: 'org+box', portraitLayout: 'org+box', clockSide: 'org+box',

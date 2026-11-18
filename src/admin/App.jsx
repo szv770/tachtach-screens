@@ -49,6 +49,7 @@ import RosterPanel from './components/RosterPanel.jsx';
 import ChazanPanel from './components/chazan/ChazanPanel.jsx';
 import HelpPanel from './components/HelpPanel.jsx';
 import TeamPanel from './components/TeamPanel.jsx';
+import ConnectAiPanel from './components/connections/ConnectAiPanel.jsx';
 import AccountPanel from './components/AccountPanel.jsx';
 import HistoryPage from './components/ops/HistoryPage.jsx';
 import HealthPage from './components/ops/HealthPage.jsx';
@@ -333,6 +334,8 @@ export default function App() {
         return <HelpPanel role={role} onNavigate={setActiveSection} onTour={() => setTourOpen(true)} />;
       case 'team':
         return <TeamPanel />;
+      case 'ai':
+        return <ConnectAiPanel settings={settings} onSave={updateSettings} isAdmin={can(myCaps, 'ai.manage')} />;
       case 'account':
         return (
           <>

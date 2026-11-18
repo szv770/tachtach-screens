@@ -274,6 +274,8 @@ const ALBUM_CAPS = ['feeds.edit', 'media.upload', 'media.delete', 'slides.edit']
 const readRule = (route, who, budget = null) => Object.freeze({ route, who, budget });
 
 export const READ_ROUTES = Object.freeze([
+  readRule('/api/ai/connections', ['ai.connect']),             // a person's own AI keys (no secrets: the key is shown once, when made)
+  readRule('/api/ai/admin/connections', ['ai.manage']),        // everyone's AI keys (who, label, mode, last used; no secrets)
   // Shell + kiosk state (served by the TV too; the admin shell, Home and Live preview need them for every role)
   readRule('/api/state', 'open'),
   readRule('/api/screen/state', 'open'),
@@ -394,6 +396,69 @@ function writesTakeover(m, path, body) {
   return isTakeoverItem(body);
 }
 
+// ── AI connections ───────────────────────────────────────────────────────────
+// A key made by a person (Account > Connect an AI) lets an AI app act AS that person, never as more:
+// the AI's capabilities = the person's capabilities minus AI_BLOCKED_CAPS, further cut by the key's mode.
+
+/** Never reachable through an AI key, whoever made it and whatever overrides say. */
+export const AI_BLOCKED_CAPS = Object.freeze(['team.manage', 'system.update', 'roster.edit', 'chazan.edit', 'ai.connect', 'ai.manage']);
+export const AI_MODES = Object.freeze(['read', 'change']);
+/** Areas an AI key may not even READ (names, people, security, software, its own keys, the account itself). */
+const AI_BLOCKED_PATH = /^\/api\/(team|activity|system|security|roster|chazan|account|push|ai|users)(\/|$)/;
+const AI_AVERAGES_PATH = /^\/api\/averages(\/|$)/;
+const AI_UNDO_PATH = /^\/api\/history\/[^/]+\/undo$/;
+/** Settings the AI may never write: its own switch and limits. */
+export const AI_PROTECTED_SETTING_KEYS = Object.freeze(['aiAccess']);
+
+/**
+ * The identity an AI key acts as. It is built as an ORDINARY EDITOR (Full preset plus grants / denies) holding
+ * exactly `person's caps - blocked caps`, so every capability check in the code (canDo, effectiveCaps(req.user)) gives
+ * the same answer for the AI as for a person with that access, and no "admin sees everything" shortcut can fire.
+ * `person` = { id, username, name, role, preset, overrides }; `key` = { id, client, mode }.
+ */
+export function aiUserFrom(person, key, { allowAverages = false } = {}) {
+  if (!person || !ROLES.includes(person.role)) return null;
+  const blocked = new Set(AI_BLOCKED_CAPS);
+  if (!allowAverages) blocked.add('averages.edit');
+  const ceiling = new Set(effectiveCaps(person).filter((c) => !blocked.has(c)));
+  const base = new Set(presetCaps('full'));
+  const overrides = sanitizeOverrides('full', {
+    grant: [...ceiling].filter((c) => !base.has(c)),
+    deny: [...base].filter((c) => !ceiling.has(c)),
+  });
+  return {
+    id: person.id,
+    username: person.username,
+    name: person.name,
+    role: 'editor',
+    preset: 'full',
+    overrides,
+    ai: {
+      connectionId: key?.id || null,
+      client: String(key?.client || '').slice(0, 60),
+      mode: AI_MODES.includes(key?.mode) ? key.mode : 'read', // unknown = look only
+      allowAverages: !!allowAverages,
+    },
+  };
+}
+
+/** The extra rules for an AI key, then the same answer as for the equivalent person. */
+function canDoAsAi(user, m, p, body) {
+  const ai = user.ai;
+  if (!AI_MODES.includes(ai.mode)) return false;
+  if (p.split('/').some((seg) => seg === '..' || seg === '.')) return false;
+  if (AI_BLOCKED_PATH.test(p)) return false;
+  if (AI_AVERAGES_PATH.test(p) && !ai.allowAverages) return false;
+  const person = { ...user, ai: undefined };
+  const isRead = m === 'GET' || m === 'HEAD' || m === 'OPTIONS';
+  if (isRead) return canRead(person, p);
+  if (ai.mode !== 'change') return false;
+  if (p.startsWith('/api/history')) return AI_UNDO_PATH.test(p) && m === 'POST';
+  if (/^\/api\/settings$/.test(p) && isObj(body) && AI_PROTECTED_SETTING_KEYS.some((k) => Object.prototype.hasOwnProperty.call(body, k))) return false;
+  if (SELF.test(p)) return false;
+  return canDo(person, m, p, body);
+}
+
 /**
  * May this person make this request? `who` = user object ({ role, preset,
  * overrides }) or a bare role name (then the role's default access).
@@ -404,10 +469,13 @@ export function canDo(who, method, path, body) {
   if (!user || !ROLES.includes(user.role)) return false;
   const p = normalizeApiPath(path);
   const m = String(method || 'GET').toUpperCase();
+  if (user.ai) return canDoAsAi(user, m, p, body);
   // Reading goes through the READ_ROUTES table only: no GET is open just because it is a GET.
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return canRead(user, p);
   if (SELF.test(p)) return true;
   if (user.role === 'admin') return true;
+  // The school-wide AI switch and limits: admins only, even for someone granted settings.change.
+  if (/^\/api\/settings$/.test(p) && isObj(body) && AI_PROTECTED_SETTING_KEYS.some((k) => Object.prototype.hasOwnProperty.call(body, k))) return false;
   // Dot segments never appear in a real request; refuse them rather than guess how a proxy resolves them.
   if (p.split('/').some((seg) => seg === '..' || seg === '.')) return false;
   const caps = new Set(effectiveCaps(user));
