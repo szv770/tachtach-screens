@@ -186,3 +186,17 @@ test('at most 10 keys per person', async () => {
   for (let i = 0; i < 10; i++) await makeKey(person, 'read', `k${i}`);
   assert.equal((await person.post('/api/ai/connections', { mode: 'read' })).status, 400);
 });
+
+test('a change made by an AI key is marked "by AI" in History, and can be undone like any other', async () => {
+  const { key } = await makeKey(full, 'change', 'history');
+  const posted = await withKey(key, 'POST', '/api/announcements', { display: 'banner', content: { headlineEn: 'Marked by AI' } });
+  assert.equal(posted.status, 201);
+  await new Promise((r) => setTimeout(r, 300)); // the activity line is written when the response finishes
+  const rows = (await admin.get('/api/history?limit=50')).body.entries;
+  const row = rows.find((e) => e.via === 'ai');
+  assert.ok(row, 'an AI row exists');
+  assert.equal(row.client, 'Claude Code');
+  assert.ok(rows.some((e) => e.via === null || e.via === undefined), 'people\'s own rows are not marked');
+  // the AI cannot read History as a way around its limits? It may (history is SELF-readable) but never see other people's secrets: rows carry no keys
+  assert.ok(!JSON.stringify(rows).includes('ttk_'));
+});

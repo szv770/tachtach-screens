@@ -92,7 +92,7 @@ export default function HistoryPage({ me, onChanged }) {
                 <div style={{ flex: '1 1 220px', minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: '15px', lineHeight: 1.35, overflowWrap: 'anywhere' }}>{e.detail || e.action}</div>
                   <div style={{ fontSize: '13px', color: colors.dim, marginTop: '2px' }}>
-                    {e.mine ? 'You' : e.name} · {clock(e.at)}{e.detail ? ` · ${e.action}` : ''}
+                    {e.mine ? 'You' : e.name}{e.via === 'ai' ? ` (by AI${e.client ? `: ${e.client}` : ''})` : ''} · {clock(e.at)}{e.detail ? ` · ${e.action}` : ''}
                   </div>
                   {u?.state === 'blocked' && <div style={{ fontSize: '12px', color: colors.muted, marginTop: '4px' }}>{u.reason}</div>}
                   {u?.id && refused[u.id] && <div role="alert" style={{ fontSize: '13px', color: colors.warn, marginTop: '6px', lineHeight: 1.4 }}>{refused[u.id]}</div>}

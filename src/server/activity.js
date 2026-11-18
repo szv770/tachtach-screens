@@ -86,6 +86,8 @@ export function createActivityLog({ read = () => readJSON(FILE), write = (d) => 
       action: String(action).slice(0, 140),
       detail: String(detail).slice(0, 200),
     };
+    // Done by an AI key (acting as `name`): the History page says so. Only the app's short name, never the key.
+    if (user?.ai) { entry.via = 'ai'; if (user.ai.client) entry.client = String(user.ai.client).slice(0, 40); }
     // Optional, all short ids/names, never content: what part of the screen it touched and the History/Undo link.
     if (area) entry.area = String(area).slice(0, 40);
     if (kind) entry.kind = String(kind).slice(0, 40);

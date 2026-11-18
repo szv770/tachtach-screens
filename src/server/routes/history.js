@@ -37,7 +37,7 @@ router.get('/history', async (req, res) => {
           undo = p.ok ? { id: rec.id, state: 'available' } : { id: rec.id, state: 'blocked', reason: p.reason };
         }
       }
-      return { at: e.at, name: e.name, mine: !!e.userId && e.userId === req.user.id, action: e.action, detail: e.detail || '', area: e.area || null, undo };
+      return { at: e.at, name: e.name, mine: !!e.userId && e.userId === req.user.id, action: e.action, detail: e.detail || '', area: e.area || null, via: e.via === 'ai' ? 'ai' : null, client: e.via === 'ai' ? (e.client || '') : '', undo };
     });
     res.set('Cache-Control', 'no-store');
     res.json({ entries: rows, scope: req.user.role === 'admin' ? 'everyone' : 'yours-and-shared' });
