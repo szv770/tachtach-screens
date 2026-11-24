@@ -106,4 +106,7 @@ router.post('/daily-stories/today', async (req, res) => {
   } catch { res.status(500).json({ error: 'Could not change today.' }); }
 });
 
+// the undo service (src/server/undoIo.js) writes through the same save and lock
+export { save as saveDailyStories, withLock as withStoriesLock };
+
 export default router;

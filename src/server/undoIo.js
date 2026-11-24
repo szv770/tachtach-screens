@@ -14,7 +14,19 @@ const reinit = () => initCountdowns().catch((e) => console.error('[countdown] Re
 let apiMod = null;
 const api = async () => (apiMod ||= await import('./routes/api.js'));
 
+// The daily lists live in route modules (heavy imports), so they load the first time one is undone.
+const dailyIo = (load, readName, saveName, lockName) => ({
+  read: async () => (await load())[readName](),
+  write: async (file) => (await load())[saveName](file),
+  withLock: async (fn) => (await load())[lockName](fn),
+});
+
 export const undoIo = {
+  daily: {
+    stories: dailyIo(() => import('./routes/daily-stories.js'), 'readDailyStories', 'saveDailyStories', 'withStoriesLock'),
+    words: dailyIo(() => import('./routes/daily-words.js'), 'readDailyWords', 'saveDailyWords', 'withWordsLock'),
+    letters: dailyIo(() => import('./routes/daily-letters.js'), 'readDailyLetters', 'saveDailyLetters', 'withLettersLock'),
+  },
   announcements: { withLock, load: loadItems, save: saveItems },
   readSlides: async () => (await readJSON('slides.json')) ?? [],
   writeSlides: async (list) => { await writeJSON('slides.json', list); broadcast('slides-update', list); reinit(); },

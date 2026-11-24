@@ -208,6 +208,88 @@ const scheduleDate = {
   },
 };
 
+const scheduleDates = {
+  match(method, path) { return method === 'PUT' && path === '/api/schedule/dates' ? {} : null; },
+  async capture(_ctx, io) { return clone(await io.readDates()); },
+  async finish(_ctx, pre, io) {
+    const now = await io.readDates();
+    const dates = [...new Set([...Object.keys(pre || {}), ...Object.keys(now || {})])].filter((d) => !same(pre?.[d] ?? null, now?.[d] ?? null)).sort();
+    if (!dates.length) return null;
+    return {
+      kind: 'schedule.dates',
+      label: dates.length === 1 ? `Changed the schedule for ${dates[0]}` : `Changed the schedule for ${dates.length} dates`,
+      ctx: { dates },
+      before: Object.fromEntries(dates.map((d) => [d, clone(pre?.[d] ?? null)])),
+      after: Object.fromEntries(dates.map((d) => [d, clone(now?.[d] ?? null)])),
+    };
+  },
+  replay() { return ['PUT', '/api/schedule/dates', null]; },
+  async revert(rec, io) {
+    await io.updateDates((dates) => {
+      for (const d of rec.ctx.dates) {
+        if (!same(dates[d] ?? null, rec.after[d] ?? null)) throw new UndoConflict(`The schedule for ${d} was changed again after this, so it was left alone.`);
+      }
+      for (const d of rec.ctx.dates) { if (rec.before[d]) dates[d] = clone(rec.before[d]); else delete dates[d]; }
+      return dates;
+    });
+  },
+};
+
+/**
+ * The Daily Story / Word / Letter lists. Saved as a DIFF by id (what was added, removed, changed), so a 500-entry list
+ * is never copied into history. Undo only goes ahead when every entry it touches is still exactly as the change left it.
+ */
+function dailyList({ file, listKey, kind, noun, path }) {
+  const listOf = (f) => (Array.isArray(f?.[listKey]) ? f[listKey] : []);
+  return {
+    match(method, p, body) {
+      if (method === 'PUT' && p === path) return {};
+      if (method === 'POST' && p === `${path}/import` && !(isObj(body) && body.dryRun === true)) return {};
+      return null;
+    },
+    async capture(_ctx, io) { return clone(listOf(await io.daily[file].read())); },
+    async finish(_ctx, pre, io) {
+      const now = listOf(await io.daily[file].read());
+      const had = new Map(pre.map((e, i) => [e.id, { e, i }]));
+      const has = new Map(now.map((e) => [e.id, e]));
+      const added = now.filter((e) => !had.has(e.id));
+      const removed = pre.map((e, index) => ({ index, entry: e })).filter((x) => !has.has(x.entry.id));
+      const changed = now.filter((e) => had.has(e.id) && !same(had.get(e.id).e, e));
+      if (!added.length && !removed.length && !changed.length) return null;
+      const bits = [];
+      if (added.length) bits.push(`added ${added.length}`);
+      if (removed.length) bits.push(`removed ${removed.length}`);
+      if (changed.length) bits.push(`changed ${changed.length}`);
+      const text = bits.join(', ');
+      return {
+        kind, ctx: {},
+        label: `${text.charAt(0).toUpperCase()}${text.slice(1)} on the ${noun} list`,
+        before: { removed: clone(removed), changed: clone(changed.map((e) => had.get(e.id).e)) },
+        after: { added: clone(added), changed: clone(changed) },
+      };
+    },
+    replay() { return ['PUT', path, null]; },
+    async revert(rec, io) {
+      await io.daily[file].withLock(async () => {
+        const f = await io.daily[file].read();
+        let list = listOf(f);
+        const cur = new Map(list.map((e) => [e.id, e]));
+        for (const e of rec.after.added) if (!cur.has(e.id) || !same(cur.get(e.id), e)) throw new UndoConflict(`An entry added by that change was edited or removed since, so the ${noun} list was left alone.`);
+        for (const e of rec.after.changed) if (!cur.has(e.id) || !same(cur.get(e.id), e)) throw new UndoConflict(`An entry changed by that change was edited again since, so the ${noun} list was left alone.`);
+        for (const r of rec.before.removed) if (cur.has(r.entry.id)) throw new UndoConflict(`An entry that change removed is already back, so the ${noun} list was left alone.`);
+        const drop = new Set(rec.after.added.map((e) => e.id));
+        const back = new Map(rec.before.changed.map((e) => [e.id, e]));
+        list = list.filter((e) => !drop.has(e.id)).map((e) => (back.has(e.id) ? clone(back.get(e.id)) : e));
+        for (const r of [...rec.before.removed].sort((a, b) => a.index - b.index)) list.splice(Math.min(Math.max(0, Number(r.index) || 0), list.length), 0, clone(r.entry));
+        await io.daily[file].write({ ...f, [listKey]: list });
+      });
+    },
+  };
+}
+const dailyStories = dailyList({ file: 'stories', listKey: 'stories', kind: 'daily.stories', noun: 'Daily Story', path: '/api/daily-stories' });
+const dailyWords = dailyList({ file: 'words', listKey: 'words', kind: 'daily.words', noun: 'Daily Word', path: '/api/daily-words' });
+const dailyLetters = dailyList({ file: 'letters', listKey: 'stories', kind: 'daily.letters', noun: 'Daily Letter', path: '/api/daily-letters' });
+
 const settingsPatch = {
   match(method, path, body) {
     if (method !== 'PATCH' || path !== '/api/settings' || !isObj(body)) return null;
@@ -247,10 +329,10 @@ const settingsPatch = {
   },
 };
 
-const REGISTRY = [announcements, slides, scheduleWeek, scheduleDate, settingsPatch];
+const REGISTRY = [announcements, slides, scheduleWeek, scheduleDate, scheduleDates, dailyStories, dailyWords, dailyLetters, settingsPatch];
 const KIND_OWNER = {
   'announcement.create': announcements, 'announcement.edit': announcements, 'announcement.delete': announcements,
-  'slides.save': slides, 'slide.delete': slides, 'schedule.week': scheduleWeek, 'schedule.date': scheduleDate, 'settings.patch': settingsPatch,
+  'slides.save': slides, 'slide.delete': slides, 'schedule.week': scheduleWeek, 'schedule.date': scheduleDate, 'schedule.dates': scheduleDates, 'daily.stories': dailyStories, 'daily.words': dailyWords, 'daily.letters': dailyLetters, 'settings.patch': settingsPatch,
 };
 
 /**

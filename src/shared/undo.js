@@ -24,6 +24,10 @@ export const UNDO_KINDS = Object.freeze({
   'slide.delete': { area: 'slide', shared: true },
   'schedule.week': { area: 'schedule', shared: true },
   'schedule.date': { area: 'schedule', shared: true },
+  'schedule.dates': { area: 'schedule', shared: true },   // several dates at once (paste / the AI connector)
+  'daily.stories': { area: 'Daily Story list', shared: true },
+  'daily.words': { area: 'Daily Word list', shared: true },
+  'daily.letters': { area: 'Daily Letter list', shared: true },
   'settings.patch': { area: 'settings', shared: false },
 });
 export const isUndoKind = (k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(UNDO_KINDS, k);

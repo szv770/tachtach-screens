@@ -135,4 +135,7 @@ router.post('/daily-letters/today', async (req, res) => {
   } catch (e) { if (e instanceof TooBig) return res.status(400).json({ error: e.message }); res.status(500).json({ error: 'Could not change today.' }); }
 });
 
+// the undo service (src/server/undoIo.js) writes through the same save and lock
+export { save as saveDailyLetters, withLock as withLettersLock };
+
 export default router;
