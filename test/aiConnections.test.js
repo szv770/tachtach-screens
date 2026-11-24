@@ -9,12 +9,14 @@ const { startApp } = await import('./helpers/realApp.js');
 const app = await startApp();
 test.after(() => app.close());
 
+const { internalHeaders } = await import('../src/server/middleware.js');
 const admin = await app.login('admin');
 const full = await app.login('full');
 const msgs = await app.login('messages');
 const view = await app.login('view');
 
-const withKey = (key, method, url, body) => app.request({ method, url, body, headers: { authorization: `Bearer ${key}` } });
+// What the tool layer does: this server's own call to its own /api, carrying the key and the per-process proof.
+const withKey = (key, method, url, body) => app.request({ method, url, body, headers: { authorization: `Bearer ${key}`, ...internalHeaders() } });
 const makeKey = async (who, mode = 'change', label = 'test') => {
   const r = await who.post('/api/ai/connections', { label, client: 'Claude Code', mode });
   assert.equal(r.status, 201, JSON.stringify(r.body));
@@ -63,12 +65,22 @@ test('a change key does what its person can do, and the change is real', async (
   assert.ok((await admin.get('/api/announcements')).body.some((i) => i.content?.headlineEn === 'Hello from an AI'));
 });
 
+test('a key cannot be used on the raw REST API directly: only through the tool layer (/mcp)', async () => {
+  const { key } = await makeKey(full);
+  const direct = await app.request({ method: 'GET', url: '/api/announcements', headers: { authorization: `Bearer ${key}` } });
+  assert.equal(direct.status, 401);
+  assert.match(direct.body.error, /\/mcp/);
+  assert.equal((await withKey(key, 'GET', '/api/announcements')).status, 200, 'with the internal proof it works (that is the tool layer)');
+  const wrongProof = await app.request({ method: 'GET', url: '/api/announcements', headers: { authorization: `Bearer ${key}`, 'x-tt-internal': 'guess' } });
+  assert.equal(wrongProof.status, 401);
+});
+
 test('bad, malformed, revoked and expired keys are plain 401s (never a cookie fallback)', async () => {
   for (const k of ['nope', 'ttk_short', `ttk_${'z'.repeat(64)}`, '']) assert.equal((await withKey(k, 'GET', '/api/announcements')).status, 401, k);
   const { key, connection } = await makeKey(full, 'change', 'revoke me');
   assert.equal((await withKey(key, 'GET', '/api/announcements')).status, 200);
   // a valid key header beside a perfectly good admin session: the key is judged, not the session
-  const both = await app.request({ method: 'GET', url: '/api/team', token: admin.token, headers: { authorization: `Bearer ${key}` } });
+  const both = await app.request({ method: 'GET', url: '/api/team', token: admin.token, headers: { authorization: `Bearer ${key}`, ...internalHeaders() } });
   assert.equal(both.status, 403, 'the key (a Full editor) is what counts');
   assert.equal((await full.del(`/api/ai/connections/${connection.id}`)).status, 200);
   assert.equal((await withKey(key, 'GET', '/api/announcements')).status, 401);
@@ -82,7 +94,7 @@ test('bad, malformed, revoked and expired keys are plain 401s (never a cookie fa
 
 test('CSRF still guards a browser: a bearer key WITH a session cookie must carry the CSRF token', async () => {
   const { key } = await makeKey(full);
-  const r = await app.request({ method: 'POST', url: '/api/announcements', body: { display: 'banner', content: { headlineEn: 'csrf' } }, headers: { authorization: `Bearer ${key}`, cookie: `tachtach_session=${full.token}` } });
+  const r = await app.request({ method: 'POST', url: '/api/announcements', body: { display: 'banner', content: { headlineEn: 'csrf' } }, headers: { authorization: `Bearer ${key}`, ...internalHeaders(), cookie: `tachtach_session=${full.token}` } });
   assert.equal(r.status, 403);
   // and a plain cookie request without the CSRF header is still refused (unchanged behaviour)
   const plain = await app.request({ method: 'POST', url: '/api/announcements', body: { display: 'banner', content: { headlineEn: 'csrf2' } }, headers: { cookie: `tachtach_session=${full.token}` } });

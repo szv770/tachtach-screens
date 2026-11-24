@@ -15,6 +15,19 @@ export async function userForRequest(req) {
   return { id, username, name, role, preset, overrides };
 }
 
+// An AI key is used through /mcp (curated tools). The tool layer calls this server's own /api over loopback and proves it is
+// itself with this per-process secret, so a key holder can NOT use the raw REST API directly (it carries things the tools scrub).
+const INTERNAL_SECRET = crypto.randomBytes(32).toString('hex');
+export const INTERNAL_HEADER = 'x-tt-internal';
+export const internalHeaders = () => ({ [INTERNAL_HEADER]: INTERNAL_SECRET });
+function isInternalCall(req) {
+  const h = req.headers?.[INTERNAL_HEADER];
+  if (typeof h !== 'string' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket?.remoteAddress)) return false;
+  const a = Buffer.from(h);
+  const b = Buffer.from(INTERNAL_SECRET);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 /** The key an AI app presents (`Authorization: Bearer ttk_...`), or null when none was sent. */
 function bearerOf(req) {
   const h = req.headers?.authorization;
@@ -28,7 +41,7 @@ function bearerOf(req) {
  * or { error } with the sentence to send back. Never falls back to a cookie: a request that presents a key is
  * a key request. Keys work only while an admin has switched AI connections on for this school.
  */
-async function userForApiKey(secret) {
+export async function userForApiKey(secret) {
   const settings = (await readJSON('settings.json').catch(() => null)) || {};
   const access = aiAccessFrom(settings);
   if (!access.enabled) return { error: 'AI connections are switched off for this screen.' };
@@ -54,6 +67,7 @@ export async function requireAuth(req, res, next) {
   // An AI key is honoured on /api only (never for the admin pages, the live view or the kiosk gates, which use userForRequest).
   const secret = bearerOf(req);
   if (secret !== null && req.originalUrl.startsWith('/api/')) {
+    if (!isInternalCall(req)) return res.status(401).json({ error: 'AI connection keys are used through the /mcp address, not the REST API.' });
     const r = await userForApiKey(secret);
     if (r.error) return res.status(401).json({ error: r.error });
     req.user = r.user;

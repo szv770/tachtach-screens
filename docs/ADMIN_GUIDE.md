@@ -17,8 +17,9 @@ This guide covers everything you need to know to manage your TachTach kiosk disp
 9. [Style (Themes & Fonts)](#style)
 10. [Settings](#settings)
 11. [Team & Logins](#team--logins)
-12. [Updating the screen software](#updating-the-screen-software-admins-only)
-13. [Troubleshooting](#troubleshooting)
+12. [Connect an AI](#connect-an-ai-claude-and-other-ai-apps)
+13. [Updating the screen software](#updating-the-screen-software-admins-only)
+14. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -529,6 +530,23 @@ Everyone who edits the screens gets their own login, so you can see who posted w
 If the last admin is locked out, use the command line on the server: `npm run reset-admin -- --list` shows everyone, `npm run reset-admin -- --user <username> --reset-password` fixes a password.
 
 ---
+
+## Connect an AI (Claude and other AI apps)
+
+Let an AI assistant look at and change the screen for you ("tomorrow Mincha is at 1:45", "post a banner until 3", "what is on the TV now?"). The AI can only do what **you** can do, never more, and your AI app asks you to tap **Allow** on every change.
+
+**Never reachable by an AI:** the Bochurim and Chazan names, people and security settings, software updates, and a connection's own switch and limits. The Test Averages (names next to marks) stay off unless an admin turns on "Let an AI see the Test Averages".
+
+**Set it up**
+1. An admin opens **Look & Settings > Connect an AI** and turns on **Allow AI connections** (off by default). Admins can also set how many changes one connection may make (default 10 a minute, 60 a day).
+2. Any admin or editor with access opens the same page and taps **Make the key**. Pick the AI app, **Look only** or **Can change things**, and a name. Copy the key now: it is shown only once.
+3. Add it in your AI app. The address is your screen's web address plus `/mcp`, and the key goes in an `Authorization: Bearer ttk_...` header.
+   - **Claude Code:** `claude mcp add --transport http tachtach https://YOUR-ADDRESS/mcp --header "Authorization: Bearer ttk_YOURKEY"`
+   - **Claude Desktop:** add a server that runs `npx mcp-remote https://YOUR-ADDRESS/mcp --header "Authorization: Bearer ttk_YOURKEY"` in its settings file.
+   - **claude.ai on the web and phone** needs the TachTach hub (a central sign-in), which is not built yet.
+4. Ask in plain words. The AI first asks the screen what it can do, asks you the questions it needs (how long should it stay up? Hebrew too?), shows you exactly what it will do, and only then makes the change. In your AI app, **do not set "always allow" on the tools that change things**: that tap is your safety check.
+
+**Stay in control:** every change an AI makes is in **Recent changes** marked "(by AI: ...)" with an Undo. You can switch a key to look-only, remove it, or (admins) cut off every connection at once. Signing out everywhere also cuts your keys.
 
 ## Updating the screen software (admins only)
 

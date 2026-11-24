@@ -2,6 +2,7 @@
   "name": "tachtach-screens",
   "version": "1.0.0",
   "type": "module",
+  "engines": { "node": ">=18" },
   "description": "Digital signage system for Jewish schools — zmanim, limudim, Hayom Yom, and admin messaging on Raspberry Pi 5",
   "main": "server.js",
   "scripts": {
@@ -30,6 +31,7 @@
     "@fontsource/courier-prime": "^5.3.0",
     "@fontsource/miriam-libre": "^5.3.0",
     "@fontsource/suez-one": "^5.3.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "bcrypt": "^6.0.0",
     "cheerio": "^1.0.0",
     "cookie-parser": "^1.4.6",

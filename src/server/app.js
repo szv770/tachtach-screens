@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { setupCheck, requireAuth, enforceRole, aiLimiter, logActivity, localhostOnly, localhostOrAuth, csrfProtection } from './middleware.js';
 import teamRouter from './routes/team.js';
 import aiRouter from './routes/ai.js';
+import { createMcpRouter } from './mcp/route.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
 import { createDataPackRouter } from './routes/dataPack.js';
 import systemInfoRouter from './routes/systemInfo.js';
@@ -276,7 +277,7 @@ export function createApp() {
   // is ~20 kB, so the 16 kB cap here made every edit fail with "request entity
   // too large"; see routes/daily-words.js.
   const smallJson = express.json({ limit: '16kb' });
-  app.use((req, res, next) => (BIG_BODY_PATHS.test(req.path) ? next() : smallJson(req, res, next)));
+  app.use((req, res, next) => (BIG_BODY_PATHS.test(req.path) || req.path === '/mcp' ? next() : smallJson(req, res, next))); // /mcp reads its own 256 kB body AFTER its key check
 
   // ── 2. Cookie parsing ────────────────────────────────────────────────
   app.use(cookieParser());
@@ -600,6 +601,7 @@ export function createApp() {
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
+  app.use('/mcp', createMcpRouter()); // the AI connector: 404 while AI connections are off, bearer key only (src/server/mcp/route.js)
 
   // ── 9b. Public homepage: what a visitor sees at the bare address (static text, sign-in + live links only)
   app.get('/', (_req, res) => {
