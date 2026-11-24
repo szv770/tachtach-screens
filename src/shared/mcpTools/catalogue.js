@@ -15,6 +15,7 @@
 import { DISPLAYS, LAYOUTS, STATUSES } from '../announcements.js';
 import { STYLE_IDS, ANIMATIONS } from '../takeoverStyles.js';
 import { SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from '../postList.js';
+import { LOOK_CHANGES_SCHEMA } from './lookSettings.js';
 
 /** Layouts a post can use through the connector. sicha / letter need long structured text: that is Daily Letter, a later wave. */
 export const NOT_YET_LAYOUTS = Object.freeze({ sicha: 'long excerpt layouts come with the Daily Story / Letter tools', letter: 'letters come with the Daily Letter tools' });
@@ -74,7 +75,12 @@ const TIMING = {
   startsAtLocal: LOCAL_TIME,
 };
 
-const CHANGE_TOOLS = ['schedule_replace_week', 'schedule_set_days', 'schedule_clear_day', 'post_message', 'edit_post', 'set_post_state', 'delete_post', 'set_slide_enabled', 'reorder_slides', 'set_slide_duration', 'undo_change'];
+const CHANGE_TOOLS = ['schedule_replace_week', 'schedule_set_days', 'schedule_clear_day', 'post_message', 'edit_post', 'set_post_state', 'delete_post', 'set_slide_enabled', 'reorder_slides', 'set_slide_duration', 'add_daily_content', 'remove_daily_content', 'set_daily_today', 'update_look_and_settings', 'undo_change'];
+
+/** The areas describe_options can explain (describe.js builds one for each; a test keeps them equal). */
+export const DESCRIBE_AREAS = Object.freeze(['announcements', 'schedule', 'slides', 'history', 'home', 'daily-story', 'daily-word', 'daily-letter', 'themes', 'style', 'layout', 'motion', 'shows', 'this-screen']);
+export const DAILY_KINDS = Object.freeze(['story', 'word', 'letter']);
+const KIND = { type: 'string', enum: DAILY_KINDS, description: 'story = Daily Story (stories and thoughts), word = Daily Word, letter = Daily Letter.' };
 
 export const TOOLS = Object.freeze([
   // ── Read ────────────────────────────────────────────────────────────────────
@@ -83,7 +89,7 @@ export const TOOLS = Object.freeze([
     inputSchema: obj({}) },
   { name: 'describe_options', title: 'What are the choices?', area: 'home', risk: 'read', needs: [], privacy: 'none',
     description: 'The real choices for one area, with plain descriptions, this school\'s own defaults, the limits and the questions to ASK the person before you change anything there. Call it before every change in that area and ask the person about each choice that matters (for example: banner or full slide? how long should it stay up? Hebrew too?).',
-    inputSchema: obj({ area: { type: 'string', enum: ['announcements', 'schedule', 'slides', 'history', 'home'], description: 'Which part.' } }, ['area']) },
+    inputSchema: obj({ area: { type: 'string', enum: DESCRIBE_AREAS, description: 'Which part of the admin.' } }, ['area']) },
   { name: 'get_overview', title: 'What is on the screen now?', area: 'home', risk: 'read', needs: [], privacy: 'none',
     description: 'The school\'s current time, whether the TV is online and what slide it is showing, the posts that are live now, today\'s next schedule items and the slides in the rotation.',
     inputSchema: obj({}) },
@@ -102,9 +108,9 @@ export const TOOLS = Object.freeze([
   { name: 'read_history', title: 'Recent changes', area: 'history', risk: 'read', needs: [], privacy: 'none',
     description: 'Who changed what and when, newest first. Changes made through an AI say so. Rows that can be undone carry an undoId for undo_change.',
     inputSchema: obj({ limit: { type: 'integer', minimum: 1, maximum: 50 } }) },
-  { name: 'get_format_guide', title: 'The schedule text format', area: 'schedule', risk: 'read', needs: [], privacy: 'none',
-    description: 'The exact text format the schedule tools accept, with this school\'s categories and groups. Read it before you write schedule text.',
-    inputSchema: obj({ kind: { type: 'string', enum: ['week', 'days'], description: 'week = a weekly timetable; days = one or more dated days (Shabbos, Yom Tov).' } }, ['kind']) },
+  { name: 'get_format_guide', title: 'The text and entry formats', area: 'schedule', risk: 'read', needs: [], privacy: 'none',
+    description: 'The exact format the schedule tools accept (with this school\'s categories and groups), or the exact fields and limits for Daily Story / Word / Letter entries. Read it before you write schedule text or daily content.',
+    inputSchema: obj({ kind: { type: 'string', enum: ['week', 'days', 'story', 'word', 'letter'], description: 'week = a weekly timetable; days = dated days (Shabbos, Yom Tov); story / word / letter = the exact fields and limits for adding Daily content.' } }, ['kind']) },
   { name: 'preview_change', title: 'Preview a change', area: 'home', risk: 'read', needs: [], privacy: 'none',
     description: 'Shows, in a plain sentence, exactly what a change tool would do, WITHOUT doing it, and returns the previewId that tool needs. Always preview, read the sentence back to the person, and only make the change after they agree. Nothing is saved by this call.',
     inputSchema: obj({ tool: { type: 'string', enum: CHANGE_TOOLS, description: 'The change tool to preview.' }, args: { type: 'object', additionalProperties: true, description: 'The arguments you would give that tool (without previewId).' } }, ['tool', 'args']) },
@@ -145,12 +151,38 @@ export const TOOLS = Object.freeze([
     description: `How many seconds one slide stays on screen (${SECONDS_MIN}-${SECONDS_MAX}; 0 = automatic for slides that allow it).`,
     inputSchema: obj({ id: S('The slide id.', 80), seconds: { type: 'integer', minimum: 0, maximum: SECONDS_MAX }, previewId: PREVIEW_ID }, ['id', 'seconds', 'previewId']) },
 
+  // ── Daily content ───────────────────────────────────────────────────────────
+  { name: 'list_daily_content', title: 'List the Daily Story / Word / Letter entries', area: 'daily-story', alsoAreas: ['daily-word', 'daily-letter'], risk: 'read', needs: ['dailyWord.edit'], privacy: 'none',
+    description: 'The entries on the Daily Story, Daily Word or Daily Letter list (id, title, whether it has a source, whether it is on) and what shows TODAY. Use the ids with the other daily tools. Letters are summarised, not printed in full.',
+    inputSchema: obj({ kind: KIND, limit: { type: 'integer', minimum: 1, maximum: 200 } }, ['kind']) },
+  { name: 'add_daily_content', title: 'Add Daily Story / Word / Letter entries', area: 'daily-story', alsoAreas: ['daily-word', 'daily-letter'], risk: 'change', needs: ['dailyWord.edit'], privacy: 'none',
+    description: 'Add entries to the Daily Story, Daily Word or Daily Letter list in bulk. NEVER write a story, word meaning or letter from memory. Use only text the person gave you, or what you can cite with an exact, checkable source (a story with no source is saved hidden). Letters must be copied EXACTLY, never shortened or reworded. Call get_format_guide for the fields, ASK the person where each entry comes from, preview, read it back. mode "append" adds to the end (duplicates are skipped); "replace" swaps the WHOLE list (confirm clearly; it can be undone).',
+    inputSchema: obj({
+      kind: KIND,
+      items: { type: 'array', maxItems: 50, description: 'The entries, as objects (see get_format_guide).', items: { type: 'object', additionalProperties: true } },
+      mode: { type: 'string', enum: ['append', 'replace'], description: 'append (default) or replace the whole list.' },
+      previewId: PREVIEW_ID,
+    }, ['kind', 'items', 'previewId']) },
+  { name: 'remove_daily_content', title: 'Remove Daily Story / Word / Letter entries', area: 'daily-story', alsoAreas: ['daily-word', 'daily-letter'], risk: 'delete', needs: ['dailyWord.edit'], privacy: 'none',
+    description: 'Remove entries from a daily list by id (list_daily_content shows the ids). It can usually be undone with undo_change. If the person only wants an entry off the screen, switching it off in the admin or using set_daily_today is gentler.',
+    inputSchema: obj({ kind: KIND, ids: { type: 'array', minItems: 1, maxItems: 50, items: S('An entry id.', 80) }, previewId: PREVIEW_ID }, ['kind', 'ids', 'previewId']) },
+  { name: 'set_daily_today', title: 'Change what shows today', area: 'daily-story', alsoAreas: ['daily-word', 'daily-letter'], risk: 'change', needs: ['dailyWord.edit'], privacy: 'none',
+    description: 'Change today\'s Daily Story / Word / Letter: pick = show a particular entry (give its id); random = a different one; hide = show none today; automatic = go back to the normal rotation. This cannot be undone with undo_change, but "automatic" puts it back.',
+    inputSchema: obj({ kind: KIND, op: { type: 'string', enum: ['pick', 'random', 'hide', 'automatic'] }, id: S('The entry id (for pick).', 80), previewId: PREVIEW_ID }, ['kind', 'op', 'previewId']) },
+
+  // ── Look and settings ───────────────────────────────────────────────────────
+  { name: 'update_look_and_settings', title: 'Change the look and main settings', area: 'themes', alsoAreas: ['style', 'layout', 'motion', 'shows', 'this-screen'], risk: 'change', needs: ['look.change', 'settings.change'], privacy: 'none',
+    description: 'Change the theme, automatic day/night theme, Hebrew size, message font style, orientation, side rail, motion, graphics, long-text behaviour, the posting defaults and the screen name. FIRST call describe_options for the area (themes, style, layout, motion, shows, this-screen): it lists each setting, its allowed values and its current value. Ask the person what they want, preview, read it back. Changes the whole screen at once; it can be undone with undo_change. Location, logins, web links and uploaded fonts are not available here.',
+    inputSchema: obj({ changes: LOOK_CHANGES_SCHEMA, previewId: PREVIEW_ID }, ['changes', 'previewId']) },
+
   // ── History ─────────────────────────────────────────────────────────────────
   { name: 'undo_change', title: 'Undo a change', area: 'history', risk: 'change', needs: [], privacy: 'none',
     description: 'Undo one change using the undoId from read_history. Only changes that can be undone have one; it is refused if the thing was changed again since.',
     inputSchema: obj({ undoId: S('The undoId from read_history.', 80), previewId: PREVIEW_ID }, ['undoId', 'previewId']) },
 ]);
 
+/** Every area a tool belongs to (its main one plus any it also serves). */
+export const areasOfTool = (t) => [t.area, ...(t.alsoAreas || [])];
 export const CHANGE_TOOL_NAMES = Object.freeze(TOOLS.filter((t) => t.risk !== 'read').map((t) => t.name));
 export const POST_STATUSES_FOR_FILTER = STATUSES;
 const BY_NAME = new Map(TOOLS.map((t) => [t.name, t]));

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { navItems } from '../src/admin/nav.js';
 import { AREAS, AREA_KEYS } from '../src/shared/mcpTools/areas.js';
-import { TOOLS, CHANGE_TOOL_NAMES, toolByName, toolsFor, annotationsOf, CONNECTOR_LAYOUTS, NOT_YET_LAYOUTS } from '../src/shared/mcpTools/catalogue.js';
+import { TOOLS, CHANGE_TOOL_NAMES, toolByName, toolsFor, annotationsOf, CONNECTOR_LAYOUTS, NOT_YET_LAYOUTS, DESCRIBE_AREAS, areasOfTool } from '../src/shared/mcpTools/catalogue.js';
 import { describeOptions, DESCRIBED_AREAS, undescribedLayouts, LAYOUT_INFO, DISPLAY_INFO, buildCapabilities } from '../src/shared/mcpTools/describe.js';
 import { validateArgs } from '../src/shared/mcpTools/validate.js';
 import { SERVER_INSTRUCTIONS, PROMPTS } from '../src/shared/mcpTools/instructions.js';
@@ -25,7 +25,7 @@ test('every admin section is either covered by the connector, planned, or blocke
     if (a.status === 'blocked') assert.ok(a.reason && a.reason.length > 10, `${key}: a blocked area needs a plain reason`);
     if (a.status === 'available') {
       assert.ok(a.tools?.length, `${key}: available but no tools`);
-      for (const t of a.tools) { assert.ok(toolByName(t), `${key}: unknown tool ${t}`); assert.equal(toolByName(t).area, key, `${t} belongs to area ${toolByName(t).area}, listed under ${key}`); }
+      for (const t of a.tools) { assert.ok(toolByName(t), `${key}: unknown tool ${t}`); assert.ok(areasOfTool(toolByName(t)).includes(key) || toolByName(t).name === 'get_format_guide' || toolByName(t).area === 'home', `${t} serves ${areasOfTool(toolByName(t)).join(', ')}, listed under ${key}`); }
     }
   }
 });
@@ -40,7 +40,7 @@ test('every tool is well formed: schema, risk, capabilities, a description that 
   for (const t of TOOLS) {
     assert.ok(!names.has(t.name), `duplicate tool ${t.name}`); names.add(t.name);
     assert.match(t.name, /^[a-z][a-z_]+$/);
-    assert.ok(AREA_KEYS.includes(t.area), `${t.name}: unknown area ${t.area}`);
+    for (const a of [t.area, ...(t.alsoAreas || [])]) assert.ok(AREA_KEYS.includes(a), `${t.name}: unknown area ${a}`);
     assert.ok(['read', 'change', 'delete'].includes(t.risk), t.name);
     assert.ok(Array.isArray(t.needs) && t.needs.every((c) => CAP_IDS.includes(c)), `${t.name}: needs must be real capabilities`);
     assert.ok(t.needs.every((c) => !AI_BLOCKED_CAPS.includes(c)), `${t.name}: needs a capability an AI can never hold`);
@@ -101,6 +101,11 @@ test('every example the options advertise passes the tool\'s own schema', () => 
   }
 });
 
+test('the areas describe_options offers are exactly the areas that have a description', () => {
+  assert.deepEqual([...DESCRIBE_AREAS].sort(), [...DESCRIBED_AREAS].sort());
+  assert.deepEqual([...toolByName('describe_options').inputSchema.properties.area.enum].sort(), [...DESCRIBED_AREAS].sort());
+});
+
 test('every described area has something to say and questions to ask', () => {
   for (const key of DESCRIBED_AREAS) {
     const d = describeOptions(key, { caps: CAP_IDS, settings: {} });
@@ -109,7 +114,7 @@ test('every described area has something to say and questions to ask', () => {
     assert.ok(Array.isArray(d.questionsToAsk));
     if (key !== 'home') assert.ok(d.questionsToAsk.length >= 1, key);
   }
-  for (const key of ['menu', 'roster', 'averages']) assert.equal(describeOptions(key, {}), null);
+  for (const key of ['menu', 'roster', 'averages', 'location']) assert.equal(describeOptions(key, {}), null);
   for (const [key, a] of Object.entries(AREAS)) if (a.status === 'available' && key !== 'home') assert.ok(DESCRIBED_AREAS.includes(key), `${key} is available but not described`);
 });
 

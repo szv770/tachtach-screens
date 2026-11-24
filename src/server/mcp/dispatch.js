@@ -14,6 +14,8 @@ import * as read from './handlers/read.js';
 import { postMessage, editPost, setPostState, deletePost } from './handlers/posts.js';
 import { scheduleReplaceWeek, scheduleSetDays, scheduleClearDay } from './handlers/schedule.js';
 import { setSlideEnabled, reorderSlides, setSlideDuration, undoChange } from './handlers/slides.js';
+import { listDaily, addDaily, removeDaily, setDailyToday } from './handlers/daily.js';
+import { updateLook } from './handlers/look.js';
 
 const READS = {
   get_capabilities: read.getCapabilities,
@@ -25,6 +27,7 @@ const READS = {
   get_settings: read.getSettings,
   read_history: read.readHistory,
   get_format_guide: read.getFormatGuide,
+  list_daily_content: listDaily,
 };
 
 export const CHANGES = {
@@ -38,6 +41,10 @@ export const CHANGES = {
   set_slide_enabled: setSlideEnabled,
   reorder_slides: reorderSlides,
   set_slide_duration: setSlideDuration,
+  add_daily_content: addDaily,
+  remove_daily_content: removeDaily,
+  set_daily_today: setDailyToday,
+  update_look_and_settings: updateLook,
   undo_change: undoChange,
 };
 

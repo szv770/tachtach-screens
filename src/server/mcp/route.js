@@ -56,6 +56,7 @@ export function createMcpRouter({ dispatch = createDispatcher() } = {}) {
     const { secret, user, access } = req.mcp;
     const ctx = {
       api: createExecutor({ port: req.socket.localPort, key: secret, clientIp: req.ip }),
+      user,
       caps: effectiveCaps(user),
       mode: user.ai.mode,
       access,

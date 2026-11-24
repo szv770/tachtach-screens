@@ -12,6 +12,9 @@ import { DISPLAYS, LAYOUTS, DEFAULT_TZ } from '../announcements.js';
 import { STYLE_GROUPS, STYLE_INFO, ANIMATIONS, ANIMATION_LABEL } from '../takeoverStyles.js';
 import { postingDefaults, SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from '../postList.js';
 import { aiAccessFrom } from '../aiAccess.js';
+import { LOOK_FIELDS } from './lookSettings.js';
+import { LIMITS as STORY_LIMITS, KINDS as STORY_KINDS } from '../dailyStories.js';
+import { LIMITS as WORD_LIMITS } from '../dailyWords.js';
 
 /** One line per layout, in the words a person would use. Every layout the connector offers MUST have one (test). */
 export const LAYOUT_INFO = Object.freeze({
@@ -52,6 +55,28 @@ const ASK = {
     'Do you want it switched off, or just moved or shorter? Switching a slide off hides it from the TV until someone turns it on.',
   ],
   history: ['Which change do you want to undo? (read_history shows the recent ones.)'],
+  'daily-story': [
+    'Where is each story from? I need the exact source for every story (the book and page, or the named person who told it). A story with no source is saved hidden.',
+    'Do you want these added to the end of the list, or to replace the whole list? (Replace removes what is there now; it can be undone.)',
+    'Should any of them show on a particular date?',
+    'English only, or Hebrew too?',
+  ],
+  'daily-word': [
+    'Which words, and do you have the meanings, or should I suggest them for you to check before anything is saved?',
+    'Which language are they (the list is mostly Yiddish)?',
+    'Add to the end of the list, or replace the whole list? (Replace removes what is there now; it can be undone.)',
+  ],
+  'daily-letter': [
+    'Please paste each letter exactly as it is. I will copy it word for word and will not write, shorten or reword it.',
+    'Where is each letter printed (for example the volume and page)? I only fill that in if you tell me.',
+    'Add to the end of the list, or replace the whole list? (Replace removes what is there now; it can be undone.)',
+  ],
+  themes: ['Which theme (look at the list), or should it change by itself between day and night?'],
+  style: ['Do you want the Hebrew bigger or smaller, or a different style for messages and takeovers?'],
+  layout: ['Is the TV mounted sideways (portrait) or normal (landscape)? Which side should the clock and side rail be on?'],
+  motion: ['How lively should the screen be, and should long text scroll or turn into pages?'],
+  shows: ['Should new posts go live at once or wait as drafts? How long should a new post stay up, and how many seconds should a message slide stay?'],
+  'this-screen': ['What should this screen be called?'],
   home: [],
 };
 
@@ -149,7 +174,77 @@ function homeOptions() {
   };
 }
 
-const BUILDERS = { announcements: announcementsOptions, schedule: scheduleOptions, slides: slidesOptions, history: historyOptions, home: homeOptions };
+const KIND_OF_AREA = { 'daily-story': 'story', 'daily-word': 'word', 'daily-letter': 'letter' };
+const ENTRY_FIELDS = {
+  story: {
+    kind: 'story or thought',
+    title: `short English title (up to ${STORY_LIMITS.title} characters)`,
+    titleHe: 'title in Hebrew (optional)',
+    text: `the text, in warm simple English (up to ${STORY_LIMITS.text} characters)`,
+    textHe: 'Hebrew version (optional)',
+    source: `REQUIRED for a story: the exact, checkable source (up to ${STORY_LIMITS.source} characters). Without it the story is saved hidden.`,
+    tags: `up to ${STORY_LIMITS.tags} short tags (optional)`,
+    showOn: 'a date like 2026-12-01 to show it on exactly that day (optional)',
+  },
+  word: {
+    word: `the word (up to ${WORD_LIMITS.word} characters)`,
+    transliteration: 'how it is written in English letters',
+    meaning: `the meaning (up to ${WORD_LIMITS.meaning} characters), REQUIRED`,
+    pronunciation: 'optional', partOfSpeech: 'optional', context: 'a short note on where it comes from (optional)',
+    convo: 'up to 4 short example lines (optional)', language: 'default Yiddish', showOn: 'a date to show it on exactly that day (optional)',
+  },
+  letter: {
+    title: 'a short name for your list',
+    letter: { dateHe: 'optional', date: 'the English date and place as written', to: 'who it was sent to (optional)', salutation: 'the greeting', body: `the FULL text, paragraphs separated by a blank line (under ${STORY_LIMITS.letterBody} characters), REQUIRED`, signature: 'the closing', source: 'only if the person told you where it is printed' },
+  },
+};
+
+function dailyOptions(area, ctx) {
+  const kind = KIND_OF_AREA[area];
+  const noun = { story: 'Daily Story', word: 'Daily Word', letter: 'Daily Letter' }[kind];
+  const rules = {
+    story: ['Never write a story from memory. Only add stories the person gave you, or that you can cite with an exact, checkable source. If you are not certain, ask.', 'A story with no source is saved hidden (the school\'s rule). Thoughts need no source.'],
+    word: ['Only add words and meanings you are sure of, and have the person check suggested meanings before you save them.'],
+    letter: ['Copy each letter exactly as pasted. Do not write, invent, shorten or reword a letter. If only a link or a topic was given, say you need the text.'],
+  }[kind];
+  return {
+    area,
+    summary: `The ${noun} page shows one entry a day from a list. You can add entries in bulk, remove some, and change what shows today.`,
+    choices: {
+      operations: { list: 'list_daily_content', add: 'add_daily_content (append, or replace the whole list)', remove: 'remove_daily_content', today: 'set_daily_today (pick, random, hide, automatic)' },
+      entryFields: ENTRY_FIELDS[kind],
+      ...(kind === 'story' ? { kinds: STORY_KINDS.filter((k) => k !== 'letter') } : {}),
+    },
+    limits: { entriesPerCall: 50, ...(kind === 'story' ? { stories: STORY_LIMITS.stories } : kind === 'letter' ? { letters: STORY_LIMITS.letters } : { words: WORD_LIMITS.words }) },
+    questionsToAsk: ASK[area],
+    rules: [...rules, 'Preview first: it shows how many would be added, how many are skipped as duplicates, and anything that cannot be used.', 'An import and a removal can usually be undone with undo_change.'],
+    formatGuide: `get_format_guide("${kind}")`,
+  };
+}
+
+function lookOptions(area, ctx) {
+  const settings = ctx.settings || {};
+  const fields = Object.entries(LOOK_FIELDS).filter(([, f]) => f.area === area);
+  return {
+    area,
+    summary: 'These are the settings an AI connection may change here. Each has its allowed values and its current value.',
+    settings: fields.map(([key, f]) => ({
+      key, label: f.label, what: f.what,
+      ...(f.options ? { allowed: f.options } : {}),
+      ...(f.range ? { range: f.range } : {}),
+      ...(f.schema.type === 'object' ? { shape: f.schema.properties && Object.keys(f.schema.properties) } : {}),
+      current: f.read(settings),
+      default: f.default,
+      ...(f.warn ? { careful: f.warn } : {}),
+    })),
+    questionsToAsk: ASK[area],
+    rules: ['Change only what the person asked for. Preview first and read the before and after back to them.', 'Changes show on the TV straight away and can be undone with undo_change.', 'Anything not listed here (location, logins, web links, uploaded fonts) is not available through the connector.'],
+  };
+}
+
+const BUILDERS = { announcements: announcementsOptions, schedule: scheduleOptions, slides: slidesOptions, history: historyOptions, home: homeOptions,
+  'daily-story': (c) => dailyOptions('daily-story', c), 'daily-word': (c) => dailyOptions('daily-word', c), 'daily-letter': (c) => dailyOptions('daily-letter', c),
+  themes: (c) => lookOptions('themes', c), style: (c) => lookOptions('style', c), layout: (c) => lookOptions('layout', c), motion: (c) => lookOptions('motion', c), shows: (c) => lookOptions('shows', c), 'this-screen': (c) => lookOptions('this-screen', c) };
 export const DESCRIBED_AREAS = Object.freeze(Object.keys(BUILDERS));
 
 /** @returns {object|null} null for an area with nothing to describe yet */
