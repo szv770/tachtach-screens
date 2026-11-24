@@ -67,7 +67,7 @@ export function buildCsp(kind, nonce) {
 }
 
 export function cspKind(pathname) {
-  if (/^\/(login|invite|signin|logout)(\/|$)/.test(pathname)) return 'auth';
+  if (/^\/(login|invite|signin|logout)(\/|$)/.test(pathname) || pathname === '/oauth/authorize') return 'auth';
   // /error and /src/screen/index.html are the same kiosk SPA served by express.static (dev paths / error route)
   if (/^\/(screen|error)(\/|$)/.test(pathname) || /^\/live\/[^/]+/.test(pathname) || /^\/src\/screen(\/|$)/.test(pathname)) return 'screen';
   if (/^\/admin(\/|$)/.test(pathname) || /^\/src\/admin(\/|$)/.test(pathname)) return 'admin';

@@ -32,7 +32,7 @@ export async function startApp({ env = {} } = {}) {
     return new Promise((resolve, reject) => {
       const data = body === undefined ? '' : (typeof body === 'string' ? body : JSON.stringify(body));
       const h = { host: `127.0.0.1:${port}`, ...headers };
-      if (data) { h['content-type'] = 'application/json'; h['content-length'] = Buffer.byteLength(data); }
+      if (data) { h['content-type'] = h['content-type'] || 'application/json'; h['content-length'] = Buffer.byteLength(data); }
       if (!local) h['x-forwarded-for'] = `10.1.${(n >> 8) & 255}.${n++ & 255}`; // not the kiosk: a proxy header is present
       if (token) {
         const nonce = crypto.randomBytes(8).toString('hex');

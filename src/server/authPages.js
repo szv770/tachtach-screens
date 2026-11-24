@@ -194,11 +194,11 @@ export const AUTH_CSS = `
     .plain-link { color: #D4A84B; }
 `;
 
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /** JSON that is safe inside a <script> block. */
-const inlineJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+export const inlineJson = (v) => JSON.stringify(v).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
-const HEAD = (title) => `<!DOCTYPE html>
+export const HEAD = (title) => `<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -243,7 +243,10 @@ const TOTP_FORMS = `
 const CLIENT_COMMON = `
     var NEXT_URL = (function () {
       var n = new URLSearchParams(window.location.search).get('next') || '';
-      return /^[/]admin([/][a-z0-9-]+)?$/.test(n) ? n : '/admin';
+      if (/^[/]admin([/][a-z0-9-]+)?$/.test(n)) return n;
+      // the AI connector's consent page (same address, only that path, a plain query)
+      if (n.indexOf('/oauth/authorize?') === 0 && n.length < 2100 && !/[^A-Za-z0-9%._~=&+:/?-]/.test(n)) return n;
+      return '/admin';
     })();
     var $ = function (id) { return document.getElementById(id); };
     function getCookie(name) {

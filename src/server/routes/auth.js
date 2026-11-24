@@ -34,10 +34,13 @@ const setPreAuthCookie = (req, res, t, ms = 5 * 60 * 1000) => cookie(req, res, P
 const setTrustedCookie = (req, res, t) => cookie(req, res, TRUSTED_DEVICE_COOKIE, t, MONTH_MS);
 const clearPreAuthCookie = (res) => res.clearCookie(PREAUTH_COOKIE, { path: '/' });
 
-/** Where to go after login: only an /admin or /admin/<section> path, never an arbitrary URL. */
+/** Where to go after login: an /admin or /admin/<section> path, or the AI consent page; never an arbitrary URL. */
 export function safeNext(next) {
   const n = String(next || '');
-  return /^\/admin(\/[a-z0-9-]+)?$/.test(n) ? n : '/admin';
+  if (/^\/admin(\/[a-z0-9-]+)?$/.test(n)) return n;
+  // the AI connector's consent page: this address only, that one path, a plain query (no scheme, no other host)
+  if (n.startsWith('/oauth/authorize?') && n.length < 2100 && !/[^A-Za-z0-9%._~=&+:/?-]/.test(n)) return n;
+  return '/admin';
 }
 
 const noStore = (res) => {

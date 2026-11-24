@@ -15,6 +15,7 @@ import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
 import { readJSON, writeJSON } from './storage.js';
 import { ROLES, DEFAULT_PRESET, isAssignablePreset, sanitizeOverrides, effectiveCaps, AI_MODES } from '../shared/permissions.js';
+import { ACCESS_TTL_MS, REFRESH_TTL_MS, REFRESH_MAX_MS } from '../shared/oauth.js';
 
 const USERS_FILE = 'users.json';
 const LEGACY_FILE = 'auth.json';
@@ -30,6 +31,7 @@ export const SIGNIN_LINK_MS = 60 * 60 * 1000;
 const ROLL_INTERVAL_MS = 60 * 60 * 1000;
 // AI connection keys (Account > Connect an AI): a private key an AI app sends as `Authorization: Bearer ttk_...`.
 export const API_TOKEN_PREFIX = 'ttk_';
+export const REFRESH_TOKEN_PREFIX = 'ttr_'; // the long-lived half of a "Sign in with" connection (src/server/oauth)
 export const API_TOKEN_DEFAULT_DAYS = 180;
 export const API_TOKEN_MAX_DAYS = 365;
 export const API_TOKEN_MAX_PER_PERSON = 10;
@@ -456,6 +458,7 @@ export function createUserStore({
   const publicKey = (k) => ({
     id: k.id, label: k.label, client: k.client, mode: k.mode,
     createdAt: k.createdAt, expiresAt: k.expiresAt, lastUsedAt: k.lastUsedAt || null,
+    viaSignIn: !!k.oauth,
   });
 
   /** Make a key. The secret is returned HERE ONCE and never stored. */
@@ -493,6 +496,7 @@ export function createUserStore({
       const k = u.apiTokens.find((x) => x.hash === hash);
       if (!k) continue;
       if (Date.parse(k.expiresAt) <= t) return null;
+      if (k.oauth && Date.parse(k.oauth.accessExpiresAt) <= t) return null; // a signed-in connection's access key is short: the app refreshes it
       if (!k.lastUsedAt || t - Date.parse(k.lastUsedAt) > API_TOKEN_TOUCH_MS) {
         await tx(async (dd) => {
           const kk = byId(dd, u.id)?.apiTokens.find((x) => x.hash === hash);
@@ -502,6 +506,67 @@ export function createUserStore({
       return { user: { ...u }, key: publicKey(k) };
     }
     return null;
+  }
+
+  // ── "Sign in with" connections (OAuth): one connection per person and app, its keys rotate ─────────────
+  /** After the person approved an app on the consent page. Replaces that person's older connection for the same app. */
+  async function createOAuthConnection(userId, { clientId, clientName = '', mode }) {
+    if (!AI_MODES.includes(mode)) throw new StoreError('bad_mode', 'Pick “look only” or “can change things”.');
+    const access = API_TOKEN_PREFIX + newToken();
+    const refresh = REFRESH_TOKEN_PREFIX + newToken();
+    const t = now();
+    const name = String(clientName || '').trim().slice(0, 40) || 'AI app';
+    const key = {
+      id: newId(), hash: sha256(access), label: `${name} (signed in)`.slice(0, 60), client: name, mode,
+      createdAt: iso(t), expiresAt: iso(t + REFRESH_TTL_MS), lastUsedAt: null,
+      oauth: { clientId: String(clientId), accessExpiresAt: iso(t + ACCESS_TTL_MS), refreshHash: sha256(refresh), startedAt: iso(t) },
+    };
+    await tx(async (d) => {
+      const u = byId(d, userId);
+      if (!u) throw new StoreError('not_found', 'No such person.');
+      u.apiTokens = u.apiTokens.filter((k) => !(k.oauth && k.oauth.clientId === key.oauth.clientId));
+      if (u.apiTokens.length >= API_TOKEN_MAX_PER_PERSON) throw new StoreError('too_many', `At most ${API_TOKEN_MAX_PER_PERSON} AI connections per person. Remove one first.`);
+      u.apiTokens.push(key);
+    });
+    return { accessToken: access, refreshToken: refresh, expiresIn: Math.round(ACCESS_TTL_MS / 1000), key: publicKey(key) };
+  }
+
+  /** Swap a refresh token for a new access + refresh token (the old refresh token stops working in the same step). null = refused. */
+  async function refreshOAuthConnection(refreshToken, clientId) {
+    if (typeof refreshToken !== 'string' || !refreshToken.startsWith(REFRESH_TOKEN_PREFIX) || refreshToken.length !== REFRESH_TOKEN_PREFIX.length + 64) return null;
+    const hash = sha256(refreshToken);
+    const access = API_TOKEN_PREFIX + newToken();
+    const refresh = REFRESH_TOKEN_PREFIX + newToken();
+    const t = now();
+    return tx(async (d) => {
+      for (const u of d.users) {
+        const k = u.apiTokens.find((x) => x.oauth && x.oauth.refreshHash === hash);
+        if (!k) continue;
+        if (k.oauth.clientId !== String(clientId)) return null;
+        if (Date.parse(k.expiresAt) <= t || t - Date.parse(k.oauth.startedAt) >= REFRESH_MAX_MS) return null;
+        k.hash = sha256(access);
+        k.oauth.refreshHash = sha256(refresh);
+        k.oauth.accessExpiresAt = iso(t + ACCESS_TTL_MS);
+        k.expiresAt = iso(Math.min(t + REFRESH_TTL_MS, Date.parse(k.oauth.startedAt) + REFRESH_MAX_MS));
+        return { accessToken: access, refreshToken: refresh, expiresIn: Math.round(ACCESS_TTL_MS / 1000), key: publicKey(k) };
+      }
+      return null;
+    });
+  }
+
+  /** Remove the connection an access or refresh token belongs to (the app signing out). Always quiet. */
+  async function revokeOAuthToken(token) {
+    if (typeof token !== 'string' || token.length > 200) return false;
+    const hash = sha256(token);
+    let found = false;
+    await tx(async (d) => {
+      for (const u of d.users) {
+        const before = u.apiTokens.length;
+        u.apiTokens = u.apiTokens.filter((k) => !(k.oauth && (k.hash === hash || k.oauth.refreshHash === hash)));
+        if (u.apiTokens.length < before) found = true;
+      }
+    });
+    return found;
   }
 
   async function listApiTokens(userId) {
@@ -794,7 +859,7 @@ export function createUserStore({
     listUsers, userCount, getUser, getPublicUser, createUser, updateUser, removeUser, markLogin,
     hashPassword, setPassword, setPasswordHash, verifyLogin,
     createSession, getSession, destroySession, destroyUserSessions,
-    createApiToken, getByApiToken, listApiTokens, listAllApiTokens, updateApiToken, revokeApiToken, revokeAllApiTokens,
+    createApiToken, getByApiToken, createOAuthConnection, refreshOAuthConnection, revokeOAuthToken, listApiTokens, listAllApiTokens, updateApiToken, revokeApiToken, revokeAllApiTokens,
     createPreAuth, getPreAuth, clearPreAuth,
     beginTotpEnrollment, confirmTotp, verifyTotp, disableTotp,
     trustDevice, isTrustedDevice, isTrustedDeviceForName, forgetTrustedDevices,
