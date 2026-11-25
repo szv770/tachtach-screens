@@ -274,6 +274,7 @@ const ALBUM_CAPS = ['feeds.edit', 'media.upload', 'media.delete', 'slides.edit']
 const readRule = (route, who, budget = null) => Object.freeze({ route, who, budget });
 
 export const READ_ROUTES = Object.freeze([
+  readRule('/api/ai/status', ['ai.connect'], 'medium'),        // the Get started self-check: asks this server three questions over loopback
   readRule('/api/ai/connections', ['ai.connect']),             // a person's own AI keys (no secrets: the key is shown once, when made)
   readRule('/api/ai/admin/connections', ['ai.manage']),        // everyone's AI keys (who, label, mode, last used; no secrets)
   // Shell + kiosk state (served by the TV too; the admin shell, Home and Live preview need them for every role)

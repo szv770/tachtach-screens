@@ -46,3 +46,17 @@ export const PROMPTS = Object.freeze([
     text: 'I want to tidy the slide rotation. Call list_slides and describe_options("slides"), ask me what I want changed, and preview each change before making it.',
   },
 ]);
+
+/** Things a person can say once connected (shown on the Connect an AI page, the quickstart and the doctor). */
+export const EXAMPLE_PROMPTS = Object.freeze([
+  "What's on the screen right now?",
+  'Cancel the 10:30 Seder today.',
+  'Move Mincha to 1:45 today.',
+  'Post a banner: Mincha is at 1:45. Keep it up until 3 PM.',
+  'Make a mazel tov takeover for 2 hours.',
+  "Blank the screen for 20 minutes with the message 'Assembly'.",
+  "Show me this week's schedule.",
+  'From now on Shacharis starts at 7:40 on weekdays.',
+  'Switch the screen to the Midnight theme.',
+  'Add these stories to the Daily Story list (I will paste them with their sources).',
+]);

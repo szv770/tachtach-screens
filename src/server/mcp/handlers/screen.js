@@ -3,7 +3,7 @@
  * length of time). Both go through the screen's own routes, which need `screen.control` and keep the emergency rule: an
  * emergency takeover still shows through a freeze. Neither is part of Undo; resume_screen / resume are the way back.
  */
-import { apiOk, ToolError, result } from './common.js';
+import { apiOk, ToolError, result, tzOf } from './common.js';
 import { SCREEN_COMMAND_DONE } from '../../../shared/screenCommands.js';
 import { untilFor, MODE_LABEL } from '../../../shared/freeze.js';
 
@@ -44,14 +44,15 @@ async function planFreeze(ctx, a) {
   if (a.mode === 'message' && !String(a.message || '').trim()) { out.errors.push('For mode "message" give the text to show.'); return out; }
   if (a.for === 'minutes' && !a.minutes) { out.errors.push('"for: minutes" needs the number of minutes.'); return out; }
   if (a.for === 'at' && !a.at) { out.errors.push('"for: at" needs a clock time like 07:15.'); return out; }
-  const snap = await apiOk(ctx, 'GET', '/api/freeze');
+  const [snap, settings] = await Promise.all([apiOk(ctx, 'GET', '/api/freeze'), apiOk(ctx, 'GET', '/api/settings')]);
+  const tz = snap.tz || tzOf(settings); // the SCHOOL's clock, never the server's
   const req = freezeRequest(a);
-  const until = untilFor(req, ctx.now().getTime(), snap.tz || undefined, { netzMinutes: snap.netzMinutes });
+  const until = untilFor(req, ctx.now().getTime(), tz, { netzMinutes: snap.netzMinutes });
   if (until === undefined) { out.errors.push('That time or length is not valid. Use a time like 07:15, or 1 to 10080 minutes.'); return out; }
   out.ok = true;
   out.request = req;
   const what = { blank: 'Turn the TV BLACK', logo: 'Show only the LOGO on the TV', freeze: 'FREEZE the TV on what it is showing', message: `Show the notice “${String(a.message).trim().slice(0, 120)}” on the TV` }[a.mode];
-  out.sentence = `${what} ${until ? `until ${clockText(until, snap.tz)}` : 'until someone resumes it'}.`;
+  out.sentence = `${what} ${until ? `until ${clockText(until, tz)}` : 'until someone resumes it'}.`;
   out.warnings.push('Emergency takeovers still show through a freeze. Everyone in the room sees this straight away. Use resume_screen to end it.');
   if (snap.manual) out.warnings.push(`It replaces the ${MODE_LABEL[snap.manual.mode] || 'current'} that is already on.`);
   return out;

@@ -3,21 +3,25 @@ import { colors, adminFonts, buttonPrimary, buttonSecondary, buttonDanger } from
 import { apiFetch, notify } from '../../hooks/useAdminState.js';
 import { Page, Field, Hint, SwitchRow, Choices, useInstant, fieldStyle } from '../look/kit.jsx';
 import { NumberField, ConfirmDialog } from '../ui.jsx';
+import Collapsible from '../ui/Collapsible.jsx';
+import { useCopy } from '../schedule/scheduleShared.jsx';
 import { AI_ACCESS_DEFAULTS, AI_LIMIT_BOUNDS, aiAccessFrom } from '../../../shared/aiAccess.js';
+import { EXAMPLE_PROMPTS } from '../../../shared/mcpTools/instructions.js';
 import { relativeTime } from '../TeamPanel.jsx';
 
 /**
- * Look & Settings > Connect an AI. Server: src/server/routes/ai.js (keys), PATCH /api/settings `aiAccess` (switch + limits).
- *  - Everyone with ai.connect: make / remove their OWN keys. The key is shown once; only its hash is kept.
- *  - Admins (ai.manage): the school-wide switch, the limits, Test Averages access, everyone's keys, and the panic button.
- * An AI can never do more than the person who made the key, and never reaches names, people, security or updates.
+ * Look & Settings > Connect an AI. Server: src/server/routes/ai.js (keys, status), PATCH /api/settings `aiAccess` (switch + limits).
+ *  - "Get started": four steps for claude.ai (switch on, check the address, add the connector, try asking). claude.ai signs in with the
+ *    normal TachTach login (src/server/oauth), so there is NO key to copy for it.
+ *  - Everyone with ai.connect: their connections, and (collapsed) a key for apps that need one (Claude Code, scripts).
+ *  - Admins (ai.manage): the school-wide limits, Test Averages, everyone's connections, and the panic button.
+ * An AI can never do more than the person who connected it, and never reaches names, people, security or updates.
  */
 
 const CLIENTS = [
-  { value: 'claude.ai', label: 'Claude (website or phone app)' },
-  { value: 'Claude Desktop', label: 'Claude Desktop' },
   { value: 'Claude Code', label: 'Claude Code' },
-  { value: 'Other', label: 'Another AI app' },
+  { value: 'Claude Desktop', label: 'Claude Desktop' },
+  { value: 'Other', label: 'Another app or script' },
 ];
 const MODES = [
   { value: 'read', label: 'Look only' },
@@ -28,6 +32,92 @@ const modeText = (m) => (m === 'change' ? 'Can change things' : 'Look only');
 const card = { background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 'var(--r-md)', padding: '14px 16px' };
 const h3 = { fontFamily: adminFonts.englishBody, fontSize: '16px', fontWeight: 700, color: colors.text, margin: '0 0 6px' };
 
+const ICON = { ok: '✓', warn: '!', fail: '✕', info: 'i' };
+const TONE = { ok: () => colors.success, warn: () => colors.warn || colors.gold, fail: () => colors.danger, info: () => colors.dim };
+
+function Step({ n, title, done, children }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr', gap: '12px', padding: '14px 0', borderTop: n > 1 ? `1px solid ${colors.line}` : 'none' }} data-testid={`ai-step-${n}`}>
+      <div aria-hidden style={{ width: 28, height: 28, borderRadius: '50%', display: 'grid', placeItems: 'center', fontWeight: 700, fontSize: '14px', background: done ? colors.successBg : colors.surface, color: done ? colors.success : colors.dim, border: `1px solid ${done ? colors.success : colors.border}` }}>{done ? '✓' : n}</div>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: adminFonts.englishBody, fontSize: '16px', fontWeight: 700, color: colors.text, marginBottom: '6px' }}>{title}</div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Mono({ children, testId }) {
+  return <code data-testid={testId} style={{ display: 'block', padding: '10px 12px', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 'var(--r-sm)', wordBreak: 'break-all', fontSize: '14px', color: colors.text }}>{children}</code>;
+}
+
+function GetStarted({ access, isAdmin, onToggle, status, onRecheck, copy, hasConnections }) {
+  const checks = status?.checks || [];
+  const bad = checks.filter((c) => c.status === 'fail');
+  const ready = access.enabled && !!status && bad.length === 0;
+  return (
+    <div style={card} data-testid="ai-get-started">
+      <h3 style={h3}>Get started with Claude</h3>
+      <p style={{ margin: '0 0 4px', fontSize: '14px', color: colors.dim, lineHeight: 1.5 }}>Four steps, about two minutes. You never type a password into Claude: it opens your normal TachTach sign-in.</p>
+
+      <Step n={1} title="Turn AI connections on" done={access.enabled}>
+        {isAdmin
+          ? <SwitchRow on={access.enabled} onChange={onToggle} label="Allow AI connections" note="Off by default. While it is off, nothing below works and nobody can connect." testId="ai-enabled" />
+          : <Hint style={{ margin: 0 }}>{access.enabled ? 'Already on.' : 'An admin has to turn this on first.'}</Hint>}
+      </Step>
+
+      <Step n={2} title="Check your screen's address" done={ready}>
+        {!access.enabled && <Hint style={{ margin: 0 }}>Do step 1 first.</Hint>}
+        {access.enabled && !status && <Hint style={{ margin: 0 }}>Checking…</Hint>}
+        {access.enabled && status && (
+          <>
+            <div style={{ fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Paste this into Claude (step 3):</div>
+            <Mono testId="ai-address">{status.mcpUrl}</Mono>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '10px 0' }}>
+              <button type="button" style={buttonPrimary} onClick={() => copy(status.mcpUrl, 'Address copied')} data-testid="ai-copy-address">Copy the address</button>
+              <button type="button" style={buttonSecondary} onClick={onRecheck} data-testid="ai-recheck">Check again</button>
+            </div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: '8px' }} data-testid="ai-checks">
+              {checks.map((c) => (
+                <li key={c.id} data-status={c.status} style={{ display: 'grid', gridTemplateColumns: '22px 1fr', gap: '8px', fontSize: '14px', lineHeight: 1.45 }}>
+                  <span aria-hidden style={{ width: 20, height: 20, borderRadius: '50%', display: 'grid', placeItems: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', background: TONE[c.status]() }}>{ICON[c.status]}</span>
+                  <span><strong style={{ color: colors.text }}>{c.title}</strong>{c.detail ? <span style={{ display: 'block', color: colors.dim }}>{c.detail}</span> : null}</span>
+                </li>
+              ))}
+            </ul>
+            {ready && <p style={{ margin: '10px 0 0', fontSize: '14px', color: colors.success, fontWeight: 600 }} data-testid="ai-ready">Your screen is ready for Claude.</p>}
+          </>
+        )}
+      </Step>
+
+      <Step n={3} title="Add it in Claude" done={hasConnections}>
+        <ol style={{ margin: 0, paddingLeft: '20px', fontSize: '14px', lineHeight: 1.6, color: colors.text }}>
+          <li>In Claude (claude.ai, the phone app or Claude Desktop) open <strong>Customize &gt; Connectors</strong>, then <strong>+ Add custom connector</strong>. On a Team plan an Owner adds it under Organization settings &gt; Connectors.</li>
+          <li>Name: <strong>TachTach</strong>. Address: paste the address from step 2. Leave the advanced / OAuth boxes empty.</li>
+          <li>Press <strong>Add</strong>, then <strong>Connect</strong>. Your TachTach sign-in opens. Sign in, then tap <strong>Allow: look and change things</strong> (or <strong>look only</strong>).</li>
+          <li>Back in Claude, make sure the TachTach tools are on in the tools menu. <strong>Do not tap “Allow always”</strong> on tools that change things: that tap is your safety check.</li>
+        </ol>
+        {status && (
+          <div style={{ marginTop: '10px' }}>
+            <div style={{ fontSize: '13px', color: colors.dim, marginBottom: '6px' }}>Using Claude Code instead? One command:</div>
+            <Mono testId="ai-claude-code">{status.claudeCode}</Mono>
+            <div style={{ marginTop: '8px' }}><button type="button" style={buttonSecondary} onClick={() => copy(status.claudeCode, 'Command copied')}>Copy the command</button></div>
+          </div>
+        )}
+      </Step>
+
+      <Step n={4} title="Try asking" done={false}>
+        <div style={{ display: 'grid', gap: '6px' }} data-testid="ai-examples">
+          {EXAMPLE_PROMPTS.map((t) => (
+            <button key={t} type="button" onClick={() => copy(t, 'Copied')} style={{ textAlign: 'left', minHeight: '44px', padding: '8px 12px', borderRadius: 'var(--r-sm)', border: `1px solid ${colors.border}`, background: colors.card, color: colors.text, fontFamily: adminFonts.englishBody, fontSize: '14px', cursor: 'pointer' }}>“{t}”</button>
+          ))}
+        </div>
+        <Hint>Claude asks you what it needs (how long, which block, Hebrew too?), shows exactly what it will do, and only then makes the change. Every change is marked “by AI” in Recent changes, with an Undo.</Hint>
+      </Step>
+    </div>
+  );
+}
+
 function ConnectionRow({ c, owner, onMode, onRemove }) {
   return (
     <div style={{ ...card, display: 'grid', gap: '6px' }} data-testid={`ai-conn-${c.id}`}>
@@ -36,7 +126,7 @@ function ConnectionRow({ c, owner, onMode, onRemove }) {
         <span style={{ fontSize: '13px', color: colors.dim }}>{c.client || 'AI app'} · {modeText(c.mode)}</span>
       </div>
       <div style={{ fontSize: '13px', color: colors.dim }}>
-        {c.lastUsedAt ? `Last used ${relativeTime(c.lastUsedAt)}` : 'Never used yet'} · works until {new Date(c.expiresAt).toLocaleDateString()}
+        {c.lastUsedAt ? `Last used ${relativeTime(c.lastUsedAt)}` : 'Never used yet'}{c.viaSignIn ? ' · signed in with your login' : ` · works until ${new Date(c.expiresAt).toLocaleDateString()}`}
       </div>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         {onMode && <button type="button" style={buttonSecondary} onClick={() => onMode(c.mode === 'change' ? 'read' : 'change')}>{c.mode === 'change' ? 'Make look-only' : 'Allow changes'}</button>}
@@ -49,10 +139,12 @@ function ConnectionRow({ c, owner, onMode, onRemove }) {
 export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
   const access = aiAccessFrom(settings);
   const save = useInstant(settings, onSave);
+  const { copy, modal } = useCopy(notify);
   const [mine, setMine] = useState(null);
   const [all, setAll] = useState(null);
+  const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({ label: '', client: 'claude.ai', mode: 'read', code: '' });
+  const [form, setForm] = useState({ label: '', client: 'Claude Code', mode: 'read', code: '' });
   const [fresh, setFresh] = useState(null); // { key, label } shown once
   const [confirm, setConfirm] = useState(null);
 
@@ -63,7 +155,11 @@ export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
       setError('');
     } catch (e) { setError(e.message); }
   }, [isAdmin]);
-  useEffect(() => { load(); }, [load, access.enabled]);
+  const loadStatus = useCallback(async () => {
+    setStatus(null);
+    try { setStatus(await apiFetch('/api/ai/status')); } catch (e) { setError(e.message); }
+  }, []);
+  useEffect(() => { load(); loadStatus(); }, [load, loadStatus, access.enabled]);
 
   const create = async () => {
     try {
@@ -76,78 +172,74 @@ export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
   const act = async (fn, okMsg) => {
     try { await fn(); if (okMsg) notify(okMsg, 'success'); load(); } catch (e) { notify(e.message, 'error'); }
   };
-  const copyKey = async () => {
-    try { await navigator.clipboard.writeText(fresh.key); notify('Key copied.', 'success'); } catch { notify('Select the key and copy it by hand.', 'error'); }
-  };
 
   return (
-    <Page intro="Let an AI assistant (Claude, for example) look at and change this screen for you. It can only do what you can do, minus the Bochurim and Chazan names, people and security, and software updates. Your AI app asks you to tap Allow on every change.">
+    <Page intro="Let Claude (or another AI) look at and change this screen for you. It can only do what you can do, minus the Bochurim and Chazan names, people and security, and software updates, and you tap Allow on every change.">
       {error && <div role="alert" style={{ color: colors.danger, fontSize: '14px' }}>{error}</div>}
 
-      {isAdmin && (
-        <div style={card} data-testid="ai-school-switch">
-          <h3 style={h3}>For the whole school</h3>
-          <SwitchRow
-            on={access.enabled}
-            onChange={() => save({ aiAccess: { enabled: !access.enabled } }, access.enabled ? 'AI connections off' : 'AI connections on')}
-            label="Allow AI connections"
-            note="Off by default. While it is off, no AI key works and nobody can make one."
-            testId="ai-enabled"
-          />
-          <SwitchRow
-            on={access.allowAverages}
-            onChange={() => save({ aiAccess: { allowAverages: !access.allowAverages } }, access.allowAverages ? 'Test Averages hidden from AI' : 'AI may see the Test Averages')}
-            label="Let an AI see the Test Averages"
-            note="Student names next to their marks would be sent to the AI company's servers. Leave this off unless you are sure."
-            testId="ai-averages"
-          />
-          <Field label="Changes one connection may make per minute" hint={`${AI_LIMIT_BOUNDS.changesPerMinute.min}-${AI_LIMIT_BOUNDS.changesPerMinute.max}. Looking things up is never counted. A bulk action counts once.`}>
-            <NumberField value={access.changesPerMinute} min={AI_LIMIT_BOUNDS.changesPerMinute.min} max={AI_LIMIT_BOUNDS.changesPerMinute.max} onCommit={(n) => save({ aiAccess: { changesPerMinute: n } }, `${n} changes a minute`)} ariaLabel="Changes per minute" style={{ ...fieldStyle, maxWidth: '96px' }} />
-          </Field>
-          <Field label="Changes one connection may make per day" hint={`${AI_LIMIT_BOUNDS.changesPerDay.min}-${AI_LIMIT_BOUNDS.changesPerDay.max}. Default ${AI_ACCESS_DEFAULTS.changesPerDay}.`}>
-            <NumberField value={access.changesPerDay} min={AI_LIMIT_BOUNDS.changesPerDay.min} max={AI_LIMIT_BOUNDS.changesPerDay.max} onCommit={(n) => save({ aiAccess: { changesPerDay: n } }, `${n} changes a day`)} ariaLabel="Changes per day" style={{ ...fieldStyle, maxWidth: '96px' }} />
-          </Field>
-        </div>
-      )}
-
-      {!access.enabled && !isAdmin && <Hint>AI connections are switched off. Ask an admin to turn them on.</Hint>}
-
-      {access.enabled && (
-        <div style={card} data-testid="ai-new">
-          <h3 style={h3}>Make a connection</h3>
-          {fresh ? (
-            <div role="status" style={{ display: 'grid', gap: '8px' }}>
-              <div style={{ fontSize: '14px', color: colors.text }}>“{fresh.label}” is ready. Copy this key now: it is shown only once.</div>
-              <code data-testid="ai-key" style={{ display: 'block', padding: '10px', background: colors.surface, border: `1px solid ${colors.border}`, borderRadius: 'var(--r-sm)', wordBreak: 'break-all', fontSize: '13px' }}>{fresh.key}</code>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button type="button" style={buttonPrimary} onClick={copyKey}>Copy key</button>
-                <button type="button" style={buttonSecondary} onClick={() => setFresh(null)}>Done, I saved it</button>
-              </div>
-              <Hint>Paste it into your AI app where it asks for the key (an “Authorization: Bearer” header). Never share it or put it in a chat: anyone with it can act as you, within what you chose below.</Hint>
-            </div>
-          ) : (
-            <>
-              <Field label="Which AI app?"><Choices ariaLabel="AI app" options={CLIENTS} value={form.client} onChange={(v) => setForm({ ...form, client: v })} /></Field>
-              <Field label="What may it do?" hint={form.mode === 'change' ? 'It can post, edit and delete what you can. Your AI app still asks you to tap Allow, and every change is marked “by AI” with an Undo.' : 'It can look at the screen, the schedule and the posts, but change nothing.'}>
-                <Choices ariaLabel="What it may do" options={MODES} value={form.mode} onChange={(v) => setForm({ ...form, mode: v })} />
-              </Field>
-              <Field label="Name (so you can tell them apart)"><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} maxLength={60} placeholder="My phone" style={{ ...fieldStyle, width: '100%' }} data-testid="ai-label" /></Field>
-              <Field label="2-step code (if you use 2-step)"><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} inputMode="numeric" autoComplete="one-time-code" maxLength={8} style={{ ...fieldStyle, maxWidth: '160px' }} data-testid="ai-code" /></Field>
-              <div style={{ marginTop: '14px' }}><button type="button" style={buttonPrimary} onClick={create} data-testid="ai-create">Make the key</button></div>
-            </>
-          )}
-        </div>
-      )}
+      <GetStarted
+        access={access} isAdmin={isAdmin} status={status} copy={copy} hasConnections={!!mine?.length}
+        onToggle={() => save({ aiAccess: { enabled: !access.enabled } }, access.enabled ? 'AI connections off' : 'AI connections on')}
+        onRecheck={loadStatus}
+      />
 
       <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-mine">
         <h3 style={h3}>Your connections</h3>
-        {mine && mine.length === 0 && <Hint>None yet.</Hint>}
+        {mine && mine.length === 0 && <Hint>None yet. When you add the connector in Claude it shows up here.</Hint>}
         {(mine || []).map((c) => (
           <ConnectionRow key={c.id} c={c}
             onMode={(mode) => act(() => apiFetch(`/api/ai/connections/${c.id}`, { method: 'PATCH', body: JSON.stringify({ mode }) }))}
             onRemove={() => setConfirm({ title: 'Remove this connection?', message: `“${c.label}” stops working straight away.`, run: () => act(() => apiFetch(`/api/ai/connections/${c.id}`, { method: 'DELETE' }), 'Removed') })} />
         ))}
       </div>
+
+      {access.enabled && (
+        <Collapsible id="ai-advanced" title="Other apps: make a key" icon="gear" summary="For Claude Code, scripts or other apps (claude.ai does not need a key)">
+          <div data-testid="ai-new" style={{ paddingTop: '8px' }}>
+            {fresh ? (
+              <div role="status" style={{ display: 'grid', gap: '8px' }}>
+                <div style={{ fontSize: '14px', color: colors.text }}>“{fresh.label}” is ready. Copy this key now: it is shown only once.</div>
+                <Mono testId="ai-key">{fresh.key}</Mono>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button type="button" style={buttonPrimary} onClick={() => copy(fresh.key, 'Key copied')}>Copy key</button>
+                  <button type="button" style={buttonSecondary} onClick={() => setFresh(null)}>Done, I saved it</button>
+                </div>
+                <Hint>Paste it into the app where it asks for a key (an “Authorization: Bearer” header). Never share it or put it in a chat: anyone with it can act as you, within what you chose.</Hint>
+              </div>
+            ) : (
+              <>
+                <Field label="Which app?"><Choices ariaLabel="App" options={CLIENTS} value={form.client} onChange={(v) => setForm({ ...form, client: v })} /></Field>
+                <Field label="What may it do?" hint={form.mode === 'change' ? 'It can post, edit and delete what you can. The app still asks you to tap Allow, and every change is marked “by AI” with an Undo.' : 'It can look at the screen, the schedule and the posts, but change nothing.'}>
+                  <Choices ariaLabel="What it may do" options={MODES} value={form.mode} onChange={(v) => setForm({ ...form, mode: v })} />
+                </Field>
+                <Field label="Name (so you can tell them apart)"><input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} maxLength={60} placeholder="My laptop" style={{ ...fieldStyle, width: '100%' }} data-testid="ai-label" /></Field>
+                <Field label="2-step code (if you use 2-step)"><input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} inputMode="numeric" autoComplete="one-time-code" maxLength={8} style={{ ...fieldStyle, maxWidth: '160px' }} data-testid="ai-code" /></Field>
+                <div style={{ marginTop: '14px' }}><button type="button" style={buttonPrimary} onClick={create} data-testid="ai-create">Make the key</button></div>
+              </>
+            )}
+          </div>
+        </Collapsible>
+      )}
+
+      {isAdmin && (
+        <Collapsible id="ai-school" title="School settings (admins)" icon="users" summary={`Up to ${access.changesPerMinute} changes a minute, ${access.changesPerDay} a day per connection${access.allowAverages ? ' · Test Averages allowed' : ''}`}>
+          <div data-testid="ai-school-switch" style={{ paddingTop: '8px' }}>
+            <SwitchRow
+              on={access.allowAverages}
+              onChange={() => save({ aiAccess: { allowAverages: !access.allowAverages } }, access.allowAverages ? 'Test Averages hidden from AI' : 'AI may see the Test Averages')}
+              label="Let an AI see the Test Averages"
+              note="Student names next to their marks would be sent to the AI company's servers. Leave this off unless you are sure."
+              testId="ai-averages"
+            />
+            <Field label="Changes one connection may make per minute" hint={`${AI_LIMIT_BOUNDS.changesPerMinute.min}-${AI_LIMIT_BOUNDS.changesPerMinute.max}. Looking things up is never counted. A bulk action counts once.`}>
+              <NumberField value={access.changesPerMinute} min={AI_LIMIT_BOUNDS.changesPerMinute.min} max={AI_LIMIT_BOUNDS.changesPerMinute.max} onCommit={(n) => save({ aiAccess: { changesPerMinute: n } }, `${n} changes a minute`)} ariaLabel="Changes per minute" style={{ ...fieldStyle, maxWidth: '96px' }} />
+            </Field>
+            <Field label="Changes one connection may make per day" hint={`${AI_LIMIT_BOUNDS.changesPerDay.min}-${AI_LIMIT_BOUNDS.changesPerDay.max}. Default ${AI_ACCESS_DEFAULTS.changesPerDay}.`}>
+              <NumberField value={access.changesPerDay} min={AI_LIMIT_BOUNDS.changesPerDay.min} max={AI_LIMIT_BOUNDS.changesPerDay.max} onCommit={(n) => save({ aiAccess: { changesPerDay: n } }, `${n} changes a day`)} ariaLabel="Changes per day" style={{ ...fieldStyle, maxWidth: '96px' }} />
+            </Field>
+          </div>
+        </Collapsible>
+      )}
 
       {isAdmin && (
         <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-everyone">
@@ -159,7 +251,7 @@ export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
           ))}
           {all && all.length > 0 && (
             <div><button type="button" style={buttonDanger} data-testid="ai-revoke-all"
-              onClick={() => setConfirm({ title: 'Cut off every AI connection?', message: 'Every key for every person stops working now. People can make new ones afterwards.', confirmLabel: 'Cut them all off', run: () => act(() => apiFetch('/api/ai/admin/revoke-all', { method: 'POST' }), 'All AI connections cut off') })}>
+              onClick={() => setConfirm({ title: 'Cut off every AI connection?', message: 'Every connection for every person stops working now. People can connect again afterwards.', confirmLabel: 'Cut them all off', run: () => act(() => apiFetch('/api/ai/admin/revoke-all', { method: 'POST' }), 'All AI connections cut off') })}>
               Cut off every connection
             </button></div>
           )}
@@ -167,6 +259,7 @@ export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
       )}
 
       {confirm && <ConfirmDialog title={confirm.title} message={confirm.message} confirmLabel={confirm.confirmLabel || 'Remove'} onConfirm={() => { const run = confirm.run; setConfirm(null); run(); }} onCancel={() => setConfirm(null)} />}
+      {modal}
     </Page>
   );
 }

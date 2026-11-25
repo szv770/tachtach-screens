@@ -6,6 +6,7 @@
   "description": "Digital signage system for Jewish schools — zmanim, limudim, Hayom Yom, and admin messaging on Raspberry Pi 5",
   "main": "server.js",
   "scripts": {
+    "ai:doctor": "node scripts/ai-doctor.mjs",
     "dev": "concurrently \"node server.js\" \"vite\"",
     "dev:watch": "concurrently \"node server.js\" \"vite build --watch\"",
     "dev:server": "node server.js",

@@ -15,6 +15,9 @@ import { readJSON } from '../storage.js';
 import { aiAccessFrom } from '../../shared/aiAccess.js';
 import { AI_MODES } from '../../shared/permissions.js';
 import { forgetAiKeyHits } from '../middleware.js';
+import { originFor } from '../oauth/routes.js';
+import { connectionChecks, claudeCodeCommand, CLAUDE_IP_RANGE } from '../../shared/aiSetup.js';
+import http from 'node:http';
 
 const router = Router();
 const log = (req, action, detail) => activity.record({ user: req.user, action, detail, area: 'ai' }).catch(() => {});
@@ -41,6 +44,47 @@ async function freshCodeProblem(req) {
   await users.clearFailures(GUESS_KEY(req));
   return null;
 }
+
+// ── Is it ready? (the admin's "Get started" card) ──────────────────────────
+
+/** Ask THIS server, over loopback, what it tells the outside world (the same documents claude.ai reads). */
+function selfFetch(req, method, path, { json = false } = {}) {
+  return new Promise((resolve) => {
+    const proto = req.protocol === 'https' ? 'https' : 'http';
+    const r = http.request({
+      host: '127.0.0.1', port: req.socket.localPort, path, method,
+      headers: { host: req.get('host'), 'x-forwarded-proto': proto, ...(json ? { 'content-type': 'application/json', 'content-length': 2 } : {}) },
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => { let body = null; try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { /* not JSON */ } resolve({ status: res.statusCode, headers: res.headers, body }); });
+    });
+    r.setTimeout(8000, () => { r.destroy(); resolve({ status: 0, headers: {}, body: null }); });
+    r.on('error', () => resolve({ status: 0, headers: {}, body: null }));
+    r.end(json ? '{}' : undefined);
+  });
+}
+
+router.get('/ai/status', async (req, res) => {
+  try {
+    const settings = (await readJSON('settings.json').catch(() => null)) || {};
+    const access = aiAccessFrom(settings);
+    const origin = originFor(req);
+    const docs = access.enabled ? {
+      resource: await selfFetch(req, 'GET', '/.well-known/oauth-protected-resource/mcp'),
+      server: await selfFetch(req, 'GET', '/.well-known/oauth-authorization-server'),
+      mcp: await selfFetch(req, 'POST', '/mcp', { json: true }),
+    } : null;
+    const keys = await users.listApiTokens(req.user.id);
+    const used = keys.map((k) => k.lastUsedAt).filter(Boolean).sort().pop() || null;
+    res.json({
+      enabled: access.enabled, origin, mcpUrl: `${origin}/mcp`, claudeCode: claudeCodeCommand(origin),
+      claudeIpRange: CLAUDE_IP_RANGE, pinned: !!process.env.PUBLIC_URL,
+      checks: connectionChecks({ origin, enabled: access.enabled, publicUrlSet: !!process.env.PUBLIC_URL, headers: req.headers, docs }),
+      connections: { count: keys.length, lastUsedAt: used },
+    });
+  } catch (e) { fail(res, e, 'GET /ai/status'); }
+});
 
 // ── Mine ────────────────────────────────────────────────────────────────────
 

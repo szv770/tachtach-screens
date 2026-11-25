@@ -533,6 +533,8 @@ If the last admin is locked out, use the command line on the server: `npm run re
 
 ## Connect an AI (Claude and other AI apps)
 
+Short version with the common fixes: `docs/AI_CONNECT_QUICKSTART.md`. The admin page itself (Look & Settings > Connect an AI) has a "Get started" card that checks your address and walks through the steps. To test from outside: `npm run ai:doctor -- https://your.address`.
+
 Let an AI assistant look at and change the screen for you ("tomorrow Mincha is at 1:45", "post a banner until 3", "what is on the TV now?"). The AI can only do what **you** can do, never more, and your AI app asks you to tap **Allow** on every change.
 
 **Never reachable by an AI:** the Bochurim and Chazan names, people and security settings, software updates, and a connection's own switch and limits. The Test Averages (names next to marks) stay off unless an admin turns on "Let an AI see the Test Averages".

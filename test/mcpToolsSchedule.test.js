@@ -268,7 +268,9 @@ test('TV controls: pause / resume, and Freeze with a message for a time, then re
   const f = await change(adminC, 'freeze_screen', { mode: 'message', message: 'Assembly in the beis medrash', for: '30m' });
   assert.equal(f.done.isError, false, f.done.text || JSON.stringify(f.preview));
   assert.match(f.preview.whatWillHappen, /Assembly in the beis medrash/);
-  assert.match(f.preview.whatWillHappen, /until/);
+  // the time is in the SCHOOL's zone (New York here), not the server's
+  const ny = (ms) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }).format(new Date(ms));
+  assert.ok([29, 30, 31].some((m) => f.preview.whatWillHappen.includes(ny(Date.now() + m * 60_000))), f.preview.whatWillHappen);
   const snap = (await admin.get('/api/freeze')).body;
   assert.equal(snap.manual.mode, 'message');
   assert.equal(snap.manual.message, 'Assembly in the beis medrash');

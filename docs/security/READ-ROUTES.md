@@ -30,6 +30,7 @@ Privacy classes (from `docs/saas/FIT-RULES.md`): public, org, names (student nam
 | `/api/daily-words`, `/api/daily-stories` | Full, Admin | dailyWord.edit | up to ~20 kB list | none | org |
 | `/api/menu` | Full, Admin | menu.edit | one file read (<= 256 kB) + dish suggestions | none | P0 (food and meal names, never a person) |
 | `/api/shiurim` | Full, Admin | shiurim.edit | one file read (<= 256 kB) + the schedule file (blocks to link to) | none | P1 (rebbeim and guest speakers: adults, names and photo ids; never a student) |
+| `/api/ai/status` | Full, Messages, Admin | ai.connect | 3 loopback requests to this server | medium | none (the public address, checks, a count of connections) |
 | `/api/ai/connections` | Full, Messages, Admin | ai.connect | a person's own keys | none | none (no secrets: a key is shown once, only its hash is kept) |
 | `/api/ai/admin/connections` | Admin | ai.manage | everyone's keys | none | who + label + mode + last used, no secrets |
 | `/api/roster` | Full, Admin | roster.edit | list | none | **names** (students, birthdays) |
