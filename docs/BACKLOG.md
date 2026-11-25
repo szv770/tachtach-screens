@@ -59,3 +59,7 @@ Also: collect the owner's real-use annoyances in `docs/BACKLOG.md` as they come.
 ### Done / decided
 - Takeover designs approved (26 styles, animated) — being built (phase 5).
 - Deferred: Davening takeover + schedule-triggered auto-announcements (Phase 2c in the announcements spec).
+
+## 2026-11-17 (owner)
+- **Desktop click-to-edit**: on a computer, let the owner click a thing on the preview (a letter's line, a Spotlight text, a day's name) and edit that exact piece in place, instead of hunting through the forms. Start with letters (Daily Letter + posts) and the Spotlight story.
+- **A letter that stays up after its day**: a letter from a few days ago was still on the screen. Cause to confirm on the Pi (the Daily Letter rotation repeats the same letter when the pool has only one; or a posted letter without an end date). Idea: a letter can have 'show until' / 'only on its day', and the Daily Letter slide skips itself when nothing is planned for today (owner to confirm).

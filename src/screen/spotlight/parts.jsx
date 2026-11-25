@@ -30,7 +30,7 @@ export function useSize() {
 }
 
 /** Re-run fits once fonts arrive (fallback fonts are wider). */
-function useFontTick() {
+export function useFontTick() {
   const [t, setT] = useState(0);
   useLayoutEffect(() => {
     let alive = true;
