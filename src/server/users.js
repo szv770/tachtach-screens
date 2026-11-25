@@ -31,6 +31,7 @@ export const SIGNIN_LINK_MS = 60 * 60 * 1000;
 const ROLL_INTERVAL_MS = 60 * 60 * 1000;
 // AI connection keys (Account > Connect an AI): a private key an AI app sends as `Authorization: Bearer ttk_...`.
 export const API_TOKEN_PREFIX = 'ttk_';
+const REFRESH_GRACE_MS = 60 * 1000; // an old refresh token still works this long after it was swapped (a lost answer can be asked again)
 export const REFRESH_TOKEN_PREFIX = 'ttr_'; // the long-lived half of a "Sign in with" connection (src/server/oauth)
 export const API_TOKEN_DEFAULT_DAYS = 180;
 export const API_TOKEN_MAX_DAYS = 365;
@@ -531,7 +532,10 @@ export function createUserStore({
     return { accessToken: access, refreshToken: refresh, expiresIn: Math.round(ACCESS_TTL_MS / 1000), key: publicKey(key) };
   }
 
-  /** Swap a refresh token for a new access + refresh token (the old refresh token stops working in the same step). null = refused. */
+  /**
+   * Swap a refresh token for a new access + refresh token (the old refresh token stops working, except for a short grace window
+   * so an app whose answer was lost on the way can simply ask again). null = refused.
+   */
   async function refreshOAuthConnection(refreshToken, clientId) {
     if (typeof refreshToken !== 'string' || !refreshToken.startsWith(REFRESH_TOKEN_PREFIX) || refreshToken.length !== REFRESH_TOKEN_PREFIX.length + 64) return null;
     const hash = sha256(refreshToken);
@@ -540,10 +544,12 @@ export function createUserStore({
     const t = now();
     return tx(async (d) => {
       for (const u of d.users) {
-        const k = u.apiTokens.find((x) => x.oauth && x.oauth.refreshHash === hash);
+        const k = u.apiTokens.find((x) => x.oauth && (x.oauth.refreshHash === hash || (x.oauth.prevRefreshHash === hash && Date.parse(x.oauth.prevRefreshUntil || 0) > t)));
         if (!k) continue;
         if (k.oauth.clientId !== String(clientId)) return null;
         if (Date.parse(k.expiresAt) <= t || t - Date.parse(k.oauth.startedAt) >= REFRESH_MAX_MS) return null;
+        k.oauth.prevRefreshHash = k.oauth.refreshHash === hash ? hash : k.oauth.prevRefreshHash;
+        k.oauth.prevRefreshUntil = k.oauth.refreshHash === hash ? iso(t + REFRESH_GRACE_MS) : k.oauth.prevRefreshUntil;
         k.hash = sha256(access);
         k.oauth.refreshHash = sha256(refresh);
         k.oauth.accessExpiresAt = iso(t + ACCESS_TTL_MS);
@@ -554,6 +560,12 @@ export function createUserStore({
     });
   }
 
+  /** The client ids that have a live "Sign in with" connection (the client list never drops these). */
+  async function oauthClientIdsInUse() {
+    const d = await load();
+    return [...new Set(d.users.flatMap((u) => u.apiTokens.filter((k) => k.oauth).map((k) => k.oauth.clientId)))];
+  }
+
   /** Remove the connection an access or refresh token belongs to (the app signing out). Always quiet. */
   async function revokeOAuthToken(token) {
     if (typeof token !== 'string' || token.length > 200) return false;
@@ -562,7 +574,7 @@ export function createUserStore({
     await tx(async (d) => {
       for (const u of d.users) {
         const before = u.apiTokens.length;
-        u.apiTokens = u.apiTokens.filter((k) => !(k.oauth && (k.hash === hash || k.oauth.refreshHash === hash)));
+        u.apiTokens = u.apiTokens.filter((k) => !(k.oauth && (k.hash === hash || k.oauth.refreshHash === hash || k.oauth.prevRefreshHash === hash)));
         if (u.apiTokens.length < before) found = true;
       }
     });
@@ -859,7 +871,7 @@ export function createUserStore({
     listUsers, userCount, getUser, getPublicUser, createUser, updateUser, removeUser, markLogin,
     hashPassword, setPassword, setPasswordHash, verifyLogin,
     createSession, getSession, destroySession, destroyUserSessions,
-    createApiToken, getByApiToken, createOAuthConnection, refreshOAuthConnection, revokeOAuthToken, listApiTokens, listAllApiTokens, updateApiToken, revokeApiToken, revokeAllApiTokens,
+    createApiToken, getByApiToken, createOAuthConnection, refreshOAuthConnection, oauthClientIdsInUse, revokeOAuthToken, listApiTokens, listAllApiTokens, updateApiToken, revokeApiToken, revokeAllApiTokens,
     createPreAuth, getPreAuth, clearPreAuth,
     beginTotpEnrollment, confirmTotp, verifyTotp, disableTotp,
     trustDevice, isTrustedDevice, isTrustedDeviceForName, forgetTrustedDevices,

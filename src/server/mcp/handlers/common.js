@@ -49,7 +49,16 @@ export function localToIso(value, tz, label) {
 export const todayIn = (now, tz) => zonedParts(now, tz).date;
 
 /** The result every tool returns: one JSON text block (the AI reads it), never raw API output. */
-export const result = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] });
+/** One tool answer is never longer than this many characters: some AI apps drop or choke on a huge answer. */
+export const MAX_RESULT_CHARS = 100_000;
+export function result(obj) {
+  let text = JSON.stringify(obj, null, 2);
+  if (text.length > MAX_RESULT_CHARS) text = JSON.stringify(obj); // the same answer without indentation is often enough
+  if (text.length > MAX_RESULT_CHARS) {
+    text = `${text.slice(0, MAX_RESULT_CHARS - 400)}\n…\n(Shortened: this answer was too long for an AI app. Ask again for a narrower range, a shorter list or fewer items.)`;
+  }
+  return { content: [{ type: 'text', text }] };
+}
 export const failure = (message) => ({ isError: true, content: [{ type: 'text', text: message }] });
 
 const clip = (s, n) => { const t = String(s ?? ''); return t.length > n ? `${t.slice(0, n)}…` : t; };

@@ -29,13 +29,27 @@ It prints a tick or a cross for each thing Claude needs and says what to do. The
 | Doctor says | What it means | Fix |
 |---|---|---|
 | `/mcp does not exist here` | AI connections are off, or the screen was not updated yet | Do steps 1 and 2 |
-| `Cloudflare is showing a "checking your browser" page` | Cloudflare is blocking Claude's servers | Cloudflare > Security > WAF: add a custom rule that **skips** the checks for `160.79.104.0/21`, or turn off Bot Fight Mode for `/mcp`, `/oauth`, `/.well-known` |
-| `Cloudflare Access (a sign-in wall)` | Claude cannot get past a login in front of the screen | Cloudflare Access policy "Bypass" for `160.79.104.0/21`, or no Access on this address |
+| `Cloudflare is showing a "checking your browser" page` | Cloudflare is blocking the AI app's servers | Cloudflare > Security > WAF: add ONE custom rule that **skips** the security checks when the path starts with `/mcp`, `/oauth` or `/.well-known` (works for every AI app; for Claude alone `160.79.104.0/21` also works), or turn off Bot Fight Mode for those paths |
+| `Cloudflare Access (a sign-in wall)` | The app cannot get past a login in front of the screen | Cloudflare Access policy "Bypass" for those paths (or `160.79.104.0/21` for Claude), or no Access on this address |
 | `The connector description says its address is ...` | The screen does not know its public address | Set `PUBLIC_URL=https://your.address` for the screen and restart it |
 | `only reachable inside your building` / `http, not https` | You used the home-network address | Use the public address (the Cloudflare Tunnel name), always `https://` |
 
-Add `--key ttk_...` to also see what an AI with that key can do. `--no-register` skips the test registration, `--allow-http` is for a
+Add `--redirect https://the-app/callback` to check that another AI app's return address is allowed. Add `--key ttk_...` to also see what an AI with that key can do. `--no-register` skips the test registration, `--allow-http` is for a
 test on your own network.
+
+## Other AI apps (Meta AI / Muse, ChatGPT, Cursor, anything else)
+
+The same address and sign-in work for other AI apps. Built in: **Claude, Meta AI, ChatGPT, Cursor** (and Claude Code / VS Code on the same computer). In the other app add a
+custom connector / MCP server, paste the address from step 3 and press Connect: your TachTach sign-in opens, you tap Allow, done.
+
+An app that is not built in is **turned away the first time** (a stranger must not be able to receive a sign-in). Then: admin > Connect an AI >
+**Other AI apps**: the app is listed under "Tried to connect and were turned away" with its website. If it is the app you just tried, press
+**Allow this app**, then connect again. (You can also paste the app's return / callback address under "Allow another app".) **Recent connection
+attempts** on the same card shows how far an app got (introduced itself, opened the sign-in, you tapped Allow, asked for its key), so "it says it hit a
+problem" can be read there.
+
+An app or chat bridge that cannot sign in (for example an agent you message on WhatsApp) can use a **key** instead: Connect an AI > Other apps: make a
+key, and paste it where the app asks for an `Authorization: Bearer` header.
 
 ## What Claude can do now
 

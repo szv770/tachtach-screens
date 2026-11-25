@@ -37,12 +37,13 @@ test('opened over plain http on a home-network address: it says exactly what is 
 test('Cloudflare: a plain proxy is only a tip; Cloudflare Access in front is a failure with the fix', async () => {
   const cf = await status(admin, { host: 'tachtach.example.org', 'x-forwarded-proto': 'https', 'cf-ray': 'abc123-ATL' });
   assert.equal(by(cf, 'cloudflare').status, 'info');
-  assert.match(by(cf, 'cloudflare').detail, new RegExp(CLAUDE_IP_RANGE.replace(/\./g, '\\.')));
+  assert.match(by(cf, 'cloudflare').detail, /\/mcp, \/oauth or \/\.well-known/, 'one path rule works for every AI app');
   assert.match(by(cf, 'cloudflare').detail, /Bot Fight Mode/);
   assert.equal(isReady(cf.body.checks), true, 'Cloudflare alone does not block it');
   const access = await status(admin, { host: 'tachtach.example.org', 'x-forwarded-proto': 'https', 'cf-ray': 'abc', 'cf-access-jwt-assertion': 'jwt' });
   assert.equal(by(access, 'access').status, 'fail');
   assert.match(by(access, 'access').detail, /Bypass/);
+  assert.match(by(access, 'access').detail, new RegExp(CLAUDE_IP_RANGE.replace(/\./g, '\\.')));
   assert.equal(isReady(access.body.checks), false);
 });
 

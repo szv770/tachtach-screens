@@ -8,19 +8,20 @@
  *
  * Run it from ANY computer (it looks at your screen from the outside, like claude.ai does): reachable? HTTPS? does Cloudflare get in
  * the way? does /mcp ask for a sign-in the right way? are the sign-in documents right? does registration work? Each line says what is
- * wrong and what to do. Flags: --no-register (do not register a test app), --allow-http (for a test on your own network).
+ * wrong and what to do. Flags: --no-register (do not register a test app), --allow-http (for a test on your own network),
+ * --redirect <address> (check that ANOTHER AI app's return address, e.g. Meta AI's, is allowed to register).
  * Exit code 0 = everything claude.ai needs is working, 1 = something to fix.
  */
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
 const value = (n) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
-const address = args.find((a) => !a.startsWith('--') && a !== value('key'));
+const address = args.find((a) => !a.startsWith('--') && a !== value('key') && a !== value('redirect'));
 const key = value('key') || process.env.AI_DOCTOR_KEY || '';
 const CLAUDE_CALLBACK = 'https://claude.ai/api/mcp/auth_callback';
 const CLAUDE_RANGE = '160.79.104.0/21';
 
 if (!address) {
-  console.error('Usage: npm run ai:doctor -- https://your-screen-address [--key ttk_...] [--no-register] [--allow-http]');
+  console.error('Usage: npm run ai:doctor -- https://your-screen-address [--key ttk_...] [--no-register] [--allow-http] [--redirect https://app/callback]');
   process.exit(2);
 }
 
@@ -59,7 +60,7 @@ async function http(method, url, { body, form, headers = {} } = {}) {
 
 // Cloudflare puts a harmless "challenge-platform" script into normal pages, so words in the body only count on an error status.
 const challenged = (r) => r.headers.get('cf-mitigated') === 'challenge' || ([403, 429, 503].includes(r.status) && /just a moment|attention required|cf-chl|challenge-platform/i.test(r.text.slice(0, 4000)));
-const cloudflareTip = `In Cloudflare > Security > WAF add a custom rule that SKIPS the checks for ${CLAUDE_RANGE} (Anthropic's address range),\nor turn off "Bot Fight Mode" / "Under Attack" for /mcp, /oauth and /.well-known. Then run this again.`;
+const cloudflareTip = `In Cloudflare > Security > WAF add a custom rule that SKIPS the security checks when the path starts with /mcp, /oauth or /.well-known\n(this works for every AI app; Claude alone could also be allowed by its address range ${CLAUDE_RANGE}).\nOr turn off "Bot Fight Mode" / "Under Attack" for those paths. Then run this again.`;
 
 console.log(`Checking ${origin}\n`);
 
@@ -125,6 +126,15 @@ if (asMeta?.registration_endpoint && !flag('no-register')) {
     say('ok', `A test app could register itself (${reg.ms} ms)`);
     const evil = await http('POST', asMeta.registration_endpoint, { body: { client_name: 'x', redirect_uris: ['https://evil.example/cb'] } });
     say(evil.status === 400 ? 'ok' : 'fail', evil.status === 400 ? 'A stranger\'s return address is refused (good)' : `A stranger's return address was NOT refused (${evil.status})`);
+    const other = value('redirect');
+    if (other) {
+      const o = await http('POST', asMeta.registration_endpoint, { body: { client_name: 'AI doctor test (other app)', redirect_uris: [other], token_endpoint_auth_method: 'none' } });
+      say(o.status === 201 ? 'ok' : 'fail', o.status === 201 ? `That app's return address is allowed (${other})` : `That app's return address is NOT allowed yet (${other})`,
+        o.status === 201 ? '' : 'Open Connect an AI > Other AI apps: it is listed under "turned away" (press Allow), or paste the address under "Allow another app".');
+    }
+    // browsers (and apps that run behind one) need CORS on the machine endpoints
+    const pre = await http('OPTIONS', `${origin}/mcp`, { headers: { origin: 'https://agent.example', 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization, content-type' } });
+    say(pre.status === 204 && pre.headers.get('access-control-allow-origin') ? 'ok' : 'warn', pre.status === 204 ? 'Browser-based AI apps are allowed to talk to /mcp (CORS)' : `A browser check on /mcp answered ${pre.status}`, pre.status === 204 ? '' : 'Most apps do not need this, but browser-based ones do. Update TachTach if this is old.');
     const challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
     const qs = new URLSearchParams({ response_type: 'code', client_id: reg.json.client_id, redirect_uri: CLAUDE_CALLBACK, code_challenge: challenge, code_challenge_method: 'S256', state: 'doctor', resource: `${origin}/mcp` });
     const auth = await http('GET', `${asMeta.authorization_endpoint}?${qs}`);

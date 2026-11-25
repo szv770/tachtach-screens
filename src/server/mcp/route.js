@@ -5,8 +5,8 @@
  *
  * Gate, in order (every step fails closed):
  *   1. AI connections must be switched on (settings.aiAccess.enabled): otherwise 404, as if the address did not exist.
- *   2. Only POST (there is nothing to stream): anything else is 405.
- *   3. `Authorization: Bearer ttk_...` must be a valid key. No cookie is ever looked at.
+ *   2. `Authorization: Bearer ttk_...` must be a valid key (401 + the sign-in pointer otherwise, whatever the method). No cookie is ever looked at.
+ *   3. Only POST (there is nothing to stream): anything else is 405. A browser's OPTIONS check is answered (CORS, no cookies involved).
  *   4. Not on a TLS port (the tool layer talks to this server over plain loopback HTTP).
  *   5. Per-key request limit (looking things up is free of the CHANGE limit, but not unlimited).
  * Only after that is the body read (256 kB), so nobody unauthenticated can make the server buffer it.
@@ -24,6 +24,7 @@ import { createDispatcher } from './dispatch.js';
 import { createMcpServer } from './server.js';
 import { originFor } from '../oauth/routes.js';
 import { wwwAuthenticate } from '../../shared/oauth.js';
+import { corsOpen } from '../oauth/cors.js';
 
 const requestLimiter = createChangeLimiter();
 const REQUESTS_PER_MINUTE = 120;
@@ -37,13 +38,16 @@ export function createMcpRouter({ dispatch = createDispatcher() } = {}) {
     try {
       const access = aiAccessFrom(await readJSON('settings.json').catch(() => null));
       if (!access.enabled) return res.status(404).end();
-      if (req.method !== 'POST') { res.set('Allow', 'POST'); return jsonRpcError(res, 405, 'Use POST.'); }
+      corsOpen(req, res, () => {});               // answers a browser's OPTIONS check itself (204); otherwise just adds the headers
+      if (req.method === 'OPTIONS') return;
       const h = req.headers.authorization;
       const m = typeof h === 'string' ? /^Bearer\s+(\S+)\s*$/i.exec(h) : null;
-      // The 401 + resource_metadata pointer is what starts claude.ai's sign-in (it ignores the header on any other status).
+      // The 401 + resource_metadata pointer is what starts a sign-in (apps ignore the header on any other status). It comes BEFORE
+      // the method check, so an app that probes with GET still learns where to sign in.
       if (!m) { res.set('WWW-Authenticate', wwwAuthenticate(originFor(req))); return jsonRpcError(res, 401, 'Sign in, or send your AI connection key as "Authorization: Bearer ttk_...".'); }
       const auth = await userForApiKey(m[1]);
-      if (auth.error) { res.set('WWW-Authenticate', wwwAuthenticate(originFor(req))); return jsonRpcError(res, 401, auth.error); }
+      if (auth.error) { res.set('WWW-Authenticate', wwwAuthenticate(originFor(req), { invalidToken: true })); return jsonRpcError(res, 401, auth.error); }
+      if (req.method !== 'POST') { res.set('Allow', 'POST, OPTIONS'); return jsonRpcError(res, 405, 'Use POST.'); }
       if (req.socket.encrypted) return jsonRpcError(res, 400, 'Use the normal web address for the AI connector, not the local secure one.');
       const lim = requestLimiter.check(`mcp:${auth.user.ai.connectionId}`, { changesPerMinute: REQUESTS_PER_MINUTE, changesPerDay: 100_000 });
       if (!lim.ok) { res.set('Retry-After', String(lim.retryAfterSec)); return jsonRpcError(res, 429, 'Too many requests. Wait a moment.'); }

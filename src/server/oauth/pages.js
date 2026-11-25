@@ -8,8 +8,8 @@ import { HEAD, esc, inlineJson } from '../authPages.js';
 const BLOCK = 'font-family:Georgia,serif;direction:ltr;text-align:left;line-height:1.55;font-size:16px';
 const BTN = (extra = '') => `style="display:block;width:100%;min-height:48px;margin-top:10px;padding:12px 16px;border-radius:8px;border:1px solid #D4A84B;cursor:pointer;font-size:16px;font-family:inherit;${extra}"`;
 
-export function consentPage({ siteName, personName, clientName, canConnect, fields, csrf }) {
-  const what = `<p style="${BLOCK}"><strong>${esc(clientName)}</strong> wants to connect to <strong>${esc(siteName || 'this screen')}</strong>, acting as <strong>${esc(personName)}</strong>.</p>`;
+export function consentPage({ siteName, personName, clientName, returnTo = '', canConnect, fields, csrf }) {
+  const what = `<p style="${BLOCK}"><strong>${esc(clientName)}</strong> wants to connect to <strong>${esc(siteName || 'this screen')}</strong>, acting as <strong>${esc(personName)}</strong>.</p>${returnTo ? `<p style="${BLOCK};font-size:14px;opacity:.85">After you choose, you are sent back to <strong>${esc(returnTo)}</strong>. If that is not the app you just opened, press Cancel.</p>` : ''}`;
   if (!canConnect) {
     return `${HEAD('TachTach-Screens — Connect an AI')}
     <p class="title-english">Connect an AI</p>

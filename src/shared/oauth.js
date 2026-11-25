@@ -11,6 +11,7 @@
  *     so a stranger cannot register a client that sends an authorization code to their own site.
  */
 import crypto from 'node:crypto';
+import { KNOWN_APPS, CLAUDE_CALLBACKS, MAX_EXTRA_APPS, redirectProblem, isAllowedRedirect, appNameFor, returnHost } from './oauthRedirects.js';
 
 export const SCOPE = 'tachtach';
 export const ACCESS_TTL_MS = 60 * 60 * 1000;                 // an access token lasts an hour; Claude refreshes before it ends
@@ -19,14 +20,9 @@ export const REFRESH_MAX_MS = 365 * 24 * 60 * 60 * 1000;     // and never longer
 export const CODE_TTL_MS = 60 * 1000;                        // an authorization code is good for a minute, once
 export const MAX_CLIENTS = 100;
 
-/** Exactly Claude's documented callback; the loopback form is what Claude Code uses (any port). */
-export const CLAUDE_CALLBACKS = Object.freeze(['https://claude.ai/api/mcp/auth_callback']);
-const LOOPBACK = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\]):\d{1,5}(\/[A-Za-z0-9._~\/-]{0,100})?$/;
-
-export function isAllowedRedirect(uri) {
-  if (typeof uri !== 'string' || uri.length > 300) return false;
-  return CLAUDE_CALLBACKS.includes(uri) || LOOPBACK.test(uri);
-}
+export const MAX_STATE_LENGTH = 2000;
+export const AUTH_METHODS = Object.freeze(['none', 'client_secret_post', 'client_secret_basic']);
+export { KNOWN_APPS, CLAUDE_CALLBACKS, MAX_EXTRA_APPS, redirectProblem, isAllowedRedirect, appNameFor, returnHost };
 
 const B64URL = /^[A-Za-z0-9_-]+$/;
 /** A PKCE challenge is the base64url of a SHA-256 (43 characters). */
@@ -57,7 +53,7 @@ export function protectedResourceDoc(origin) {
   return { resource: mcpUrl(origin), authorization_servers: [origin], scopes_supported: [SCOPE], bearer_methods_supported: ['header'], resource_name: 'TachTach Screens' };
 }
 
-/** RFC 8414. No CIMD and no client secrets: Claude falls back to dynamic registration, which is all we offer. */
+/** RFC 8414. No CIMD: apps use dynamic registration. Public clients (PKCE, no secret) are the default; a secret is issued only to an app that asks for one. */
 export function authorizationServerDoc(origin) {
   return {
     issuer: origin,
@@ -68,22 +64,37 @@ export function authorizationServerDoc(origin) {
     response_types_supported: ['code'],
     grant_types_supported: ['authorization_code', 'refresh_token'],
     code_challenge_methods_supported: ['S256'],
-    token_endpoint_auth_methods_supported: ['none'],
-    revocation_endpoint_auth_methods_supported: ['none'],
+    token_endpoint_auth_methods_supported: [...AUTH_METHODS],
+    revocation_endpoint_auth_methods_supported: [...AUTH_METHODS],
+    authorization_response_iss_parameter_supported: true, // RFC 9207: the sign-in answer carries `iss` (ChatGPT checks it)
     scopes_supported: [SCOPE],
   };
 }
 
 /** The 401 header that starts the sign-in (Claude ignores it on any other status). */
-export const wwwAuthenticate = (origin) => `Bearer resource_metadata="${resourceMetadataUrl(origin)}"`;
+export const wwwAuthenticate = (origin, { invalidToken = false } = {}) => `Bearer ${invalidToken ? 'error="invalid_token", ' : ''}resource_metadata="${resourceMetadataUrl(origin)}"`;
 
-/** Validate a dynamic client registration body. Returns { ok, client } or { ok:false, error, description }. */
-export function parseRegistration(body) {
+/**
+ * Validate a dynamic client registration body (RFC 7591).
+ * Returns { ok, client, dropped } or { ok:false, error, description, refused }.
+ * An app may list several return addresses (live + test): the allowed ones are kept, the rest dropped. It is refused only
+ * when NONE is allowed; `refused` then carries what the admin needs to allow it (shown in Connect an AI, never auto-allowed).
+ */
+export function parseRegistration(body, { extra = [] } = {}) {
   const b = body && typeof body === 'object' && !Array.isArray(body) ? body : {};
-  const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris : [];
-  if (!uris.length || uris.length > 5) return { ok: false, error: 'invalid_redirect_uri', description: 'Send 1 to 5 redirect_uris.' };
-  const bad = uris.find((u) => !isAllowedRedirect(u));
-  if (bad !== undefined) return { ok: false, error: 'invalid_redirect_uri', description: 'That redirect address is not allowed for this connector.' };
+  const uris = Array.isArray(b.redirect_uris) ? b.redirect_uris.filter((u) => typeof u === 'string') : [];
+  if (!uris.length || uris.length > 10) return { ok: false, error: 'invalid_redirect_uri', description: 'Send 1 to 10 redirect_uris.' };
   const name = typeof b.client_name === 'string' ? b.client_name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 60) : '';
-  return { ok: true, client: { name: name || 'An AI app', redirectUris: [...new Set(uris)] } };
+  const good = [...new Set(uris.filter((u) => isAllowedRedirect(u, extra)))];
+  if (!good.length) {
+    const first = uris.find((u) => !redirectProblem(u));
+    return {
+      ok: false, error: 'invalid_redirect_uri',
+      description: `This screen does not allow ${first ? returnHost(first) : 'that return address'} yet. Ask the school's admin to allow it in Connect an AI > Allow another app, then add the connector again.`,
+      refused: first ? { address: first, host: returnHost(first), name: name || 'An AI app' } : null,
+    };
+  }
+  const method = typeof b.token_endpoint_auth_method === 'string' ? b.token_endpoint_auth_method : 'none';
+  if (!AUTH_METHODS.includes(method)) return { ok: false, error: 'invalid_client_metadata', description: `Use token_endpoint_auth_method none, client_secret_post or client_secret_basic.` };
+  return { ok: true, client: { name: name || 'An AI app', redirectUris: good, authMethod: method }, dropped: uris.length - good.length };
 }

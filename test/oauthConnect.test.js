@@ -77,7 +77,8 @@ test('/mcp starts the sign-in with a 401 that points at the metadata, and the me
   assert.equal(m.token_endpoint, `${origin}/oauth/token`);
   assert.equal(m.registration_endpoint, `${origin}/oauth/register`);
   assert.deepEqual(m.code_challenge_methods_supported, ['S256']);
-  assert.deepEqual(m.token_endpoint_auth_methods_supported, ['none']);
+  assert.deepEqual(m.token_endpoint_auth_methods_supported, ['none', 'client_secret_post', 'client_secret_basic']);
+  assert.equal(m.authorization_response_iss_parameter_supported, true);
   assert.deepEqual(m.grant_types_supported.sort(), ['authorization_code', 'refresh_token']);
   assert.deepEqual(m.response_types_supported, ['code']);
   assert.equal(m.client_id_metadata_document_supported, undefined, 'registration is the only door: no metadata-document clients');
@@ -97,8 +98,10 @@ test('registration: only the allow-listed return addresses, public clients only'
     assert.equal(r.body.error, 'invalid_redirect_uri', bad);
   }
   assert.equal((await req('POST', '/oauth/register', { body: {} })).status, 400);
-  assert.equal((await req('POST', '/oauth/register', { body: { redirect_uris: Array(6).fill(CB) } })).status, 400);
-  assert.equal((await req('POST', '/oauth/register', { body: { redirect_uris: [CB, 'https://evil.example/x'] } })).status, 400, 'one bad address refuses the lot');
+  assert.equal((await req('POST', '/oauth/register', { body: { redirect_uris: Array.from({ length: 11 }, (_, i) => `${CB}?i=${i}`) } })).status, 400);
+  const mixed = await req('POST', '/oauth/register', { body: { client_name: 'Mixed', redirect_uris: [CB, 'https://evil.example/x'] } });
+  assert.equal(mixed.status, 201, 'an app that lists several addresses keeps the allowed ones');
+  assert.deepEqual(mixed.body.redirect_uris, [CB], 'the unknown one is dropped, never allowed');
 });
 
 test('authorize: a bad app or address never redirects; missing PKCE and a wrong resource come back as errors to the real address', async () => {
@@ -206,12 +209,17 @@ test('the whole flow: code + PKCE -> tokens -> /mcp works as that person -> refr
   assert.equal(r1.status, 200, r1.text);
   assert.notEqual(r1.body.access_token, t.body.access_token);
   assert.notEqual(r1.body.refresh_token, t.body.refresh_token);
-  const old = await post('/oauth/token', { grant_type: 'refresh_token', refresh_token: t.body.refresh_token, client_id: id });
-  assert.equal(old.body.error, 'invalid_grant');
   assert.equal((await req('POST', '/mcp', { body: { jsonrpc: '2.0', id: 1, method: 'tools/list' }, headers: { authorization: `Bearer ${t.body.access_token}` } })).status, 401);
   assert.equal((await connectWith(r1.body.access_token).then((x) => x.listTools())).tools.length > 0, true);
+  // an app whose answer was lost may ask again with the old refresh token for a minute (that rotates again; the unseen pair is gone)
+  const retry = await post('/oauth/token', { grant_type: 'refresh_token', refresh_token: t.body.refresh_token, client_id: id });
+  assert.equal(retry.status, 200, retry.text);
+  assert.notEqual(retry.body.refresh_token, r1.body.refresh_token);
+  assert.equal((await req('POST', '/mcp', { body: { jsonrpc: '2.0', id: 1, method: 'tools/list' }, headers: { authorization: `Bearer ${r1.body.access_token}` } })).status, 401, 'the pair the app never saw stops working');
+  t.body = { ...t.body, ...retry.body, access_token: retry.body.access_token, refresh_token: retry.body.refresh_token };
+  r1.body = retry.body;
   // another app's id cannot use this refresh token
-  const other = (await register()).body.client_id;
+  const other = (await register(CB, 'Another app')).body.client_id;
   assert.equal((await post('/oauth/token', { grant_type: 'refresh_token', refresh_token: r1.body.refresh_token, client_id: other })).body.error, 'invalid_grant');
   assert.equal((await post('/oauth/token', { grant_type: 'refresh_token', refresh_token: r1.body.refresh_token, client_id: 'ttc_' + '1'.repeat(32) })).body.error, 'invalid_client');
 });
@@ -226,7 +234,7 @@ test('token endpoint: wrong verifier burns the code, wrong address / app is refu
   const b = await approve(admin, id, challengeOf(v));
   assert.equal((await post('/oauth/token', { grant_type: 'authorization_code', code: b.code, redirect_uri: 'https://claude.ai/other', client_id: id, code_verifier: v })).body.error, 'invalid_grant');
   const c = await approve(admin, id, challengeOf(v));
-  const otherApp = (await register()).body.client_id;
+  const otherApp = (await register(CB, 'Another app')).body.client_id;
   assert.equal((await post('/oauth/token', { grant_type: 'authorization_code', code: c.code, redirect_uri: CB, client_id: otherApp, code_verifier: v })).body.error, 'invalid_grant', "another app cannot spend this app's code");
   assert.equal((await post('/oauth/token', { grant_type: 'password', username: 'a', password: 'b', client_id: id })).body.error, 'unsupported_grant_type');
   assert.equal((await post('/oauth/token', { grant_type: 'client_credentials', client_id: id })).body.error, 'unsupported_grant_type');

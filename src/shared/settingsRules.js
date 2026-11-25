@@ -18,6 +18,7 @@ import { POST_STYLES } from './postDefaults.js';
 import { INSERT_AT, START_AS, SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from './postList.js';
 import { DURING, GREETINGS, SPELLINGS, EREV_HOURS, MOTZEI_MINUTES, reminderListProblem } from './shabbosPage.js';
 import { AI_LIMIT_BOUNDS } from './aiAccess.js';
+import { redirectProblem, MAX_EXTRA_APPS } from './oauthRedirects.js';
 import { SIDE_NOTES_MAX_ALLOWED, SIDE_NOTES_MIN_SECONDS, SIDE_NOTES_MAX_SECONDS } from './railNotes.js';
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -29,11 +30,25 @@ function validZone(tz) {
 const int = (min, max) => (v) => (Number.isInteger(v) && v >= min && v <= max ? null : `a whole number from ${min} to ${max}`);
 const num = (min, max) => (v) => (typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max ? null : `a number from ${min} to ${max}`);
 const bool = (v) => (typeof v === 'boolean' ? null : 'on or off');
+/** Added AI apps: a short list of { name, redirect }, each address a sane https (or app-scheme) return address. */
+function extraAppsProblem(v) {
+  if (!Array.isArray(v) || v.length > MAX_EXTRA_APPS) return `a list of at most ${MAX_EXTRA_APPS} apps`;
+  const seen = new Set();
+  for (const e of v) {
+    if (!isObj(e) || typeof e.name !== 'string' || !e.name.trim() || e.name.length > 40) return 'apps with a name (up to 40 letters) and a return address';
+    const bad = redirectProblem(e.redirect);
+    if (bad) return `apps with a valid return address (${bad.replace(/\.$/, '')})`;
+    if (seen.has(e.redirect)) return 'each return address only once';
+    seen.add(e.redirect);
+  }
+  return null;
+}
 
 /** { path, label (plain English), check(value) -> null | 'what is expected' } */
 export const SETTING_RULES = Object.freeze([
   { path: 'aiAccess.enabled', label: 'AI connections', check: bool },
   { path: 'aiAccess.allowAverages', label: 'AI may see the Test Averages', check: bool },
+  { path: 'aiAccess.extraApps', label: 'AI apps you allowed to connect', check: extraAppsProblem },
   { path: 'aiAccess.changesPerMinute', label: 'Changes one AI connection may make per minute', check: int(AI_LIMIT_BOUNDS.changesPerMinute.min, AI_LIMIT_BOUNDS.changesPerMinute.max) },
   { path: 'aiAccess.changesPerDay', label: 'Changes one AI connection may make per day', check: int(AI_LIMIT_BOUNDS.changesPerDay.min, AI_LIMIT_BOUNDS.changesPerDay.max) },
   { path: 'post.style', label: 'Post button style', check: (v) => (POST_STYLES.includes(v) ? null : 'sheet or classic') },

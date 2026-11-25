@@ -550,6 +550,8 @@ Let an AI assistant look at and change the screen for you ("tomorrow Mincha is a
 
 **What it can do now:** look at the screen, the slides, the schedule (weekly or certain dates), posts and Recent changes; post, edit, pause, end and delete messages; switch slides on or off, move them, set their seconds; add Daily Story, Word and Letter entries in bulk (a story needs a real source; letters are copied exactly), remove them, change what shows today; change the theme, Hebrew size, orientation, side rail, motion and the posting defaults; undo.
 
+**Other AI apps (Meta AI / Muse, ChatGPT, Cursor, others):** the same address and sign-in work. Claude, Meta AI, ChatGPT and Cursor are built in. Any other app is turned away the first time; it then appears under **Connect an AI > Other AI apps > Tried to connect and were turned away** (admins), and **Allow this app** lets it in (only allow an app you just tried to connect yourself). You can also paste an app's return (callback) address under **Allow another app**, and **Stop allowing** removes it again. **Recent connection attempts** shows how far each attempt got. A bridge that cannot sign in can use a key instead.
+
 **Stay in control:** every change an AI makes is in **Recent changes** marked "(by AI: ...)" with an Undo. You can switch a key to look-only, remove it, or (admins) cut off every connection at once. Signing out everywhere also cuts your keys.
 
 ## Updating the screen software (admins only)

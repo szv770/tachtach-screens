@@ -13,7 +13,9 @@ import users, { StoreError, API_TOKEN_DEFAULT_DAYS, API_TOKEN_MAX_DAYS } from '.
 import activity from '../activity.js';
 import { readJSON } from '../storage.js';
 import { aiAccessFrom } from '../../shared/aiAccess.js';
-import { AI_MODES } from '../../shared/permissions.js';
+import { KNOWN_APPS, isAllowedRedirect } from '../../shared/oauth.js';
+import { listTurnedAway, dismissTurnedAway } from '../oauth/clients.js';
+import { AI_MODES, effectiveCaps } from '../../shared/permissions.js';
 import { forgetAiKeyHits } from '../middleware.js';
 import { originFor } from '../oauth/routes.js';
 import { connectionChecks, claudeCodeCommand, CLAUDE_IP_RANGE } from '../../shared/aiSetup.js';
@@ -70,6 +72,7 @@ router.get('/ai/status', async (req, res) => {
     const settings = (await readJSON('settings.json').catch(() => null)) || {};
     const access = aiAccessFrom(settings);
     const origin = originFor(req);
+    const admin = effectiveCaps(req.user).includes('ai.manage');
     const docs = access.enabled ? {
       resource: await selfFetch(req, 'GET', '/.well-known/oauth-protected-resource/mcp'),
       server: await selfFetch(req, 'GET', '/.well-known/oauth-authorization-server'),
@@ -82,6 +85,10 @@ router.get('/ai/status', async (req, res) => {
       claudeIpRange: CLAUDE_IP_RANGE, pinned: !!process.env.PUBLIC_URL,
       checks: connectionChecks({ origin, enabled: access.enabled, publicUrlSet: !!process.env.PUBLIC_URL, headers: req.headers, docs }),
       connections: { count: keys.length, lastUsedAt: used },
+      apps: { known: KNOWN_APPS.map((a) => a.name), added: access.extraApps },
+      // who tried to connect (and how far they got) is for the people who manage AI access, not every editor
+      turnedAway: admin ? await listTurnedAway((a) => isAllowedRedirect(a, access.extraApps.map((e) => e.redirect))) : [],
+      attempts: admin && req.app.locals.oauthAttempts ? req.app.locals.oauthAttempts.recent() : [],
     });
   } catch (e) { fail(res, e, 'GET /ai/status'); }
 });
@@ -146,6 +153,16 @@ router.delete('/ai/admin/connections/:userId/:id', async (req, res) => {
     log(req, 'Cut off an AI connection');
     res.json({ success: true });
   } catch (e) { fail(res, e, 'DELETE /ai/admin/connections/:userId/:id'); }
+});
+
+/** Forget an app that was turned away (the admin decided not to allow it). Allowing one is a normal settings save (aiAccess.extraApps). */
+router.post('/ai/admin/turned-away/dismiss', async (req, res) => {
+  try {
+    const address = String((req.body || {}).address || '');
+    if (!address || address.length > 300) return res.status(400).json({ error: 'Say which one.' });
+    await dismissTurnedAway(address);
+    res.json({ success: true });
+  } catch (e) { fail(res, e, 'POST /ai/admin/turned-away/dismiss'); }
 });
 
 /** The panic button: every AI connection for everyone stops working now. */

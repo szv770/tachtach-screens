@@ -6,6 +6,7 @@ import { NumberField, ConfirmDialog } from '../ui.jsx';
 import Collapsible from '../ui/Collapsible.jsx';
 import { useCopy } from '../schedule/scheduleShared.jsx';
 import { AI_ACCESS_DEFAULTS, AI_LIMIT_BOUNDS, aiAccessFrom } from '../../../shared/aiAccess.js';
+import { redirectProblem, MAX_EXTRA_APPS } from '../../../shared/oauthRedirects.js';
 import { EXAMPLE_PROMPTS } from '../../../shared/mcpTools/instructions.js';
 import { relativeTime } from '../TeamPanel.jsx';
 
@@ -118,6 +119,114 @@ function GetStarted({ access, isAdmin, onToggle, status, onRecheck, copy, hasCon
   );
 }
 
+const STEP_TEXT = {
+  registered: 'The app introduced itself',
+  turned_away: 'Turned away (not on the allowed list)',
+  refused: 'Refused',
+  sign_in: 'Opened the sign-in page',
+  allowed: 'Person tapped Allow',
+  denied: 'Person tapped Cancel',
+  token: 'Asked for its key',
+  refreshed: 'Renewed its key',
+};
+
+/** Other AI apps: the built-in ones, the ones this school added, the ones that were turned away (one tap to allow), and how far each attempt got. */
+function OtherApps({ access, isAdmin, status, save, reload }) {
+  const [name, setName] = useState('');
+  const [redirect, setRedirect] = useState('');
+  const [problem, setProblem] = useState('');
+  const added = access.extraApps;
+  const away = status?.turnedAway || [];
+  const attempts = status?.attempts || [];
+  const known = status?.apps?.known || ['Claude', 'Meta AI', 'ChatGPT', 'Cursor'];
+
+  const allow = async (app) => {
+    if (added.length >= MAX_EXTRA_APPS) { notify(`You can add up to ${MAX_EXTRA_APPS} apps. Remove one first.`, 'error'); return; }
+    if (added.some((a) => a.redirect === app.redirect)) return;
+    await save({ aiAccess: { extraApps: [...added, app] } }, `${app.name} may connect`);
+    reload();
+  };
+  const addTyped = async () => {
+    const bad = redirectProblem(redirect.trim());
+    if (bad) { setProblem(bad); return; }
+    if (!name.trim()) { setProblem('Give the app a name so you recognise it later.'); return; }
+    setProblem('');
+    await allow({ name: name.trim().slice(0, 40), redirect: redirect.trim() });
+    setName(''); setRedirect('');
+  };
+  const remove = async (app) => {
+    await save({ aiAccess: { extraApps: added.filter((a) => a.redirect !== app.redirect) } }, `${app.name} can no longer connect`);
+    reload();
+  };
+  const dismiss = async (address) => {
+    try { await apiFetch('/api/ai/admin/turned-away/dismiss', { method: 'POST', body: JSON.stringify({ address }) }); reload(); } catch (e) { notify(e.message, 'error'); }
+  };
+
+  return (
+    <Collapsible id="ai-apps" title="Other AI apps (Meta AI, ChatGPT, Cursor, others)" icon="users"
+      summary={`${known.join(', ')}${added.length ? ` + ${added.length} you added` : ''}${away.length ? ` · ${away.length} turned away` : ''}`}>
+      <div style={{ display: 'grid', gap: '12px', paddingTop: '8px' }} data-testid="ai-apps">
+        <Hint style={{ margin: 0 }}>These apps can connect with the same address and sign-in as Claude: <strong>{known.join(', ')}</strong>. In the other app, add a custom connector / MCP server, paste the address from step 2 and press Connect. Your TachTach sign-in opens.</Hint>
+
+        {isAdmin && away.length > 0 && (
+          <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-turned-away">
+            <h4 style={{ ...h3, fontSize: '14px', margin: 0 }}>Tried to connect and were turned away</h4>
+            {away.map((a) => (
+              <div key={a.address} style={{ ...card, display: 'grid', gap: '6px' }}>
+                <div><strong style={{ color: colors.text }}>{a.name}</strong> <span style={{ color: colors.dim, fontSize: '13px' }}>from</span> <strong style={{ color: colors.text }}>{a.host}</strong> <span style={{ color: colors.dim, fontSize: '13px' }}>· {relativeTime(a.at)}</span></div>
+                <div style={{ fontSize: '12px', color: colors.dim, wordBreak: 'break-all' }}>{a.address}</div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button type="button" style={buttonPrimary} onClick={() => allow({ name: a.name, redirect: a.address })} data-testid="ai-allow-away">Allow this app</button>
+                  <button type="button" style={buttonSecondary} onClick={() => dismiss(a.address)}>Ignore</button>
+                </div>
+              </div>
+            ))}
+            <Hint style={{ margin: 0 }}>Only allow an app you just tried to connect yourself. If you do not recognise the name or the website, press Ignore.</Hint>
+          </div>
+        )}
+
+        {added.length > 0 && (
+          <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-added-apps">
+            <h4 style={{ ...h3, fontSize: '14px', margin: 0 }}>Apps you allowed</h4>
+            {added.map((a) => (
+              <div key={a.redirect} style={{ ...card, display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ minWidth: 0 }}><strong style={{ color: colors.text }}>{a.name}</strong><span style={{ display: 'block', fontSize: '12px', color: colors.dim, wordBreak: 'break-all' }}>{a.redirect}</span></span>
+                {isAdmin && <button type="button" style={buttonDanger} onClick={() => remove(a)}>Stop allowing</button>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isAdmin && (
+          <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-add-app">
+            <h4 style={{ ...h3, fontSize: '14px', margin: 0 }}>Allow another app</h4>
+            <Hint style={{ margin: 0 }}>Easiest: try to connect the app once. It shows up above as turned away, and you press Allow. Or paste the return address (also called callback or redirect URL) the app shows when you add the connector.</Hint>
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="App name" aria-label="App name" style={{ ...fieldStyle, width: '100%' }} />
+            <input value={redirect} onChange={(e) => setRedirect(e.target.value)} maxLength={300} placeholder="https://… return address" aria-label="Return address" style={{ ...fieldStyle, width: '100%' }} />
+            {problem && <div role="alert" style={{ color: colors.danger, fontSize: '14px' }}>{problem}</div>}
+            <div><button type="button" style={buttonSecondary} onClick={addTyped} data-testid="ai-add-app-go">Allow this app</button></div>
+          </div>
+        )}
+
+        <Hint style={{ margin: 0 }}>An app or chat bridge that cannot sign in (for example one you message on WhatsApp) can still connect with a key: open <strong>Other apps: make a key</strong> below and paste the key where the app asks for an “Authorization: Bearer” header.</Hint>
+
+        {isAdmin && attempts.length > 0 && (
+          <div style={{ display: 'grid', gap: '4px' }} data-testid="ai-attempts">
+            <h4 style={{ ...h3, fontSize: '14px', margin: 0 }}>Recent connection attempts</h4>
+            {attempts.map((a, i) => (
+              <div key={`${a.at}-${i}`} style={{ display: 'grid', gridTemplateColumns: '18px 1fr', gap: '8px', fontSize: '13px', lineHeight: 1.4 }}>
+                <span aria-hidden style={{ color: a.ok ? colors.success : colors.danger, fontWeight: 700 }}>{a.ok ? '✓' : '✕'}</span>
+                <span style={{ color: colors.text }}>{a.app ? <strong>{a.app}</strong> : null}{a.app ? ': ' : ''}{STEP_TEXT[a.step] || a.step}{a.reason ? <span style={{ color: colors.dim }}> · {a.reason}</span> : null} <span style={{ color: colors.dim }}>· {relativeTime(a.at)}</span></span>
+              </div>
+            ))}
+            <Hint style={{ margin: 0 }}>If an app says it hit a problem, look here: the last line shows how far it got.</Hint>
+          </div>
+        )}
+      </div>
+    </Collapsible>
+  );
+}
+
 function ConnectionRow({ c, owner, onMode, onRemove }) {
   return (
     <div style={{ ...card, display: 'grid', gap: '6px' }} data-testid={`ai-conn-${c.id}`}>
@@ -182,6 +291,8 @@ export default function ConnectAiPanel({ settings, onSave, isAdmin }) {
         onToggle={() => save({ aiAccess: { enabled: !access.enabled } }, access.enabled ? 'AI connections off' : 'AI connections on')}
         onRecheck={loadStatus}
       />
+
+      {access.enabled && <OtherApps access={access} isAdmin={isAdmin} status={status} save={save} reload={loadStatus} />}
 
       <div style={{ display: 'grid', gap: '8px' }} data-testid="ai-mine">
         <h3 style={h3}>Your connections</h3>

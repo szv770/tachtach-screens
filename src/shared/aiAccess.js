@@ -4,12 +4,16 @@
  * Pure, so the server, the admin page and the tests agree on the defaults:
  *   enabled          AI keys work only when this is true. Default false: nothing changes until an admin turns it on.
  *   allowAverages    an AI may see / change Test Averages (student names + marks). Default false.
+ *   extraApps        AI apps the admin allowed beyond the built-in ones: [{ name, redirect }] (max 10), see oauth.js.
  *   changesPerMinute / changesPerDay   how many CHANGES one key may make. Reads are not counted.
  *                    One bulk call (import 10 stories, replace a week) is one change.
  */
+import { redirectProblem, MAX_EXTRA_APPS } from './oauthRedirects.js';
+
 export const AI_ACCESS_DEFAULTS = Object.freeze({
   enabled: false,
   allowAverages: false,
+  extraApps: Object.freeze([]),
   changesPerMinute: 10,
   changesPerDay: 60,
 });
@@ -19,6 +23,19 @@ export const AI_LIMIT_BOUNDS = Object.freeze({
   changesPerDay: Object.freeze({ min: 1, max: 1000 }),
 });
 
+/** Added apps from a stored settings object: only well-formed { name, redirect } pairs, at most MAX_EXTRA_APPS, no repeats. */
+export function extraAppsFrom(list) {
+  const out = []; const seen = new Set();
+  for (const e of Array.isArray(list) ? list : []) {
+    if (!e || typeof e !== 'object' || typeof e.redirect !== 'string' || typeof e.name !== 'string') continue;
+    if (redirectProblem(e.redirect) || seen.has(e.redirect)) continue;
+    seen.add(e.redirect);
+    out.push({ name: e.name.replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40) || 'AI app', redirect: e.redirect });
+    if (out.length >= MAX_EXTRA_APPS) break;
+  }
+  return out;
+}
+
 const clampInt = (v, { min, max }, dflt) => (Number.isInteger(v) && v >= min && v <= max ? v : dflt);
 
 /** The effective AI settings from a stored settings object. Anything odd falls back to the safe default. */
@@ -27,6 +44,7 @@ export function aiAccessFrom(settings) {
   return {
     enabled: a.enabled === true,
     allowAverages: a.allowAverages === true,
+    extraApps: extraAppsFrom(a.extraApps),
     changesPerMinute: clampInt(a.changesPerMinute, AI_LIMIT_BOUNDS.changesPerMinute, AI_ACCESS_DEFAULTS.changesPerMinute),
     changesPerDay: clampInt(a.changesPerDay, AI_LIMIT_BOUNDS.changesPerDay, AI_ACCESS_DEFAULTS.changesPerDay),
   };

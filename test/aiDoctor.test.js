@@ -60,3 +60,16 @@ test('plain http without --allow-http is a failure with the reason', async () =>
   assert.equal(r.code, 1);
   assert.match(r.out, /✖ The address is http, not https/);
 });
+
+test('--redirect checks another AI app: Meta AI is allowed, an unknown app says how to allow it; browser apps (CORS) are checked too', async () => {
+  assert.equal((await admin.call('PATCH', '/api/settings', { aiAccess: { enabled: true } })).status, 200);
+  const meta = await doctor(base, '--allow-http', '--redirect', 'https://agent.meta.ai/api/hatch/oauth/callback');
+  assert.equal(meta.code, 0, meta.out);
+  assert.match(meta.out, /✔ That app's return address is allowed/);
+  assert.match(meta.out, /✔ Browser-based AI apps are allowed to talk to \/mcp/);
+  const other = await doctor(base, '--allow-http', '--redirect', 'https://app.unknown-agent.example/cb');
+  assert.equal(other.code, 1, other.out);
+  assert.match(other.out, /✖ That app's return address is NOT allowed yet/);
+  assert.match(other.out, /Other AI apps/);
+  assert.match(other.out, /Allow another app/);
+});

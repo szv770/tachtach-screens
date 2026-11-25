@@ -33,8 +33,8 @@ export function connectionChecks({ origin, enabled, publicUrlSet = false, header
 
   const cf = headers['cf-ray'] !== undefined || /cloudflare/i.test(String(headers.server || ''));
   const access = headers['cf-access-jwt-assertion'] !== undefined || headers['cf-access-authenticated-user-email'] !== undefined;
-  if (access) add('access', 'fail', 'Cloudflare Access is asking people to sign in first', `claude.ai cannot pass that. In Cloudflare, add an Access policy "Bypass" for ${CLAUDE_IP_RANGE}, or leave Access off this address.`);
-  else if (cf) add('cloudflare', 'info', 'Cloudflare is in front of this screen', `That is fine. If claude.ai cannot connect, Cloudflare may be challenging it: in Cloudflare > Security > WAF add a custom rule that SKIPS ${CLAUDE_IP_RANGE}, or turn off "Bot Fight Mode" for /mcp, /oauth and /.well-known.`);
+  if (access) add('access', 'fail', 'Cloudflare Access is asking people to sign in first', `AI apps cannot pass that. In Cloudflare, add an Access policy "Bypass" for the paths /mcp, /oauth and /.well-known (for Claude alone, its address range ${CLAUDE_IP_RANGE} also works), or leave Access off this address.`);
+  else if (cf) add('cloudflare', 'info', 'Cloudflare is in front of this screen', `That is fine. If an AI app (Claude, Meta AI, ChatGPT...) cannot connect, Cloudflare may be challenging it: in Cloudflare > Security > WAF add one custom rule that SKIPS the security checks when the path starts with /mcp, /oauth or /.well-known (this works for every app), or turn off "Bot Fight Mode" for those paths.`);
 
   if (docs) {
     const r = docs.resource; const s = docs.server; const m = docs.mcp;

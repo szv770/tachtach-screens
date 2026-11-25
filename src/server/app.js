@@ -12,6 +12,7 @@ import teamRouter from './routes/team.js';
 import aiRouter from './routes/ai.js';
 import { createMcpRouter } from './mcp/route.js';
 import { createOAuthRouter } from './oauth/routes.js';
+import { createAttemptLog } from './oauth/attempts.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
 import { createDataPackRouter } from './routes/dataPack.js';
 import systemInfoRouter from './routes/systemInfo.js';
@@ -602,7 +603,8 @@ export function createApp() {
   app.use('/api', embedProbeRouter);
   app.use('/api/schedule', scheduleDatesRouter); // schedule by date (own 256 kB body limit)
   app.use('/api', apiRouter);
-  app.use(createOAuthRouter()); // "Sign in with" for the AI connector: /.well-known/oauth-* and /oauth/*; 404 while AI connections are off (src/server/oauth/routes.js)
+  app.locals.oauthAttempts = createAttemptLog(); // what AI apps did at sign-in, for Connect an AI (read by routes/ai.js; one log per app instance)
+  app.use(createOAuthRouter({ attempts: app.locals.oauthAttempts })); // "Sign in with" for the AI connector: /.well-known/oauth-* and /oauth/*; 404 while AI connections are off (src/server/oauth/routes.js)
   app.use('/mcp', createMcpRouter()); // the AI connector: 404 while AI connections are off, bearer key only (src/server/mcp/route.js)
 
   // ── 9b. Public homepage: what a visitor sees at the bare address (static text, sign-in + live links only)
