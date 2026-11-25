@@ -42,6 +42,7 @@ function walk(schema, value, path, errors) {
   }
   if (Array.isArray(value)) {
     if (schema.maxItems !== undefined && value.length > schema.maxItems) errors.push(`${here} can have at most ${schema.maxItems} items.`);
+    if (schema.minItems !== undefined && value.length < schema.minItems) errors.push(`${here} needs at least ${schema.minItems} item${schema.minItems === 1 ? '' : 's'}.`);
     if (schema.items) value.forEach((v, i) => walk(schema.items, v, `${path}[${i}]`, errors));
   }
   if (isObj(value) && schema.type === 'object') {

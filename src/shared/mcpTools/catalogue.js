@@ -12,7 +12,9 @@
  * Every CHANGE tool needs a `previewId` from preview_change for the same arguments (src/server/mcp/previewToken.js).
  * Built from the real constants of the app (layouts, styles, limits), so a new one shows up here without hand-copying.
  */
-import { DISPLAYS, LAYOUTS, STATUSES } from '../announcements.js';
+import { DISPLAYS, LAYOUTS, STATUSES, TAKEOVER_TURNS_GROUP } from '../announcements.js';
+import { SCREEN_COMMANDS } from '../screenCommands.js';
+import { MODES as FREEZE_MODES, STYLES as FREEZE_STYLES, MAX_MESSAGE as FREEZE_MESSAGE_MAX, MAX_MINUTES as FREEZE_MAX_MINUTES } from '../freeze.js';
 import { STYLE_IDS, ANIMATIONS } from '../takeoverStyles.js';
 import { SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from '../postList.js';
 import { LOOK_CHANGES_SCHEMA } from './lookSettings.js';
@@ -36,6 +38,8 @@ const CONTENT = obj({
   bodyHe: S('More text in Hebrew.', 4000),
   subtitle: S('A small line under the headline.'),
   attribution: S('Who said it, for quotes.'),
+  target: S('Who it is for (a small line), English.'),
+  targetHe: S('Who it is for, Hebrew.'),
   event: obj({ title: S('Event name'), titleHe: S('Event name in Hebrew'), day: S('Day, for example Thursday'), dayHe: S('Day in Hebrew'), time: S('Time as HH:MM, 24 hour'), place: S('Place'), place2: S('Second line of the place'), placeHe: S('Place in Hebrew') }, [], 'For the "event" layout.'),
   list: obj({ heading: S('List heading'), headingHe: S('List heading in Hebrew'), items: { type: 'array', maxItems: 8, items: S('One line', 600), description: 'At most 8 lines.' } }, [], 'For the "list" layout.'),
   quote: obj({ text: S('The quote'), textHe: S('The quote in Hebrew'), source: S('Where it is from'), sourceHe: S('Source in Hebrew') }, [], 'For the "quote" layout.'),
@@ -52,10 +56,17 @@ const POST = obj({
     layout: { type: 'string', enum: CONNECTOR_LAYOUTS, description: 'How the text is laid out. See describe_options("announcements").' },
     style: { type: 'string', enum: STYLE_IDS, description: 'The look of a takeover (26 styles).' },
     animation: { type: 'string', enum: ANIMATIONS, description: 'Takeover motion: full, entrance only, or off.' },
+    fit: { type: 'string', enum: ['auto', 'fixed'], description: 'auto = the text is sized to fit the screen (default); fixed = use maxFontPx as is.' },
+    maxFontPx: { type: 'integer', minimum: 12, maximum: 400, description: 'The biggest the text may be (pixels).' },
+    fullscreen: { type: 'boolean', description: 'Hide the side column and use the whole screen (notes and plain takeovers).' },
   }),
+  note: obj({ icon: S('A small icon name for a side note.', 40) }),
   slide: obj({ duration: { type: 'integer', minimum: 0, maximum: SECONDS_MAX, description: `Seconds a slide stays on screen (${SECONDS_MIN}-${SECONDS_MAX}); 0 = automatic.` } }),
   banner: obj({ mode: { type: 'string', enum: ['still', 'scroll'] }, speed: { type: 'string', enum: ['slow', 'normal', 'fast'] } }),
-  takeover: obj({ rotateSec: { type: 'integer', minimum: 3, maximum: 300, description: 'Seconds each takeover stays when several share the screen.' } }),
+  takeover: obj({
+    rotateSec: { type: 'integer', minimum: 3, maximum: 300, description: 'Seconds each takeover stays when several share the screen.' },
+    group: { type: 'string', enum: [TAKEOVER_TURNS_GROUP, ''], description: `"${TAKEOVER_TURNS_GROUP}" = this takeover takes turns full screen with other takeovers that have it; an empty string = not.` },
+  }),
   when: obj({
     startsAt: { type: 'string', description: 'Start, as an exact UTC time like 2026-11-24T20:00:00Z. Easier: use startsAtLocal.', maxLength: 40 },
     expiresAt: { type: 'string', description: 'End, as an exact UTC time. Easier: use endsInHours or endsAtLocal.', maxLength: 40 },
@@ -73,9 +84,36 @@ const TIMING = {
   endsInHours: { type: 'integer', minimum: 0, maximum: END_HOURS_MAX, description: 'Take it down after this many hours from now. 0 = until someone removes it.' },
   endsAtLocal: LOCAL_TIME,
   startsAtLocal: LOCAL_TIME,
+  until: { type: 'string', enum: ['end_of_today', 'end_of_shabbos'], description: 'A quick end: the end of today (11:59 PM, school time) or the end of Shabbos (nightfall). Instead of endsInHours / endsAtLocal.' },
 };
 
-const CHANGE_TOOLS = ['schedule_replace_week', 'schedule_set_days', 'schedule_clear_day', 'post_message', 'edit_post', 'set_post_state', 'delete_post', 'set_slide_enabled', 'reorder_slides', 'set_slide_duration', 'add_daily_content', 'remove_daily_content', 'set_daily_today', 'update_look_and_settings', 'undo_change'];
+const BLOCK_MATCH = obj({
+  id: S('The block id from get_schedule.', 80),
+  name: S('Its name (English or Hebrew), for example Seder or Mincha.', 120),
+  time: S('Its start time, to tell apart blocks that share a name, for example 10:30 AM.', 20),
+  days: { type: 'array', maxItems: 7, items: S('Sun, Mon, Tue, Wed, Thu, Fri or Shabbos', 12), description: 'Only for the regular weekly timetable: which days.' },
+}, [], 'Which block. Give its id, or its name (plus its time or days if the name is used more than once). If it is not exactly one block you are told the candidates.');
+const BLOCK_SET = obj({
+  time: S('New start time, for example 1:45 PM or 13:45. A range such as 10:30-11:45 AM sets the end too.', 40),
+  endTime: S('New end time, or an empty string to remove the end time.', 20),
+  name: S('New English name.', 200), nameHe: S('New Hebrew name.', 200), category: S('One of the school\'s categories (see get_schedule).', 60),
+  alertBefore: { type: 'integer', minimum: 0, maximum: 120, description: 'Minutes before the block to show the alert (0 = none).' },
+  enabled: { type: 'boolean', description: 'false switches the block off (cancelled), true switches it back on.' },
+});
+const NEW_BLOCK = obj({
+  time: S('Start time, for example 4:00 PM, or a range like 4:00-4:30 PM.', 40), endTime: S('End time (optional).', 20), name: S('English name.', 200), nameHe: S('Hebrew name.', 200),
+  category: S('One of the school\'s categories.', 60), alertBefore: { type: 'integer', minimum: 0, maximum: 120 },
+  days: { type: 'array', maxItems: 7, items: S('Sun, Mon, Tue, Wed, Thu, Fri or Shabbos', 12), description: 'Only for the weekly timetable (empty = every day).' },
+}, ['time']);
+const BLOCK_OPS = {
+  type: 'array', minItems: 1, maxItems: 30, description: 'What to do, in order. Several can be given at once.',
+  items: { type: 'object', additionalProperties: false, required: ['op'], properties: {
+    op: { type: 'string', enum: ['cancel', 'remove', 'change', 'add'], description: 'cancel = switch the block off (for one day: that day only); remove = take it out; change = new time / name / category; add = a new block.' },
+    match: BLOCK_MATCH, set: BLOCK_SET, entry: NEW_BLOCK,
+  } },
+};
+
+const CHANGE_TOOLS = ['schedule_replace_week', 'schedule_set_days', 'schedule_clear_day', 'schedule_change_day', 'schedule_change_week', 'screen_control', 'freeze_screen', 'resume_screen', 'post_message', 'edit_post', 'set_post_state', 'delete_post', 'set_slide_enabled', 'reorder_slides', 'set_slide_duration', 'add_daily_content', 'remove_daily_content', 'set_daily_today', 'update_look_and_settings', 'undo_change'];
 
 /** The areas describe_options can explain (describe.js builds one for each; a test keeps them equal). */
 export const DESCRIBE_AREAS = Object.freeze(['announcements', 'schedule', 'slides', 'history', 'home', 'daily-story', 'daily-word', 'daily-letter', 'themes', 'style', 'layout', 'motion', 'shows', 'this-screen']);
@@ -122,6 +160,12 @@ export const TOOLS = Object.freeze([
   { name: 'schedule_set_days', title: 'Set the schedule for certain dates', area: 'schedule', risk: 'change', needs: ['schedule.edit'], privacy: 'none',
     description: 'Set the schedule for one or more specific dates (for example Shabbos or a Yom Tov), as text in the TachTach schedule format (see get_format_guide). It replaces those dates only. All-or-nothing.',
     inputSchema: obj({ text: S('The dated schedule text.', 60000), previewId: PREVIEW_ID }, ['text', 'previewId']) },
+  { name: 'schedule_change_day', title: 'Change one day\'s schedule (cancel, move, add a block)', area: 'schedule', risk: 'change', needs: ['schedule.edit'], privacy: 'none',
+    description: 'Change blocks of ONE date without rewriting the schedule: cancel a block for that day only (for example the 10:30 Seder today), remove one, change a block\'s start or end time or name, or add a one-off block. The weekly timetable is NOT touched. FIRST call get_schedule for that date, ASK the person which block and what the new time is, and whether it is for that day only (this tool) or every week (schedule_change_week). Preview shows the day before and after.',
+    inputSchema: obj({ date: S('today, tomorrow, or a date like 2026-11-26.', 12), ops: BLOCK_OPS, label: S('Optional name for that day, for example "Erev Chanukah".', 120), previewId: PREVIEW_ID }, ['date', 'ops', 'previewId']) },
+  { name: 'schedule_change_week', title: 'Change the regular weekly timetable (move, cancel, add a block)', area: 'schedule', risk: 'change', needs: ['schedule.edit'], privacy: 'none',
+    description: 'Change blocks of the REGULAR weekly timetable, which repeats every week: change a block\'s time or name, switch one off, remove one or add one (with its days). This changes every week from now on, so confirm that is what the person wants; for a single day use schedule_change_day. The old week is backed up automatically.',
+    inputSchema: obj({ ops: BLOCK_OPS, previewId: PREVIEW_ID }, ['ops', 'previewId']) },
   { name: 'schedule_clear_day', title: 'Go back to the weekly schedule for a date', area: 'schedule', risk: 'delete', needs: ['schedule.edit'], privacy: 'none',
     description: 'Remove the one-day change for a date, so that date uses the weekly timetable again.',
     inputSchema: obj({ date: ISO_DATE, previewId: PREVIEW_ID }, ['date', 'previewId']) },
@@ -129,7 +173,7 @@ export const TOOLS = Object.freeze([
   // ── Posts ───────────────────────────────────────────────────────────────────
   { name: 'post_message', title: 'Post a message', area: 'announcements', risk: 'change', needs: ['announcements.post'], privacy: 'none',
     description: 'Post a message slide, banner, side note or full-screen takeover. FIRST call describe_options("announcements") and ASK the person: what kind (slide, banner, side note, takeover), the text (English, Hebrew or both), how long it should stay up, and whether it repeats. A takeover fills the whole screen and pauses everything, so confirm it clearly. Preview, read it back, then post.',
-    inputSchema: obj({ post: POST, ...TIMING, previewId: PREVIEW_ID }, ['post', 'previewId']) },
+    inputSchema: obj({ post: POST, ...TIMING, ifTakeoverConflict: { type: 'string', enum: ['replace', 'share', 'queue'], description: 'If another takeover is live or scheduled at the same time: replace = pause the other one(s); share = they take turns full screen; queue = this one starts when the other ends (the other needs an end time). Ask the person.' }, previewId: PREVIEW_ID }, ['post', 'previewId']) },
   { name: 'edit_post', title: 'Change a post', area: 'announcements', risk: 'change', needs: ['announcements.edit'], privacy: 'none',
     description: 'Change fields of an existing post (use list_posts for the id). Only the fields you give are changed.',
     inputSchema: obj({ id: S('The post id.', 80), changes: POST, ...TIMING, previewId: PREVIEW_ID }, ['id', 'changes', 'previewId']) },
@@ -169,6 +213,25 @@ export const TOOLS = Object.freeze([
   { name: 'set_daily_today', title: 'Change what shows today', area: 'daily-story', alsoAreas: ['daily-word', 'daily-letter'], risk: 'change', needs: ['dailyWord.edit'], privacy: 'none',
     description: 'Change today\'s Daily Story / Word / Letter: pick = show a particular entry (give its id); random = a different one; hide = show none today; automatic = go back to the normal rotation. This cannot be undone with undo_change, but "automatic" puts it back.',
     inputSchema: obj({ kind: KIND, op: { type: 'string', enum: ['pick', 'random', 'hide', 'automatic'] }, id: S('The entry id (for pick).', 80), previewId: PREVIEW_ID }, ['kind', 'op', 'previewId']) },
+
+  // ── Screen control ──────────────────────────────────────────────────────────
+  { name: 'screen_control', title: 'Pause, resume, skip or blank the TV', area: 'home', risk: 'change', needs: ['screen.control'], privacy: 'none',
+    description: 'Control the real TV right now: pause (stay on this slide), resume, advance (next slide), previous, or blank (toggle a black screen). It affects what everyone in the room sees, so confirm. For a timed blank or a freeze message use freeze_screen.',
+    inputSchema: obj({ action: { type: 'string', enum: SCREEN_COMMANDS }, previewId: PREVIEW_ID }, ['action', 'previewId']) },
+  { name: 'freeze_screen', title: 'Blank, freeze or put a message on the TV', area: 'home', risk: 'change', needs: ['screen.control'], privacy: 'none',
+    description: 'Take over the TV: blank = black screen, logo = only the logo, freeze = stop on what is showing, message = a plain notice (give message). Ask the person for how long (30 minutes, 1 hour, a number of minutes, until a clock time, until tomorrow morning, or until someone resumes). Emergency takeovers still show through. resume_screen ends it.',
+    inputSchema: obj({
+      mode: { type: 'string', enum: FREEZE_MODES },
+      message: S('For mode "message": the text (a short line).', FREEZE_MESSAGE_MAX),
+      style: { type: 'string', enum: FREEZE_STYLES, description: 'plain (default) or terminal.' },
+      for: { type: 'string', enum: ['30m', '1h', 'minutes', 'at', 'tomorrow', 'until_removed'], description: 'How long. minutes needs "minutes"; at needs "at".' },
+      minutes: { type: 'integer', minimum: 1, maximum: FREEZE_MAX_MINUTES },
+      at: S('A clock time in the school\'s zone, 24 hour, like 07:15 (the next time the clock reads it).', 5),
+      previewId: PREVIEW_ID,
+    }, ['mode', 'previewId']) },
+  { name: 'resume_screen', title: 'End a blank / freeze and show the slides again', area: 'home', risk: 'change', needs: ['screen.control'], privacy: 'none',
+    description: 'Put the TV back to normal after freeze_screen (or a blank started in the admin).',
+    inputSchema: obj({ previewId: PREVIEW_ID }, ['previewId']) },
 
   // ── Look and settings ───────────────────────────────────────────────────────
   { name: 'update_look_and_settings', title: 'Change the look and main settings', area: 'themes', alsoAreas: ['style', 'layout', 'motion', 'shows', 'this-screen'], risk: 'change', needs: ['look.change', 'settings.change'], privacy: 'none',

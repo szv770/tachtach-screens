@@ -8,7 +8,7 @@
  */
 import { AREAS } from './areas.js';
 import { TOOLS, toolsFor, CONNECTOR_LAYOUTS, NOT_YET_LAYOUTS } from './catalogue.js';
-import { DISPLAYS, LAYOUTS, DEFAULT_TZ } from '../announcements.js';
+import { DISPLAYS, LAYOUTS, DEFAULT_TZ, TAKEOVER_TURNS_GROUP } from '../announcements.js';
 import { STYLE_GROUPS, STYLE_INFO, ANIMATIONS, ANIMATION_LABEL } from '../takeoverStyles.js';
 import { postingDefaults, SECONDS_MIN, SECONDS_MAX, END_HOURS_MAX } from '../postList.js';
 import { aiAccessFrom } from '../aiAccess.js';
@@ -41,13 +41,14 @@ const ASK = {
     'How long should it stay up: until you remove it, for a number of hours, or until a certain time?',
     'Should it start now or later? Does it repeat (certain days, or only between certain times)?',
     'For a slide: how many seconds should it stay on screen each time?',
-    'For a takeover: which look fits (for example Emergency, Celebration, Shabbos)? If another takeover is live, should this one replace it?',
+    'For a takeover: which look fits (for example Emergency, Celebration, Shabbos)? If another takeover is live, should this one replace it, take turns with it, or wait for it to end?',
+    'Should it end at a particular time, at the end of today, or at the end of Shabbos?',
     'Post it now, or save it as a draft first?',
   ],
   schedule: [
-    'Is this the regular weekly timetable that repeats every week, or a change for specific dates (for example this Shabbos or a Yom Tov)?',
-    'Which dates or days, and what are all the items with their times?',
-    'Which category does each item belong to (davening, seder, meal, break...)?',
+    'Is this for one day only (today, tomorrow, a date) or for every week from now on?',
+    'Which block, and what is the new time (start and end), or should it be cancelled for that day?',
+    'For a whole new day or week: what are all the items with their times, and which category is each (davening, seder, meal, break...)?',
     'Do you want Hebrew names too?',
   ],
   slides: [
@@ -77,7 +78,10 @@ const ASK = {
   motion: ['How lively should the screen be, and should long text scroll or turn into pages?'],
   shows: ['Should new posts go live at once or wait as drafts? How long should a new post stay up, and how many seconds should a message slide stay?'],
   'this-screen': ['What should this screen be called?'],
-  home: [],
+  home: [
+    'How long should the TV stay blank or frozen: a number of minutes, until a time, until tomorrow morning, or until you say so?',
+    'Should it be black, show only the logo, freeze on what is showing, or show a short notice (what should it say)?',
+  ],
 };
 
 const wrapList = (xs) => xs.filter(Boolean);
@@ -100,7 +104,16 @@ function announcementsOptions(ctx) {
         start: 'startsAtLocal (school time). Leave out to start now.',
         repeat: 'post.when.recurrence { days: [Sun..Sat], windows: [{start:"07:00",end:"09:30"}], monthDays, from, until }',
         timeZone: ctx.tz || DEFAULT_TZ,
+        quick: 'until: "end_of_today" (11:59 PM) or "end_of_shabbos" (nightfall), instead of endsInHours / endsAtLocal.',
       },
+      fineTuning: {
+        fit: 'post.look.fit: "auto" (text sized to fit, the default) or "fixed" with post.look.maxFontPx (12-400) as the biggest size.',
+        fullscreen: 'post.look.fullscreen: true hides the side column so the post uses the whole screen (side notes and plain takeovers).',
+        sideNoteIcon: 'post.note.icon: a small icon name for a side note.',
+        takeTurns: `post.takeover.group: "${TAKEOVER_TURNS_GROUP}" lets takeovers take turns full screen, each for post.takeover.rotateSec seconds (3-300).`,
+        target: 'post.content.target / targetHe: a small "for whom" line.',
+      },
+      takeoverConflicts: 'If another takeover is live or scheduled at the same time you must choose with ifTakeoverConflict: replace (pause the other), share (take turns) or queue (start when the other ends; the other needs an end time).',
       status: [{ id: 'published', what: 'Goes live (or waits for its start time).' }, { id: 'draft', what: 'Saved, never shown until published.' }],
     },
     defaults: {
@@ -130,18 +143,33 @@ function scheduleOptions() {
     area: 'schedule',
     summary: 'Two layers: the regular weekly timetable that repeats, and one-day changes for specific dates. A date with a one-day change shows that day\'s schedule instead of the weekly one.',
     choices: {
-      weekly: 'schedule_replace_week replaces the WHOLE weekly timetable (the old one is backed up automatically first).',
-      days: 'schedule_set_days replaces the schedule of the listed dates only. schedule_clear_day puts one date back on the weekly timetable.',
-      format: 'Both take text in the TachTach schedule format. Call get_format_guide for the exact format with this school\'s categories and groups.',
+      smallEdits: {
+        oneDay: 'schedule_change_day: for ONE date (today, tomorrow or a date) cancel a block for that day only, remove it, change its start or end time or name, or add a one-off block. The weekly timetable is not touched.',
+        everyWeek: 'schedule_change_week: the same operations on the REGULAR weekly timetable, so they happen every week from now on.',
+        operations: ['cancel (switch a block off; for one day that day only)', 'remove', 'change { set: time / endTime / name / nameHe / category / alertBefore / enabled }', 'add { entry: time, name, ... }'],
+        pickingABlock: 'Give the block\'s id (from get_schedule) or its name, plus its time (or, for the weekly timetable, days) when the name is used more than once. If it is not exactly one block you get the candidates back and nothing is changed.',
+        times: 'Times can be 1:45 PM, 13:45 or a range like 10:30-11:45 AM.',
+      },
+      wholeSchedules: {
+        weekly: 'schedule_replace_week replaces the WHOLE weekly timetable (the old one is backed up automatically first).',
+        days: 'schedule_set_days replaces the schedule of the listed dates only. schedule_clear_day puts one date back on the weekly timetable.',
+        format: 'Those two take text in the TachTach schedule format. Call get_format_guide for the exact format with this school\'s categories and groups.',
+      },
     },
     questionsToAsk: ASK.schedule,
-    rules: [
-      'Show the person the whole schedule you wrote (every item and time) before you ask to save it.',
-      'Replacing the week is big: confirm it clearly. Use schedule_set_days for a single Shabbos or Yom Tov.',
-      'Times that change every week (candle lighting) belong in dated days, not in the weekly timetable.',
-      'Everything is checked first: if any line has an error nothing is saved.',
+    examples: [
+      { say: 'cancel the 10:30 Seder today', call: { tool: 'schedule_change_day', args: { date: 'today', ops: [{ op: 'cancel', match: { name: 'Seder', time: '10:30 AM' } }] } } },
+      { say: 'Mincha is at 1:45 today', call: { tool: 'schedule_change_day', args: { date: 'today', ops: [{ op: 'change', match: { name: 'Mincha' }, set: { time: '1:45 PM' } }] } } },
+      { say: 'from now on Shacharis starts 7:40 on weekdays', call: { tool: 'schedule_change_week', args: { ops: [{ op: 'change', match: { name: 'Shacharis', days: ['Mon', 'Tue', 'Wed', 'Thu'] }, set: { time: '7:40 AM' } }] } } },
     ],
-    undo: 'Both kinds can be undone with undo_change (see read_history).',
+    rules: [
+      'For a small change use schedule_change_day or schedule_change_week. Do not rewrite a whole day or week as text for one change.',
+      'Always find out whether the change is for that day only or every week, and say which one the preview shows.',
+      'Show the person the before and after (the preview does) and wait for their yes.',
+      'Replacing the whole week is big: confirm it clearly. Times that change every week (candle lighting) belong in dated days, not in the weekly timetable.',
+      'Everything is checked first: if anything is wrong nothing is saved.',
+    ],
+    undo: 'Every schedule change can be undone with undo_change (see read_history).',
   };
 }
 
@@ -168,9 +196,17 @@ function historyOptions() {
 function homeOptions() {
   return {
     area: 'home',
-    summary: 'get_overview shows what is on the screen now. get_capabilities shows everything this connection can do.',
+    summary: 'get_overview shows what is on the screen now. get_capabilities shows everything this connection can do. The TV controls are here too.',
+    choices: {
+      tvControls: {
+        screen_control: 'pause (stay on this slide), resume, advance (next slide), previous, blank (toggle black).',
+        freeze_screen: 'blank (black), logo (only the logo), freeze (stop on what is showing) or message (a notice you write), for 30 minutes, 1 hour, a number of minutes, until a clock time, until tomorrow morning, or until someone resumes.',
+        resume_screen: 'end a blank or freeze and show the slides again.',
+        emergency: 'Emergency takeovers still show through a freeze.',
+      },
+    },
     questionsToAsk: ASK.home,
-    rules: ['Names of students, people, security and software updates are never available through an AI connection.'],
+    rules: ['Names of students, people, security and software updates are never available through an AI connection.', 'TV controls act on the real screen at once: confirm them, and say for how long.', 'They are not part of Undo; resume_screen (or screen_control resume) is the way back.'],
   };
 }
 

@@ -14,7 +14,7 @@ export const AREA_STATUS = Object.freeze(['available', 'soon', 'blocked']);
 const NAMES = 'It holds students\' names, and names never go to an AI.';
 
 export const AREAS = Object.freeze({
-  home: { en: 'Home', status: 'available', tools: ['get_overview'], blurb: 'What is on the screen now, what is next, what is live.' },
+  home: { en: 'Home', status: 'available', tools: ['get_overview', 'screen_control', 'freeze_screen', 'resume_screen'], blurb: 'What is on the screen now, what is next, what is live; and the TV controls: pause, resume, next, previous, blank, and Freeze (blank, logo only, freeze, or a notice) for a set time.' },
   slides: { en: 'Slides', status: 'available', tools: ['list_slides', 'set_slide_enabled', 'reorder_slides', 'set_slide_duration'], blurb: 'The rotation: switch slides on or off, change the order, and how many seconds each stays.' },
   images: { en: 'Media', status: 'soon', blurb: 'Pictures, videos, photo albums, web pages and news feeds. Not through the connector yet.' },
   'daily-word': { en: 'Daily Word', status: 'available', tools: ['list_daily_content', 'add_daily_content', 'remove_daily_content', 'set_daily_today', 'get_format_guide'], blurb: 'A new Yiddish (or other) word every day: add words in bulk, remove, change today. Only words and meanings you or the person can vouch for.' },
@@ -27,7 +27,7 @@ export const AREAS = Object.freeze({
   shabbos: { en: 'Shabbos', status: 'soon', blurb: 'Not through the connector yet.' },
   roster: { en: 'Bochurim', status: 'blocked', reason: NAMES, blurb: '' },
   chazan: { en: 'Chazan', status: 'blocked', reason: NAMES, blurb: '' },
-  schedule: { en: 'Schedule', status: 'available', tools: ['get_schedule', 'get_format_guide', 'schedule_replace_week', 'schedule_set_days', 'schedule_clear_day'], blurb: 'The weekly timetable and one-day changes (Shabbos, Yom Tov, a different day). Always previewed before it is saved, and the old week is backed up.' },
+  schedule: { en: 'Schedule', status: 'available', tools: ['get_schedule', 'get_format_guide', 'schedule_change_day', 'schedule_change_week', 'schedule_replace_week', 'schedule_set_days', 'schedule_clear_day'], blurb: 'The weekly timetable and one-day changes. Small edits (cancel a Seder today, move Mincha to 1:45, add a block) or whole days and weeks (Shabbos, Yom Tov). Always previewed before it is saved, and the old week is backed up.' },
   'custom-days': { en: 'Custom days', status: 'soon', blurb: 'Not through the connector yet.' },
   announcements: { en: 'Announcements', status: 'available', tools: ['list_posts', 'post_message', 'edit_post', 'set_post_state', 'delete_post'], blurb: 'Message slides, banners, side notes and full-screen takeovers: post, change, pause, end, show again, delete.' },
   'themes': { en: 'Themes', status: 'available', tools: ['update_look_and_settings'], blurb: 'Screen theme and the automatic day/night theme.' },

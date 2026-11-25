@@ -12,7 +12,8 @@ import { previewSigner, REFUSAL } from './previewToken.js';
 import { ToolError, failure, result } from './handlers/common.js';
 import * as read from './handlers/read.js';
 import { postMessage, editPost, setPostState, deletePost } from './handlers/posts.js';
-import { scheduleReplaceWeek, scheduleSetDays, scheduleClearDay } from './handlers/schedule.js';
+import { scheduleReplaceWeek, scheduleSetDays, scheduleClearDay, scheduleChangeDay, scheduleChangeWeek } from './handlers/schedule.js';
+import { screenControl, freezeScreen, resumeScreen } from './handlers/screen.js';
 import { setSlideEnabled, reorderSlides, setSlideDuration, undoChange } from './handlers/slides.js';
 import { listDaily, addDaily, removeDaily, setDailyToday } from './handlers/daily.js';
 import { updateLook } from './handlers/look.js';
@@ -34,6 +35,11 @@ export const CHANGES = {
   schedule_replace_week: scheduleReplaceWeek,
   schedule_set_days: scheduleSetDays,
   schedule_clear_day: scheduleClearDay,
+  schedule_change_day: scheduleChangeDay,
+  schedule_change_week: scheduleChangeWeek,
+  screen_control: screenControl,
+  freeze_screen: freezeScreen,
+  resume_screen: resumeScreen,
   post_message: postMessage,
   edit_post: editPost,
   set_post_state: setPostState,
