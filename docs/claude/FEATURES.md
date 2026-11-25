@@ -259,3 +259,7 @@ Look & Settings > Connect an AI (`admin/components/connections/ConnectAiPanel.js
 
 Tools added: `list_daily_content`, `add_daily_content` (append or replace; dry-run preview with real counts; stories without a source are saved hidden and warned; letters copied exactly), `remove_daily_content`, `set_daily_today`, `update_look_and_settings` (typed list in `src/shared/mcpTools/lookSettings.js`). Handlers `src/server/mcp/handlers/{daily,look}.js`. Undo kinds `schedule.dates`, `daily.stories|words|letters` (`src/server/undo.js`). claude.ai signs in through `src/server/oauth/` (see ARCHITECTURE "AI sign-in"). Admin steps: ADMIN_GUIDE "Connect an AI".
 
+### Connect an AI: day-to-day tools and easy start (2026-11-25)
+
+Schedule: `schedule_change_day` / `schedule_change_week` (`src/server/mcp/handlers/schedule.js`, ops cancel / remove / change / add; a block is picked by id, name + time, or days for the weekly timetable; never guessed). Posts: every composer setting + `until` + `ifTakeoverConflict` (`handlers/posts.js`). TV: `screen_control`, `freeze_screen`, `resume_screen` (`handlers/screen.js`). Readiness: admin "Get started" card (`ConnectAiPanel.jsx`) + `GET /api/ai/status` (`routes/ai.js`, checks in `src/shared/aiSetup.js`); `scripts/ai-doctor.mjs`; `docs/AI_CONNECT_QUICKSTART.md`.
+
