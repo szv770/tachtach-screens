@@ -4,6 +4,8 @@ const clients = new Map(); // id -> { res, isPreview }
 // When a real screen (not the admin preview) was last on the stream: now while one is connected,
 // else when the last one dropped. Read by /api/screen/status and the health check. In memory only.
 let kioskLastSeenAt = null;
+// When the current real screen connected (set when the count goes from none to one). The watchdog gives a fresh page time to start.
+let kioskConnectedSince = null;
 const MAX_KIOSK_CLIENTS = 20;
 const MAX_PREVIEW_CLIENTS = 10;
 const MAX_VIEWER_CLIENTS = 40; // public live-view watchers: their own pool, so they never evict the admin preview
@@ -43,8 +45,9 @@ export function addClient(res, isPreview = false, viewer = false, key = null) {
   // Send initial connection event
   res.write(`data: ${JSON.stringify({ type: 'connected', data: { id } })}\n\n`);
 
+  const kioskBefore = getKioskClientCount();
   clients.set(id, { res, isPreview, viewer, key });
-  if (!isPreview) kioskLastSeenAt = Date.now();
+  if (!isPreview) { kioskLastSeenAt = Date.now(); if (kioskBefore === 0) kioskConnectedSince = Date.now(); }
 
   // Remove on disconnect
   res.on('close', () => {
@@ -138,6 +141,11 @@ export function getViewerClientCount() {
   let n = 0;
   for (const [, c] of clients) if (c.viewer) n++;
   return n;
+}
+
+/** Epoch ms the current real screen connected (null while none is connected). */
+export function getKioskConnectedSince() {
+  return getKioskClientCount() > 0 ? kioskConnectedSince : null;
 }
 
 /** Epoch ms the real screen was last connected (null = not since this server started). */

@@ -3,7 +3,7 @@
  * `<project>/data` by default; TACHTACH_DATA_DIR (tests, later per-org folders) overrides it.
  * Read at call time so a test can set the variable before it imports anything.
  *
- * Deliberately NOT used by systemUpdate.js: the root update helper has a fixed contract
+ * Deliberately NOT used by systemUpdate.js and kioskRestart.js: the root units they talk to have a fixed contract
  * and must keep seeing `<project>/data`.
  */
 import path from 'path';

@@ -293,3 +293,17 @@ test('TV controls: pause / resume, and Freeze with a message for a time, then re
   assert.equal(until.done.isError, false, until.done.text || JSON.stringify(until.preview));
   assert.equal((await change(adminC, 'resume_screen', {})).done.isError, false);
 });
+
+test('the AI can tell "connected" from "painting", and reload the TV page (not restart its browser)', async () => {
+  const before = (await call(adminC, 'get_overview')).json;
+  assert.match(before.tv.painting, /unknown/, 'no note from a page yet');
+  const ok = await app.request({ method: 'POST', url: '/api/screen/alive', body: { frameAgeMs: 10, clientNow: Date.now(), visible: true }, local: true });
+  assert.equal(ok.status, 200);
+  assert.ok(!('needsAPerson' in (await call(adminC, 'get_overview')).json.tv));
+  const r = await change(adminC, 'screen_control', { action: 'reload_page' });
+  assert.equal(r.done?.isError, false, r.done?.text || JSON.stringify(r.preview));
+  assert.match(r.preview.whatWillHappen, /Reload the TV/);
+  const tool = (await adminC.listTools()).tools.find((t) => t.name === 'screen_control');
+  assert.ok(tool.inputSchema.properties.action.enum.includes('reload_page'));
+  assert.ok(!tool.inputSchema.properties.action.enum.includes('restart'), 'restarting the browser stays an admin button');
+});

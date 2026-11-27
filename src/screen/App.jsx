@@ -5,6 +5,7 @@ import Rail from './components/Rail.jsx';
 import { resolveActiveTheme, dayPhase } from '../shared/dayNight.js';
 import { toMinutes } from './design/time.js';
 import { useSSE } from './hooks/useSSE.js';
+import { useAliveReport } from './hooks/useAliveReport.js';
 import { useClock } from './hooks/useClock.js';
 import { useSlideRotation } from './hooks/useSlideRotation.js';
 import { useAnnouncements } from './hooks/useAnnouncements.js';
@@ -526,6 +527,10 @@ function AppContent() {
         }
         break;
       }
+      case 'kiosk-reload':
+        // The server's watchdog saw this screen stop painting: start the page over (the real screen only).
+        if (!_isPreview && !_isDatePreview) window.location.reload();
+        break;
       case 'screen-slide':
         // Live Preview only (the server never sends this to the real screen): where the TV is right now.
         if (!_isPreview) break;
@@ -552,6 +557,7 @@ function AppContent() {
   }, []);
 
   const { status: sseStatus } = useSSE(handleSSE, handleFullState, { enabled: !_isDatePreview });
+  useAliveReport(!_isPreview && !_isDatePreview); // "I am painting": the server restarts a frozen screen (src/server/kioskWatchdog.js)
 
   // Report slide state to server on every slide change (real screen only, not preview or date preview).
   // The server stamps its own clock and rebroadcasts it to the admin Live Preview as `screen-slide`.

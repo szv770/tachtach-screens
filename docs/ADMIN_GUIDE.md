@@ -571,6 +571,15 @@ You can only ask for one update every 5 minutes, and only admins see this card. 
 
 ## Troubleshooting
 
+### The TV froze (blank slide area, the clock stuck)
+
+"Connected" only means the TV's page is linked to the server; a frozen browser stays linked. The page therefore tells the server every 20 seconds that it is really painting. **Home** shows the result under the buttons ("The screen looks fine" / "The TV looks frozen"), and System health has a **Screen is painting** row.
+
+- **By itself:** if the picture stops for about a minute the server first asks the page to reload, and 45 seconds later restarts the TV's browser. It never restarts more than once per 10 minutes or 3 times an hour; after that it stops, shows **The screen keeps freezing**, and sends a phone alert (if alerts are on). Each action is in History.
+- **By you, from a phone:** Home > **Reload the TV page** (the page starts over) or **Restart the screen** (the browser restarts, about 30 seconds of black). Needs the "pause, skip, freeze, blank or refresh the screen" access. The restart button needs the box updated once (`bash ~/tachtach-screens/deploy/update.sh`); until then Home says so.
+- **Why did it freeze?** On the box run `bash ~/tachtach-screens/deploy/kiosk-diagnose.sh` (read-only) right after a freeze and send the output: it shows power and heat, memory, graphics errors, the clock and the restart schedule.
+- Windows screen computers: only **Reload the TV page** works from the website for now.
+
 ### The screen is blank or shows an error
 
 1. Check that the server is running: `sudo systemctl status tachtach-server`

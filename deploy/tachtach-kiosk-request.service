@@ -1,0 +1,13 @@
+# Started only by tachtach-kiosk-request.path. Restarts the Chromium kiosk (the same thing the 4-hourly timer does).
+# The request file is removed FIRST, so a failed restart can never turn into a restart loop.
+[Unit]
+Description=TachTach-Screens kiosk restart (asked for from the admin website or the freeze watchdog)
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f __PROJECT_DIR__/data/kiosk-restart-request.json
+ExecStart=-/usr/bin/systemctl reset-failed tachtach-kiosk.service
+ExecStart=/usr/bin/systemctl restart tachtach-kiosk.service
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tachtach-kiosk-request

@@ -65,7 +65,13 @@ export async function getOverview(ctx) {
     now: localClock(now, tz),
     timeZone: tz,
     screenName: settings.siteName || '',
-    tv: { online: !!status.online, paused: !!status.paused, held: !!status.held, currentSlideId: status.slideId, lastSeen: status.lastSeenAt },
+    tv: {
+      online: !!status.online, paused: !!status.paused, held: !!status.held, currentSlideId: status.slideId, lastSeen: status.lastSeenAt,
+      // "online" only means connected. This says whether the picture is really updating.
+      painting: status.alive?.status === 'ok' ? 'yes' : status.alive?.status === 'frozen' ? 'NO: the picture looks frozen (screen_control reload_page can try to fix it)' : 'unknown',
+      ...(status.watchdog?.restartsLastHour ? { restartedAutomaticallyLastHour: status.watchdog.restartsLastHour } : {}),
+      ...(status.watchdog?.needsPerson ? { needsAPerson: 'The screen keeps freezing and automatic restarts stopped: someone must look at it.' } : {}),
+    },
     livePosts: live.map((i) => postView(i, now, tz)),
     todaysSchedule: { source: eff.source, label: eff.label || '', nextItems: upcoming, itemsToday: eff.entries.length },
     rotation: { slidesOn: rotation.length, slides: rotation.slice(0, 40).map((s) => ({ id: s.id, name: s.label || s.titleEn || s.type })) },

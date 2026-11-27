@@ -23,6 +23,8 @@ import { forKiosk as rosterForKiosk } from '../../shared/roster.js';
 import { broadcast, broadcastToAll } from '../sse.js';
 import { SCREEN_COMMANDS } from '../../shared/screenCommands.js';
 import { getScreenState, setScreenState, getScreenDisplay } from '../screenState.js';
+import { requestKioskRestart } from '../kioskRestart.js';
+import activity from '../activity.js';
 import { setupTrackA, setupTrackB, manualRefresh, applySettingsChange } from '../scheduler.js';
 import { upload, processImage, processGif, processVideo, getMediaType, deleteMedia, listMedia, UPLOAD_DIR } from '../upload.js';
 import { processPdf, PdfError } from '../pdf.js';
@@ -739,6 +741,29 @@ for (const action of SCREEN_COMMANDS) {
     res.json({ success: true });
   });
 }
+
+// Restart the real screen without SSH. 'page' = ask the page to reload itself (works while its JavaScript runs);
+// 'screen' = restart the Chromium kiosk (a frozen browser does not hear the first). Needs screen.control (the /api/screen rule).
+// At most one ask per 30 s so a nervous double tap cannot restart it twice.
+let lastScreenRestartAsk = 0;
+router.post('/screen/restart', (req, res) => {
+  const level = (req.body || {}).level;
+  if (level !== 'page' && level !== 'screen') return res.status(400).json({ error: 'Choose "page" or "screen".' });
+  const t = Date.now();
+  if (t - lastScreenRestartAsk < 30_000) return res.status(429).json({ error: 'It was just asked to restart. Give it about a minute.' });
+  const log = (action) => activity.record({ user: req.user, action, area: 'screen' }).catch(() => {});
+  if (level === 'page') {
+    lastScreenRestartAsk = t;
+    broadcast('kiosk-reload', {});
+    log('Refreshed the TV page');
+    return res.json({ success: true, level, message: 'The page is reloading. It is back in a few seconds.' });
+  }
+  const r = requestKioskRestart({ by: req.user?.name || 'an admin', reason: 'asked from the admin' });
+  if (!r.ok) return res.status(r.code === 'not_installed' ? 409 : 500).json({ error: r.message, code: r.code });
+  lastScreenRestartAsk = t;
+  log('Restarted the TV browser');
+  res.json({ success: true, level, message: 'Restarting the screen. It is back in about 30 seconds.' });
+});
 
 // Authenticated version of screen/state (for admin panel access from remote machines)
 router.get('/screen/state', (_req, res) => {

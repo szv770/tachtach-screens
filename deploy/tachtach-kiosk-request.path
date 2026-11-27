@@ -1,0 +1,12 @@
+# Watches for a "restart the screen" request from the TachTach admin website (or from the server's own freeze watchdog).
+# The web server may only drop data/kiosk-restart-request.json; this root unit notices it and starts the service below.
+# The file's contents are never read or trusted: its existence is the whole request.
+[Unit]
+Description=Watch for a screen-restart request from the TachTach admin website
+
+[Path]
+PathExists=__PROJECT_DIR__/data/kiosk-restart-request.json
+Unit=tachtach-kiosk-request.service
+
+[Install]
+WantedBy=multi-user.target

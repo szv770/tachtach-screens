@@ -14,6 +14,7 @@ import TvStatusLine from './TvStatusLine.jsx';
 import { timesFor, groupLabel, sanitizeGroups } from '../../shared/scheduleGroups.js';
 import { RoleChip } from './AdminLayout.jsx';
 import FreezeControl from './FreezeControl.jsx';
+import ScreenRestartCard from './ScreenRestartCard.jsx';
 import useIsMobile from '../hooks/useIsMobile.js';
 import { saveLastKnown } from '../lastKnown.js';
 import { openPost } from './announcements/postOpen.js';
@@ -153,7 +154,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
       {isMobile && st && (
         <section data-testid="home-hero" style={{ ...card, padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
-            {online ? <StatusChip tone="live" label="Screen connected" /> : <StatusChip tone="off" label={lastSeen != null ? `Screen offline · seen ${ago(lastSeen)}` : 'Screen offline'} />}
+            {online ? (st.alive?.status === 'frozen' ? <StatusChip tone="warn" label="Screen connected but frozen" /> : <StatusChip tone="live" label="Screen connected" />) : <StatusChip tone="off" label={lastSeen != null ? `Screen offline · seen ${ago(lastSeen)}` : 'Screen offline'} />}
             {frozen && <StatusChip tone="warn" label={`Frozen (${frozen.mode})`} />}
           </div>
           <div style={{ fontFamily: 'var(--f-display)', fontSize: '24px', fontWeight: 600, margin: '10px 0 2px', overflowWrap: 'anywhere' }}>
@@ -191,6 +192,7 @@ export default function Home({ state, me, siteName, onGo, onQuick, onNew, onComm
               {canControl && actionTile('home-refresh', 'refresh', 'Refresh data now', () => onRefreshData?.())}
             </div>
           )}
+          {canControl && st && <ScreenRestartCard st={st} onDone={screen.reload} />}
           {readOnly && (
             <p data-testid="home-readonly" style={{ margin: 0, fontSize: '13px', color: colors.dim, lineHeight: 1.5 }}>You can look at everything here. To change something, ask an admin for editor access.</p>
           )}

@@ -5,6 +5,7 @@
 
 import { sanitizeDisplay } from '../shared/screenSize.js';
 import { sanitizeList } from '../shared/rotationPosition.js';
+import { clockSkewMs } from '../shared/kioskAlive.js';
 
 let state = {
   slideIndex: 0, slideId: null, isPaused: false, reportedAt: null,
@@ -16,6 +17,26 @@ const HELD_BY = ['freeze', 'takeover', 'hold', 'shabbos-off', 'shabbos-sign'];
 // What the real screen last said about its own size ({ width, height, dpr, orientation, canvas, reportedAt }).
 // In memory only: the kiosk re-reports on load, on resize and every few minutes.
 let display = null;
+
+// The page's own "I am painting" notes (src/shared/kioskAlive.js). In memory only; the watchdog and the Home card read it.
+let alive = { at: null, frameAgeMs: null, visible: true, clientNow: null, uptimeMs: null, skewMs: null };
+
+/** Store one cleaned note from the page (see sanitizeAlive). `now` = the SERVER's clock when it arrived. */
+export function setAlive(note, now = Date.now()) {
+  if (!note) return;
+  alive = {
+    at: now, frameAgeMs: note.frameAgeMs, visible: note.visible !== false, clientNow: note.clientNow ?? null, uptimeMs: note.uptimeMs ?? null,
+    skewMs: clockSkewMs(note.clientNow, now),
+  };
+}
+export const getAlive = () => ({ ...alive });
+/** Test helper: forget every note. */
+export function resetAlive() { alive = { at: null, frameAgeMs: null, visible: true, clientNow: null, uptimeMs: null, skewMs: null }; }
+
+// What the freeze watchdog last concluded (it writes this each check; Home and the health page read it).
+let watchdog = { frozen: false, reason: '', since: null, lastAction: null, restartsLastHour: 0, needsPerson: false };
+export function setWatchdogStatus(w) { watchdog = { ...watchdog, ...w }; }
+export const getWatchdogStatus = () => ({ ...watchdog, lastAction: watchdog.lastAction ? { ...watchdog.lastAction } : null });
 
 export function getScreenState() {
   return { ...state, display: display ? { ...display } : null };

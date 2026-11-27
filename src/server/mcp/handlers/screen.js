@@ -13,6 +13,7 @@ const WORDS = {
   advance: 'Move the TV to the next slide',
   previous: 'Move the TV to the previous slide',
   blank: 'Toggle the TV black (blank) on or off',
+  reload_page: "Reload the TV's page (it goes blank for a few seconds and starts over)",
 };
 
 const clockText = (ms, tz) => new Intl.DateTimeFormat('en-US', { timeZone: tz || undefined, weekday: 'short', hour: 'numeric', minute: '2-digit' }).format(new Date(ms));
@@ -21,6 +22,7 @@ async function planCommand(ctx, { action }) {
   const st = await apiOk(ctx, 'GET', '/api/screen/status');
   const out = { ok: true, errors: [], warnings: [], sentence: `${WORDS[action]}.` };
   if (!st.online) out.warnings.push('The TV is not connected right now, so nothing will visibly change until it is.');
+  if (action === 'reload_page' && st.alive?.status === 'frozen') out.warnings.push('The TV looks frozen. If a reload does not fix it in a minute, the admin has a "Restart the screen" button (that one is not available to AI).');
   if (action === 'blank') out.warnings.push('"blank" is a toggle: if the screen is already black this turns it back on. For a timed blank use freeze_screen.');
   return out;
 }
@@ -29,7 +31,8 @@ export const screenControl = {
   plan: planCommand,
   async apply(ctx, args) {
     const plan = await planCommand(ctx, args);
-    await apiOk(ctx, 'POST', `/api/screen/${args.action}`);
+    if (args.action === 'reload_page') await apiOk(ctx, 'POST', '/api/screen/restart', { level: 'page' });
+    else await apiOk(ctx, 'POST', `/api/screen/${args.action}`);
     return result({ done: true, what: SCREEN_COMMAND_DONE[args.action] || plan.sentence, undo: 'Not part of Undo. Use screen_control again (resume / previous) to go back.' });
   },
 };

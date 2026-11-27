@@ -53,12 +53,12 @@ test('N3: writeFileAtomic leaves no .tmp and replaces whole', async () => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test('N3: no hard-coded data path literal is left in src/server or src/fetchers (except systemUpdate.js)', () => {
+test('N3: no hard-coded data path literal is left in src/server or src/fetchers (except systemUpdate.js and kioskRestart.js: both talk to a root systemd unit that watches the fixed <project>/data)', () => {
   const bad = [];
   const walk = (d) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) {
     const f = path.join(d, e.name);
     if (e.isDirectory()) walk(f);
-    else if (f.endsWith('.js') && !f.endsWith('systemUpdate.js') && !f.endsWith('dataDir.js')) {
+    else if (f.endsWith('.js') && !f.endsWith('systemUpdate.js') && !f.endsWith('kioskRestart.js') && !f.endsWith('dataDir.js')) {
       const t = fs.readFileSync(f, 'utf-8');
       if (/['"`]\.\.\/(\.\.\/)+data['"\/`]|['"`]data\/(uploads|fonts|rss-cache|google-photos|pack|tls)|\(\s*\w+,\s*'data'/.test(t)) bad.push(f);
     } } };

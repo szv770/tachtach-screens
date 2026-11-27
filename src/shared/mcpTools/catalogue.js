@@ -216,8 +216,8 @@ export const TOOLS = Object.freeze([
 
   // ── Screen control ──────────────────────────────────────────────────────────
   { name: 'screen_control', title: 'Pause, resume, skip or blank the TV', area: 'home', risk: 'change', needs: ['screen.control'], privacy: 'none',
-    description: 'Control the real TV right now: pause (stay on this slide), resume, advance (next slide), previous, or blank (toggle a black screen). It affects what everyone in the room sees, so confirm. For a timed blank or a freeze message use freeze_screen.',
-    inputSchema: obj({ action: { type: 'string', enum: SCREEN_COMMANDS }, previewId: PREVIEW_ID }, ['action', 'previewId']) },
+    description: 'Control the real TV right now: pause (stay on this slide), resume, advance (next slide), previous, or blank (toggle a black screen). reload_page starts the TV page over (use it when get_overview says the picture looks frozen or the slides are stuck). It affects what everyone in the room sees, so confirm. For a timed blank or a freeze message use freeze_screen.',
+    inputSchema: obj({ action: { type: 'string', enum: [...SCREEN_COMMANDS, 'reload_page'] }, previewId: PREVIEW_ID }, ['action', 'previewId']) },
   { name: 'freeze_screen', title: 'Blank, freeze or put a message on the TV', area: 'home', risk: 'change', needs: ['screen.control'], privacy: 'none',
     description: 'Take over the TV: blank = black screen, logo = only the logo, freeze = stop on what is showing, message = a plain notice (give message). Ask the person for how long (30 minutes, 1 hour, a number of minutes, until a clock time, until tomorrow morning, or until someone resumes). Emergency takeovers still show through. resume_screen ends it.',
     inputSchema: obj({

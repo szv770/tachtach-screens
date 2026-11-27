@@ -13,6 +13,9 @@ import aiRouter from './routes/ai.js';
 import { createMcpRouter } from './mcp/route.js';
 import { createOAuthRouter } from './oauth/routes.js';
 import { createAttemptLog } from './oauth/attempts.js';
+import { startKioskWatchdog } from './kioskWatchdog.js';
+import activity from './activity.js';
+import { sanitizeAlive } from '../shared/kioskAlive.js';
 import systemUpdateRouter from './routes/systemUpdate.js';
 import { createDataPackRouter } from './routes/dataPack.js';
 import systemInfoRouter from './routes/systemInfo.js';
@@ -63,7 +66,7 @@ import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
 import { dataPath } from './dataDir.js';
 import { broadcastToPreview } from './sse.js';
-import { getScreenState, setScreenState, getScreenDisplay, followPayload } from './screenState.js';
+import { getScreenState, setScreenState, setAlive, getScreenDisplay, followPayload } from './screenState.js';
 import { initGooglePhotosSync, isUnsafeAlbumPath } from './google-photos.js';
 import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
@@ -216,6 +219,12 @@ export function createApp() {
         await startPushMonitor();
       } catch (pushErr) {
         console.error('[push] Startup error:', pushErr.message);
+      }
+      // Freeze watchdog: a connected TV that stops painting is reloaded, then restarted (src/server/kioskWatchdog.js)
+      try {
+        await startKioskWatchdog({ sendPush: (m) => sendPush(m), activity });
+      } catch (dogErr) {
+        console.error('[kiosk-watchdog] Startup error:', dogErr.message);
       }
       // Phone alert when a software update (asked for from the admin) finishes
       try {
@@ -444,6 +453,14 @@ export function createApp() {
     setScreenState({ slideIndex, slideId, isPaused, display, durationMs, slides, held, heldBy, overlay, elapsedMs });
     // A slide report (not a display-size one) is what the admin Live Preview follows.
     if (typeof slideIndex === 'number' || slideId !== undefined) broadcastToPreview('screen-slide', followPayload());
+    res.json({ success: true });
+  });
+
+  // The page's "I am painting" note (src/shared/kioskAlive.js): the freeze watchdog reads it. Same localhost-only gate as the report.
+  app.post('/api/screen/alive', localhostOnly, (req, res) => {
+    const note = sanitizeAlive(req.body);
+    if (!note) return res.status(400).json({ error: 'Not an alive note.' });
+    setAlive(note);
     res.json({ success: true });
   });
 

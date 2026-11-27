@@ -16,6 +16,8 @@ export const opsApi = {
   updateStatus: () => apiFetch('/api/system/update/status'),
   /** action is exactly 'update' or 'rollback'; the server re-checks the password (+ 2-step code). */
   requestUpdate: ({ action, password, code }) => apiFetch('/api/system/update', { method: 'POST', body: JSON.stringify({ action, password, code }) }),
+  /** level 'page' = reload the TV's page; 'screen' = restart its browser (screen.control). */
+  restartScreen: (level) => apiFetch('/api/screen/restart', { method: 'POST', body: JSON.stringify({ level }) }),
   history: (limit = 100) => apiFetch(`/api/history?limit=${limit}`),
   undo: (id) => post(`/api/history/${encodeURIComponent(id)}/undo`),
   /**
@@ -25,6 +27,7 @@ export const opsApi = {
   runFix: (fix) => {
     switch (fix.action) {
       case 'refresh-data': return post('/api/refresh');
+      case 'restart-screen': return apiFetch('/api/screen/restart', { method: 'POST', body: JSON.stringify({ level: 'screen' }) });
       case 'sync-album': return post(`/api/google-album/${encodeURIComponent(fix.id)}/sync`);
       case 'sync-feed': return post(`/api/rss/feeds/${encodeURIComponent(fix.id)}/sync`);
       case 'cleanup': return post('/api/cleanup');

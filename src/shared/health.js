@@ -8,11 +8,14 @@
  *
  * Fix actions (the admin maps each to an API call that already exists):
  *   refresh-data  POST /api/refresh        screen.control
+ *   restart-screen POST /api/screen/restart {level:'screen'}  screen.control
  *   sync-album    POST /api/google-album/:id/sync   feeds.edit
  *   sync-feed     POST /api/rss/feeds/:id/sync      feeds.edit
  *   cleanup       POST /api/cleanup        settings.change
  *   push-test     POST /api/push/test      (any signed-in person)
  */
+
+import { CLOCK_SKEW_WARN_MS } from './kioskAlive.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -71,6 +74,7 @@ export function durationLabel(ms) {
 
 const row = (id, group, label, status, summary, extra = {}) => ({ id, group, label, status, summary, ...extra });
 const REFRESH = { action: 'refresh-data', label: 'Refresh data now', needs: 'screen.control' };
+const RESTART_SCREEN = { action: 'restart-screen', label: 'Restart the screen', needs: 'screen.control' };
 
 /** Age-based judgement shared by the "did this source refresh lately" rows. */
 function judgeAge(at, now, warnMs, badMs) {
@@ -105,6 +109,27 @@ export function buildHealth(f = {}, now = Date.now()) {
     checks.push(row('screen-reporting', 'Screen', 'Screen is reporting slides', quiet > 30 * MIN && !sc.paused ? 'warn' : 'ok',
       quiet > 30 * MIN && !sc.paused ? `The screen has not reported a slide change for ${durationLabel(quiet)}.` : `Last slide report ${ago(quiet)}${sc.paused ? ' (paused)' : ''}.`,
       quiet > 30 * MIN && !sc.paused ? { help: 'The page may be stuck. Use "Refresh screen" on Home.' } : {}));
+  }
+
+  // "Connected" only means a socket is open. A hung browser keeps it, so ask whether the page is really PAINTING (src/shared/kioskAlive.js).
+  if (sc.online && sc.alive) {
+    const al = sc.alive;
+    if (al.status === 'frozen') {
+      checks.push(row('screen-painting', 'Screen', 'Screen is painting', 'bad',
+        al.reason === 'not-painting' ? `The TV is connected but its picture stopped ${al.frameAgeMs != null ? `${durationLabel(al.frameAgeMs)} ago` : 'a while ago'}.` : 'The TV is connected but its page has stopped answering.',
+        { help: 'The screen restarts a frozen picture by itself. If it is still stuck after a couple of minutes, use "Restart the screen".', fix: RESTART_SCREEN }));
+    } else if (al.status === 'ok') {
+      checks.push(row('screen-painting', 'Screen', 'Screen is painting', 'ok', 'The TV reports a fresh picture.'));
+    }
+    if (al.skewMs != null && Math.abs(al.skewMs) > CLOCK_SKEW_WARN_MS) {
+      checks.push(row('screen-clock', 'Screen', "The TV's clock", 'warn', `The TV's clock is ${durationLabel(Math.abs(al.skewMs))} ${al.skewMs > 0 ? 'ahead of' : 'behind'} the screen box.`,
+        { help: 'The screen shows the wrong time. Check the screen box is online (it sets its clock from the internet), then restart the screen.', fix: RESTART_SCREEN }));
+    }
+  }
+  if (sc.watchdog?.needsPerson) {
+    checks.push(row('screen-keeps-freezing', 'Screen', 'Screen keeps freezing', 'bad',
+      `The screen froze again after ${sc.watchdog.restartsLastHour} automatic restarts in the last hour, so it stopped restarting by itself.`,
+      { help: 'Someone needs to look at the TV and the screen box (power supply, heat, cable). On the box, bash ~/tachtach-screens/deploy/kiosk-diagnose.sh shows what happened.', fix: RESTART_SCREEN }));
   }
 
   // ── Settings that make times wrong when missing ──

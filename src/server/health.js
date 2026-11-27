@@ -10,8 +10,10 @@ import { promisify } from 'util';
 import { X509Certificate } from 'crypto';
 import { readJSON } from './storage.js';
 import { dataDir } from './dataDir.js';
-import { getScreenState } from './screenState.js';
-import { getKioskClientCount, getKioskLastSeenAt } from './sse.js';
+import { getScreenState, getAlive, getWatchdogStatus } from './screenState.js';
+import { kioskRestartState } from './kioskRestart.js';
+import { judgeAlive } from '../shared/kioskAlive.js';
+import { getKioskClientCount, getKioskLastSeenAt, getKioskConnectedSince } from './sse.js';
 import { getAlbumStatus } from './google-photos.js';
 import { pdfToolsAvailable } from './pdf.js';
 import { isLocalTlsEnabled } from './localTls.js';
@@ -27,7 +29,16 @@ const DATA = dataDir();
 export function screenStatus() {
   const s = getScreenState();
   const clients = getKioskClientCount();
+  const a = getAlive();
+  const now = Date.now();
+  const verdict = judgeAlive({ connected: clients > 0, connectedSince: getKioskConnectedSince(), aliveAt: a.at, frameAgeMs: a.frameAgeMs, visible: a.visible, now });
+  const dog = getWatchdogStatus();
+  const restart = kioskRestartState();
   return {
+    // "Painting" is stronger than "connected": a hung browser keeps its connection (src/shared/kioskAlive.js).
+    alive: { status: verdict.status, reason: verdict.reason, aliveAt: a.at ? new Date(a.at).toISOString() : null, frameAgeMs: a.frameAgeMs, skewMs: a.skewMs },
+    watchdog: { restartsLastHour: dog.restartsLastHour, needsPerson: dog.needsPerson, lastAction: dog.lastAction ? { at: new Date(dog.lastAction.at).toISOString(), what: dog.lastAction.what } : null },
+    restart,
     online: clients > 0,
     clients,
     lastSeenAt: getKioskLastSeenAt() ? new Date(getKioskLastSeenAt()).toISOString() : null,

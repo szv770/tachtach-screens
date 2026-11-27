@@ -45,6 +45,8 @@ render tachtach-kiosk-restart.service
 render tachtach-kiosk-restart.timer
 render tachtach-update.service
 render tachtach-update.path
+render tachtach-kiosk-request.service
+render tachtach-kiosk-request.path
 
 # data/ must exist for ReadWritePaths= or the server unit fails to start.
 mkdir -p "$PROJECT_DIR/data"
@@ -100,6 +102,18 @@ if [ "$WEB_UPDATE_OK" = "1" ]; then
   chmod 600 "$MARK.new"
   mv -f "$MARK.new" "$MARK"
 fi
+
+# ── "Restart the screen" from the website / the freeze watchdog ─────────────
+# The web server may only drop data/kiosk-restart-request.json; tachtach-kiosk-request.path (root) notices it and restarts
+# the kiosk. Enable + start only (idempotent). The marker tells the admin page the button works on this box.
+systemctl enable tachtach-kiosk-request.path
+systemctl start tachtach-kiosk-request.path
+systemctl reset-failed tachtach-kiosk-request.path tachtach-kiosk-request.service 2>/dev/null || true
+KMARK="$PROJECT_DIR/data/kiosk-restart-installed.json"
+printf '{"version":1,"installedAt":"%s"}\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$KMARK.new"
+chown "$PI_USER:$PI_USER" "$KMARK.new"
+chmod 600 "$KMARK.new"
+mv -f "$KMARK.new" "$KMARK"
 
 # ── Boot into the desktop, logged in, with no screen blanking ───────────────
 # The kiosk needs a logged-in desktop session to draw on. Both are

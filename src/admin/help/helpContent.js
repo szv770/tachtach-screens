@@ -83,7 +83,7 @@ export const TOPICS = [
   { id: 'phone', title: 'Open the admin from my phone', go: 'this-screen',
     body: ['On the same Wi-Fi, go to http://<the server\'s address>:3000/admin.', 'At the TV itself: tap the top-left corner 5 times quickly to get the login box.'] },
   { id: 'tv-wrong', title: 'The TV looks wrong or stuck', go: 'this-screen',
-    body: ['Try Refresh Data under the preview first.', 'If the picture itself is broken, the screen restarts itself every few hours and also when it detects a graphics problem. You can force it with: sudo systemctl restart tachtach-kiosk (on the Raspberry Pi; on a Windows PC use the TachTach Kiosk task).'] },
+    body: ['Open Home. The card under the buttons says whether the TV is really painting ("The TV looks frozen" means connected but not updating). The screen restarts a frozen picture by itself within about two minutes.', 'To do it yourself, press Reload the TV page, and if that does not help, Restart the screen (the TV goes blank for about 30 seconds). No computer needed.', 'Try Refresh Data first if only the times or text look old.', 'If Restart the screen says it is not set up, update the box once: bash ~/tachtach-screens/deploy/update.sh. To see why it froze, run bash ~/tachtach-screens/deploy/kiosk-diagnose.sh on the box and send the output. Without the website: sudo systemctl restart tachtach-kiosk (on a Windows PC use the TachTach Kiosk task).'] },
   { id: 'update', title: 'Get the newest version', go: 'this-screen',
     body: ['On the server run: bash ~/tachtach-screens/deploy/update.sh. Your messages, schedule and settings are kept.'] },
   { id: 'password', title: 'I forgot the password or lost my authenticator', go: 'team',
