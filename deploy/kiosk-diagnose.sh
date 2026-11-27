@@ -33,6 +33,29 @@ echo; systemctl is-active tachtach-kiosk-request.path 2>/dev/null | sed 's/^/res
 hr "Browser (Chromium) processes: age and memory"
 ps -eo pid,etimes,rss,pcpu,comm --sort=-rss 2>/dev/null | awk 'NR==1 || /chrom/' | head -8
 
+hr "Black box: the box's vitals every 5 minutes, newest last (up = seconds since boot; thr = 0x0 is healthy; lagMs = server stall)"
+VITALS="$(dirname "$0")/../data/vitals.jsonl"
+if [ -f "$VITALS" ]; then
+  tail -n 36 "$VITALS" | node -e '
+    const lines = require("fs").readFileSync(0, "utf8").split("\n").filter(Boolean);
+    const cols = ["t","up","load","memFreeMB","swapUsedMB","tempC","thr","srvMB","lagMs","chrMB","tv","aliveAge","frozen","restarts"];
+    console.log(cols.join("\t"));
+    for (const l of lines) { try { const o = JSON.parse(l); console.log(cols.map((c) => (c === "t" ? String(o.t).slice(5, 16) : (o[c] ?? "-"))).join("\t")); } catch (e) {} }
+  ' 2>/dev/null || tail -n 12 "$VITALS"
+else
+  echo "(no vitals yet: the server writes one line every 5 minutes after the update)"
+fi
+
+hr "Boots the journal remembers, and how the previous boot ended (if logs are persistent)"
+journalctl --list-boots --no-pager 2>/dev/null | tail -6 || true
+journalctl -b -1 -n 40 --no-pager 2>/dev/null | tail -40 || echo "(no previous boot in the journal yet)"
+
+hr "Hardware watchdog (a hung box reboots itself when this shows 15s)"
+ls /dev/watchdog* 2>/dev/null || echo "no /dev/watchdog on this machine"
+systemctl show -p RuntimeWatchdogUSec 2>/dev/null || true
+journalctl -u systemd-journald -n 1 --no-pager 2>/dev/null | head -1 || true
+ls -d /var/log/journal 2>/dev/null | sed 's/^/persistent journal folder: /' || echo "journal is not persistent"
+
 hr "Kiosk journal, last 24 h: graphics / crash / kill lines (last 40)"
 journalctl -u tachtach-kiosk --since "24 hours ago" --no-pager 2>/dev/null | grep -i -E "kFatalFailure|GPU process|AllocateRingBuffer|crash|killed|SIGKILL|SIGSEGV|out of memory|restarting Chromium|Chromium exited" | tail -40 || true
 

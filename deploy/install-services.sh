@@ -115,6 +115,42 @@ chown "$PI_USER:$PI_USER" "$KMARK.new"
 chmod 600 "$KMARK.new"
 mv -f "$KMARK.new" "$KMARK"
 
+# ── Keep logs across reboots, and let the hardware watchdog reboot a box that hangs completely ─────────
+# A freeze after days of uptime left no evidence because the journal only kept the current boot. Persistent logs (capped, so the
+# SD card is not worn out) fix that. The Pi's hardware watchdog (/dev/watchdog) lets systemd reboot the whole box if the kernel or
+# systemd itself stops responding: the one kind of hang no browser or server watchdog can repair. Both are small drop-in files;
+# nothing here touches data/. Idempotent: a file is only rewritten (and systemd told) when its content changed.
+write_if_changed() {   # write_if_changed <path> ; content on stdin ; returns 0 when it changed
+  local target="$1" tmp; tmp="$(mktemp)"
+  cat > "$tmp"
+  if [ -f "$target" ] && cmp -s "$tmp" "$target"; then rm -f "$tmp"; return 1; fi
+  install -D -m 0644 "$tmp" "$target"; rm -f "$tmp"; return 0
+}
+if write_if_changed /etc/systemd/journald.conf.d/tachtach.conf <<'EOC'
+[Journal]
+Storage=persistent
+SystemMaxUse=200M
+EOC
+then
+  mkdir -p /var/log/journal
+  systemctl restart systemd-journald 2>/dev/null || true
+  echo "[install-services] logs now survive reboots (journal capped at 200 MB)"
+fi
+mkdir -p /var/log/journal
+if [ -e /dev/watchdog ]; then
+  if write_if_changed /etc/systemd/system.conf.d/tachtach-watchdog.conf <<'EOC'
+[Manager]
+RuntimeWatchdogSec=15
+RebootWatchdogSec=2min
+EOC
+  then
+    systemctl daemon-reexec 2>/dev/null || true
+    echo "[install-services] hardware watchdog armed: a completely hung box reboots itself"
+  fi
+else
+  echo "[install-services] no /dev/watchdog on this machine: hardware watchdog skipped"
+fi
+
 # ── Boot into the desktop, logged in, with no screen blanking ───────────────
 # The kiosk needs a logged-in desktop session to draw on. Both are
 # idempotent raspi-config settings; skipped on non-Raspberry-Pi-OS machines.

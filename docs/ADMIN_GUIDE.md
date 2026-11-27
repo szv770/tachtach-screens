@@ -578,6 +578,8 @@ You can only ask for one update every 5 minutes, and only admins see this card. 
 - **By itself:** if the picture stops for about a minute the server first asks the page to reload, and 45 seconds later restarts the TV's browser. It never restarts more than once per 10 minutes or 3 times an hour; after that it stops, shows **The screen keeps freezing**, and sends a phone alert (if alerts are on). Each action is in History.
 - **By you, from a phone:** Home > **Reload the TV page** (the page starts over) or **Restart the screen** (the browser restarts, about 30 seconds of black). Needs the "pause, skip, freeze, blank or refresh the screen" access. The restart button needs the box updated once (`bash ~/tachtach-screens/deploy/update.sh`); until then Home says so.
 - **Why did it freeze?** On the box run `bash ~/tachtach-screens/deploy/kiosk-diagnose.sh` (read-only) right after a freeze and send the output: it shows power and heat, memory, graphics errors, the clock and the restart schedule.
+- **After a power cut:** the Pi has no clock battery and boots with an old time until the network sets it. When the clock is corrected the screen box now re-arms its schedule, refreshes all data and reloads the TV by itself (History says "The clock was corrected").
+- **If the whole box ever hangs:** the update turns on the Pi's hardware watchdog, so a completely frozen box reboots itself within about a minute, and logs now survive reboots (`journalctl -b -1` shows the previous boot).
 - Windows screen computers: only **Reload the TV page** works from the website for now.
 
 ### The screen is blank or shows an error

@@ -61,12 +61,14 @@ import { forKiosk as rosterForKiosk } from '../shared/roster.js';
 import { readBudget } from './readLimiter.js';
 import embedProbeRouter from './routes/embed-probe.js';
 import { ensureMigrated, getStateExtras } from './announcements-store.js';
-import { initScheduler, setupTrackA, setupTrackB, setupTrackC } from './scheduler.js';
+import { initScheduler, setupTrackA, setupTrackB, setupTrackC, cancelAll, manualRefresh } from './scheduler.js';
+import { startClockJumpWatcher, jumpLabel } from './clockJump.js';
+import { startVitals } from './vitals.js';
 import { fetchAll, fetchZmanimOnly } from '../fetchers/index.js';
 import { readJSON } from './storage.js';
 import { dataPath } from './dataDir.js';
-import { broadcastToPreview } from './sse.js';
-import { getScreenState, setScreenState, setAlive, getScreenDisplay, followPayload } from './screenState.js';
+import { broadcastToPreview, broadcast, getKioskClientCount } from './sse.js';
+import { getScreenState, setScreenState, setAlive, getAlive, getWatchdogStatus, getScreenDisplay, followPayload } from './screenState.js';
 import { initGooglePhotosSync, isUnsafeAlbumPath } from './google-photos.js';
 import { initCountdowns, scheduleMidnightReset, getActiveCountdown } from './countdown.js';
 import { scheduleCleanup } from './cleanup.js';
@@ -225,6 +227,40 @@ export function createApp() {
         await startKioskWatchdog({ sendPush: (m) => sendPush(m), activity });
       } catch (dogErr) {
         console.error('[kiosk-watchdog] Startup error:', dogErr.message);
+      }
+      // The black box: a short line every 5 minutes (memory, heat, power, server stalls) for working out WHY a screen froze
+      try {
+        startVitals({
+          getFacts: () => {
+            const a = getAlive(); const w = getWatchdogStatus();
+            return { tvClients: getKioskClientCount(), aliveAgeSec: a.at ? Math.round((Date.now() - a.at) / 1000) : null, frozen: w.frozen, restartsLastHour: w.restartsLastHour };
+          },
+        });
+      } catch (vErr) {
+        console.error('[vitals] Startup error:', vErr.message);
+      }
+      // The Pi boots with an old clock until the network sets the time: when the clock jumps, re-arm the jobs and refresh
+      try {
+        startClockJumpWatcher({
+          onJump: async ({ driftMs }) => {
+            console.warn(`[clock] The clock jumped ${driftMs > 0 ? 'forward' : 'back'} by ${jumpLabel(driftMs)}: re-arming the schedule and refreshing the data`);
+            const settings = (await readJSON('settings.json')) ?? {};
+            const config = settings.location ?? {};
+            cancelAll();
+            if (settings.location) {
+              if (settings.scheduler?.trackA !== false) await setupTrackA(config);
+              if (settings.scheduler?.trackBTime) setupTrackB(config, settings.scheduler.trackBTime);
+            }
+            setupTrackC(config);
+            let result = null;
+            try { result = await manualRefresh(config); } catch (e) { console.error('[clock] refresh after the jump failed:', e.message); }
+            if (result) broadcast('cache-refresh', result);
+            broadcast('kiosk-reload', {}); // the TV starts clean with the right date
+            activity.record({ user: { name: 'The screen box', role: 'system' }, action: 'The clock was corrected: refreshed the data and the TV', detail: `${driftMs > 0 ? 'Forward' : 'Back'} ${jumpLabel(driftMs)}`, area: 'system' }).catch(() => {});
+          },
+        });
+      } catch (cjErr) {
+        console.error('[clock] Startup error:', cjErr.message);
       }
       // Phone alert when a software update (asked for from the admin) finishes
       try {
